@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="9"/>
+    <General>
+      <SessionStorage Value="InProjectDir"/>
+      <MainUnit Value="0"/>
+      <Title Value="stew-gui"/>
+      <ResourceType Value="res"/>
+      <UseXPManifest Value="True"/>
+      <Icon Value="0"/>
+    </General>
+    <i18n>
+      <EnableI18N LFM="False"/>
+    </i18n>
+    <VersionInfo>
+      <UseVersionInfo Value="True"/>
+      <AutoIncrementBuild Value="True"/>
+      <BuildNr Value="1"/>
+      <StringTable CompanyName="Town's Edge Technology, LLC" FileDescription="A Notekeeping and Manuscript management tool." LegalCopyright="Copyright © 2015 Neil M. Sheldon" ProductName="Stew" ProductVersion="0.1"/>
+    </VersionInfo>
+    <BuildModes Count="1">
+      <Item1 Name="Default" Default="True"/>
+    </BuildModes>
+    <PublishOptions>
+      <Version Value="2"/>
+    </PublishOptions>
+    <RunParams>
+      <local>
+        <FormatVersion Value="1"/>
+      </local>
+    </RunParams>
+    <RequiredPackages Count="1">
+      <Item1>
+        <PackageName Value="LCL"/>
+      </Item1>
+    </RequiredPackages>
+    <Units Count="13">
+      <Unit0>
+        <Filename Value="stewgui.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="stewgui"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="stewmainform.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="MainForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="stewmainform"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="stewproject.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="stewproject"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="stewfile.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="stewfile"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="stewasync.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="stewasync"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="stewprojectinspector.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="ProjectInspectorFrame"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Frame"/>
+        <UnitName Value="stewprojectinspector"/>
+      </Unit5>
+      <Unit6>
+        <Filename Value="stewconfig.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="stewconfig"/>
+      </Unit6>
+      <Unit7>
+        <Filename Value="stewjson.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="stewjson"/>
+      </Unit7>
+      <Unit8>
+        <Filename Value="stewdocumentinspector.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="DocumentInspector"/>
+        <ResourceBaseClass Value="Frame"/>
+        <UnitName Value="stewdocumentinspector"/>
+      </Unit8>
+      <Unit9>
+        <Filename Value="stewpreferencesinspector.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="ApplicationPreferencesInspector"/>
+        <ResourceBaseClass Value="Frame"/>
+        <UnitName Value="stewpreferencesinspector"/>
+      </Unit9>
+      <Unit10>
+        <Filename Value="stewprojectsettingsinspector.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="ProjectSettingsInspector"/>
+        <ResourceBaseClass Value="Frame"/>
+        <UnitName Value="stewprojectsettingsinspector"/>
+      </Unit10>
+      <Unit11>
+        <Filename Value="steweditorframe.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="EditorFrame"/>
+        <ResourceBaseClass Value="Frame"/>
+        <UnitName Value="steweditorframe"/>
+      </Unit11>
+      <Unit12>
+        <Filename Value="stewabout.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="AboutForm"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="stewabout"/>
+      </Unit12>
+    </Units>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <Target>
+      <Filename Value="../executable/$(TargetCPU)-$(TargetOS)/stew-gui"/>
+    </Target>
+    <SearchPaths>
+      <IncludeFiles Value="$(ProjOutDir)"/>
+      <UnitOutputDirectory Value="../units/$(TargetCPU)-$(TargetOS)"/>
+    </SearchPaths>
+    <Linking>
+      <Options>
+        <Win32>
+          <GraphicApplication Value="True"/>
+        </Win32>
+      </Options>
+    </Linking>
+    <Other>
+      <CompilerMessages>
+        <MsgFileName Value=""/>
+      </CompilerMessages>
+      <CompilerPath Value="$(CompPath)"/>
+    </Other>
+  </CompilerOptions>
+  <Debugging>
+    <Exceptions Count="3">
+      <Item1>
+        <Name Value="EAbort"/>
+      </Item1>
+      <Item2>
+        <Name Value="ECodetoolError"/>
+      </Item2>
+      <Item3>
+        <Name Value="EFOpenError"/>
+      </Item3>
+    </Exceptions>
+  </Debugging>
+</CONFIG>

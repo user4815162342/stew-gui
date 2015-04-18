@@ -1,0 +1,51 @@
+object MainForm: TMainForm
+  Left = 314
+  Height = 453
+  Top = 201
+  Width = 611
+  Caption = 'Stew'
+  Menu = MainMenu
+  OnClose = FormClose
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  OnShow = FormShow
+  Position = poDefault
+  LCLVersion = '1.2.6.0'
+  object MainMenu: TMainMenu
+    left = 24
+    top = 56
+    object FileMenuItem: TMenuItem
+      Caption = 'File'
+      object PreferencesMenuItem: TMenuItem
+        Caption = 'Preferences'
+        OnClick = PreferencesMenuItemClick
+      end
+      object ExitMenuItem: TMenuItem
+        Caption = 'Exit'
+        OnClick = ExitMenuItemClick
+      end
+    end
+    object ProjectMenuItem: TMenuItem
+      Caption = 'Project'
+      object RefreshProjectMenuItem: TMenuItem
+        Caption = 'Refresh'
+        OnClick = RefreshProjectMenuItemClick
+      end
+      object ProjectSettingsMenuItem: TMenuItem
+        Caption = 'Settings'
+        OnClick = ProjectSettingsMenuItemClick
+      end
+    end
+    object HelpMenuItem: TMenuItem
+      Caption = 'Help'
+      object AboutMenuItem: TMenuItem
+        Caption = 'About...'
+        OnClick = AboutMenuItemClick
+      end
+    end
+  end
+  object OpenProjectDialog: TSelectDirectoryDialog
+    Title = 'Select Stew Project Directory'
+    left = 24
+  end
+end

@@ -1,0 +1,84 @@
+object AboutForm: TAboutForm
+  Left = 238
+  Height = 103
+  Top = 181
+  Width = 320
+  AutoSize = True
+  BorderStyle = bsDialog
+  Caption = 'AboutForm'
+  ClientHeight = 103
+  ClientWidth = 320
+  OnCreate = FormCreate
+  Position = poMainFormCenter
+  LCLVersion = '1.2.6.0'
+  object TitleLabel: TLabel
+    Left = 0
+    Height = 16
+    Top = 0
+    Width = 320
+    Align = alTop
+    Alignment = taCenter
+    Caption = 'TitleLabel'
+    ParentColor = False
+  end
+  object VersionLabel: TLabel
+    Left = 0
+    Height = 16
+    Top = 16
+    Width = 320
+    Align = alTop
+    Alignment = taCenter
+    Caption = 'VersionLabel'
+    ParentColor = False
+  end
+  object BuildInfoLabel: TLabel
+    Left = 0
+    Height = 16
+    Top = 64
+    Width = 320
+    Align = alTop
+    Alignment = taCenter
+    Caption = 'BuildInfoLabel'
+    ParentColor = False
+  end
+  object DescriptionLabel: TLabel
+    Left = 0
+    Height = 16
+    Top = 48
+    Width = 320
+    Align = alTop
+    Alignment = taCenter
+    Caption = 'DescriptionLabel'
+    ParentColor = False
+  end
+  object CopyrightLabel: TLabel
+    Left = 0
+    Height = 16
+    Top = 32
+    Width = 320
+    Align = alTop
+    Alignment = taCenter
+    Caption = 'CopyrightLabel'
+    ParentColor = False
+  end
+  object CloseButton: TButton
+    AnchorSideLeft.Control = Owner
+    AnchorSideTop.Control = BuildInfoLabel
+    AnchorSideTop.Side = asrBottom
+    AnchorSideRight.Control = Owner
+    AnchorSideRight.Side = asrBottom
+    AnchorSideBottom.Control = Owner
+    AnchorSideBottom.Side = asrBottom
+    Left = 100
+    Height = 23
+    Top = 80
+    Width = 120
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    AutoSize = True
+    BorderSpacing.Left = 100
+    BorderSpacing.Right = 100
+    Caption = 'Close'
+    OnClick = CloseButtonClick
+    TabOrder = 0
+  end
+end

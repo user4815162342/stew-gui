@@ -1,0 +1,21 @@
+object DocumentInspector: TDocumentInspector
+  Left = 0
+  Height = 352
+  Top = 0
+  Width = 417
+  ClientHeight = 352
+  ClientWidth = 417
+  TabOrder = 0
+  DesignLeft = 618
+  DesignTop = 198
+  object StatusLabel: TLabel
+    Left = 0
+    Height = 16
+    Top = 336
+    Width = 417
+    Align = alBottom
+    Alignment = taCenter
+    Caption = '- document path appears here -'
+    ParentColor = False
+  end
+end
