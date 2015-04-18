@@ -1,4 +1,4 @@
-unit stewprojectsettingsinspector;
+unit stewprojectsettingseditor;
 
 {$mode objfpc}{$H+}
 
@@ -25,9 +25,9 @@ uses
 
 type
 
-  { TProjectSettingsInspector }
+  { TProjectSettingsEditor }
 
-  TProjectSettingsInspector = class(TEditorFrame)
+  TProjectSettingsEditor = class(TEditorFrame)
   private
     { private declarations }
   public
@@ -39,9 +39,9 @@ implementation
 
 {$R *.lfm}
 
-{ TProjectSettingsInspector }
+{ TProjectSettingsEditor }
 
-constructor TProjectSettingsInspector.Create(TheOwner: TComponent);
+constructor TProjectSettingsEditor.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
   Caption := 'Project Settings';

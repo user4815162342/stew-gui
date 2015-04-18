@@ -1,4 +1,4 @@
-object DocumentInspector: TDocumentInspector
+object DocumentEditor: TDocumentEditor
   Left = 0
   Height = 352
   Top = 0

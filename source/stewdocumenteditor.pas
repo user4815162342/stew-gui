@@ -1,4 +1,4 @@
-unit stewdocumentinspector;
+unit stewdocumenteditor;
 
 {$mode objfpc}{$H+}
 
@@ -23,9 +23,9 @@ type
   - Backups
 }
 
-  { TDocumentInspector }
+  { TDocumentEditor }
 
-  TDocumentInspector = class(TEditorFrame)
+  TDocumentEditor = class(TEditorFrame)
     StatusLabel: TLabel;
     { private declarations }
   protected
@@ -42,9 +42,9 @@ uses
 
 {$R *.lfm}
 
-{ TDocumentInspector }
+{ TDocumentEditor }
 
-procedure TDocumentInspector.SetDocument(AValue: TDocumentID);
+procedure TDocumentEditor.SetDocument(AValue: TDocumentID);
 var
   aName: String;
 begin
@@ -60,7 +60,7 @@ begin
   end;
 end;
 
-constructor TDocumentInspector.Create(TheOwner: TComponent);
+constructor TDocumentEditor.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
   // force the LCL to create a unique name of it's own.

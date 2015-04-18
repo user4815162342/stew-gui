@@ -8,8 +8,8 @@ uses
   {$ENDIF}{$ENDIF}
   Interfaces, // this includes the LCL widgetset
   Forms, stewmainform, stewproject, stewfile, stewasync, stewprojectinspector,
-  stewconfig, stewjson, stewdocumentinspector, stewpreferencesinspector, 
-stewprojectsettingsinspector, steweditorframe, stewabout;
+  stewconfig, stewjson, stewdocumenteditor, stewpreferenceseditor, 
+stewprojectsettingseditor, steweditorframe, stewabout;
 
 {$R *.res}
 

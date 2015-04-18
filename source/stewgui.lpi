@@ -83,30 +83,34 @@
         <UnitName Value="stewjson"/>
       </Unit7>
       <Unit8>
-        <Filename Value="stewdocumentinspector.pas"/>
+        <Filename Value="stewdocumenteditor.pas"/>
         <IsPartOfProject Value="True"/>
-        <ComponentName Value="DocumentInspector"/>
+        <ComponentName Value="DocumentEditor"/>
+        <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
-        <UnitName Value="stewdocumentinspector"/>
+        <UnitName Value="stewdocumenteditor"/>
       </Unit8>
       <Unit9>
-        <Filename Value="stewpreferencesinspector.pas"/>
+        <Filename Value="stewpreferenceseditor.pas"/>
         <IsPartOfProject Value="True"/>
-        <ComponentName Value="ApplicationPreferencesInspector"/>
+        <ComponentName Value="ApplicationPreferencesEditor"/>
+        <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
-        <UnitName Value="stewpreferencesinspector"/>
+        <UnitName Value="stewpreferenceseditor"/>
       </Unit9>
       <Unit10>
-        <Filename Value="stewprojectsettingsinspector.pas"/>
+        <Filename Value="stewprojectsettingseditor.pas"/>
         <IsPartOfProject Value="True"/>
-        <ComponentName Value="ProjectSettingsInspector"/>
+        <ComponentName Value="ProjectSettingsEditor"/>
+        <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
-        <UnitName Value="stewprojectsettingsinspector"/>
+        <UnitName Value="stewprojectsettingseditor"/>
       </Unit10>
       <Unit11>
         <Filename Value="steweditorframe.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="EditorFrame"/>
+        <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="steweditorframe"/>
       </Unit11>
@@ -114,6 +118,7 @@
         <Filename Value="stewabout.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="AboutForm"/>
+        <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="stewabout"/>
       </Unit12>

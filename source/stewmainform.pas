@@ -10,7 +10,7 @@ TODO: Working on rough up of interface.
 - start laying out some components on the DocumentInspector, based on the stuff below.
 (Now that I see what I've got, I have a lot more room, so maybe I don't need tabs on it,
 but design it with them in mind anyway).
-- document properties:
+
 
 
 TODO: Some interface ideas:
@@ -162,7 +162,7 @@ var
 implementation
 
 uses
-  stewprojectinspector, stewdocumentinspector, stewasync, stewpreferencesinspector, stewprojectsettingsinspector, LCLProc, stewabout;
+  stewprojectinspector, stewdocumenteditor, stewasync, stewpreferenceseditor, stewprojectsettingseditor, LCLProc, stewabout;
 
 {$R *.lfm}
 
@@ -478,11 +478,11 @@ begin
     // even though these *are* constants.
     // FUTURE: Some sort of 'class registry' might be useful here.
     if aDocument = PreferencesDocumentID then
-      EditorClass := TApplicationPreferencesInspector
+      EditorClass := TApplicationPreferencesEditor
     else if aDocument = ProjectSettingsDocumentID then
-      EditorClass := TProjectSettingsInspector
+      EditorClass := TProjectSettingsEditor
     else
-       EditorClass := TDocumentInspector;
+       EditorClass := TDocumentEditor;
     Result := (LayoutFrame(EditorClass,fDocumentPane) as TEditorFrame);
     Result.Document := aDocument;
     fOpenDocuments.Add(Result);

@@ -1,4 +1,4 @@
-unit stewpreferencesinspector;
+unit stewpreferenceseditor;
 
 {$mode objfpc}{$H+}
 
@@ -25,9 +25,9 @@ uses
 
 type
 
-  { TApplicationPreferencesInspector }
+  { TApplicationPreferencesEditor }
 
-  TApplicationPreferencesInspector = class(TEditorFrame)
+  TApplicationPreferencesEditor = class(TEditorFrame)
   private
     { private declarations }
   public
@@ -39,9 +39,9 @@ implementation
 
 {$R *.lfm}
 
-{ TApplicationPreferencesInspector }
+{ TApplicationPreferencesEditor }
 
-constructor TApplicationPreferencesInspector.Create(TheOwner: TComponent);
+constructor TApplicationPreferencesEditor.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
   Caption := 'Preferences';

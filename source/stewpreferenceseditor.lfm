@@ -1,4 +1,4 @@
-object ApplicationPreferencesInspector: TApplicationPreferencesInspector
+object ApplicationPreferencesEditor: TApplicationPreferencesEditor
   Left = 0
   Height = 240
   Top = 0
