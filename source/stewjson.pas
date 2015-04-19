@@ -115,28 +115,37 @@ type
   TAsyncFileBackedJSONObject = class(TManagedJSONObject)
   private
     fFilename: TFilename;
+    fFileAge: Longint;
     fCreateDir: Boolean;
     fModified: boolean;
     fOnFileLoaded: TNotifyEvent;
     fOnFileLoadFailed: TExceptionEvent;
     fOnFileSaved: TNotifyEvent;
     fOnFileSaveFailed: TExceptionEvent;
+    fOnFileSaveConflicted: TNotifyEvent;
     fFilingState: TJSONFilingState;
   protected
     procedure SetModified; override;
-    procedure FileLoaded(aData: TStream);
-    procedure FileSaved;
+    procedure FileLoaded(aData: TStream; aFileAge: Longint);
+    procedure FileSaved(aFileAge: Longint);
     procedure FileLoadFailed(aError: Exception);
     procedure FileSaveFailed(aError: Exception);
+    // File age is only passed for informational purposes, and I don't
+    // need that information here.
+    procedure FileSaveConflicted({%H-}aFileAge: Longint);
   public
     constructor Create(afileName: TFilename; aCreateDir: Boolean = false);
     procedure Load;
-    procedure Save;
+    // set force to true to ignore conflicts. This is usually done after
+    // an attempt to save fails due to a file time conflict and the user chooses
+    // to save anyway.
+    procedure Save(aForce: Boolean = false);
     property Modified: boolean read fModified;
     property OnFileLoaded: TNotifyEvent read fOnFileLoaded write fOnFileLoaded;
     property OnFileLoadFailed: TExceptionEvent read fOnFileLoadFailed write fOnFileLoadFailed;
     property OnFileSaved: TNotifyEvent read fOnFileSaved write fOnFileSaved;
     property OnFileSaveFailed: TExceptionEvent read fOnFileSaveFailed write fOnFileSaveFailed;
+    property OnFileSaveConflicted: TNotifyEvent read fOnFileSaveConflicted write fOnFileSaveConflicted;
   end;
 
   { TManagedJSONArray }
@@ -200,15 +209,17 @@ uses
 
 { TAsyncFileBackedJSONObject }
 
-procedure TAsyncFileBackedJSONObject.FileLoaded(aData: TStream);
+procedure TAsyncFileBackedJSONObject.FileLoaded(aData: TStream; aFileAge: Longint);
 var
   parser : TJSONParser;
   fileContents : TJSONData;
 begin
   if (aData = nil) then
   begin
+    // the file does not exist yet.
      NeedData(true);
      fdata.Clear;
+     fFileAge := aFileAge;
   end
   else
   begin
@@ -219,6 +230,7 @@ begin
       begin
         FreeAndNil(fData);
         fData := fileContents as TJSONObject;
+        fFileAge := aFileAge;
       end
       else
       begin
@@ -234,9 +246,10 @@ begin
   fFilingState := jfsInactive;
 end;
 
-procedure TAsyncFileBackedJSONObject.FileSaved;
+procedure TAsyncFileBackedJSONObject.FileSaved(aFileAge: Longint);
 begin
   fModified := false;
+  fFileAge := aFileAge;
   if fOnFileSaved <> nil then
     fOnFileSaved(Self);
   fFilingState := jfsInactive;
@@ -256,6 +269,15 @@ begin
   fFilingState := jfsInactive;
 end;
 
+procedure TAsyncFileBackedJSONObject.FileSaveConflicted(aFileAge: Longint);
+begin
+  if fOnFileSaveConflicted <> nil then
+    fOnFileSaveConflicted(Self)
+  else if fOnFileSaveFailed <> nil then
+    fOnFileSaveFailed(Self,Exception.Create('File could not be saved because it was changed on disk since the last save'));
+  fFilingState := jfsInactive;
+end;
+
 procedure TAsyncFileBackedJSONObject.SetModified;
 begin
   if not fModified then
@@ -271,6 +293,7 @@ begin
   fModified := false;
   fFilename := afileName;
   fCreateDir := aCreateDir;
+  fFileAge := -1; // indicates that this might be a new file.
 end;
 
 procedure TAsyncFileBackedJSONObject.Load;
@@ -282,7 +305,7 @@ begin
   // otherwise, already loading, so ignore.
 end;
 
-procedure TAsyncFileBackedJSONObject.Save;
+procedure TAsyncFileBackedJSONObject.Save(aForce: Boolean = false);
 var
   text: UTF8String;
 begin
@@ -292,7 +315,7 @@ begin
     begin
       fFilingState := jfsSaving;
       text := UTF8String(fData.FormatJSON());
-      TWriteFile.Create(fFilename,true,text,@FileSaved,@FileSaveFailed).Enqueue;
+      TWriteFile.Create(fFilename,fCreateDir and (fFileAge = -1),not aForce,fFileAge,text,@FileSaved,@FileSaveConflicted,@FileSaveFailed).Enqueue;
 
     end
     else if fFilingState = jfsLoading then

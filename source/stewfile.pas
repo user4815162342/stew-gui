@@ -37,39 +37,44 @@ type
     constructor Create(const aPath: TFilename; aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
   end;
 
-  TDeferredStreamCallback = specialize GDeferredCallback<TStream>;
+  TReadFileCallback = procedure(aData: TStream; aFileAge: Longint) of object;
 
   { TReadFile }
 
   TReadFile = class(TDeferredTask)
   private
     fPath: TFilename;
-    fCallback: TDeferredStreamCallback;
+    fCallback: TReadFileCallback;
   protected
     procedure DoTask; override;
   public
-    constructor Create(const aPath: TFilename; aCallback: TDeferredStreamCallback; aErrorback: TDeferredExceptionCallback);
+    constructor Create(const aPath: TFilename; aCallback: TReadFileCallback; aErrorback: TDeferredExceptionCallback);
   end;
 
 
-  TDeferredCallback = procedure of object;
+  TWriteFileCallback = procedure(aFileAge: Longint) of object;
 
   { TWriteFile }
 
   TWriteFile = class(TDeferredTask)
   private
     fPath: TFilename;
+    fFileAge: Longint;
+    fCheckFileAge: Boolean;
     fCreateDir: Boolean;
     fData: UTF8String;
-    fCallback: TDeferredCallback;
+    fCallback: TWriteFileCallback;
+    fConflictBack: TWriteFileCallback;
   protected
     procedure DoTask; override;
   public
     constructor Create(const aPath: TFilename; const aData: UTF8String;
-      aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
+      aCallback: TWriteFileCallback; aErrorback: TDeferredExceptionCallback);
   overload;
-    constructor Create(const aPath: TFilename; aCreateDir: Boolean;
-      const aData: UTF8String; aCallback: TDeferredCallback;
+    // NOTE: for FileAge, pass the mtime retrieved by the TReadFile.
+    // If the file was new, pass -1.
+    constructor Create(const aPath: TFilename; aCreateDir: Boolean; aCheckFileAge: Boolean; aFileAge: Longint;
+      const aData: UTF8String; aCallback: TWriteFileCallback; aConflictBack: TWriteFileCallback;
   aErrorback: TDeferredExceptionCallback); overload;
   end;
 
@@ -92,10 +97,39 @@ end;
 
 { TWriteFile }
 
+// TODO: At some point, I need to 'test' the save conflicts.
 procedure TWriteFile.DoTask;
 var
   stream: TFileStream;
+  aCurrentAge: Longint;
 begin
+  // FUTURE: There is a potential race condition here. The file could
+  // be modified between this file age check and the actual write.
+  // However, by the time we get done with TFileStream.Create, there's
+  // no way to check the previous creation time. So... we'll just have
+  // to hope things aren't going too fast. I could possibly fix this by locking
+  // the file, checking the mtime, then opening it, but I've never done that
+  // before so I'd have to do some research that I don't have time for right now.
+  if fCheckFileAge then
+  begin
+    aCurrentAge := FileAge(fPath);
+    // if the file does not exist yet, it should return -1. If the file
+    // did not exist before, the caller should have passed -1 to indicate a
+    // new file. These are the possible conditions I see:
+    // fFileAge  fCurrentAge   means
+    // -1        -1            file did not exist before, file does not exist now, no conflict, write as normal.
+    // -1        > -1          file did not exist before, file does exist now, conflict, so report and don't write.
+    // > -1      = fFileAge    file existed before, file has same mtime as before, no conflict, write as normal.
+    // > -1      <> fFileAgge  file existed before, file has different mtime now, conflict, so report and don't write.
+    if aCurrentAge <> fFileAge then
+    begin
+      if fConflictBack <> nil then
+        fConflictBack(aCurrentAge)
+      else
+        raise Exception.Create('File has been changed since last read. Can''t write.');
+    end;
+  end;
+
   if not DirectoryExists(ExtractFileDir(fPath)) and fCreateDir then
   begin
      ForceDirectories(ExtractFileDir(fPath));
@@ -104,30 +138,35 @@ begin
 
   stream := TFileStream.Create(fPath,fmCreate or fmShareDenyWrite);
   try
+    aCurrentAge := FileAge(fPath);
     stream.Write(fData[1],Length(fData));
   finally
     stream.Free;
   end;
-  fCallback;
+  fCallback(aCurrentAge);
 
 end;
 
 constructor TWriteFile.Create(const aPath: TFilename; const aData: UTF8String;
-  aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
+  aCallback: TWriteFileCallback; aErrorback: TDeferredExceptionCallback);
 begin
-  Create(aPath,false,aData,aCallback,aErrorback);
+  Create(aPath,false,false,-1,aData,aCallback,nil,aErrorback);
 
 end;
 
 constructor TWriteFile.Create(const aPath: TFilename; aCreateDir: Boolean;
-  const aData: UTF8String; aCallback: TDeferredCallback;
+  aCheckFileAge: Boolean; aFileAge: Longint; const aData: UTF8String;
+  aCallback: TWriteFileCallback; aConflictBack: TWriteFileCallback;
   aErrorback: TDeferredExceptionCallback);
 begin
   inherited Create(aErrorback);
   fPath := aPath;
+  fFileAge := aFileAge;
+  fCheckFileAge := aCheckFileAge;
   fCreateDir := aCreateDir;
   fData := aData;
   fCallback := aCallback;
+  fConflictBack := aConflictBack;
 
 end;
 
@@ -137,25 +176,29 @@ end;
 procedure TReadFile.DoTask;
 var
   stream: TFileStream;
+  age: Longint;
 begin
   if FileExists(fPath) then
   begin
      stream := TFileStream.Create(fPath,fmOpenRead or fmShareDenyWrite);
      try
-       fCallback(stream);
+       // get the age of the file now, while it's locked, to prevent certain
+       // race conditions
+       age := FileAge(fPath);
+       fCallback(stream,age);
      finally
        stream.Free;
      end;
   end
   else
   begin
-    fCallback(nil);
+    fCallback(nil,-1);
   end;
 
 end;
 
 constructor TReadFile.Create(const aPath: TFilename;
-  aCallback: TDeferredStreamCallback; aErrorback: TDeferredExceptionCallback);
+  aCallback: TReadFileCallback; aErrorback: TDeferredExceptionCallback);
 begin
   inherited Create(aErrorback);
   fCallback := aCallback;

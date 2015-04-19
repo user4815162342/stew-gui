@@ -11,6 +11,7 @@ TODO: Working on rough up of interface.
 (Now that I see what I've got, I have a lot more room, so maybe I don't need tabs on it,
 but design it with them in mind anyway).
 
+TODO: Then, push it up to Github for anyone who's interested to see what I'm doing.
 
 
 TODO: Some interface ideas:
