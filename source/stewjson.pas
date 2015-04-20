@@ -26,8 +26,6 @@ type
 
   TManagedJSONObject = class
   private
-    fdata: TJSONObject;
-    fOwnsData: Boolean;
     function GetArray(const AName: String): TJSONArray;
     function GetBoolean(const AName: String): Boolean;
     function GetFloat(const AName: String): TJSONFloat;
@@ -51,8 +49,7 @@ type
     function IsManaged({%H-}aPropertyName: String): boolean; virtual;
     function GetItem(const aName: String): TJSONData; overload; virtual;
     procedure SetItem(const aName: String; AValue: TJSONData); virtual;
-    procedure NeedData(aCreate: Boolean);
-    function DoGetData(aCreate: Boolean): TJSONObject; virtual;
+    function NeedData(aCreate: Boolean): TJSONObject; virtual; abstract;
     procedure SetModified; virtual; abstract;
     function FindOrDefault(const aName: String; const aDefault: TJSONFloat): TJSONFloat; overload;
     function FindOrDefault(const aName: String; const aDefault: Integer): Integer; overload;
@@ -70,8 +67,6 @@ type
     function CreateManagedObject(const aName: String): TJSONObject; overload;
     function CreateManagedArray(const aName: String): TJSONArray; overload;
   public
-    constructor Create(aOwnsData: Boolean);
-    destructor Destroy; override;
     property Item[const aName: String]: TJSONData read GetItem write SetItem; default;
     Property JSONType[const AName: String] : TJSONType Read GetType;
     Property Null[const AName: String] : Boolean Read GetIsNull Write SetIsNull;
@@ -91,7 +86,7 @@ type
     fParent: TManagedJSONObject;
     fParentKey: String;
   protected
-    function DoGetData(aCreate: Boolean): TJSONObject; override;
+    function NeedData(aCreate: Boolean): TJSONObject; override;
     procedure SetModified; override;
   public
     constructor Create(aParent: TManagedJSONObject; aParentProperty: String);
@@ -101,12 +96,15 @@ type
 
   TFileBackedJSONObject = class(TManagedJSONObject)
   private
+    fData: TJSONObject;
     fFilename: TFilename;
     fModified: boolean;
   protected
     procedure SetModified; override;
+    function NeedData(aCreate: Boolean): TJSONObject; override;
   public
     constructor Create(afileName: TFilename);
+    destructor Destroy; override;
     procedure Load;
     procedure Save;
     property Modified: boolean read fModified;
@@ -119,6 +117,7 @@ type
 
   TAsyncFileBackedJSONObject = class(TManagedJSONObject)
   private
+    fData: TJSONObject;
     fFilename: TFilename;
     fFileAge: Longint;
     fCreateDir: Boolean;
@@ -131,6 +130,7 @@ type
     fFilingState: TJSONFilingState;
   protected
     procedure SetModified; override;
+    function NeedData(aCreate: Boolean): TJSONObject; override;
     procedure FileLoaded(aData: TStream; aFileAge: Longint);
     procedure FileSaved(aFileAge: Longint);
     procedure FileLoadFailed(aError: Exception);
@@ -140,6 +140,7 @@ type
     procedure FileSaveConflicted({%H-}aFileAge: Longint);
   public
     constructor Create(afileName: TFilename; aCreateDir: Boolean = false);
+    destructor Destroy; override;
     procedure Load;
     // set force to true to ignore conflicts. This is usually done after
     // an attempt to save fails due to a file time conflict and the user chooses
@@ -165,12 +166,9 @@ type
   // was too complex.
   TManagedJSONArray = class
   private
-    fdata: TJSONArray;
-    fOwnsData: Boolean;
     procedure SetManagedValue(const aIndex: Integer; aValue: TJSONData); overload;
   protected
-    procedure NeedData(aCreate: Boolean);
-    function DoGetData(aCreate: Boolean): TJSONArray; virtual; abstract;
+    function NeedData(aCreate: Boolean): TJSONArray; virtual; abstract;
     procedure SetModified; virtual; abstract;
     function FindOrDefault(const aIndex: Integer; const aDefault: TJSONFloat): TJSONFloat; overload;
     function FindOrDefault(const aIndex: Integer; const aDefault: Integer): Integer; overload;
@@ -187,9 +185,6 @@ type
     procedure DeleteManagedValue(const aIndex: Integer); overload;
     function CreateManagedObject(const aIndex: Integer): TJSONObject; overload;
     function CreateManagedArray(const aIndex: Integer): TJSONArray; overload;
-  public
-    constructor Create(aOwnsData: Boolean);
-    destructor Destroy; override;
   end;
 
   { TParentedJSONArray }
@@ -199,7 +194,7 @@ type
     fParent: TManagedJSONObject;
     fParentKey: String;
   protected
-    function DoGetData(aCreate: Boolean): TJSONArray; override;
+    function NeedData(aCreate: Boolean): TJSONArray; override;
     procedure SetModified; override;
   public
     constructor Create(aParent: TManagedJSONObject; aParentProperty: String);
@@ -221,10 +216,9 @@ var
 begin
   if (aData = nil) then
   begin
-    // the file does not exist yet.
-     NeedData(true);
-     fdata.Clear;
-     fFileAge := aFileAge;
+    // the file does not exist yet, so create a blank data object.
+    NeedData(true).Clear;
+    fFileAge := aFileAge;
   end
   else
   begin
@@ -291,14 +285,28 @@ begin
   end;
 end;
 
+function TAsyncFileBackedJSONObject.NeedData(aCreate: Boolean): TJSONObject;
+begin
+  if (fData = nil) and aCreate then
+    fData := TJSONObject.Create;
+  result := fData;
+end;
+
 constructor TAsyncFileBackedJSONObject.Create(afileName: TFilename;
   aCreateDir: Boolean);
 begin
-  inherited Create(true);
+  inherited Create;
+  fData := nil; // starts off blank until loaded.
   fModified := false;
   fFilename := afileName;
   fCreateDir := aCreateDir;
   fFileAge := -1; // indicates that this might be a new file.
+end;
+
+destructor TAsyncFileBackedJSONObject.Destroy;
+begin
+  if fData <> nil then
+    FreeAndNil(fData);
 end;
 
 procedure TAsyncFileBackedJSONObject.Load;
@@ -331,7 +339,7 @@ end;
 
 { TParentedJSONArray }
 
-function TParentedJSONArray.DoGetData(aCreate: Boolean): TJSONArray;
+function TParentedJSONArray.NeedData(aCreate: Boolean): TJSONArray;
 begin
   if fparent <> nil then
   begin
@@ -358,7 +366,7 @@ end;
 constructor TParentedJSONArray.Create(aParent: TManagedJSONObject;
   aParentProperty: String);
 begin
-  inherited Create(false);
+  inherited Create;
   fparent := aParent;
   fParentKey := aParentProperty;
 end;
@@ -367,28 +375,19 @@ end;
 
 procedure TManagedJSONArray.SetManagedValue(const aIndex: Integer;
   aValue: TJSONData);
+var
+  aData: TJSONArray;
 begin
-  if (fdata = nil) then
-  begin
-    NeedData(true);
-  end;
+  aData := NeedData(true);
   if AValue <> nil then
   begin
-    fdata[aIndex] := AValue;
+    adata[aIndex] := AValue;
   end
   else
   begin
-    fdata.Delete(aIndex);
+    adata.Delete(aIndex);
   end;
   SetModified;
-end;
-
-procedure TManagedJSONArray.NeedData(aCreate: Boolean);
-begin
-  if fdata = nil then
-  begin
-    fdata := DoGetData(aCreate);
-  end;
 end;
 
 function TManagedJSONArray.FindOrDefault(const aIndex: Integer;
@@ -473,12 +472,14 @@ end;
 
 function TManagedJSONArray.Find(const aIndex: Integer; const aType: TJSONtype
   ): TJSONData;
+var
+  aData: TJSONArray;
 begin
   result := nil;
-  NeedData(false);
-  if (fData <> nil) and (aIndex >= 0) and (aIndex < fdata.Count) then
+  aData := NeedData(false);
+  if (aData <> nil) and (aIndex >= 0) and (aIndex < aData.Count) then
   begin
-    result := fdata[aIndex];
+    result := aData[aIndex];
     if result.JSONType <> aType then
     begin
       result := nil;
@@ -539,26 +540,9 @@ begin
   SetManagedValue(aIndex,Result);
 end;
 
-constructor TManagedJSONArray.Create(aOwnsData: Boolean);
-begin
-  fdata := nil;
-  fOwnsData:= aOwnsData;
-end;
-
-destructor TManagedJSONArray.Destroy;
-begin
-  if fOwnsData and (fdata <> nil) then
-  begin
-    FreeAndNil(fdata);
-  end;
-  inherited;
-end;
-
-{ GParentedJSONData }
-
 { TParentedJSONObject }
 
-function TParentedJSONObject.DoGetData(aCreate: Boolean): TJSONObject;
+function TParentedJSONObject.NeedData(aCreate: Boolean): TJSONObject;
 begin
   if fparent <> nil then
   begin
@@ -585,7 +569,7 @@ end;
 constructor TParentedJSONObject.Create(aParent: TManagedJSONObject;
   aParentProperty: String);
 begin
-  inherited Create(false);
+  inherited Create;
   fparent := aParent;
   fParentKey := aParentProperty;
 end;
@@ -600,10 +584,25 @@ begin
   end;
 end;
 
+function TFileBackedJSONObject.NeedData(aCreate: Boolean): TJSONObject;
+begin
+  if (fData = nil) and aCreate then
+    fData := TJSONObject.Create;
+  result := fData;
+end;
+
 constructor TFileBackedJSONObject.Create(afileName: TFilename);
 begin
-  inherited Create(true);
+  inherited Create;
   fFilename := afileName;
+  fData := nil;
+end;
+
+destructor TFileBackedJSONObject.Destroy;
+begin
+  if fData <> nil then
+    FreeAndNil(fData);
+  inherited Destroy;
 end;
 
 procedure TFileBackedJSONObject.Load;
@@ -614,8 +613,7 @@ var
 begin
   If Not FileExists(fFileName) then
   begin
-    NeedData(true);
-    fData.Clear;
+    NeedData(true).Clear;
   end
   else
   begin
@@ -743,15 +741,18 @@ begin
 end;
 
 function TManagedJSONObject.GetItem(const aName: String): TJSONData;
+var
+  aData: TJSONObject;
 begin
   result := nil;
-  if (fdata <> nil) then
+  if not IsManaged(aName) then
   begin
-     if not IsManaged(aName) then
-     begin
-        result := fdata.Find(aName);
-     end;
-  end
+    aData := NeedData(false);
+    if (adata <> nil) then
+    begin
+      result := adata.Find(aName);
+    end
+  end;
 
 end;
 
@@ -848,26 +849,6 @@ begin
 
 end;
 
-procedure TManagedJSONObject.NeedData(aCreate: Boolean);
-begin
-  if fdata = nil then
-  begin
-    fdata := DoGetData(aCreate);
-  end;
-end;
-
-function TManagedJSONObject.DoGetData(aCreate: Boolean): TJSONObject;
-begin
-  if aCreate then
-  begin;
-    result := TJSONObject.Create;
-  end
-  else
-  begin
-    result := nil;
-  end;
-end;
-
 procedure TManagedJSONObject.SetObject(const AName: String; AValue: TJSONObject);
 begin
   SetItem(AName,AValue);
@@ -881,18 +862,17 @@ end;
 
 procedure TManagedJSONObject.SetManagedValue(const aName: String;
   aValue: TJSONData);
+var
+  aData: TJSONObject;
 begin
-  if (fdata = nil) then
-  begin
-    NeedData(true);
-  end;
+  aData := NeedData(true);
   if AValue <> nil then
   begin
-    fdata[aName] := AValue;
+    adata[aName] := AValue;
   end
   else
   begin
-    fdata.Delete(aName);
+    adata.Delete(aName);
   end;
   SetModified;
 end;
@@ -901,12 +881,6 @@ function TManagedJSONObject.IsManaged(aPropertyName: String): boolean;
 begin
 // override in descendants to prevent 'special' properties from being set.
   result := false;
-end;
-
-constructor TManagedJSONObject.Create(aOwnsData: Boolean);
-begin
-  fdata := nil;
-  fOwnsData:= aOwnsData;
 end;
 
 function TManagedJSONObject.FindOrDefault(const aName: String;
@@ -991,12 +965,14 @@ end;
 
 function TManagedJSONObject.Find(const aName: String; const aType: TJSONtype
   ): TJSONData;
+var
+  aData: TJSONObject;
 begin
   result := nil;
-  NeedData(false);
-  if fData <> nil then
+  aData := NeedData(false);
+  if aData <> nil then
   begin
-    result := fdata.Find(aName,aType);
+    result := adata.Find(aName,aType);
   end;
 end;
 
@@ -1052,15 +1028,6 @@ function TManagedJSONObject.CreateManagedArray(const aName: String): TJSONArray;
 begin
   result := TJSONArray.Create;
   SetManagedValue(aName,Result);
-end;
-
-destructor TManagedJSONObject.Destroy;
-begin
-  if fOwnsData and (fdata <> nil) then
-  begin
-    FreeAndNil(fdata);
-  end;
-  inherited Destroy;
 end;
 
 end.
