@@ -6,6 +6,26 @@ interface
 
 {
 
+TODO: For the project, we need the following life cycle.
+- create: just creates the project with a filename, doesn't do anything else interesting.
+- open: This is a sort of async messaging process, throwing procedure handles
+  back and forth.
+  - check if the _stew.json file exists at the original path.
+    - yes: go ahead and report that the project is 'open'.
+    - no: ask the caller if they should search up the directory tree to find one.
+       - yes: search up the tree to find one. Is one found?
+           - yes: ask the caller if this other one should be opened.
+              - yes: change the file path and report that the project is open.
+              - no: report that the project could not be opened.
+           - no: ask the caller if a new one should be created at the original path.
+                (Only if the file access at the path is writeable. We have to be
+                able to handle read-only file access for future internet compatibility and
+                write protection).
+              - yes: touch the _stew.json file and report that the project is open.
+              - no: report that the project could not be opened.
+- Before any action is taken, check if the project is open first. I don't want
+to mess with things weirdly if it's not.
+
 TODO: Working on rough up of interface.
 - start laying out some components on the DocumentInspector, based on the stuff below.
 (Now that I see what I've got, I have a lot more room, so maybe I don't need tabs on it,
@@ -119,7 +139,9 @@ type
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure ParentProjectDirectoryExists(aValue: Boolean);
     procedure PreferencesMenuItemClick(Sender: TObject);
+    procedure ProjectLoadFailed(E: Exception);
     procedure ProjectSettingsMenuItemClick(Sender: TObject);
     procedure RefreshProjectMenuItemClick(Sender: TObject);
   private
@@ -135,6 +157,7 @@ type
   protected
     procedure StartupCheckProject({%H-}Data: PtrInt);
     procedure StartupProjectExists(aValue: Boolean);
+    procedure ProjectLoaded;
     procedure NotifyObservers(aAction: TMainFormAction);
     procedure ReadUISettings;
     procedure WriteUISettings;
@@ -323,9 +346,43 @@ begin
 
 end;
 
+procedure TMainForm.ParentProjectDirectoryExists(aValue: Boolean);
+begin
+  if not aValue then
+  begin
+    // TODO: Search the parents (use a method on the project, so *it* can
+    // change the directory instead). If not found, then ask if the user
+    // wants to create a new one (again, use a method on the project).
+    if MessageDlg('No stew project could be found.' + LineEnding +
+               'Would you like to create one at: ' + fProject.DiskPath + '?',mtConfirmation,mbOKCancel,0) =
+       mrOK then
+    begin;
+      fProject.OpenNewAtPath(@ProjectLoadFailed);
+
+    end
+    else
+      Close;
+  end
+  else
+  begin
+    ShowMessage('Found a project at: ' + fProject.DiskPath);
+    ProjectLoaded;
+
+  end;
+
+end;
+
 procedure TMainForm.PreferencesMenuItemClick(Sender: TObject);
 begin
   OpenPreferences;
+end;
+
+procedure TMainForm.ProjectLoadFailed(E: Exception);
+begin
+  ShowMessage('The project couldn''t be loaded.' + LineEnding +
+              'The error message was: ' + E.Message + LineEnding +
+              'This program will close.');
+  Close;
 end;
 
 procedure TMainForm.ProjectSettingsMenuItemClick(Sender: TObject);
@@ -355,7 +412,7 @@ begin
     end;
   end;
 
-  fProject.Exists(@StartupProjectExists,@Application.ShowException);
+  fProject.OpenAtPath(@StartupProjectExists,@ProjectLoadFailed);
 
 end;
 
@@ -363,20 +420,35 @@ procedure TMainForm.StartupProjectExists(aValue: Boolean);
 begin
   if not aValue then
   begin
-    // TODO: Should ask if you want to create it.
-    ShowMessage('Couldn''t find stew project at: ' + fProject.DiskPath);
-    Close;
+    // TODO: Search the parents (use a method on the project, so *it* can
+    // change the directory instead). If not found, then ask if the user
+    // wants to create a new one (again, use a method on the project).
+    if MessageDlg('There is no stew project at: ' + fProject.DiskPath + LineEnding +
+               'Would you like to search for one in parent directories?',mtConfirmation,mbOKCancel,0) =
+       mrOK then
+    begin;
+      fProject.OpenInParentDirectory(@ParentProjectDirectoryExists,@ProjectLoadFailed);
+
+    end
+    else
+      ParentProjectDirectoryExists(false);
   end
   else
   begin
-    Enabled := true;
-    fConfig.MRUProject := fProject.DiskPath;
-    Self.Caption := Application.Title + ' - ' + fProject.GetProjectName;
-
-    NotifyObservers(mfaProjectRefresh);
+    ProjectLoaded;
 
 
   end;
+
+end;
+
+procedure TMainForm.ProjectLoaded;
+begin
+  Enabled := true;
+  fConfig.MRUProject := fProject.DiskPath;
+  Self.Caption := Application.Title + ' - ' + fProject.GetProjectName;
+
+  NotifyObservers(mfaProjectRefresh);
 
 end;
 

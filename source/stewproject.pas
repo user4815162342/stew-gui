@@ -41,7 +41,9 @@ type
     // TODO: procedure MoveHere(NewChild: T);
     function GetDiskPath(const ADocument: TDocumentID): TFileName;
     function GetBaseName(const aDocument: TDocumentID): TDocumentBaseName;
-    procedure Exists(aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
+    procedure OpenAtPath(aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
+    procedure OpenInParentDirectory(aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
+    procedure OpenNewAtPath(aErrorback: TDeferredExceptionCallback);
     function GetProjectName: String;
   end;
 
@@ -177,10 +179,81 @@ begin
   result := ExtractFileName(aDocument);
 end;
 
-procedure TStewProject.Exists(aCallback: TDeferredBooleanCallback;
+procedure TStewProject.OpenAtPath(aCallback: TDeferredBooleanCallback;
   aErrorback: TDeferredExceptionCallback);
 begin
-  TFileExists.Create(fDisk,aCallback,aErrorback).Enqueue;
+  TFileExists.Create(IncludeTrailingPathDelimiter(fDisk) + '_stew.json',aCallback,aErrorback).Enqueue;
+end;
+
+type
+
+  { TSearchParentDirectories }
+
+  TSearchParentDirectories = class
+  private
+    fProject: TStewProject;
+    fPath: TFilename;
+    fCallback: TDeferredBooleanCallback;
+    fErrorback: TDeferredExceptionCallback;
+    procedure FileExistsCallback(Data: Boolean);
+  public
+    constructor Create(aProject: TStewProject; aPath: TFilename; aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
+    procedure Enqueue;
+  end;
+
+{ TSearchParentDirectories }
+
+procedure TSearchParentDirectories.FileExistsCallback(Data: Boolean);
+var
+  aPath: TFilename;
+begin
+  if (Data) then
+  begin
+    fProject.fDisk := fPath;
+    fCallback(true);
+  end
+  else
+  begin
+    aPath := ExtractFileDir(ExcludeTrailingPathDelimiter(fPath));
+    if aPath = fPath then
+    begin
+      fCallback(false);
+    end
+    else
+    begin
+      fPath := aPath;
+      TFileExists.Create(IncludeTrailingPathDelimiter(fPath) + '_stew.json',@FileExistsCallback,fErrorback).Enqueue;
+    end;
+  end;
+end;
+
+constructor TSearchParentDirectories.Create(aProject: TStewProject;
+  aPath: TFilename; aCallback: TDeferredBooleanCallback;
+  aErrorback: TDeferredExceptionCallback);
+begin
+  inherited Create;
+  fProject := aProject;
+  fPath := aPath;
+  fCallback := aCallback;
+  fErrorback := aErrorback;
+end;
+
+procedure TSearchParentDirectories.Enqueue;
+begin
+  TFileExists.Create(IncludeTrailingPathDelimiter(fPath) + '_stew.json',@FileExistsCallback,fErrorback).Enqueue;
+end;
+
+
+procedure TStewProject.OpenInParentDirectory(
+  aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
+begin
+  TSearchParentDirectories.Create(Self,fDisk,aCallback,aErrorback).Enqueue;
+end;
+
+procedure TStewProject.OpenNewAtPath(aErrorback: TDeferredExceptionCallback);
+begin
+  // TODO: Create the stew file, etc. and save it to the current path.
+  TDeferredExceptionCall.Create(aErrorback,Exception.Create('Can''t create projects yet')).Enqueue;
 end;
 
 function TStewProject.GetProjectName: String;

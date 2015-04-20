@@ -17,6 +17,11 @@ uses
 
 type
 
+  // TODO: What happens if they want to 'refresh' the data? We have pointers
+  // all over that will be lost. Need to get rid of the fData aand ownsData, and
+  // only the Filebacked object actually has data, the rest needing to get it
+  // only if they use it.
+
   { TManagedJSONObject }
 
   TManagedJSONObject = class
