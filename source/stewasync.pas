@@ -45,6 +45,8 @@ type
     procedure Enqueue;
   end;
 
+  TDeferredCallback = procedure of object;
+
   generic GDeferredCallback<T> = procedure(Data: T) of object;
   TDeferredObjectCallback = specialize GDeferredCallback<TObject>;
   TDeferredStringCallback = specialize GDeferredCallback<String>;

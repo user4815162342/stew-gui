@@ -9,7 +9,8 @@ uses
   Interfaces, // this includes the LCL widgetset
   Forms, stewmainform, stewproject, stewfile, stewasync, stewprojectinspector,
   stewconfig, stewjson, stewdocumenteditor, stewpreferenceseditor, 
-stewprojectsettingseditor, steweditorframe, stewabout;
+stewprojectsettingseditor, steweditorframe, stewabout, stewproperties, 
+stewtypes;
 
 {$R *.res}
 

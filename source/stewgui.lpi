@@ -35,7 +35,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="13">
+    <Units Count="15">
       <Unit0>
         <Filename Value="stewgui.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -122,6 +122,16 @@
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="stewabout"/>
       </Unit12>
+      <Unit13>
+        <Filename Value="stewproperties.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="stewproperties"/>
+      </Unit13>
+      <Unit14>
+        <Filename Value="stewtypes.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="stewtypes"/>
+      </Unit14>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

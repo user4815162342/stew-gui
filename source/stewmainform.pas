@@ -6,26 +6,6 @@ interface
 
 {
 
-TODO: For the project, we need the following life cycle.
-- create: just creates the project with a filename, doesn't do anything else interesting.
-- open: This is a sort of async messaging process, throwing procedure handles
-  back and forth.
-  - check if the _stew.json file exists at the original path.
-    - yes: go ahead and report that the project is 'open'.
-    - no: ask the caller if they should search up the directory tree to find one.
-       - yes: search up the tree to find one. Is one found?
-           - yes: ask the caller if this other one should be opened.
-              - yes: change the file path and report that the project is open.
-              - no: report that the project could not be opened.
-           - no: ask the caller if a new one should be created at the original path.
-                (Only if the file access at the path is writeable. We have to be
-                able to handle read-only file access for future internet compatibility and
-                write protection).
-              - yes: touch the _stew.json file and report that the project is open.
-              - no: report that the project could not be opened.
-- Before any action is taken, check if the project is open first. I don't want
-to mess with things weirdly if it's not.
-
 TODO: Working on rough up of interface.
 - start laying out some components on the DocumentInspector, based on the stuff below.
 (Now that I see what I've got, I have a lot more room, so maybe I don't need tabs on it,
@@ -139,9 +119,13 @@ type
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormShow(Sender: TObject);
-    procedure ParentProjectDirectoryExists(aValue: Boolean);
     procedure PreferencesMenuItemClick(Sender: TObject);
     procedure ProjectLoadFailed(E: Exception);
+    procedure ProjectOpened(Sender: TObject);
+    procedure ProjectPropertiesError(Sender: TObject; aError: Exception);
+    procedure ProjectPropertiesLoaded(Sender: TObject);
+    procedure ProjectPropertiesSaveConflicted(Sender: TObject);
+    procedure ProjectPropertiesSaved(Sender: TObject);
     procedure ProjectSettingsMenuItemClick(Sender: TObject);
     procedure RefreshProjectMenuItemClick(Sender: TObject);
   private
@@ -156,7 +140,8 @@ type
     fOpenDocuments: TObjectList;
   protected
     procedure StartupCheckProject({%H-}Data: PtrInt);
-    procedure StartupProjectExists(aValue: Boolean);
+    procedure StartupIfProjectExists(aValue: Boolean);
+    procedure StartupIfProjectParentDirectoryExists(aValue: Boolean);
     procedure ProjectLoaded;
     procedure NotifyObservers(aAction: TMainFormAction);
     procedure ReadUISettings;
@@ -346,7 +331,7 @@ begin
 
 end;
 
-procedure TMainForm.ParentProjectDirectoryExists(aValue: Boolean);
+procedure TMainForm.StartupIfProjectParentDirectoryExists(aValue: Boolean);
 begin
   if not aValue then
   begin
@@ -357,7 +342,7 @@ begin
                'Would you like to create one at: ' + fProject.DiskPath + '?',mtConfirmation,mbOKCancel,0) =
        mrOK then
     begin;
-      fProject.OpenNewAtPath(@ProjectLoadFailed);
+      fProject.OpenNewAtPath;
 
     end
     else
@@ -366,7 +351,6 @@ begin
   else
   begin
     ShowMessage('Found a project at: ' + fProject.DiskPath);
-    ProjectLoaded;
 
   end;
 
@@ -383,6 +367,37 @@ begin
               'The error message was: ' + E.Message + LineEnding +
               'This program will close.');
   Close;
+end;
+
+procedure TMainForm.ProjectOpened(Sender: TObject);
+begin
+  ProjectLoaded;
+end;
+
+procedure TMainForm.ProjectPropertiesError(Sender: TObject; aError: Exception);
+begin
+  ShowMessage('An error occurred while saving or loading the project properties' + LineEnding +
+              aError.Message + LineEnding +
+              'You may want to wait and try your task again later');
+end;
+
+procedure TMainForm.ProjectPropertiesLoaded(Sender: TObject);
+begin
+  // Not sure that anything has to be done here.
+end;
+
+procedure TMainForm.ProjectPropertiesSaveConflicted(Sender: TObject);
+begin
+  if MessageDlg('The properties file has changed on the disk since the last time it was loaded.' + LineEnding +
+             'Would you like to overwrite it''s contents?',mtWarning,mbYesNo,0) = mrYes then
+   begin
+     fProject.Properties.Save(true);
+   end;
+end;
+
+procedure TMainForm.ProjectPropertiesSaved(Sender: TObject);
+begin
+  // Not sure what to do here...
 end;
 
 procedure TMainForm.ProjectSettingsMenuItemClick(Sender: TObject);
@@ -412,11 +427,16 @@ begin
     end;
   end;
 
-  fProject.OpenAtPath(@StartupProjectExists,@ProjectLoadFailed);
+  fProject.OnOpened:=@ProjectOpened;
+  fProject.OnPropertiesError:=@ProjectPropertiesError;
+  fProject.OnPropertiesLoaded:=@ProjectPropertiesLoaded;
+  fProject.OnPropertiesSaveConflicted:=@ProjectPropertiesSaveConflicted;
+  fProject.OnPropertiesSaved:=@ProjectPropertiesSaved;
+  fProject.OpenAtPath(@StartupIfProjectExists,@ProjectLoadFailed);
 
 end;
 
-procedure TMainForm.StartupProjectExists(aValue: Boolean);
+procedure TMainForm.StartupIfProjectExists(aValue: Boolean);
 begin
   if not aValue then
   begin
@@ -427,18 +447,12 @@ begin
                'Would you like to search for one in parent directories?',mtConfirmation,mbOKCancel,0) =
        mrOK then
     begin;
-      fProject.OpenInParentDirectory(@ParentProjectDirectoryExists,@ProjectLoadFailed);
+      fProject.OpenInParentDirectory(@StartupIfProjectParentDirectoryExists,@ProjectLoadFailed);
 
     end
     else
-      ParentProjectDirectoryExists(false);
+      StartupIfProjectParentDirectoryExists(false);
   end
-  else
-  begin
-    ProjectLoaded;
-
-
-  end;
 
 end;
 

@@ -13,7 +13,7 @@ interface
 
 
 uses
-  Classes, SysUtils, fpjson, stewfile;
+  Classes, SysUtils, fpjson, stewfile, stewtypes;
 
 type
 
@@ -101,7 +101,7 @@ type
     fModified: boolean;
   protected
     procedure SetModified; override;
-    function NeedData(aCreate: Boolean): TJSONObject; override;
+    function NeedData({%H-}aCreate: Boolean): TJSONObject; override;
   public
     constructor Create(afileName: TFilename);
     destructor Destroy; override;
@@ -110,7 +110,6 @@ type
     property Modified: boolean read fModified;
   end;
 
-  TExceptionEvent = procedure(Sender: TObject; aError: Exception) of object;
   TJSONFilingState = (jfsInactive, jfsLoading, jfsSaving);
 
   { TAsyncFileBackedJSONObject }
@@ -130,7 +129,7 @@ type
     fFilingState: TJSONFilingState;
   protected
     procedure SetModified; override;
-    function NeedData(aCreate: Boolean): TJSONObject; override;
+    function NeedData({%H-}aCreate: Boolean): TJSONObject; override;
     procedure FileLoaded(aData: TStream; aFileAge: Longint);
     procedure FileSaved(aFileAge: Longint);
     procedure FileLoadFailed(aError: Exception);
@@ -205,7 +204,8 @@ type
 implementation
 
 uses
-  jsonparser, math;
+  jsonparser, math, stewasync;
+
 
 { TAsyncFileBackedJSONObject }
 
@@ -217,8 +217,10 @@ begin
   if (aData = nil) then
   begin
     // the file does not exist yet, so create a blank data object.
-    NeedData(true).Clear;
+    fData := TJSONObject.Create;
     fFileAge := aFileAge;
+    // set it modified so that when it saves it creates an empty file.
+    SetModified;
   end
   else
   begin
@@ -230,6 +232,7 @@ begin
         FreeAndNil(fData);
         fData := fileContents as TJSONObject;
         fFileAge := aFileAge;
+        fModified := false;
       end
       else
       begin
@@ -287,8 +290,8 @@ end;
 
 function TAsyncFileBackedJSONObject.NeedData(aCreate: Boolean): TJSONObject;
 begin
-  if (fData = nil) and aCreate then
-    fData := TJSONObject.Create;
+  if (fData = nil)  then
+    raise Exception.Create('JSON file must be loaded before it can be accessed');
   result := fData;
 end;
 
@@ -586,8 +589,8 @@ end;
 
 function TFileBackedJSONObject.NeedData(aCreate: Boolean): TJSONObject;
 begin
-  if (fData = nil) and aCreate then
-    fData := TJSONObject.Create;
+  if (fData = nil)  then
+    raise Exception.Create('JSON file must be loaded before it can be accessed');
   result := fData;
 end;
 
@@ -613,7 +616,9 @@ var
 begin
   If Not FileExists(fFileName) then
   begin
-    NeedData(true).Clear;
+    fData := TJSONObject.Create;
+    // set it modified so that save will create the new file.
+    SetModified;
   end
   else
   begin
@@ -626,6 +631,7 @@ begin
         begin
           FreeAndNil(fData);
           fData := fileContents as TJSONObject;
+          fModified := false;
         end
         else
         begin
@@ -640,7 +646,6 @@ begin
       stream.Free;
     end;
   end;
-  fModified := false;
 
 end;
 

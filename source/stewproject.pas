@@ -5,7 +5,7 @@ unit stewproject;
 interface
 
 uses
-  Classes, SysUtils, stewfile, stewasync;
+  Classes, SysUtils, stewfile, stewasync, stewproperties, stewtypes;
 
 type
   // All of these are just strings, representing paths off of the root
@@ -23,6 +23,25 @@ type
   TStewProject = class
   private
     fDisk: TFilename;
+    FOnOpened: TNotifyEvent;
+    FOnPropertiesError: TExceptionEvent;
+    FOnPropertiesLoaded: TNotifyEvent;
+    FOnPropertiesSaveConflicted: TNotifyEvent;
+    FOnPropertiesSaved: TNotifyEvent;
+    fProperties: TProjectProperties;
+    function GetProperties: TProjectProperties;
+    procedure OpenProjectProperties;
+    procedure DoOpened;
+    procedure SetOnOpened(AValue: TNotifyEvent);
+    procedure SetOnPropertiesError(AValue: TExceptionEvent);
+    procedure SetOnPropertiesLoaded(AValue: TNotifyEvent);
+    procedure SetOnPropertiesSaveConflicted(AValue: TNotifyEvent);
+    procedure SetOnPropertiesSaved(AValue: TNotifyEvent);
+    procedure ProjectPropertiesLoaded(Sender: TObject);
+    procedure ProjectPropertiesLoadFailed(Sender: TObject; aError: Exception);
+    procedure ProjectPropertiesSaveConflicted(Sender: TObject);
+    procedure ProjectPropertiesSaved(Sender: TObject);
+    procedure ProjectPropertiesSaveFailed(Sender: TObject; aError: Exception);
   public
     constructor Create(const Path: TFilename);
     destructor Destroy; override;
@@ -43,8 +62,14 @@ type
     function GetBaseName(const aDocument: TDocumentID): TDocumentBaseName;
     procedure OpenAtPath(aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
     procedure OpenInParentDirectory(aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
-    procedure OpenNewAtPath(aErrorback: TDeferredExceptionCallback);
+    procedure OpenNewAtPath;
+    property OnOpened: TNotifyEvent read FOnOpened write SetOnOpened;
+    property OnPropertiesLoaded: TNotifyEvent read FOnPropertiesLoaded write SetOnPropertiesLoaded;
+    property OnPropertiesSaved: TNotifyEvent read FOnPropertiesSaved write SetOnPropertiesSaved;
+    property OnPropertiesError: TExceptionEvent read FOnPropertiesError write SetOnPropertiesError;
+    property OnPropertiesSaveConflicted: TNotifyEvent read FOnPropertiesSaveConflicted write SetOnPropertiesSaveConflicted;
     function GetProjectName: String;
+    property Properties: TProjectProperties read GetProperties;
   end;
 
   function IncludeTrailingSlash(Const Path : String) : String;
@@ -85,13 +110,110 @@ end;
 
 { TStewProject }
 
+procedure TStewProject.ProjectPropertiesLoaded(Sender: TObject);
+begin
+  if fProperties.Modified then // it was new, so we want to immediately save
+                               // it to make sure the file was created.
+    fProperties.Save;
+  if FOnPropertiesLoaded <> nil then
+    FOnPropertiesLoaded(Self);
+end;
+
+procedure TStewProject.ProjectPropertiesLoadFailed(Sender: TObject;
+  aError: Exception);
+begin
+  if fOnPropertiesError <> nil then
+    fOnPropertiesError(Self,aError);
+end;
+
+procedure TStewProject.ProjectPropertiesSaveConflicted(Sender: TObject);
+begin
+  if fOnPropertiesSaveConflicted <> nil then
+    fOnPropertiesSaveConflicted(Self);
+end;
+
+procedure TStewProject.ProjectPropertiesSaved(Sender: TObject);
+begin
+  if FOnPropertiesSaved <> nil then
+    FOnPropertiesSaved(Self);
+end;
+
+procedure TStewProject.ProjectPropertiesSaveFailed(Sender: TObject;
+  aError: Exception);
+begin
+  if fOnPropertiesError <> nil then
+    fOnPropertiesError(Self,aError);
+end;
+
+procedure TStewProject.OpenProjectProperties;
+begin
+  if fProperties = nil then
+  begin
+    fProperties := TProjectProperties.Create(fDisk);
+    fProperties.OnFileLoaded:=@ProjectPropertiesLoaded;
+    fProperties.OnFileLoadFailed:=@ProjectPropertiesLoadFailed;
+    fProperties.OnFileSaveConflicted:=@ProjectPropertiesSaveConflicted;
+    fProperties.OnFileSaved:=@ProjectPropertiesSaved;
+    fProperties.OnFileSaveFailed:=@ProjectPropertiesSaveFailed;
+    fProperties.Load;
+  end;
+end;
+
+function TStewProject.GetProperties: TProjectProperties;
+begin
+  if fProperties = nil then
+     raise Exception.Create('You must open the project before you can see the properties');
+  result := fProperties;
+end;
+
+procedure TStewProject.DoOpened;
+begin
+  if FOnOpened <> nil then
+    FOnOpened(Self);
+  // open and save project properties immediately, so that the file exists.
+  OpenProjectProperties;
+end;
+
+procedure TStewProject.SetOnOpened(AValue: TNotifyEvent);
+begin
+  if FOnOpened=AValue then Exit;
+  FOnOpened:=AValue;
+end;
+
+procedure TStewProject.SetOnPropertiesError(AValue: TExceptionEvent);
+begin
+  if FOnPropertiesError=AValue then Exit;
+  FOnPropertiesError:=AValue;
+end;
+
+procedure TStewProject.SetOnPropertiesLoaded(AValue: TNotifyEvent);
+begin
+  if FOnPropertiesLoaded=AValue then Exit;
+  FOnPropertiesLoaded:=AValue;
+end;
+
+procedure TStewProject.SetOnPropertiesSaveConflicted(AValue: TNotifyEvent);
+begin
+  if FOnPropertiesSaveConflicted=AValue then Exit;
+  FOnPropertiesSaveConflicted:=AValue;
+end;
+
+procedure TStewProject.SetOnPropertiesSaved(AValue: TNotifyEvent);
+begin
+  if FOnPropertiesSaved=AValue then Exit;
+  FOnPropertiesSaved:=AValue;
+end;
+
 constructor TStewProject.Create(const Path: TFilename);
 begin
   fDisk := IncludeTrailingPathDelimiter(Path);
+  fProperties := nil;
 end;
 
 destructor TStewProject.Destroy;
 begin
+  if fProperties <> nil then
+    fProperties.Free;
   inherited Destroy;
 end;
 
@@ -179,10 +301,41 @@ begin
   result := ExtractFileName(aDocument);
 end;
 
+type
+
+  { TProjectExists }
+
+  TProjectExists = class(TFileExists)
+  private
+    fProject: TStewProject;
+    fCallback: TDeferredBooleanCallback;
+    procedure FileExistsCallback(Data: Boolean);
+  public
+    constructor Create(aProject: TStewProject; aCallback: TDeferredBooleanCallback;
+      aErrorback: TDeferredExceptionCallback);
+  end;
+
+{ TProjectExists }
+
+procedure TProjectExists.FileExistsCallback(Data: Boolean);
+begin
+  if (data) then
+    fProject.DoOpened;
+  fCallback(Data);
+end;
+
+constructor TProjectExists.Create(aProject: TStewProject;
+  aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
+begin
+  inherited Create(TProjectProperties.GetPath(aProject.fDisk),@FileExistsCallback,aErrorback);
+  fProject := aProject;
+  fCallback := aCallback;
+end;
+
 procedure TStewProject.OpenAtPath(aCallback: TDeferredBooleanCallback;
   aErrorback: TDeferredExceptionCallback);
 begin
-  TFileExists.Create(IncludeTrailingPathDelimiter(fDisk) + '_stew.json',aCallback,aErrorback).Enqueue;
+  TProjectExists.Create(Self,aCallback,aErrorback).Enqueue;
 end;
 
 type
@@ -210,6 +363,7 @@ begin
   if (Data) then
   begin
     fProject.fDisk := fPath;
+    fProject.DoOpened;
     fCallback(true);
   end
   else
@@ -222,7 +376,7 @@ begin
     else
     begin
       fPath := aPath;
-      TFileExists.Create(IncludeTrailingPathDelimiter(fPath) + '_stew.json',@FileExistsCallback,fErrorback).Enqueue;
+      TFileExists.Create(TProjectProperties.GetPath(fPath),@FileExistsCallback,fErrorback).Enqueue;
     end;
   end;
 end;
@@ -240,7 +394,7 @@ end;
 
 procedure TSearchParentDirectories.Enqueue;
 begin
-  TFileExists.Create(IncludeTrailingPathDelimiter(fPath) + '_stew.json',@FileExistsCallback,fErrorback).Enqueue;
+  TFileExists.Create(TProjectProperties.GetPath(fPath),@FileExistsCallback,fErrorback).Enqueue;
 end;
 
 
@@ -250,10 +404,9 @@ begin
   TSearchParentDirectories.Create(Self,fDisk,aCallback,aErrorback).Enqueue;
 end;
 
-procedure TStewProject.OpenNewAtPath(aErrorback: TDeferredExceptionCallback);
+procedure TStewProject.OpenNewAtPath;
 begin
-  // TODO: Create the stew file, etc. and save it to the current path.
-  TDeferredExceptionCall.Create(aErrorback,Exception.Create('Can''t create projects yet')).Enqueue;
+  DoOpened;
 end;
 
 function TStewProject.GetProjectName: String;
