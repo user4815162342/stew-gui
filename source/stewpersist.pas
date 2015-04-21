@@ -9,26 +9,78 @@ uses
 
 type
 
-  { TStore }
+  { TUpdateAware }
 
-  TStore = class(TPersistent)
-    procedure ComponentChange(Sender: TObject);
+  TUpdateAware = class(TPersistent, IFPObserver)
   protected
-    procedure Clear; virtual;
+    procedure FPOObservedChanged(ASender : TObject; Operation : TFPObservedOperation; Data : Pointer);
+  end;
+
+  { TStore }
+  TStore = class(TPersistent)
+  protected
+    procedure Clear; virtual; abstract;
     procedure SetModified; virtual; abstract;
-    function CreateStrings: TStrings;
+  public
+    constructor Create;
   end;
 
   { TParentedStore }
 
-  TParentedStore = class(TStore)
+  { GParentedStore }
+  generic GParentedStore<ParentType> = class(TStore)
   private
-    fParent: TStore;
+    fParent: ParentType;
   protected
     procedure SetModified; override;
   public
-    constructor Create(aParent: TStore);
+    constructor Create(aParent: ParentType);
   end;
+
+  TConventionallyParentedStore = specialize GParentedStore<TStore>;
+
+  // TCollection and TCollectionItem are both already very good
+  // at what they do, plus the jsonrtti is capable of handling them
+  // without problems, so it makes sense to use these. It does break
+  // the hierarchy, and require some weirdness if you're going to store
+  // something inside it, but it works.
+  { TStoredArrayItem }
+  TStoredArrayItem = class(TCollectionItem)
+  protected
+    procedure SetModified; inline;
+  public
+    constructor Create(ACollection: TCollection); override;
+  end;
+
+  TStoredArrayItemClass = class of TStoredArrayItem;
+
+  { TStoredArray }
+
+  TStoredArray = class(TCollection)
+  private
+    fParent: TStore;
+  protected
+    procedure SetModified; virtual;
+    procedure Update(Item: TCollectionItem); override;
+  public
+    constructor Create(aParent: TStore; AItemClass: TStoredArrayItemClass);
+  end;
+
+  TArrayItemParentedStore = specialize GParentedStore<TStoredArrayItem>;
+
+  { GStoredStringArray }
+
+  generic GStoredStringArray<ParentType> = class(TStringList)
+  private
+    fParent: ParentType;
+  protected
+    procedure SetUpdateState(Updating: Boolean); override;
+  public
+    constructor Create(aParent: ParentType);
+  end;
+
+  TConventionallyParentedStringList = specialize GStoredStringArray<TStore>;
+  TArrayItemParentedStringArray = specialize GStoredStringArray<TStoredArrayItem>;
 
   { TFilebackedStore }
 
@@ -50,25 +102,71 @@ implementation
 uses
   fpjsonrtti;
 
+{ TUpdateAware }
+
+procedure TUpdateAware.FPOObservedChanged(ASender: TObject;
+  Operation: TFPObservedOperation; Data: Pointer);
+begin
+  // pass it on...
+  FPONotifyObservers(ASender,Operation,Data);
+end;
+
 { TStore }
 
-procedure TStore.ComponentChange(Sender: TObject);
+constructor TStore.Create;
 begin
+  inherited Create;
+  Clear;
+end;
+
+{ GStoredStringList }
+
+procedure GStoredStringArray.SetUpdateState(Updating: Boolean);
+begin
+  inherited SetUpdateState(Updating);
+  if not Updating then
+     fParent.SetModified;
+end;
+
+constructor GStoredStringArray.Create(aParent: ParentType);
+begin
+  inherited Create;
+  fParent := aParent;
+end;
+
+{ TStoredArrayItem }
+
+procedure TStoredArrayItem.SetModified; inline;
+begin
+  Changed(false);
+  // should automatically notify the owning collection that it changed
+  // and that should call setmodified. This is basically intended as
+  // a convenience method to keep things the same.
+end;
+
+constructor TStoredArrayItem.Create(ACollection: TCollection);
+begin
+  inherited Create(ACollection);
+end;
+
+{ TStoredArray }
+
+procedure TStoredArray.SetModified;
+begin
+  fParent.SetModified;
+end;
+
+procedure TStoredArray.Update(Item: TCollectionItem);
+begin
+  inherited Update(Item);
   SetModified;
 end;
 
-procedure TStore.Clear;
+constructor TStoredArray.Create(aParent: TStore;
+  AItemClass: TStoredArrayItemClass);
 begin
-  SetModified;
-end;
-
-function TStore.CreateStrings: TStrings;
-var
-  answer: TStringList;
-begin
-  answer := TStringList.Create;
-  result := answer;
-  answer.OnChange:=@ComponentChange;
+  inherited Create(AItemClass);
+  fParent := aParent;
 end;
 
 { TFilebackedStore }
@@ -154,12 +252,12 @@ end;
 
 { TParentedStore }
 
-procedure TParentedStore.SetModified;
+procedure GParentedStore.SetModified;
 begin
   fParent.SetModified;
 end;
 
-constructor TParentedStore.Create(aParent: TStore);
+constructor GParentedStore.Create(aParent: ParentType);
 begin
   fParent := aParent;
 end;

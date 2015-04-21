@@ -11,7 +11,7 @@ type
 
   { TMainWindowConfig }
 
-  TMainWindowConfig = class(TParentedStore)
+  TMainWindowConfig = class(TConventionallyParentedStore)
   private
     FBottomPaneHeight: Integer;
     FHeight: Integer;
@@ -31,6 +31,8 @@ type
     procedure SetRightPaneWidth(AValue: Integer);
     procedure SetTopPaneHeight(AValue: Integer);
     procedure SetWidth(AValue: Integer);
+  protected
+    procedure Clear; override;
   public
     constructor Create(aParent: TStore);
   published
@@ -95,7 +97,7 @@ begin
   inherited Create(GetAppConfigDir(false) + 'config.json');
   // TODO: Need to set a way to mark it modified when these things change.
   fMainWindowConfig := TMainWindowConfig.Create(Self);
-  FMRUProjects := CreateStrings;
+  FMRUProjects := TConventionallyParentedStringList.Create(Self);
 end;
 
 destructor TStewApplicationConfig.Destroy;
@@ -109,7 +111,6 @@ procedure TStewApplicationConfig.Clear;
 begin
   fMainWindowConfig.Clear;
   fMRUProjects.Clear;
-  inherited;
 end;
 
 { TMainWindowConfig }
@@ -163,9 +164,8 @@ begin
   SetModified;
 end;
 
-constructor TMainWindowConfig.Create(aParent: TStore);
+procedure TMainWindowConfig.Clear;
 begin
-  inherited Create(aParent);
   FMaximized := false;
   FWidth := DefaultWidth;
   FHeight := DefaultHeight;
@@ -173,6 +173,11 @@ begin
   FRightPaneWidth := DefaultVerticalPaneWidth;
   FBottomPaneHeight:= DefaultHorizontalPaneHeight;
   FTopPaneHeight := DefaultHorizontalPaneHeight;
+end;
+
+constructor TMainWindowConfig.Create(aParent: TStore);
+begin
+  inherited Create(aParent);
 end;
 
 
