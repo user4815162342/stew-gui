@@ -11,7 +11,7 @@ type
 
   { TMainWindowConfig }
 
-  TMainWindowConfig = class(TConventionallyParentedStore)
+  TMainWindowConfig = class(TPersistent)
   private
     FBottomPaneHeight: Integer;
     FHeight: Integer;
@@ -32,9 +32,9 @@ type
     procedure SetTopPaneHeight(AValue: Integer);
     procedure SetWidth(AValue: Integer);
   protected
-    procedure Clear; override;
+    procedure Clear;
   public
-    constructor Create(aParent: TStore);
+    constructor Create;
   published
     property height: Integer read FHeight write SetHeight;
     property width: Integer read FWidth write SetWidth;
@@ -96,13 +96,17 @@ constructor TStewApplicationConfig.Create;
 begin
   inherited Create(GetAppConfigDir(false) + 'config.json');
   // TODO: Need to set a way to mark it modified when these things change.
-  fMainWindowConfig := TMainWindowConfig.Create(Self);
-  FMRUProjects := TConventionallyParentedStringList.Create(Self);
+  fMainWindowConfig := TMainWindowConfig.Create;
+  fMainWindowConfig.FPOAttachObserver(Self);
+  FMRUProjects := TStringList.Create;
+  fMRUProjects.FPOAttachObserver(Self);
 end;
 
 destructor TStewApplicationConfig.Destroy;
 begin
+  fMRUProjects.FPODetachObserver(Self);
   FreeAndNil(fMRUProjects);
+  fMainWindowConfig.FPODetachObserver(Self);
   FreeAndNil(fMainWindowConfig);
   inherited Destroy;
 end;
@@ -119,49 +123,49 @@ procedure TMainWindowConfig.SetBottomPaneHeight(AValue: Integer);
 begin
   if FBottomPaneHeight=AValue then Exit;
   FBottomPaneHeight:=AValue;
-  SetModified;
+  FPONotifyObservers(Self,ooChange,nil);
 end;
 
 procedure TMainWindowConfig.SetHeight(AValue: Integer);
 begin
   if FHeight=AValue then Exit;
   FHeight:=AValue;
-  SetModified;
+  FPONotifyObservers(Self,ooChange,nil);
 end;
 
 procedure TMainWindowConfig.SetLeftPaneWidth(AValue: Integer);
 begin
   if FLeftPaneWidth=AValue then Exit;
   FLeftPaneWidth:=AValue;
-  SetModified;
+  FPONotifyObservers(Self,ooChange,nil);
 end;
 
 procedure TMainWindowConfig.SetMaximized(AValue: Boolean);
 begin
   if FMaximized=AValue then Exit;
   FMaximized:=AValue;
-  SetModified;
+  FPONotifyObservers(Self,ooChange,nil);
 end;
 
 procedure TMainWindowConfig.SetRightPaneWidth(AValue: Integer);
 begin
   if FRightPaneWidth=AValue then Exit;
   FRightPaneWidth:=AValue;
-  SetModified;
+  FPONotifyObservers(Self,ooChange,nil);
 end;
 
 procedure TMainWindowConfig.SetTopPaneHeight(AValue: Integer);
 begin
   if FTopPaneHeight=AValue then Exit;
   FTopPaneHeight:=AValue;
-  SetModified;
+  FPONotifyObservers(Self,ooChange,nil);
 end;
 
 procedure TMainWindowConfig.SetWidth(AValue: Integer);
 begin
   if FWidth=AValue then Exit;
   FWidth:=AValue;
-  SetModified;
+  FPONotifyObservers(Self,ooChange,nil);
 end;
 
 procedure TMainWindowConfig.Clear;
@@ -175,9 +179,10 @@ begin
   FTopPaneHeight := DefaultHorizontalPaneHeight;
 end;
 
-constructor TMainWindowConfig.Create(aParent: TStore);
+constructor TMainWindowConfig.Create;
 begin
-  inherited Create(aParent);
+  inherited Create;
+  Clear;
 end;
 
 

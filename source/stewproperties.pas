@@ -5,13 +5,15 @@ unit stewproperties;
 interface
 
 uses
-  Classes, SysUtils, stewjson;
+  Classes, SysUtils, stewpersist;
 
 type
 
   { TProjectProperties }
 
-  TProjectProperties = class(TAsyncFileBackedJSONObject)
+  TProjectProperties = class(TAsyncFileBackedStore)
+  protected
+    procedure Clear; override;
   public
     constructor Create(aProjectPath: TFilename);
     class function GetPath(aFolderPath: TFilename): TFilename;
@@ -20,6 +22,11 @@ type
 implementation
 
 { TProjectProperties }
+
+procedure TProjectProperties.Clear;
+begin
+  // TODO: Initialize all of the primitive data, clear all of the child data.
+end;
 
 constructor TProjectProperties.Create(aProjectPath: TFilename);
 begin

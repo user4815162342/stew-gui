@@ -5,102 +5,203 @@ unit stewpersist;
 interface
 
 uses
-  Classes, SysUtils;
+  Classes, SysUtils, stewtypes;
 
 type
 
   { TUpdateAware }
-
+  // Basically an object that observes changes in others, and when it gets notified
+  // marks itself as modified.
   TUpdateAware = class(TPersistent, IFPObserver)
-  protected
-    procedure FPOObservedChanged(ASender : TObject; Operation : TFPObservedOperation; Data : Pointer);
-  end;
-
-  { TStore }
-  TStore = class(TPersistent)
-  protected
-    procedure Clear; virtual; abstract;
-    procedure SetModified; virtual; abstract;
-  public
-    constructor Create;
-  end;
-
-  { TParentedStore }
-
-  { GParentedStore }
-  generic GParentedStore<ParentType> = class(TStore)
   private
-    fParent: ParentType;
+    FModified: Boolean;
   protected
-    procedure SetModified; override;
-  public
-    constructor Create(aParent: ParentType);
-  end;
-
-  TConventionallyParentedStore = specialize GParentedStore<TStore>;
-
-  // TCollection and TCollectionItem are both already very good
-  // at what they do, plus the jsonrtti is capable of handling them
-  // without problems, so it makes sense to use these. It does break
-  // the hierarchy, and require some weirdness if you're going to store
-  // something inside it, but it works.
-  { TStoredArrayItem }
-  TStoredArrayItem = class(TCollectionItem)
-  protected
-    procedure SetModified; inline;
-  public
-    constructor Create(ACollection: TCollection); override;
-  end;
-
-  TStoredArrayItemClass = class of TStoredArrayItem;
-
-  { TStoredArray }
-
-  TStoredArray = class(TCollection)
-  private
-    fParent: TStore;
-  protected
+    procedure FPOObservedChanged({%H-}ASender : TObject; {%H-}Operation : TFPObservedOperation; {%H-}Data : Pointer);
     procedure SetModified; virtual;
-    procedure Update(Item: TCollectionItem); override;
+    procedure ClearModified; virtual;
   public
-    constructor Create(aParent: TStore; AItemClass: TStoredArrayItemClass);
+    property Modified: Boolean read FModified;
   end;
-
-  TArrayItemParentedStore = specialize GParentedStore<TStoredArrayItem>;
-
-  { GStoredStringArray }
-
-  generic GStoredStringArray<ParentType> = class(TStringList)
-  private
-    fParent: ParentType;
-  protected
-    procedure SetUpdateState(Updating: Boolean); override;
-  public
-    constructor Create(aParent: ParentType);
-  end;
-
-  TConventionallyParentedStringList = specialize GStoredStringArray<TStore>;
-  TArrayItemParentedStringArray = specialize GStoredStringArray<TStoredArrayItem>;
 
   { TFilebackedStore }
 
-  TFilebackedStore = class(TStore)
+  TFilebackedStore = class(TUpdateAware)
   private
     fFilename: TFilename;
-    fModified: Boolean;
   protected
-    procedure SetModified; override;
+    procedure Clear; virtual; abstract;
   public
     constructor Create(aFilename: TFilename);
     procedure Load;
     procedure Save;
-    property Modified: Boolean read fModified;
+  end;
+
+
+  TFilingState = (fsInactive, fsLoading, fsSaving);
+
+  { TAsyncFileBackedStore }
+
+  TAsyncFileBackedStore = class(TUpdateAware)
+  private
+    fFilename: TFilename;
+    fFileAge: Longint;
+    fCreateDir: Boolean;
+    fOnFileLoaded: TNotifyEvent;
+    fOnFileLoadFailed: TExceptionEvent;
+    fOnFileSaved: TNotifyEvent;
+    fOnFileSaveFailed: TExceptionEvent;
+    fOnFileSaveConflicted: TNotifyEvent;
+    fFilingState: TFilingState;
+  protected
+    procedure Clear; virtual; abstract;
+    procedure FileLoaded(aData: TStream; aFileAge: Longint);
+    procedure FileSaved(aFileAge: Longint);
+    procedure FileLoadFailed(aError: Exception);
+    procedure FileSaveFailed(aError: Exception);
+    // File age is only passed for informational purposes, and I don't
+    // need that information here.
+    procedure FileSaveConflicted({%H-}aFileAge: Longint);
+  public
+    constructor Create(afileName: TFilename; aCreateDir: Boolean = false);
+    destructor Destroy; override;
+    procedure Load;
+    // set force to true to ignore conflicts. This is usually done after
+    // an attempt to save fails due to a file time conflict and the user chooses
+    // to save anyway.
+    procedure Save(aForce: Boolean = false);
+    property FilingState: TFilingState read fFilingState;
+    property OnFileLoaded: TNotifyEvent read fOnFileLoaded write fOnFileLoaded;
+    property OnFileLoadFailed: TExceptionEvent read fOnFileLoadFailed write fOnFileLoadFailed;
+    property OnFileSaved: TNotifyEvent read fOnFileSaved write fOnFileSaved;
+    property OnFileSaveFailed: TExceptionEvent read fOnFileSaveFailed write fOnFileSaveFailed;
+    property OnFileSaveConflicted: TNotifyEvent read fOnFileSaveConflicted write fOnFileSaveConflicted;
   end;
 
 implementation
 
 uses
-  fpjsonrtti;
+  fpjsonrtti, stewfile;
+
+{ TAsyncFileBackedStore }
+
+procedure TAsyncFileBackedStore.FileLoaded(aData: TStream;
+  aFileAge: Longint);
+var
+  loader: TJSONDeStreamer;
+  ss: TStringStream;
+begin
+  if (aData = nil) then
+  begin
+    // the file does not exist yet, so create a blank data object.
+    Clear;
+    fFileAge := aFileAge;
+    // set it modified so that when it saves it creates an empty file.
+    SetModified;
+  end
+  else
+  begin
+    ss := TStringStream.Create('');
+    try
+      loader := TJSONDeStreamer.Create(nil);
+      try
+        ss.CopyFrom(aData,0);
+        loader.JSONToObject(ss.DataString,Self);
+        fFileAge := aFileAge;
+        ClearModified;
+
+      finally
+        loader.Free;
+      end;
+    finally
+      ss.Free;
+    end;
+  end;
+  if fOnFileLoaded <> nil then
+    fOnFileLoaded(Self);
+  fFilingState := fsInactive;
+end;
+
+procedure TAsyncFileBackedStore.FileSaved(aFileAge: Longint);
+begin
+  ClearModified;
+  fFileAge := aFileAge;
+  if fOnFileSaved <> nil then
+    fOnFileSaved(Self);
+  fFilingState := fsInactive;
+end;
+
+procedure TAsyncFileBackedStore.FileLoadFailed(aError: Exception);
+begin
+  if fOnFileLoadFailed <> nil then
+    fOnFileLoadFailed(Self,aError);
+  fFilingState := fsInactive;
+end;
+
+procedure TAsyncFileBackedStore.FileSaveFailed(aError: Exception);
+begin
+  if fOnFileSaveFailed <> nil then
+    fOnFileSaveFailed(Self,aError);
+  fFilingState := fsInactive;
+end;
+
+procedure TAsyncFileBackedStore.FileSaveConflicted(aFileAge: Longint);
+begin
+  if fOnFileSaveConflicted <> nil then
+    fOnFileSaveConflicted(Self)
+  else if fOnFileSaveFailed <> nil then
+    fOnFileSaveFailed(Self,Exception.Create('File could not be saved because it was changed on disk since the last save'));
+  fFilingState := fsInactive;
+end;
+
+constructor TAsyncFileBackedStore.Create(afileName: TFilename;
+  aCreateDir: Boolean);
+begin
+  inherited Create;
+  fFilename := afileName;
+  fCreateDir := aCreateDir;
+  fFileAge := -1; // indicates that this might be a new file.
+  Clear;
+end;
+
+destructor TAsyncFileBackedStore.Destroy;
+begin
+  inherited Destroy;
+end;
+
+procedure TAsyncFileBackedStore.Load;
+begin
+  if fFilingState = fsInactive then
+     TReadFile.Create(fFilename,@FileLoaded,@FileLoadFailed).Enqueue
+  else if fFilingState = fsSaving then
+     raise Exception.Create('Can''t load JSON data while saving.');
+  // otherwise, already loading, so ignore.
+end;
+
+procedure TAsyncFileBackedStore.Save(aForce: Boolean);
+var
+  text: UTF8String;
+  saver: TJSONStreamer;
+begin
+  if Modified then
+  begin
+    if fFilingState = fsInactive then
+    begin
+      fFilingState := fsSaving;
+      saver := TJSONStreamer.Create(nil);
+      try
+        saver.Options := [jsoUseFormatString,jsoTStringsAsArray];
+        text := saver.ObjectToJSONString(Self);
+        TWriteFile.Create(fFilename,fCreateDir and (fFileAge = -1),not aForce,fFileAge,text,@FileSaved,@FileSaveConflicted,@FileSaveFailed).Enqueue;
+      finally
+        saver.Free;
+      end;
+
+    end
+    else if fFilingState = fsLoading then
+      raise Exception.Create('Can''t save JSON data while still loading.');
+    // otherwise, already saving, so don't worry about it.
+  end;
+end;
 
 { TUpdateAware }
 
@@ -108,78 +209,26 @@ procedure TUpdateAware.FPOObservedChanged(ASender: TObject;
   Operation: TFPObservedOperation; Data: Pointer);
 begin
   // pass it on...
-  FPONotifyObservers(ASender,Operation,Data);
-end;
-
-{ TStore }
-
-constructor TStore.Create;
-begin
-  inherited Create;
-  Clear;
-end;
-
-{ GStoredStringList }
-
-procedure GStoredStringArray.SetUpdateState(Updating: Boolean);
-begin
-  inherited SetUpdateState(Updating);
-  if not Updating then
-     fParent.SetModified;
-end;
-
-constructor GStoredStringArray.Create(aParent: ParentType);
-begin
-  inherited Create;
-  fParent := aParent;
-end;
-
-{ TStoredArrayItem }
-
-procedure TStoredArrayItem.SetModified; inline;
-begin
-  Changed(false);
-  // should automatically notify the owning collection that it changed
-  // and that should call setmodified. This is basically intended as
-  // a convenience method to keep things the same.
-end;
-
-constructor TStoredArrayItem.Create(ACollection: TCollection);
-begin
-  inherited Create(ACollection);
-end;
-
-{ TStoredArray }
-
-procedure TStoredArray.SetModified;
-begin
-  fParent.SetModified;
-end;
-
-procedure TStoredArray.Update(Item: TCollectionItem);
-begin
-  inherited Update(Item);
   SetModified;
 end;
 
-constructor TStoredArray.Create(aParent: TStore;
-  AItemClass: TStoredArrayItemClass);
+procedure TUpdateAware.SetModified;
 begin
-  inherited Create(AItemClass);
-  fParent := aParent;
+  FModified := true;
+  FPONotifyObservers(Self,ooChange,nil);
 end;
+
+procedure TUpdateAware.ClearModified;
+begin
+  FModified := false;
+end;
+
 
 { TFilebackedStore }
-
-procedure TFilebackedStore.SetModified;
-begin
-  fModified := true;
-end;
 
 constructor TFilebackedStore.Create(aFilename: TFilename);
 begin
   inherited Create;
-  fModified := false;
   fFilename := aFilename;
 end;
 
@@ -205,6 +254,7 @@ begin
         try
           ss.CopyFrom(fs,0);
           loader.JSONToObject(ss.DataString,Self);
+          ClearModified;
 
         finally
           loader.Free;
@@ -239,8 +289,9 @@ begin
         saver.Options := [jsoUseFormatString,jsoTStringsAsArray];
         text := saver.ObjectToJSONString(Self);
         fs.Write(text[1],Length(text));
-        fModified := False;
+        ClearModified;
       finally
+        saver.Free;
       end;
     finally
       fs.Free;
@@ -248,18 +299,6 @@ begin
 
   end;
 
-end;
-
-{ TParentedStore }
-
-procedure GParentedStore.SetModified;
-begin
-  fParent.SetModified;
-end;
-
-constructor GParentedStore.Create(aParent: ParentType);
-begin
-  fParent := aParent;
 end;
 
 end.

@@ -82,8 +82,8 @@
         <UnitName Value="stewconfig"/>
         <EditorIndex Value="29"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="158"/>
-        <CursorPos X="1" Y="176"/>
+        <TopLine Value="141"/>
+        <CursorPos X="39" Y="152"/>
         <UsageCount Value="208"/>
         <Loaded Value="True"/>
       </Unit6>
@@ -91,10 +91,10 @@
         <Filename Value="stewjson.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="stewjson"/>
-        <EditorIndex Value="35"/>
+        <EditorIndex Value="31"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="651"/>
-        <CursorPos X="23" Y="658"/>
+        <TopLine Value="318"/>
+        <CursorPos X="1" Y="339"/>
         <UsageCount Value="204"/>
         <Loaded Value="True"/>
       </Unit7>
@@ -154,7 +154,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="1"/>
         <CursorPos X="7" Y="40"/>
-        <UsageCount Value="178"/>
+        <UsageCount Value="179"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
       </Unit11>
@@ -169,7 +169,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="36"/>
         <CursorPos X="51" Y="45"/>
-        <UsageCount Value="173"/>
+        <UsageCount Value="174"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
       </Unit12>
@@ -323,11 +323,11 @@
       <Unit32>
         <Filename Value="/usr/share/fpcsrc/2.6.4/packages/fcl-json/src/fpjson.pp"/>
         <UnitName Value="fpjson"/>
-        <EditorIndex Value="34"/>
+        <EditorIndex Value="35"/>
         <WindowIndex Value="0"/>
         <TopLine Value="2357"/>
         <CursorPos X="1" Y="2376"/>
-        <UsageCount Value="87"/>
+        <UsageCount Value="88"/>
         <Loaded Value="True"/>
       </Unit32>
       <Unit33>
@@ -356,8 +356,8 @@
         <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/classes/classesh.inc"/>
         <EditorIndex Value="19"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="427"/>
-        <CursorPos X="59" Y="443"/>
+        <TopLine Value="151"/>
+        <CursorPos X="3" Y="162"/>
         <UsageCount Value="100"/>
         <Loaded Value="True"/>
       </Unit36>
@@ -394,7 +394,7 @@
       <Unit41>
         <Filename Value="/usr/share/fpcsrc/2.6.4/packages/fcl-json/src/jsonparser.pp"/>
         <UnitName Value="jsonparser"/>
-        <EditorIndex Value="32"/>
+        <EditorIndex Value="33"/>
         <WindowIndex Value="0"/>
         <TopLine Value="82"/>
         <CursorPos X="1" Y="96"/>
@@ -585,7 +585,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="124"/>
         <CursorPos X="1" Y="140"/>
-        <UsageCount Value="59"/>
+        <UsageCount Value="60"/>
         <Loaded Value="True"/>
       </Unit62>
       <Unit63>
@@ -601,11 +601,12 @@
         <Filename Value="stewproperties.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="stewproperties"/>
+        <IsVisibleTab Value="True"/>
         <EditorIndex Value="40"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="13"/>
-        <CursorPos X="41" Y="26"/>
-        <UsageCount Value="70"/>
+        <TopLine Value="21"/>
+        <CursorPos X="78" Y="28"/>
+        <UsageCount Value="71"/>
         <Loaded Value="True"/>
       </Unit64>
       <Unit65>
@@ -616,17 +617,17 @@
         <WindowIndex Value="0"/>
         <TopLine Value="1"/>
         <CursorPos X="1" Y="11"/>
-        <UsageCount Value="67"/>
+        <UsageCount Value="68"/>
         <Loaded Value="True"/>
       </Unit65>
       <Unit66>
         <Filename Value="/usr/share/fpcsrc/2.6.4/packages/fcl-json/src/fpjsonrtti.pp"/>
         <UnitName Value="fpjsonrtti"/>
-        <EditorIndex Value="31"/>
+        <EditorIndex Value="32"/>
         <WindowIndex Value="0"/>
         <TopLine Value="651"/>
         <CursorPos X="28" Y="669"/>
-        <UsageCount Value="14"/>
+        <UsageCount Value="15"/>
         <Loaded Value="True"/>
       </Unit66>
       <Unit67>
@@ -634,26 +635,25 @@
         <EditorIndex Value="22"/>
         <WindowIndex Value="0"/>
         <TopLine Value="591"/>
-        <CursorPos X="21" Y="594"/>
-        <UsageCount Value="13"/>
+        <CursorPos X="3" Y="594"/>
+        <UsageCount Value="14"/>
         <Loaded Value="True"/>
       </Unit67>
       <Unit68>
         <Filename Value="stewpersist.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="stewpersist"/>
-        <IsVisibleTab Value="True"/>
         <EditorIndex Value="30"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="12"/>
-        <CursorPos X="1" Y="18"/>
-        <UsageCount Value="24"/>
+        <TopLine Value="33"/>
+        <CursorPos X="54" Y="50"/>
+        <UsageCount Value="25"/>
         <Loaded Value="True"/>
       </Unit68>
       <Unit69>
         <Filename Value="/usr/share/fpcsrc/2.6.4/packages/fcl-json/src/jsonscanner.pp"/>
         <UnitName Value="jsonscanner"/>
-        <EditorIndex Value="33"/>
+        <EditorIndex Value="34"/>
         <WindowIndex Value="0"/>
         <TopLine Value="107"/>
         <CursorPos X="1" Y="123"/>
@@ -675,7 +675,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="89"/>
         <CursorPos X="3" Y="96"/>
-        <UsageCount Value="10"/>
+        <UsageCount Value="11"/>
         <Loaded Value="True"/>
       </Unit71>
     </Units>
@@ -684,124 +684,124 @@
     </General>
     <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
-        <Filename Value="stewpersist.pas"/>
-        <Caret Line="34" Column="59" TopLine="23"/>
+        <Filename Value="stewjson.pas"/>
+        <Caret Line="1" Column="1" TopLine="1"/>
       </Position1>
       <Position2>
         <Filename Value="stewpersist.pas"/>
-        <Caret Line="63" Column="59" TopLine="52"/>
+        <Caret Line="71" Column="62" TopLine="56"/>
       </Position2>
       <Position3>
-        <Filename Value="stewpersist.pas"/>
-        <Caret Line="239" Column="37" TopLine="228"/>
+        <Filename Value="stewjson.pas"/>
+        <Caret Line="282" Column="3" TopLine="279"/>
       </Position3>
       <Position4>
-        <Filename Value="stewpersist.pas"/>
-        <Caret Line="245" Column="42" TopLine="229"/>
+        <Filename Value="stewjson.pas"/>
+        <Caret Line="1" Column="1" TopLine="1"/>
       </Position4>
       <Position5>
         <Filename Value="stewpersist.pas"/>
-        <Caret Line="42" Column="16" TopLine="23"/>
+        <Caret Line="8" Column="31" TopLine="4"/>
       </Position5>
       <Position6>
         <Filename Value="stewpersist.pas"/>
-        <Caret Line="49" Column="19" TopLine="31"/>
+        <Caret Line="40" Column="42" TopLine="32"/>
       </Position6>
       <Position7>
         <Filename Value="stewpersist.pas"/>
-        <Caret Line="53" Column="16" TopLine="38"/>
+        <Caret Line="71" Column="39" TopLine="60"/>
       </Position7>
       <Position8>
         <Filename Value="stewpersist.pas"/>
-        <Caret Line="63" Column="22" TopLine="42"/>
+        <Caret Line="56" Column="15" TopLine="47"/>
       </Position8>
       <Position9>
-        <Filename Value="stewpersist.pas"/>
-        <Caret Line="67" Column="29" TopLine="56"/>
+        <Filename Value="stewjson.pas"/>
+        <Caret Line="107" Column="37" TopLine="102"/>
       </Position9>
       <Position10>
-        <Filename Value="stewpersist.pas"/>
-        <Caret Line="77" Column="64" TopLine="57"/>
+        <Filename Value="stewjson.pas"/>
+        <Caret Line="119" Column="18" TopLine="102"/>
       </Position10>
       <Position11>
-        <Filename Value="stewpersist.pas"/>
-        <Caret Line="109" Column="29" TopLine="98"/>
+        <Filename Value="stewjson.pas"/>
+        <Caret Line="128" Column="25" TopLine="110"/>
       </Position11>
       <Position12>
-        <Filename Value="stewpersist.pas"/>
-        <Caret Line="120" Column="44" TopLine="105"/>
+        <Filename Value="stewjson.pas"/>
+        <Caret Line="144" Column="79" TopLine="127"/>
       </Position12>
       <Position13>
         <Filename Value="stewpersist.pas"/>
-        <Caret Line="14" Column="24" TopLine="6"/>
+        <Caret Line="199" Column="1" TopLine="178"/>
       </Position13>
       <Position14>
         <Filename Value="stewpersist.pas"/>
-        <Caret Line="71" Column="18" TopLine="60"/>
+        <Caret Line="123" Column="1" TopLine="104"/>
       </Position14>
       <Position15>
-        <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/classes/classesh.inc"/>
-        <Caret Line="744" Column="26" TopLine="733"/>
+        <Filename Value="stewpersist.pas"/>
+        <Caret Line="86" Column="32" TopLine="84"/>
       </Position15>
       <Position16>
-        <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/classes/collect.inc"/>
-        <Caret Line="289" Column="3" TopLine="289"/>
+        <Filename Value="stewpersist.pas"/>
+        <Caret Line="57" Column="1" TopLine="36"/>
       </Position16>
       <Position17>
-        <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/classes/collect.inc"/>
-        <Caret Line="1" Column="1" TopLine="1"/>
+        <Filename Value="stewpersist.pas"/>
+        <Caret Line="107" Column="26" TopLine="98"/>
       </Position17>
       <Position18>
-        <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/classes/collect.inc"/>
-        <Caret Line="291" Column="21" TopLine="273"/>
+        <Filename Value="stewpersist.pas"/>
+        <Caret Line="139" Column="1" TopLine="119"/>
       </Position18>
       <Position19>
-        <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/classes/collect.inc"/>
-        <Caret Line="401" Column="40" TopLine="383"/>
+        <Filename Value="stewpersist.pas"/>
+        <Caret Line="146" Column="1" TopLine="126"/>
       </Position19>
       <Position20>
-        <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/classes/collect.inc"/>
-        <Caret Line="402" Column="40" TopLine="384"/>
+        <Filename Value="stewpersist.pas"/>
+        <Caret Line="155" Column="1" TopLine="134"/>
       </Position20>
       <Position21>
-        <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/classes/collect.inc"/>
-        <Caret Line="403" Column="40" TopLine="385"/>
+        <Filename Value="stewpersist.pas"/>
+        <Caret Line="179" Column="1" TopLine="158"/>
       </Position21>
       <Position22>
-        <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/classes/collect.inc"/>
-        <Caret Line="422" Column="21" TopLine="404"/>
+        <Filename Value="stewpersist.pas"/>
+        <Caret Line="173" Column="21" TopLine="162"/>
       </Position22>
       <Position23>
         <Filename Value="stewpersist.pas"/>
-        <Caret Line="71" Column="18" TopLine="60"/>
+        <Caret Line="83" Column="23" TopLine="67"/>
       </Position23>
       <Position24>
         <Filename Value="stewpersist.pas"/>
-        <Caret Line="13" Column="5" TopLine="1"/>
+        <Caret Line="183" Column="24" TopLine="179"/>
       </Position24>
       <Position25>
         <Filename Value="stewpersist.pas"/>
-        <Caret Line="14" Column="43" TopLine="3"/>
+        <Caret Line="187" Column="23" TopLine="176"/>
       </Position25>
       <Position26>
         <Filename Value="stewpersist.pas"/>
-        <Caret Line="16" Column="9" TopLine="5"/>
+        <Caret Line="189" Column="23" TopLine="178"/>
       </Position26>
       <Position27>
-        <Filename Value="stewpersist.pas"/>
-        <Caret Line="110" Column="19" TopLine="107"/>
+        <Filename Value="stewproperties.pas"/>
+        <Caret Line="14" Column="56" TopLine="13"/>
       </Position27>
       <Position28>
         <Filename Value="stewpersist.pas"/>
-        <Caret Line="107" Column="31" TopLine="100"/>
+        <Caret Line="44" Column="22" TopLine="33"/>
       </Position28>
       <Position29>
-        <Filename Value="stewpersist.pas"/>
-        <Caret Line="14" Column="30" TopLine="7"/>
+        <Filename Value="stewproperties.pas"/>
+        <Caret Line="14" Column="56" TopLine="1"/>
       </Position29>
       <Position30>
-        <Filename Value="stewpersist.pas"/>
-        <Caret Line="12" Column="1" TopLine="5"/>
+        <Filename Value="stewproperties.pas"/>
+        <Caret Line="16" Column="31" TopLine="1"/>
       </Position30>
     </JumpHistory>
   </ProjectSession>

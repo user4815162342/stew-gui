@@ -4,23 +4,16 @@ unit stewjson;
 
 interface
 
-// FUTURE: I'd like to re-write the fcl JSON library so that it makes use of
-// a class factory instead of just fpjson.CreateJSONObject, etc. That
-// way, I would be able to construct "custom" JSON objects which expose
-// appropriate properties (while at the same time allowing 'unmanaged' properties)
-// However, since I don't have that, this is far simpler.
 
+// FUTURE: This unit is basically deprecated, and really not even used anywhere.
+// I'm just keeping it around in case the stewpersist unit doesn't work out as
+// well as I think it's going to, and I want to go back to this.
 
 
 uses
   Classes, SysUtils, fpjson, stewfile, stewtypes;
 
 type
-
-  // TODO: What happens if they want to 'refresh' the data? We have pointers
-  // all over that will be lost. Need to get rid of the fData aand ownsData, and
-  // only the Filebacked object actually has data, the rest needing to get it
-  // only if they use it.
 
   { TManagedJSONObject }
 
@@ -205,7 +198,6 @@ implementation
 
 uses
   jsonparser, math, stewasync;
-
 
 { TAsyncFileBackedJSONObject }
 
