@@ -5,236 +5,174 @@ unit stewconfig;
 interface
 
 uses
-  Classes, SysUtils, fpjson, stewjson;
-
-const
-  MRUListMaxSize = 20;
+  Classes, SysUtils, stewpersist;
 
 type
 
   { TMainWindowConfig }
 
-  TMainWindowConfig = class(TParentedJSONObject)
+  TMainWindowConfig = class(TParentedStore)
   private
-  protected
-    function IsManaged(aPropertyName: String): boolean; override;
-    {%H-}constructor Create(aParent: TManagedJSONObject; aParentProperty: String); overload;
-  public
-    destructor Destroy; override;
-    function GetHeight(aDefault: Integer): Integer;
-    function GetMaximized(aDefault: Boolean): Boolean;
-    function GetWidth(aDefault: Integer): Integer;
+    FBottomPaneHeight: Integer;
+    FHeight: Integer;
+    FLeftPaneWidth: Integer;
+    FMaximized: Boolean;
+    FRightPaneWidth: Integer;
+    FTopPaneHeight: Integer;
+    FWidth: Integer;
+    const DefaultWidth: Integer = 600;
+    const DefaultHeight: Integer = 450;
+    const DefaultVerticalPaneWidth: Integer = 200;
+    const DefaultHorizontalPaneHeight: Integer = 50;
+    procedure SetBottomPaneHeight(AValue: Integer);
     procedure SetHeight(AValue: Integer);
+    procedure SetLeftPaneWidth(AValue: Integer);
     procedure SetMaximized(AValue: Boolean);
+    procedure SetRightPaneWidth(AValue: Integer);
+    procedure SetTopPaneHeight(AValue: Integer);
     procedure SetWidth(AValue: Integer);
-    function GetLeftPaneWidth(aDefault: Integer): Integer;
-    procedure SetLeftPaneWidth(aValue: Integer);
-    function GetRightPaneWidth(aDefault: Integer): Integer;
-    procedure SetRightPaneWidth(aValue: Integer);
-    function GetTopPaneHeight(aDefault: Integer): Integer;
-    procedure SetTopPaneHeight(aValue: Integer);
-    function GetBottomPaneHeight(aDefault: Integer): Integer;
-    procedure SetBottomPaneHeight(aValue: Integer);
+  public
+    constructor Create(aParent: TStore);
+  published
+    property height: Integer read FHeight write SetHeight;
+    property width: Integer read FWidth write SetWidth;
+    property maximized: Boolean read FMaximized write SetMaximized;
+    property leftPaneWidth: Integer read FLeftPaneWidth write SetLeftPaneWidth;
+    property rightPaneWidth: Integer read FRightPaneWidth write SetRightPaneWidth;
+    property topPaneHeight: Integer read FTopPaneHeight write SetTopPaneHeight;
+    property bottomPaneHeight: Integer read FBottomPaneHeight write SetBottomPaneHeight;
   end;
 
   { TStewApplicationConfig }
 
-  TStewApplicationConfig = class(TFileBackedJSONObject)
+  TStewApplicationConfig = class(TFilebackedStore)
   private
     fMainWindowConfig: TMainWindowConfig;
+    fMRUProjects: TStrings;
+    const MRUListMaxSize = 20;
     function GetMRUProject: TFilename;
     procedure SetMRUProject(AValue: TFilename);
-  protected
-    function IsManaged(aPropertyName: String): boolean; override;
   public
     constructor Create;
     destructor Destroy; override;
-    property MainWindow: TMainWindowConfig read fMainWindowConfig;
+    procedure Clear; override;
     property MRUProject: TFilename read GetMRUProject write SetMRUProject;
+  published
+    property mainWindow: TMainWindowConfig read fMainWindowConfig;
+    property mruProjects: TStrings read fMRUProjects write fMRUProjects;
   end;
+
 
 implementation
 
 uses
-  jsonparser, FileUtil, math, LCLProc;
+  jsonparser, FileUtil;
 
 { TStewApplicationConfig }
 
-function TStewApplicationConfig.GetMRUProject: TFilename;
-var
-  List: TJSONArray;
-begin
-  List := Find('mruProjects',jtArray) as TJSONArray;
-  if (list <> nil) and (list.Count > 0) then
-  begin
-     result := list[0].AsString;
-  end;
-end;
-
 procedure TStewApplicationConfig.SetMRUProject(AValue: TFilename);
 var
-  List: TJSONArray;
-  high: Integer;
-  i: Integer;
-  found: Boolean;
+  index: Integer;
 begin
-  List := Find('mruProjects',jtArray) as TJSONArray;
-  if (list = nil) then
-  begin
-     List := CreateManagedArray('mruProjects');
-  end;
-
-  high := Min(MRUListMaxSize - 1,List.Count - 1);
-  found := false;
-  for i := 0 to high do
-  begin
-    if List[i].AsString = AValue then
-    begin
-       found := true;
-       if (i > 0) then
-       begin
-          // delete the old one, and put it on top.
-          List.Delete(i);
-          List.Insert(0,AValue);
-          SetModified;
-       end;
-       // we've found it, so we don't have to look any further.
-       break;
-    end;
-  end;
-
-  if not found then
-  begin
-    List.Insert(0,AValue);
-    SetModified;
-  end;
-
-  // now, trim off the end of the MRUList.
-  while List.Count > MRUListMaxSize do
-  begin
-    List.Delete(MRUListMaxSize);
-    SetModified;
-  end;
-
-
-
+  index := fMRUProjects.IndexOf(AValue);
+  if index > -1 then
+    fMRUProjects.Delete(index);
+  fMRUProjects.Insert(0,AValue);
+  while fMRUProjects.Count > MRUListMaxSize do
+    fMRUProjects.Delete(MRUListMaxSize);
 end;
 
-
-function TStewApplicationConfig.IsManaged(aPropertyName: String): boolean;
+function TStewApplicationConfig.GetMRUProject: TFilename;
 begin
-  case aPropertyName of
-    'mruProjects','mainWindow':
-       result := true;
+  if fMRUProjects.Count > 0 then
+     result := fMRUProjects[0]
   else
-    result := inherited IsManaged(aPropertyName);
-  end;
+    result := '';
 end;
 
 constructor TStewApplicationConfig.Create;
 begin
   inherited Create(GetAppConfigDir(false) + 'config.json');
-  fMainWindowConfig := TMainWindowConfig.Create(Self,'mainWindow');
+  // TODO: Need to set a way to mark it modified when these things change.
+  fMainWindowConfig := TMainWindowConfig.Create(Self);
+  FMRUProjects := CreateStrings;
 end;
 
 destructor TStewApplicationConfig.Destroy;
 begin
+  FreeAndNil(fMRUProjects);
   FreeAndNil(fMainWindowConfig);
+  inherited Destroy;
+end;
+
+procedure TStewApplicationConfig.Clear;
+begin
+  fMainWindowConfig.Clear;
+  fMRUProjects.Clear;
+  inherited;
 end;
 
 { TMainWindowConfig }
 
-function TMainWindowConfig.IsManaged(aPropertyName: String): boolean;
+procedure TMainWindowConfig.SetBottomPaneHeight(AValue: Integer);
 begin
-  case aPropertyName of
-    'height','width','maximized':
-       result := true;
-  else
-    result := inherited IsManaged(aPropertyName);
-  end;
-end;
-
-constructor TMainWindowConfig.Create(aParent: TManagedJSONObject;
-  aParentProperty: String);
-begin
-  inherited Create(aParent,aParentProperty);
-end;
-
-destructor TMainWindowConfig.Destroy;
-begin
-  inherited Destroy;
-end;
-
-function TMainWindowConfig.GetHeight(aDefault: Integer): Integer;
-begin
-  result := FindOrDefault('height',aDefault);
-end;
-
-function TMainWindowConfig.GetMaximized(aDefault: Boolean): Boolean;
-begin
-  result := FindOrDefault('maximized',aDefault);
-end;
-
-function TMainWindowConfig.GetWidth(aDefault: Integer): Integer;
-begin
-  result := FindOrDefault('width',aDefault);
+  if FBottomPaneHeight=AValue then Exit;
+  FBottomPaneHeight:=AValue;
+  SetModified;
 end;
 
 procedure TMainWindowConfig.SetHeight(AValue: Integer);
 begin
-  SetManagedValue('height',AValue);
+  if FHeight=AValue then Exit;
+  FHeight:=AValue;
+  SetModified;
+end;
+
+procedure TMainWindowConfig.SetLeftPaneWidth(AValue: Integer);
+begin
+  if FLeftPaneWidth=AValue then Exit;
+  FLeftPaneWidth:=AValue;
+  SetModified;
 end;
 
 procedure TMainWindowConfig.SetMaximized(AValue: Boolean);
 begin
-  SetManagedValue('maximized',AValue);
+  if FMaximized=AValue then Exit;
+  FMaximized:=AValue;
+  SetModified;
+end;
+
+procedure TMainWindowConfig.SetRightPaneWidth(AValue: Integer);
+begin
+  if FRightPaneWidth=AValue then Exit;
+  FRightPaneWidth:=AValue;
+  SetModified;
+end;
+
+procedure TMainWindowConfig.SetTopPaneHeight(AValue: Integer);
+begin
+  if FTopPaneHeight=AValue then Exit;
+  FTopPaneHeight:=AValue;
+  SetModified;
 end;
 
 procedure TMainWindowConfig.SetWidth(AValue: Integer);
 begin
-  SetManagedValue('width',AValue);
+  if FWidth=AValue then Exit;
+  FWidth:=AValue;
+  SetModified;
 end;
 
-function TMainWindowConfig.GetLeftPaneWidth(aDefault: Integer): Integer;
+constructor TMainWindowConfig.Create(aParent: TStore);
 begin
-  result := FindOrDefault('leftPaneWidth',aDefault);
-end;
-
-procedure TMainWindowConfig.SetLeftPaneWidth(aValue: Integer);
-begin
-  SetManagedValue('leftPaneWidth',aValue);
-end;
-
-function TMainWindowConfig.GetRightPaneWidth(aDefault: Integer): Integer;
-begin
-  result := FindOrDefault('rightPaneWidth',aDefault);
-end;
-
-procedure TMainWindowConfig.SetRightPaneWidth(aValue: Integer);
-begin
-  SetManagedValue('rightPaneWidth',aValue);
-end;
-
-function TMainWindowConfig.GetTopPaneHeight(aDefault: Integer): Integer;
-begin
-  result := FindOrDefault('topPaneHeight',aDefault);
-end;
-
-procedure TMainWindowConfig.SetTopPaneHeight(aValue: Integer);
-begin
-  SetManagedValue('topPaneHeight',aValue);
-
-end;
-
-function TMainWindowConfig.GetBottomPaneHeight(aDefault: Integer): Integer;
-begin
-  result := FindOrDefault('bottomPaneHeight',aDefault);
-end;
-
-procedure TMainWindowConfig.SetBottomPaneHeight(aValue: Integer);
-begin
-  SetManagedValue('bottomPaneHeight',aValue);
-
+  inherited Create(aParent);
+  FMaximized := false;
+  FWidth := DefaultWidth;
+  FHeight := DefaultHeight;
+  FLeftPaneWidth := DefaultVerticalPaneWidth;
+  FRightPaneWidth := DefaultVerticalPaneWidth;
+  FBottomPaneHeight:= DefaultHorizontalPaneHeight;
+  FTopPaneHeight := DefaultHorizontalPaneHeight;
 end;
 
 

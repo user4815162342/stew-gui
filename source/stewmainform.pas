@@ -14,6 +14,19 @@ but design it with them in mind anyway).
 TODO: Then, push it up to Github for anyone who's interested to see what I'm doing.
 
 
+TODO: When storing and opening project-dependent GUI states (open files, expanded folders),
+these should go in the desktop's preferences directory for now. My reasoning is that
+if it stays in the directory of the project, not only do I have to have one more
+async file to worry about, but any "project sharing" that's going on will mean
+other people find the tabs they have opened gone when they open it up after
+someone else has opened it up. At some point in the future, I can figure out a
+way to store it on a per-user basis, so that someone can have the same tabs open
+no matter where they are, but I'm not really certain that's important right now
+(that might be useful for a web app version, but not this).
+- Anyway, the settings would best be stored in with the MRU data in the config
+file. That way, they get cleaned out after a bunch of projects, and I don't have
+to worry about trying to match up the filename with the path of the document.
+
 TODO: Some interface ideas:
 - Instead of the "filter" button, make it a combobox, plus add a "search" button next to it, and an "advanced" search button.
 Although that's sometime in the future. Maybe get rid of the thing for now, until
@@ -481,20 +494,20 @@ end;
 
 procedure TMainForm.ReadUISettings;
 begin
-  Height := fConfig.MainWindow.GetHeight(Height);
-  Width := fConfig.MainWindow.GetWidth(Width);
-  if fConfig.MainWindow.GetMaximized(WindowState = wsMaximized) then
+  Height := fConfig.MainWindow.height;
+  Width := fConfig.MainWindow.width;
+  if fConfig.MainWindow.maximized then
   begin
     WindowState := wsMaximized;
   end;
   if fFrames[alLeft] <> nil then
-    fFrames[alLeft].Width := fConfig.MainWindow.GetLeftPaneWidth(fFrames[alLeft].Width);
+    fFrames[alLeft].Width := fConfig.MainWindow.leftPaneWidth;
   if fFrames[alRight] <> nil then
-    fFrames[alRight].Width := fConfig.MainWindow.GetLeftPaneWidth(fFrames[alRight].Width);
+    fFrames[alRight].Width := fConfig.MainWindow.rightPaneWidth;
   if fFrames[alTop] <> nil then
-    fFrames[alTop].Height := fConfig.MainWindow.GetLeftPaneWidth(fFrames[alTop].Height);
+    fFrames[alTop].Height := fConfig.MainWindow.topPaneHeight;
   if fFrames[alBottom] <> nil then
-    fFrames[alBottom].Height := fConfig.MainWindow.GetLeftPaneWidth(fFrames[alBottom].Height);
+    fFrames[alBottom].Height := fConfig.MainWindow.bottomPaneHeight;
 
 end;
 
@@ -502,24 +515,24 @@ procedure TMainForm.WriteUISettings;
 begin
   if WindowState = wsMaximized then
   begin
-    fConfig.MainWindow.SetMaximized(true);
+    fConfig.MainWindow.Maximized := true;
     // don't set the height and width, so they're remembered from last time.
   end
   else
   begin
-    fConfig.MainWindow.SetMaximized(false);
-    fConfig.MainWindow.SetHeight(Height);
-    fConfig.MainWindow.SetWidth(Width);
+    fConfig.MainWindow.Maximized := false;
+    fConfig.MainWindow.Height := Height;
+    fConfig.MainWindow.Width := Width;
   end;
 
   if fFrames[alLeft] <> nil then
-    fConfig.MainWindow.SetLeftPaneWidth(fFrames[alLeft].Width);
+    fConfig.MainWindow.LeftPaneWidth := fFrames[alLeft].Width;
   if fFrames[alRight] <> nil then
-    fConfig.MainWindow.SetLeftPaneWidth(fFrames[alRight].Width);
+    fConfig.MainWindow.RightPaneWidth := fFrames[alRight].Width;
   if fFrames[alTop] <> nil then
-    fConfig.MainWindow.SetLeftPaneWidth(fFrames[alTop].Height);
+    fConfig.MainWindow.TopPaneHeight := fFrames[alTop].Height;
   if fFrames[alBottom] <> nil then
-    fConfig.MainWindow.SetLeftPaneWidth(fFrames[alBottom].Height);
+    fConfig.MainWindow.BottomPaneHeight := fFrames[alBottom].Height;
 
 
 end;
