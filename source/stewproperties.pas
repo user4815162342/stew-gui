@@ -11,7 +11,7 @@ type
 
   { TProjectProperties }
 
-  TProjectProperties = class(TAsyncFileBackedStore)
+  TProjectProperties = class(TJSONAsyncFileStoreContainer)
   protected
     procedure Clear; override;
   public

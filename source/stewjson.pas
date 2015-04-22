@@ -197,7 +197,7 @@ type
 implementation
 
 uses
-  jsonparser, math, stewasync;
+  jsonparser, math;
 
 { TAsyncFileBackedJSONObject }
 

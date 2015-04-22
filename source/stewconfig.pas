@@ -11,7 +11,7 @@ type
 
   { TMainWindowConfig }
 
-  TMainWindowConfig = class(TPersistent)
+  TMainWindowConfig = class(TJSONStore)
   private
     FBottomPaneHeight: Integer;
     FHeight: Integer;
@@ -47,7 +47,7 @@ type
 
   { TStewApplicationConfig }
 
-  TStewApplicationConfig = class(TFilebackedStore)
+  TStewApplicationConfig = class(TJSONFileStoreContainer)
   private
     fMainWindowConfig: TMainWindowConfig;
     fMRUProjects: TStrings;
@@ -76,6 +76,11 @@ procedure TStewApplicationConfig.SetMRUProject(AValue: TFilename);
 var
   index: Integer;
 begin
+  // Sometimes, we're getting the last backslash on the file in here
+  // which causes duplicate entries.
+  // TODO: I should also make sure the files are compared based on
+  // the OS case sensitivity.
+  AValue := ExcludeTrailingPathDelimiter(AValue);
   index := fMRUProjects.IndexOf(AValue);
   if index > -1 then
     fMRUProjects.Delete(index);
