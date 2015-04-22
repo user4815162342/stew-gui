@@ -115,9 +115,9 @@ type
     fCreateDir: Boolean;
     fModified: boolean;
     fOnFileLoaded: TNotifyEvent;
-    fOnFileLoadFailed: TExceptionEvent;
+    fOnFileLoadFailed: TExceptionMessageEvent;
     fOnFileSaved: TNotifyEvent;
-    fOnFileSaveFailed: TExceptionEvent;
+    fOnFileSaveFailed: TExceptionMessageEvent;
     fOnFileSaveConflicted: TNotifyEvent;
     fFilingState: TJSONFilingState;
   protected
@@ -125,8 +125,8 @@ type
     function NeedData({%H-}aCreate: Boolean): TJSONObject; override;
     procedure FileLoaded(aData: TStream; aFileAge: Longint);
     procedure FileSaved(aFileAge: Longint);
-    procedure FileLoadFailed(aError: Exception);
-    procedure FileSaveFailed(aError: Exception);
+    procedure FileLoadFailed(aError: String);
+    procedure FileSaveFailed(aError: String);
     // File age is only passed for informational purposes, and I don't
     // need that information here.
     procedure FileSaveConflicted({%H-}aFileAge: Longint);
@@ -140,9 +140,9 @@ type
     procedure Save(aForce: Boolean = false);
     property Modified: boolean read fModified;
     property OnFileLoaded: TNotifyEvent read fOnFileLoaded write fOnFileLoaded;
-    property OnFileLoadFailed: TExceptionEvent read fOnFileLoadFailed write fOnFileLoadFailed;
+    property OnFileLoadFailed: TExceptionMessageEvent read fOnFileLoadFailed write fOnFileLoadFailed;
     property OnFileSaved: TNotifyEvent read fOnFileSaved write fOnFileSaved;
-    property OnFileSaveFailed: TExceptionEvent read fOnFileSaveFailed write fOnFileSaveFailed;
+    property OnFileSaveFailed: TExceptionMessageEvent read fOnFileSaveFailed write fOnFileSaveFailed;
     property OnFileSaveConflicted: TNotifyEvent read fOnFileSaveConflicted write fOnFileSaveConflicted;
   end;
 
@@ -249,14 +249,14 @@ begin
   fFilingState := jfsInactive;
 end;
 
-procedure TAsyncFileBackedJSONObject.FileLoadFailed(aError: Exception);
+procedure TAsyncFileBackedJSONObject.FileLoadFailed(aError: String);
 begin
   if fOnFileLoadFailed <> nil then
     fOnFileLoadFailed(Self,aError);
   fFilingState := jfsInactive;
 end;
 
-procedure TAsyncFileBackedJSONObject.FileSaveFailed(aError: Exception);
+procedure TAsyncFileBackedJSONObject.FileSaveFailed(aError: String);
 begin
   if fOnFileSaveFailed <> nil then
     fOnFileSaveFailed(Self,aError);
@@ -268,7 +268,7 @@ begin
   if fOnFileSaveConflicted <> nil then
     fOnFileSaveConflicted(Self)
   else if fOnFileSaveFailed <> nil then
-    fOnFileSaveFailed(Self,Exception.Create('File could not be saved because it was changed on disk since the last save'));
+    fOnFileSaveFailed(Self,'File could not be saved because it was changed on disk since the last save');
   fFilingState := jfsInactive;
 end;
 

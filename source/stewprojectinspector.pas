@@ -18,6 +18,7 @@ type
     FilterDropDownButton: TButton;
     ProjectExplorer: TTreeView;
     procedure ObserveMainForm(aAction: TMainFormAction);
+    procedure ProjectDocumentsError(Data: String);
     procedure ProjectExplorerCreateNodeClass(Sender: TCustomTreeView;
       var NodeClass: TTreeNodeClass);
     procedure ProjectExplorerDblClick(Sender: TObject);
@@ -37,6 +38,9 @@ type
   end;
 
 implementation
+
+uses
+  dialogs;
 
 {$R *.lfm}
 
@@ -74,7 +78,7 @@ begin
   if (Node.HasChildren and (Node.GetFirstChild = nil)) then
   begin
     Document := (Node as TProjectInspectorNode).DocumentID;
-    Project.ListDocuments(Document,Node,@ProjectDocumentsListed,@Application.ShowException);
+    Project.ListDocuments(Document,Node,@ProjectDocumentsListed,@ProjectDocumentsError);
   end;
 end;
 
@@ -86,6 +90,13 @@ begin
         RefreshProject;
       end;
   end;
+end;
+
+procedure TProjectInspectorFrame.ProjectDocumentsError(Data: String);
+begin
+  ShowMessage('An error occurred while refreshin the project inspector.' + LineEnding +
+              Data + LineEnding +
+              'You may wish to wait a little bit and try again later.');
 end;
 
 procedure TProjectInspectorFrame.ProjectExplorerCreateNodeClass(
@@ -162,7 +173,7 @@ begin
   ProjectExplorer.Items.Clear;
   if (Project <> nil) then
   begin
-    Project.ListRootDocuments(nil,@ProjectDocumentsListed,@Application.ShowException);
+    Project.ListRootDocuments(nil,@ProjectDocumentsListed,@ProjectDocumentsError);
   end;
 end;
 

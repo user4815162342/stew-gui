@@ -24,7 +24,7 @@ type
   private
     fDisk: TFilename;
     FOnOpened: TNotifyEvent;
-    FOnPropertiesError: TExceptionEvent;
+    FOnPropertiesError: TExceptionMessageEvent;
     FOnPropertiesLoaded: TNotifyEvent;
     FOnPropertiesSaveConflicted: TNotifyEvent;
     FOnPropertiesSaved: TNotifyEvent;
@@ -34,15 +34,15 @@ type
     procedure OpenProjectProperties;
     procedure DoOpened;
     procedure SetOnOpened(AValue: TNotifyEvent);
-    procedure SetOnPropertiesError(AValue: TExceptionEvent);
+    procedure SetOnPropertiesError(AValue: TExceptionMessageEvent);
     procedure SetOnPropertiesLoaded(AValue: TNotifyEvent);
     procedure SetOnPropertiesSaveConflicted(AValue: TNotifyEvent);
     procedure SetOnPropertiesSaved(AValue: TNotifyEvent);
     procedure ProjectPropertiesLoaded(Sender: TObject);
-    procedure ProjectPropertiesLoadFailed(Sender: TObject; aError: Exception);
+    procedure ProjectPropertiesLoadFailed(Sender: TObject; aError: String);
     procedure ProjectPropertiesSaveConflicted(Sender: TObject);
     procedure ProjectPropertiesSaved(Sender: TObject);
-    procedure ProjectPropertiesSaveFailed(Sender: TObject; aError: Exception);
+    procedure ProjectPropertiesSaveFailed(Sender: TObject; aError: String);
   public
     constructor Create(const Path: TFilename);
     destructor Destroy; override;
@@ -68,7 +68,7 @@ type
     property OnOpened: TNotifyEvent read FOnOpened write SetOnOpened;
     property OnPropertiesLoaded: TNotifyEvent read FOnPropertiesLoaded write SetOnPropertiesLoaded;
     property OnPropertiesSaved: TNotifyEvent read FOnPropertiesSaved write SetOnPropertiesSaved;
-    property OnPropertiesError: TExceptionEvent read FOnPropertiesError write SetOnPropertiesError;
+    property OnPropertiesError: TExceptionMessageEvent read FOnPropertiesError write SetOnPropertiesError;
     property OnPropertiesSaveConflicted: TNotifyEvent read FOnPropertiesSaveConflicted write SetOnPropertiesSaveConflicted;
     function GetProjectName: String;
     property Properties: TProjectProperties read GetProperties;
@@ -122,7 +122,7 @@ begin
 end;
 
 procedure TStewProject.ProjectPropertiesLoadFailed(Sender: TObject;
-  aError: Exception);
+  aError: String);
 begin
   if fOnPropertiesError <> nil then
     fOnPropertiesError(Self,aError);
@@ -141,7 +141,7 @@ begin
 end;
 
 procedure TStewProject.ProjectPropertiesSaveFailed(Sender: TObject;
-  aError: Exception);
+  aError: String);
 begin
   if fOnPropertiesError <> nil then
     fOnPropertiesError(Self,aError);
@@ -187,7 +187,7 @@ begin
   FOnOpened:=AValue;
 end;
 
-procedure TStewProject.SetOnPropertiesError(AValue: TExceptionEvent);
+procedure TStewProject.SetOnPropertiesError(AValue: TExceptionMessageEvent);
 begin
   if FOnPropertiesError=AValue then Exit;
   FOnPropertiesError:=AValue;

@@ -9,6 +9,7 @@ uses
 
 type
   TExceptionEvent = procedure(Sender: TObject; aError: Exception) of object;
+  TExceptionMessageEvent = procedure(Sender: TObject; aError: String) of object;
 
 
 implementation

@@ -67,6 +67,8 @@ type
     procedure FPOObservedChanged({%H-}ASender : TObject; {%H-}Operation : TFPObservedOperation; {%H-}Data : Pointer);
     procedure SetModified; virtual;
     procedure ClearModified; virtual;
+    procedure ParseJSON(aObject: TObject; aData: TStream);
+    function GetJSONString(AObject: TObject): String;
   public
     property Modified: Boolean read FModified;
   end;
@@ -96,17 +98,17 @@ type
     fFileAge: Longint;
     fCreateDir: Boolean;
     fOnFileLoaded: TNotifyEvent;
-    fOnFileLoadFailed: TExceptionEvent;
+    fOnFileLoadFailed: TExceptionMessageEvent;
     fOnFileSaved: TNotifyEvent;
-    fOnFileSaveFailed: TExceptionEvent;
+    fOnFileSaveFailed: TExceptionMessageEvent;
     fOnFileSaveConflicted: TNotifyEvent;
     fFilingState: TFilingState;
   protected
     procedure Clear; virtual; abstract;
     procedure FileLoaded(aData: TStream; aFileAge: Longint);
     procedure FileSaved(aFileAge: Longint);
-    procedure FileLoadFailed(aError: Exception);
-    procedure FileSaveFailed(aError: Exception);
+    procedure FileLoadFailed(aError: String);
+    procedure FileSaveFailed(aError: String);
     // File age is only passed for informational purposes, and I don't
     // need that information here.
     procedure FileSaveConflicted({%H-}aFileAge: Longint);
@@ -120,9 +122,9 @@ type
     procedure Save(aForce: Boolean = false);
     property FilingState: TFilingState read fFilingState;
     property OnFileLoaded: TNotifyEvent read fOnFileLoaded write fOnFileLoaded;
-    property OnFileLoadFailed: TExceptionEvent read fOnFileLoadFailed write fOnFileLoadFailed;
+    property OnFileLoadFailed: TExceptionMessageEvent read fOnFileLoadFailed write fOnFileLoadFailed;
     property OnFileSaved: TNotifyEvent read fOnFileSaved write fOnFileSaved;
-    property OnFileSaveFailed: TExceptionEvent read fOnFileSaveFailed write fOnFileSaveFailed;
+    property OnFileSaveFailed: TExceptionMessageEvent read fOnFileSaveFailed write fOnFileSaveFailed;
     property OnFileSaveConflicted: TNotifyEvent read fOnFileSaveConflicted write fOnFileSaveConflicted;
   end;
 
@@ -167,54 +169,12 @@ type
   TJSONDestreamer = class(fpjsonrtti.TJSONDestreamer)
     procedure ClientAfterReadObject(Sender: TObject; AObject: TObject;
       JSON: TJSONObject);
-    procedure ClientOnPropertyError(Sender: TObject; AObject: TObject;
-      Info: PPropInfo; AValue: TJSONData; aError: Exception;
+    procedure ClientOnPropertyError(Sender: TObject; {%H-}AObject: TObject;
+      {%H-}Info: PPropInfo; {%H-}AValue: TJSONData; {%H-}aError: Exception;
       var Continue: Boolean);
     constructor Create(AOwner: TComponent); override;
   end;
 
-procedure ParseJSON(aObject: TObject; aData: TStream);
-var
-  loader: TJSONDeStreamer;
-  data: TJSONData;
-begin
-  loader := TJSONDeStreamer.Create(nil);
-  try
-//    loader.OnRestoreProperty:=; // TODO:
-    with TJSONParser.Create(aData) do
-    try
-      data := Parse;
-      if (data <> nil) and (data.JSONType = jtObject) then
-      begin
-        loader.JSONToObject(data as TJSONObject,aObject);
-        DebugLn('Done loading');
-      end
-      else
-        raise Exception.Create('Invalid format for JSON file');
-    finally
-      Free;
-    end;
-  finally
-    loader.Free;
-  end;
-end;
-
-function GetJSONString(AObject: TObject): String;
-var
-  saver: TJSONStreamer;
-  data : TJSONObject;
-begin
-  saver := TJSONStreamer.Create(nil);
-  try
-    saver.Options := [jsoUseFormatString,jsoTStringsAsArray];
-    data := saver.ObjectToJSON(AObject);
-
-    result := data.FormatJSON();
-  finally
-    saver.Free;
-  end;
-
-end;
 
 { TJSONStoreCollection }
 
@@ -286,6 +246,8 @@ procedure TJSONDestreamer.ClientOnPropertyError(Sender: TObject;
 begin
   // the destreamer doesn't re-raise the error unless the event is assigned
   // and not handled. Otherwise, the error is just caught and that's it.
+  DebugLn(aError.Message);
+  Continue := false;
 end;
 
 constructor TJSONDestreamer.Create(AOwner: TComponent);
@@ -417,14 +379,14 @@ begin
   fFilingState := fsInactive;
 end;
 
-procedure TJSONAsyncFileStoreContainer.FileLoadFailed(aError: Exception);
+procedure TJSONAsyncFileStoreContainer.FileLoadFailed(aError: String);
 begin
   if fOnFileLoadFailed <> nil then
     fOnFileLoadFailed(Self,aError);
   fFilingState := fsInactive;
 end;
 
-procedure TJSONAsyncFileStoreContainer.FileSaveFailed(aError: Exception);
+procedure TJSONAsyncFileStoreContainer.FileSaveFailed(aError: String);
 begin
   if fOnFileSaveFailed <> nil then
     fOnFileSaveFailed(Self,aError);
@@ -436,7 +398,7 @@ begin
   if fOnFileSaveConflicted <> nil then
     fOnFileSaveConflicted(Self)
   else if fOnFileSaveFailed <> nil then
-    fOnFileSaveFailed(Self,Exception.Create('File could not be saved because it was changed on disk since the last save'));
+    fOnFileSaveFailed(Self,'File could not be saved because it was changed on disk since the last save');
   fFilingState := fsInactive;
 end;
 
@@ -501,6 +463,49 @@ end;
 procedure TJSONStoreContainer.ClearModified;
 begin
   FModified := false;
+end;
+
+procedure TJSONStoreContainer.ParseJSON(aObject: TObject; aData: TStream);
+var
+  loader: TJSONDeStreamer;
+  data: TJSONData;
+begin
+  loader := TJSONDeStreamer.Create(nil);
+  try
+//    loader.OnRestoreProperty:=; // TODO:
+    with TJSONParser.Create(aData) do
+    try
+      data := Parse;
+      if (data <> nil) and (data.JSONType = jtObject) then
+      begin
+        loader.JSONToObject(data as TJSONObject,aObject);
+        DebugLn('Done loading');
+      end
+      else
+        raise Exception.Create('Invalid format for JSON file');
+    finally
+      Free;
+    end;
+  finally
+    loader.Free;
+  end;
+end;
+
+function TJSONStoreContainer.GetJSONString(AObject: TObject): String;
+var
+  saver: TJSONStreamer;
+  data : TJSONObject;
+begin
+  saver := TJSONStreamer.Create(nil);
+  try
+    saver.Options := [jsoUseFormatString,jsoTStringsAsArray];
+    data := saver.ObjectToJSON(AObject);
+
+    result := data.FormatJSON();
+  finally
+    saver.Free;
+  end;
+
 end;
 
 

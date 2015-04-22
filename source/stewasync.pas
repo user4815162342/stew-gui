@@ -53,7 +53,9 @@ type
   TDeferredIntegerCallback = specialize GDeferredCallback<Integer>;
   TDeferredBooleanCallback = specialize GDeferredCallback<Boolean>;
   TDeferredStringsCallback = specialize GDeferredCallback<TStringList>;
-  TDeferredExceptionCallback = specialize GDeferredCallback<Exception>;
+  // Exceptions are freed after being caught, so deferring them to pass them onward
+  // doesn't work. We need to pass the message instead.
+  TDeferredExceptionCallback = specialize GDeferredCallback<String>;
 
   { TDeferredCaller }
   generic GDeferredCall<T,U> = class(TDeferredCall)
@@ -78,7 +80,9 @@ type
   TDeferredIntegerCall = specialize GDeferredCall<Integer,TDeferredIntegerCallback>;
   TDeferredBooleanCall = specialize GDeferredCall<Boolean,TDeferredBooleanCallback>;
   TDeferredStringsCall = specialize GDeferredCall<TStringList,TDeferredStringsCallback>;
-  TDeferredExceptionCall = specialize GDeferredCall<Exception,TDeferredExceptionCallback>;
+  // Exceptions are freed after being caught, so deferring them to pass them onward
+  // doesn't work. We need to pass the message instead.
+  TDeferredExceptionCall = specialize GDeferredCall<String,TDeferredExceptionCallback>;
 
   TDeferredTask = class(TDeferredCall)
   private
@@ -136,8 +140,7 @@ begin
   except
     on E: Exception do
     begin
-       DebugLn('It caught it');
-       TDeferredExceptionCall.Create(fErrorback,E).Enqueue;
+       TDeferredExceptionCall.Create(fErrorback,E.Message).Enqueue;
     end;
   end;
 end;

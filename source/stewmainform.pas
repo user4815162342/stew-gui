@@ -133,9 +133,9 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure PreferencesMenuItemClick(Sender: TObject);
-    procedure ProjectLoadFailed(E: Exception);
+    procedure ProjectLoadFailed(E: String);
     procedure ProjectOpened(Sender: TObject);
-    procedure ProjectPropertiesError(Sender: TObject; aError: Exception);
+    procedure ProjectPropertiesError(Sender: TObject; aError: String);
     procedure ProjectPropertiesLoaded(Sender: TObject);
     procedure ProjectPropertiesSaveConflicted(Sender: TObject);
     procedure ProjectPropertiesSaved(Sender: TObject);
@@ -373,10 +373,10 @@ begin
   OpenPreferences;
 end;
 
-procedure TMainForm.ProjectLoadFailed(E: Exception);
+procedure TMainForm.ProjectLoadFailed(E: String);
 begin
   ShowMessage('The project couldn''t be loaded.' + LineEnding +
-              'The error message was: ' + E.Message + LineEnding +
+              'The error message was: ' + E + LineEnding +
               'This program will close.');
   Close;
 end;
@@ -389,10 +389,10 @@ begin
 
 end;
 
-procedure TMainForm.ProjectPropertiesError(Sender: TObject; aError: Exception);
+procedure TMainForm.ProjectPropertiesError(Sender: TObject; aError: String);
 begin
   ShowMessage('An error occurred while saving or loading the project properties.' + LineEnding +
-              aError.Message + LineEnding +
+              aError + LineEnding +
               'You may want to restart the program, or wait and try your task again later');
 end;
 
