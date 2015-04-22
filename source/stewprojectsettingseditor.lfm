@@ -1,9 +1,135 @@
-object ProjectSettingsEditor: TProjectSettingsEditor
-  Left = 0
-  Height = 240
-  Top = 0
-  Width = 320
-  TabOrder = 0
-  DesignLeft = 618
-  DesignTop = 198
+inherited ProjectSettingsEditor: TProjectSettingsEditor
+  Width = 453
+  ClientWidth = 453
+  DesignLeft = 564
+  inherited ToolbarPanel: TPanel
+    Height = 24
+    Width = 453
+    ClientHeight = 24
+    ClientWidth = 453
+    inherited RightHandToolbar: TToolBar
+      Left = 411
+      Height = 24
+    end
+    inherited LeftHandToolbar: TToolBar
+      Height = 24
+      Width = 411
+      object RefreshButton: TToolButton[0]
+        Left = 37
+        Top = 0
+        AutoSize = True
+        Caption = 'Refresh'
+        OnClick = RefreshButtonClick
+      end
+      object SaveButton: TToolButton[1]
+        Left = 1
+        Top = 0
+        AutoSize = True
+        Caption = 'Save'
+        OnClick = SaveButtonClick
+      end
+    end
+  end
+  object DefaultDocExtensionPanel: TPanel[1]
+    Left = 0
+    Height = 26
+    Top = 34
+    Width = 453
+    Align = alTop
+    AutoSize = True
+    BorderSpacing.Top = 10
+    BevelOuter = bvNone
+    ClientHeight = 26
+    ClientWidth = 453
+    TabOrder = 1
+    object DefaultDocExtensionLabel: TLabel
+      Left = 10
+      Height = 26
+      Top = 0
+      Width = 178
+      Align = alLeft
+      BorderSpacing.Left = 10
+      Caption = 'Default Document Extension:'
+      FocusControl = DefaultDocExtensionEdit
+      Layout = tlCenter
+      ParentColor = False
+    end
+    object DefaultDocExtensionEdit: TEdit
+      Left = 198
+      Height = 26
+      Top = 0
+      Width = 80
+      Align = alLeft
+      BorderSpacing.Left = 10
+      TabOrder = 0
+    end
+  end
+  object DefaultThumbnailExtensionPanel: TPanel[2]
+    Left = 0
+    Height = 26
+    Top = 106
+    Width = 453
+    Align = alTop
+    AutoSize = True
+    BorderSpacing.Top = 10
+    BevelOuter = bvNone
+    ClientHeight = 26
+    ClientWidth = 453
+    TabOrder = 2
+    object DefaultThumbnailExtensionLabel: TLabel
+      Left = 10
+      Height = 26
+      Top = 0
+      Width = 178
+      Align = alLeft
+      BorderSpacing.Left = 10
+      Caption = 'Default Document Extension:'
+      FocusControl = DefaultThumbnailExtensionEdit
+      Layout = tlCenter
+      ParentColor = False
+    end
+    object DefaultThumbnailExtensionEdit: TEdit
+      Left = 198
+      Height = 26
+      Top = 0
+      Width = 80
+      Align = alLeft
+      BorderSpacing.Left = 10
+      TabOrder = 0
+    end
+  end
+  object DefaultNotesExtensionPanel: TPanel[3]
+    Left = 0
+    Height = 26
+    Top = 70
+    Width = 453
+    Align = alTop
+    AutoSize = True
+    BorderSpacing.Top = 10
+    BevelOuter = bvNone
+    ClientHeight = 26
+    ClientWidth = 453
+    TabOrder = 3
+    object DefaultNotesExtensionLabel: TLabel
+      Left = 10
+      Height = 26
+      Top = 0
+      Width = 151
+      Align = alLeft
+      BorderSpacing.Left = 10
+      Caption = 'Default Notes Extension:'
+      FocusControl = DefaultNotesExtensionEdit
+      Layout = tlCenter
+      ParentColor = False
+    end
+    object DefaultNotesExtensionEdit: TEdit
+      Left = 171
+      Height = 26
+      Top = 0
+      Width = 80
+      Align = alLeft
+      BorderSpacing.Left = 10
+      TabOrder = 0
+    end
+  end
 end

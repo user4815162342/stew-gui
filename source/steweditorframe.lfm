@@ -28,7 +28,6 @@ object EditorFrame: TEditorFrame
       AutoSize = True
       Caption = 'RightHandToolbar'
       EdgeBorders = []
-      Flat = False
       ShowCaptions = True
       TabOrder = 0
       object CloseButton: TToolButton
@@ -43,12 +42,11 @@ object EditorFrame: TEditorFrame
       Left = 0
       Height = 26
       Top = 0
-      Width = 150
-      Align = alLeft
+      Width = 278
+      Align = alClient
       AutoSize = True
       Caption = 'LeftHandToolbar'
       EdgeBorders = []
-      Flat = False
       ShowCaptions = True
       TabOrder = 1
     end

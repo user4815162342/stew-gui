@@ -5,7 +5,8 @@ unit stewprojectsettingseditor;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, steweditorframe;
+  Classes, SysUtils, FileUtil, Forms, Controls, ExtCtrls, ComCtrls, StdCtrls,
+  steweditorframe, stewproperties, stewmainform;
 // TODO: Show Project Options. This is both the "stew" file and the project root properties.
 //    The possible options include:
 //    - category definitions, including publishing details.
@@ -28,23 +29,110 @@ type
   { TProjectSettingsEditor }
 
   TProjectSettingsEditor = class(TEditorFrame)
+    DefaultDocExtensionEdit: TEdit;
+    DefaultThumbnailExtensionEdit: TEdit;
+    DefaultNotesExtensionEdit: TEdit;
+    DefaultDocExtensionLabel: TLabel;
+    DefaultThumbnailExtensionLabel: TLabel;
+    DefaultNotesExtensionLabel: TLabel;
+    DefaultDocExtensionPanel: TPanel;
+    DefaultThumbnailExtensionPanel: TPanel;
+    DefaultNotesExtensionPanel: TPanel;
+    RefreshButton: TToolButton;
+    SaveButton: TToolButton;
+    ToolButton1: TToolButton;
+    procedure ObserveMainForm(aAction: TMainFormAction);
+    procedure RefreshButtonClick(Sender: TObject);
+    procedure SaveButtonClick(Sender: TObject);
+  private
+    procedure SetEditingEnabled(AValue: Boolean);
   private
     { private declarations }
+    procedure UpdateDataBindings;
+    property EditingEnabled: Boolean write SetEditingEnabled;
   public
     { public declarations }
     constructor Create(TheOwner: TComponent); override;
+    destructor Destroy; override;
   end;
 
 implementation
+
+uses
+  Dialogs;
 
 {$R *.lfm}
 
 { TProjectSettingsEditor }
 
+procedure TProjectSettingsEditor.RefreshButtonClick(Sender: TObject);
+begin
+  // TODO: We only really need this until I'm sure the automatic saving and
+  // loading is working.
+  UpdateDataBindings;
+end;
+
+procedure TProjectSettingsEditor.SaveButtonClick(Sender: TObject);
+begin
+  ShowMessage('Saving project properties isn''t implemented yet.')
+  // TODO: Save project properties...
+  // TODO: We only really need this until I'm sure that automatic saving and
+  // loading is working. Although, perhaps I don't want automatic saving?
+end;
+
+procedure TProjectSettingsEditor.SetEditingEnabled(AValue: Boolean);
+begin
+  // TODO: Make sure all data controls are enabled as appropriate.
+  RefreshButton.Enabled := AValue;
+  SaveButton.Enabled := AValue;
+  DefaultDocExtensionLabel.Enabled := AValue;
+  DefaultDocExtensionEdit.Enabled := AValue;
+  DefaultNotesExtensionLabel.Enabled := AValue;
+  DefaultNotesExtensionEdit.Enabled := AValue;
+  DefaultThumbnailExtensionLabel.Enabled := AValue;
+  DefaultThumbnailExtensionEdit.Enabled := AValue;
+end;
+
+procedure TProjectSettingsEditor.ObserveMainForm(aAction: TMainFormAction);
+begin
+  // TODO: What else?
+  case aAction of
+    mfaProjectRefresh:
+      UpdateDataBindings;
+  end;
+end;
+
+procedure TProjectSettingsEditor.UpdateDataBindings;
+var
+  props: TProjectProperties;
+begin
+  props := nil;
+  if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
+  begin
+    EditingEnabled := true;
+    props := MainForm.Project.Properties;
+    DefaultDocExtensionEdit.Text := props.defaultDocExtension;
+    DefaultNotesExtensionEdit.Text := props.defaultNotesExtension;
+    DefaultThumbnailExtensionEdit.Text := props.defaultThumbnailExtension;
+    // TODO: Assign data in properties to the form controls.
+
+  end
+  else
+    EditingEnabled := false;
+end;
+
 constructor TProjectSettingsEditor.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
   Caption := 'Project Settings';
+  UpdateDataBindings;
+  MainForm.Observe(@ObserveMainForm);
+end;
+
+destructor TProjectSettingsEditor.Destroy;
+begin
+  MainForm.Unobserve(@ObserveMainForm);
+  inherited Destroy;
 end;
 
 end.

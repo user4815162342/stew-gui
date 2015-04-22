@@ -423,6 +423,7 @@ begin
   NotifyObservers(mfaProjectRefresh);
 end;
 
+
 procedure TMainForm.StartupCheckProject(Data: PtrInt);
 begin
   if fProject = nil then

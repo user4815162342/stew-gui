@@ -1,14 +1,20 @@
-object DocumentEditor: TDocumentEditor
-  Left = 0
+inherited DocumentEditor: TDocumentEditor
   Height = 352
-  Top = 0
   Width = 417
   ClientHeight = 352
   ClientWidth = 417
-  TabOrder = 0
-  DesignLeft = 618
-  DesignTop = 198
-  object StatusLabel: TLabel
+  inherited ToolbarPanel: TPanel
+    Width = 417
+    ClientWidth = 417
+    inherited RightHandToolbar: TToolBar
+      Left = 375
+      Flat = True
+    end
+    inherited LeftHandToolbar: TToolBar
+      Flat = True
+    end
+  end
+  object StatusLabel: TLabel[1]
     Left = 0
     Height = 16
     Top = 336

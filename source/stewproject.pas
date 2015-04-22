@@ -29,6 +29,7 @@ type
     FOnPropertiesSaveConflicted: TNotifyEvent;
     FOnPropertiesSaved: TNotifyEvent;
     fProperties: TProjectProperties;
+    function GetIsOpened: Boolean;
     function GetProperties: TProjectProperties;
     procedure OpenProjectProperties;
     procedure DoOpened;
@@ -63,6 +64,7 @@ type
     procedure OpenAtPath(aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
     procedure OpenInParentDirectory(aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
     procedure OpenNewAtPath;
+    property IsOpened: Boolean read GetIsOpened;
     property OnOpened: TNotifyEvent read FOnOpened write SetOnOpened;
     property OnPropertiesLoaded: TNotifyEvent read FOnPropertiesLoaded write SetOnPropertiesLoaded;
     property OnPropertiesSaved: TNotifyEvent read FOnPropertiesSaved write SetOnPropertiesSaved;
@@ -166,12 +168,17 @@ begin
   result := fProperties;
 end;
 
+function TStewProject.GetIsOpened: Boolean;
+begin
+  result := fProperties <> nil;
+end;
+
 procedure TStewProject.DoOpened;
 begin
-  if FOnOpened <> nil then
-    FOnOpened(Self);
   // open and save project properties immediately, so that the file exists.
   OpenProjectProperties;
+  if FOnOpened <> nil then
+    FOnOpened(Self);
 end;
 
 procedure TStewProject.SetOnOpened(AValue: TNotifyEvent);
