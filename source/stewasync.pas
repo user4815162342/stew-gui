@@ -26,7 +26,7 @@ own message loop.
 }
 
 uses
-  Classes, SysUtils, Forms;
+  Classes, SysUtils, Forms, LCLProc;
 
 type
 
@@ -135,7 +135,10 @@ begin
     DoTask;
   except
     on E: Exception do
+    begin
+       DebugLn('It caught it');
        TDeferredExceptionCall.Create(fErrorback,E).Enqueue;
+    end;
   end;
 end;
 

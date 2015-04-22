@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, ExtCtrls, ComCtrls, StdCtrls,
-  steweditorframe, stewproperties, stewmainform;
+  Grids, steweditorframe, stewproperties, stewmainform;
 // TODO: Show Project Options. This is both the "stew" file and the project root properties.
 //    The possible options include:
 //    - category definitions, including publishing details.
@@ -38,8 +38,12 @@ type
     DefaultDocExtensionPanel: TPanel;
     DefaultThumbnailExtensionPanel: TPanel;
     DefaultNotesExtensionPanel: TPanel;
+    CategoryDefinitionsPanel: TPanel;
+    CategoryDefinitionsHeaderPanel: TPanel;
+    CategoryDefinitionsLabel: TLabel;
     RefreshButton: TToolButton;
     SaveButton: TToolButton;
+    CategoryDefinitionsGrid: TStringGrid;
     ToolButton1: TToolButton;
     procedure ObserveMainForm(aAction: TMainFormAction);
     procedure RefreshButtonClick(Sender: TObject);
@@ -67,9 +71,13 @@ uses
 
 procedure TProjectSettingsEditor.RefreshButtonClick(Sender: TObject);
 begin
-  // TODO: We only really need this until I'm sure the automatic saving and
-  // loading is working.
-  UpdateDataBindings;
+  // TODO: Test this.
+  if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
+  begin
+       MainForm.Project.Properties.Load;
+       // this should automatically call something on the main form
+       // which will notify that the project has refreshed, and do so.
+  end;
 end;
 
 procedure TProjectSettingsEditor.SaveButtonClick(Sender: TObject);
@@ -91,6 +99,8 @@ begin
   DefaultNotesExtensionEdit.Enabled := AValue;
   DefaultThumbnailExtensionLabel.Enabled := AValue;
   DefaultThumbnailExtensionEdit.Enabled := AValue;
+  CategoryDefinitionsGrid.Enabled := AValue;
+  CategoryDefinitionsLabel.Enabled := AValue;
 end;
 
 procedure TProjectSettingsEditor.ObserveMainForm(aAction: TMainFormAction);

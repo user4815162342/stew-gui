@@ -10,9 +10,20 @@ uses
 type
 
   { TProjectProperties }
+  TCategoryDefinition = class(TJSONStoreCollectionItem)
+
+  end;
+
+  { TCategoryDefinitions }
+
+  TCategoryDefinitions = class(TJSONStoreCollection)
+  public
+    constructor Create;
+  end;
 
   TProjectProperties = class(TJSONAsyncFileStoreContainer)
   private
+    Fcategories: TCategoryDefinitions;
     FdefaultDocExtension: String;
     FdefaultNotesExtension: String;
     FdefaultThumbnailExtension: String;
@@ -23,11 +34,13 @@ type
     procedure Clear; override;
   public
     constructor Create(aProjectPath: TFilename);
+    destructor Destroy; override;
     class function GetPath(aFolderPath: TFilename): TFilename;
   published
     property defaultDocExtension: String read FdefaultDocExtension write SetdefaultDocExtension;
     property defaultThumbnailExtension: String read FdefaultThumbnailExtension write SetdefaultThumbnailExtension;
     property defaultNotesExtension: String read FdefaultNotesExtension write SetdefaultNotesExtension;
+    property categories: TCategoryDefinitions read Fcategories;
     //
 {
 UserProperty,
@@ -38,6 +51,13 @@ Editors,
   end;
 
 implementation
+
+{ TCategoryDefinitions }
+
+constructor TCategoryDefinitions.Create;
+begin
+  inherited Create(TCategoryDefinition);
+end;
 
 { TProjectProperties }
 
@@ -67,6 +87,15 @@ end;
 constructor TProjectProperties.Create(aProjectPath: TFilename);
 begin
   inherited Create(GetPath(aProjectPath),false);
+  Fcategories := TCategoryDefinitions.Create;
+  Fcategories.FPOAttachObserver(Self);
+end;
+
+destructor TProjectProperties.Destroy;
+begin
+  Fcategories.FPODetachObserver(Self);
+  FreeAndNil(Fcategories);
+  inherited Destroy;
 end;
 
 class function TProjectProperties.GetPath(aFolderPath: TFilename): TFilename;

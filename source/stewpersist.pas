@@ -150,7 +150,7 @@ type
 implementation
 
 uses
-  fpjsonrtti, stewfile, jsonparser, rttiutils, typinfo;
+  fpjsonrtti, stewfile, jsonparser, rttiutils, typinfo, LCLProc;
 
 type
 
@@ -167,6 +167,9 @@ type
   TJSONDestreamer = class(fpjsonrtti.TJSONDestreamer)
     procedure ClientAfterReadObject(Sender: TObject; AObject: TObject;
       JSON: TJSONObject);
+    procedure ClientOnPropertyError(Sender: TObject; AObject: TObject;
+      Info: PPropInfo; AValue: TJSONData; aError: Exception;
+      var Continue: Boolean);
     constructor Create(AOwner: TComponent); override;
   end;
 
@@ -177,12 +180,14 @@ var
 begin
   loader := TJSONDeStreamer.Create(nil);
   try
+//    loader.OnRestoreProperty:=; // TODO:
     with TJSONParser.Create(aData) do
     try
       data := Parse;
       if (data <> nil) and (data.JSONType = jtObject) then
       begin
         loader.JSONToObject(data as TJSONObject,aObject);
+        DebugLn('Done loading');
       end
       else
         raise Exception.Create('Invalid format for JSON file');
@@ -275,11 +280,19 @@ begin
 
 end;
 
+procedure TJSONDestreamer.ClientOnPropertyError(Sender: TObject;
+  AObject: TObject; Info: PPropInfo; AValue: TJSONData; aError: Exception;
+  var Continue: Boolean);
+begin
+  // the destreamer doesn't re-raise the error unless the event is assigned
+  // and not handled. Otherwise, the error is just caught and that's it.
+end;
+
 constructor TJSONDestreamer.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
   AfterReadObject:=@ClientAfterReadObject;
-
+  OnPropertyError:=@ClientOnPropertyError;
 end;
 
 { TJSONStreamer }

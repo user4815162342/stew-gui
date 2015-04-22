@@ -155,7 +155,6 @@ type
     procedure StartupCheckProject({%H-}Data: PtrInt);
     procedure StartupIfProjectExists(aValue: Boolean);
     procedure StartupIfProjectParentDirectoryExists(aValue: Boolean);
-    procedure ProjectLoaded;
     procedure NotifyObservers(aAction: TMainFormAction);
     procedure ReadUISettings;
     procedure WriteUISettings;
@@ -384,19 +383,23 @@ end;
 
 procedure TMainForm.ProjectOpened(Sender: TObject);
 begin
-  ProjectLoaded;
+  fConfig.MRUProject := fProject.DiskPath;
+  Self.Caption := Application.Title + ' - ' + fProject.GetProjectName;
+  // But... we don't actually enable anything, not until we get a project properties loaded.
+
 end;
 
 procedure TMainForm.ProjectPropertiesError(Sender: TObject; aError: Exception);
 begin
-  ShowMessage('An error occurred while saving or loading the project properties' + LineEnding +
+  ShowMessage('An error occurred while saving or loading the project properties.' + LineEnding +
               aError.Message + LineEnding +
-              'You may want to wait and try your task again later');
+              'You may want to restart the program, or wait and try your task again later');
 end;
 
 procedure TMainForm.ProjectPropertiesLoaded(Sender: TObject);
 begin
-  // Not sure that anything has to be done here.
+  Enabled := true;
+  NotifyObservers(mfaProjectRefresh);
 end;
 
 procedure TMainForm.ProjectPropertiesSaveConflicted(Sender: TObject);
@@ -467,16 +470,6 @@ begin
     else
       StartupIfProjectParentDirectoryExists(false);
   end
-
-end;
-
-procedure TMainForm.ProjectLoaded;
-begin
-  Enabled := true;
-  fConfig.MRUProject := fProject.DiskPath;
-  Self.Caption := Application.Title + ' - ' + fProject.GetProjectName;
-
-  NotifyObservers(mfaProjectRefresh);
 
 end;
 

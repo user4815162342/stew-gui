@@ -1,19 +1,21 @@
 inherited ProjectSettingsEditor: TProjectSettingsEditor
-  Width = 453
-  ClientWidth = 453
+  Height = 388
+  Width = 471
+  ClientHeight = 388
+  ClientWidth = 471
   DesignLeft = 564
   inherited ToolbarPanel: TPanel
     Height = 24
-    Width = 453
+    Width = 471
     ClientHeight = 24
-    ClientWidth = 453
+    ClientWidth = 471
     inherited RightHandToolbar: TToolBar
-      Left = 411
+      Left = 429
       Height = 24
     end
     inherited LeftHandToolbar: TToolBar
       Height = 24
-      Width = 411
+      Width = 429
       object RefreshButton: TToolButton[0]
         Left = 37
         Top = 0
@@ -33,14 +35,14 @@ inherited ProjectSettingsEditor: TProjectSettingsEditor
   object DefaultDocExtensionPanel: TPanel[1]
     Left = 0
     Height = 26
-    Top = 34
-    Width = 453
+    Top = 200
+    Width = 471
     Align = alTop
     AutoSize = True
     BorderSpacing.Top = 10
     BevelOuter = bvNone
     ClientHeight = 26
-    ClientWidth = 453
+    ClientWidth = 471
     TabOrder = 1
     object DefaultDocExtensionLabel: TLabel
       Left = 10
@@ -67,14 +69,14 @@ inherited ProjectSettingsEditor: TProjectSettingsEditor
   object DefaultThumbnailExtensionPanel: TPanel[2]
     Left = 0
     Height = 26
-    Top = 106
-    Width = 453
+    Top = 272
+    Width = 471
     Align = alTop
     AutoSize = True
     BorderSpacing.Top = 10
     BevelOuter = bvNone
     ClientHeight = 26
-    ClientWidth = 453
+    ClientWidth = 471
     TabOrder = 2
     object DefaultThumbnailExtensionLabel: TLabel
       Left = 10
@@ -101,14 +103,14 @@ inherited ProjectSettingsEditor: TProjectSettingsEditor
   object DefaultNotesExtensionPanel: TPanel[3]
     Left = 0
     Height = 26
-    Top = 70
-    Width = 453
+    Top = 236
+    Width = 471
     Align = alTop
     AutoSize = True
     BorderSpacing.Top = 10
     BevelOuter = bvNone
     ClientHeight = 26
-    ClientWidth = 453
+    ClientWidth = 471
     TabOrder = 3
     object DefaultNotesExtensionLabel: TLabel
       Left = 10
@@ -130,6 +132,65 @@ inherited ProjectSettingsEditor: TProjectSettingsEditor
       Align = alLeft
       BorderSpacing.Left = 10
       TabOrder = 0
+    end
+  end
+  object CategoryDefinitionsPanel: TPanel[4]
+    Left = 0
+    Height = 156
+    Top = 34
+    Width = 471
+    Align = alTop
+    BorderSpacing.Top = 10
+    BevelOuter = bvNone
+    ClientHeight = 156
+    ClientWidth = 471
+    TabOrder = 4
+    object CategoryDefinitionsHeaderPanel: TPanel
+      Left = 0
+      Height = 16
+      Top = 0
+      Width = 471
+      Align = alTop
+      AutoSize = True
+      BevelOuter = bvNone
+      ClientHeight = 16
+      ClientWidth = 471
+      TabOrder = 0
+      object CategoryDefinitionsLabel: TLabel
+        Left = 10
+        Height = 16
+        Top = 0
+        Width = 128
+        Align = alLeft
+        BorderSpacing.Left = 10
+        Caption = 'Category Definitions:'
+        FocusControl = CategoryDefinitionsGrid
+        Layout = tlBottom
+        ParentColor = False
+      end
+    end
+    object CategoryDefinitionsGrid: TStringGrid
+      Left = 10
+      Height = 130
+      Top = 26
+      Width = 451
+      Align = alClient
+      BorderSpacing.Left = 10
+      BorderSpacing.Top = 10
+      BorderSpacing.Right = 10
+      ColCount = 2
+      Columns = <      
+        item
+          Title.Caption = 'Name'
+        end      
+        item
+          ButtonStyle = cbsButton
+          Title.Caption = 'Color'
+        end>
+      FixedCols = 0
+      RowCount = 1
+      TabOrder = 1
+      TitleStyle = tsNative
     end
   end
 end

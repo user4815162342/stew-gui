@@ -10,38 +10,18 @@ uses
 // TODO: This is where we set up the common look and feel for the documents,
 // preferences and project settings editors.
 
-{
-TODO: Similar 'layout' system as the main form, although this isn't done here,
-we just have the functionality for it.
+// NOTE: At one point I considered setting up a layout mechanism, like I do on
+// the main form, and separating everything out into frames. I have abandoned that:
+// - doing it the old fashioned way gives me a better preview of
+// what the form is going to look like while designing it
+// - separating controls into multiple frames would mean an abundance of files
+// I would have to go through if I needed to tweak one little thing.
+// - Since the EditorFrame has controls of it's own, which I might want to be
+// customizable, I would have to add lots of additional code to handle that.
+// - really, the layout of document panels is not going to be customizable, at
+// least in the short run, and in the long run, I can add 'hooks' where I want
+// to make things customizable.
 
-Unlike MainForm, we don't have sidebars, footers, etc. We just have one location,
-and frames can be stacked (so we can have things align to the sides, but they
-won't have splitters). There is also an option to make the interface 'Tabbed',
-with tabs across the bottom, and if so, then laying out a frame requires a tab name
-(this isn't the caption, necessarily, as that would make it more difficult to
-translate the UI.
-
-function LayoutFrame(AControl: TControlClass; aLocation: TAlign; aTabIndex: Integer; aTabCaption: String): TControl;
-- If the tab doesn't exist, creates it. But only if CreateTabs was called initially
-and no other controls have been laid out. Otherwise, it's just placed on the main
-panel.
-- adds the control to the specified tab with the specified alignment. If there
-is already a control at that location, no errors occur.
-- the tab caption is only used if the tab hasn't already been created.
-
-function LayoutTabs(aDefaultTabCaption: String): TControl;
-- tells the form to create a tab sheet for laying out controls,
-with one tab that has the specified caption.
-- creates the tabsheet. This must be called before calling LayoutFrame. Calling
-it after frames have been added will cause an error. Calling it more than once
-will also cause an error.
-
-function AddToolButton(): TToolButton;
-
-}
-
-// TODO: Also add a 'AddToolbutton' method to add special toolbuttons
-// to the main toolbar.
 // TODO: Need a set of standard glyphs for the toolbuttons?
 
 type
