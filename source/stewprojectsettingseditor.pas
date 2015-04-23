@@ -29,6 +29,13 @@ type
   { TProjectSettingsEditor }
 
   TProjectSettingsEditor = class(TEditorFrame)
+    CategoryDefinitionsGrid: TStringGrid;
+    StatusDefinitionsGrid: TStringGrid;
+    CategoryDefinitionsHeaderPanel: TPanel;
+    StatusDefinitionsHeaderPanel: TPanel;
+    CategoryDefinitionsLabel: TLabel;
+    StatusDefinitionsLabel: TLabel;
+    StatusDefinitionsPanel: TPanel;
     DefaultDocExtensionEdit: TEdit;
     DefaultThumbnailExtensionEdit: TEdit;
     DefaultNotesExtensionEdit: TEdit;
@@ -38,12 +45,10 @@ type
     DefaultDocExtensionPanel: TPanel;
     DefaultThumbnailExtensionPanel: TPanel;
     DefaultNotesExtensionPanel: TPanel;
+    GridsPanel: TPanel;
     CategoryDefinitionsPanel: TPanel;
-    CategoryDefinitionsHeaderPanel: TPanel;
-    CategoryDefinitionsLabel: TLabel;
     RefreshButton: TToolButton;
     SaveButton: TToolButton;
-    CategoryDefinitionsGrid: TStringGrid;
     ToolButton1: TToolButton;
     procedure ObserveMainForm(aAction: TMainFormAction);
     procedure RefreshButtonClick(Sender: TObject);
@@ -63,7 +68,7 @@ type
 implementation
 
 uses
-  Dialogs;
+  Dialogs, Graphics;
 
 {$R *.lfm}
 
@@ -101,6 +106,8 @@ begin
   DefaultThumbnailExtensionEdit.Enabled := AValue;
   CategoryDefinitionsGrid.Enabled := AValue;
   CategoryDefinitionsLabel.Enabled := AValue;
+  StatusDefinitionsLabel.Enabled:=AValue;
+  StatusDefinitionsGrid.Enabled := AValue;
 end;
 
 procedure TProjectSettingsEditor.ObserveMainForm(aAction: TMainFormAction);
@@ -112,9 +119,19 @@ begin
   end;
 end;
 
+function ColorToHex(x: TColor): String;
+begin
+  result := '#' +
+     IntToHex(Red(x),2) +
+     IntToHex(Green(x),2) +
+     IntToHex(Blue(x),2);
+end;
+
 procedure TProjectSettingsEditor.UpdateDataBindings;
 var
   props: TProjectProperties;
+  i: Integer;
+  aName: String;
 begin
   props := nil;
   if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
@@ -125,6 +142,38 @@ begin
     DefaultNotesExtensionEdit.Text := props.defaultNotesExtension;
     DefaultThumbnailExtensionEdit.Text := props.defaultThumbnailExtension;
     // TODO: Assign data in properties to the form controls.
+
+    // TODO: Still need 'default category', 'default status', as well
+    // as the ability to add, delete and edit the data. Something better
+    // than a StringGrid might be nice, to allow me to show the colors as
+    // a color and provide a color picker, or at least a drop down.
+    with CategoryDefinitionsGrid do
+    begin
+      Clear;
+      for i := 0 to props.categories.NameCount - 1 do
+      begin
+        aName := props.categories.Names[i];
+        RowCount := RowCount + 1;
+        Cells[0,i] := aName;
+        Cells[1,i] := IntToHex((props.categories[aName] as TKeywordDefinition).color,6);
+        Cells[2,i] := BoolToStr(props.defaultCategory = aName,'Yes','No');
+      end;
+      AutoSizeColumns;
+    end;
+
+    with StatusDefinitionsGrid do
+    begin
+      Clear;
+      for i := 0 to props.statuses.NameCount - 1 do
+      begin
+        aName := props.statuses.Names[i];
+        RowCount := RowCount + 1;
+        Cells[0,i] := aName;
+        Cells[1,i] := IntToHex((props.statuses[aName] as TKeywordDefinition).color,6);
+        Cells[2,i] := BoolToStr(props.defaultStatus = aName,'Yes','No');
+      end;
+      AutoSizeColumns;
+    end;
 
   end
   else

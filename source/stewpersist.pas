@@ -5,7 +5,7 @@ unit stewpersist;
 interface
 
 uses
-  Classes, SysUtils, stewtypes, fpjson;
+  Classes, SysUtils, stewtypes, fpjson, fpjsonrtti;
 
 {$Interfaces CORBA}
 { I'm using CORBA here to avoid reference counting overhead and pitfalls. Without
@@ -16,7 +16,18 @@ to descend from a special object (TInterfacedObject) just to implement it.
 
 I never liked the way Delphi implemented interfaces directly to COM, instead
 of making the COM interface stuff a separate thing that you added in only if you
-wanted it.}
+wanted it.
+
+One problem still remains:
+
+Apparently it still has the problem of requiring an identity string for 'as' or 'is',
+because when I didn't include one, objects were registering as supporting IJSONStoreCustomSerializer
+when they supported IJSONStoreExtraProperties.
+
+Seriously. I'd think the compiler would be able to just automatically insert the
+type name in if one isn't found. It's possible that something else is going on,
+but this was my solution.
+}
 
 type
 
@@ -25,6 +36,7 @@ type
   // know anything about, for forwards compatibility, and for users to
   // put their own annotations in.
   IJSONStoreExtraProperties = interface
+    ['IJSONStoreExtraProperties'] // Apparently, if I don't "Name" it, it's not possible to distinguish it from the other interfaces without names.
     procedure PersistExtraProperty(aName: TJSONStringType; aData: TJSONData);
     function CountPersistedProperties: Integer;
     procedure GetPersistedProperty(aIndex: Integer; out aName: TJSONStringType; out aData: TJSONData);
@@ -43,6 +55,12 @@ type
     procedure GetPersistedProperty(aIndex: Integer; out
        aName: TJSONStringType; out aData: TJSONData);
 
+  end;
+
+  IJSONCustomSerializer = interface
+    ['IJSONCustomSerializer'] // Apparently, if I don't "Name" it, it's not possible to distinguish it from the other interfaces without names.
+    procedure AfterSerialize(aSaver: TJSONStreamer; aTarget: TJSONObject);
+    procedure BeforeDeserialize(aLoader: TJSONDeStreamer; aData: TJSONObject);
   end;
 
   { TJSONStore }
@@ -148,17 +166,38 @@ type
     constructor Create(AItemClass: TJSONStoreCollectionItemClass);
   end;
 
+  { TJSONStoreMapItem }
+
+  TJSONStoreMapItem = class(TMappedCollectionItem,IJSONStoreExtraProperties)
+  private
+    fExtraProperties: TJSONStoreExtraPropertiesHelper;
+    function GetExtraProperties: IJSONStoreExtraProperties;
+  protected
+    property ExtraProperties: IJSONStoreExtraProperties read GetExtraProperties implements IJSONStoreExtraProperties;
+  public
+    constructor Create(AMap: TMappedCollection; const aKey: String); override;
+    destructor Destroy; override;
+  end;
+
+  TJSONStoreMap = class(TMappedCollection, IJSONCustomSerializer)
+  protected
+    procedure AfterSerialize(aSaver: TJSONStreamer; aTarget: TJSONObject); virtual;
+    procedure BeforeDeserialize(aLoader: TJSONDeStreamer; aData: TJSONObject); virtual;
+  end;
+
 
 implementation
 
 uses
-  fpjsonrtti, stewfile, jsonparser, rttiutils, typinfo, LCLProc;
+  stewfile, jsonparser, rttiutils, typinfo, LCLProc;
 
 type
 
   { TJSONStreamer }
 
   TJSONStreamer = class(fpjsonrtti.TJSONStreamer)
+    procedure ClientAfterStreamObject(Sender: TObject; AObject: TObject;
+      JSON: TJSONObject);
     procedure ClientBeforeStreamObject(Sender: TObject; AObject: TObject;
       JSON: TJSONObject);
     constructor Create(AOwner: TComponent); override;
@@ -169,11 +208,67 @@ type
   TJSONDestreamer = class(fpjsonrtti.TJSONDestreamer)
     procedure ClientAfterReadObject(Sender: TObject; AObject: TObject;
       JSON: TJSONObject);
+    procedure ClientBeforeReadObject(Sender: TObject; AObject: TObject;
+      JSON: TJSONObject);
     procedure ClientOnPropertyError(Sender: TObject; {%H-}AObject: TObject;
       {%H-}Info: PPropInfo; {%H-}AValue: TJSONData; {%H-}aError: Exception;
       var Continue: Boolean);
     constructor Create(AOwner: TComponent); override;
   end;
+
+{ TJSONStoreMap }
+
+procedure TJSONStoreMap.AfterSerialize(aSaver: fpjsonrtti.TJSONStreamer;
+  aTarget: TJSONObject);
+var
+  i: Longint;
+  aName: String;
+begin
+  for i := 0 to NameCount - 1 do
+  begin
+    aName := Names[i];
+    aTarget[aName] := aSaver.ObjectToJSON(Items[aName]);
+  end;
+end;
+
+procedure TJSONStoreMap.BeforeDeserialize(aLoader: fpjsonrtti.TJSONDeStreamer;
+  aData: TJSONObject);
+var
+  i: Longint;
+  aName: String;
+begin
+
+  Clear;
+  For I:=0 to aData.Count-1 do
+  begin
+    aName := aData.Names[i];
+    If (aData.Types[aName]<>jtObject) then
+      raise Exception.CreateFmt('Object property %s is not a valid type for a map item: "%s"',[aName,JSONTypeName(aData.Types[aName])])
+    else
+      aLoader.JSONToObject(aData.Objects[aName],Add(aName));
+  end;
+
+end;
+
+{ TJSONStoreMapItem }
+
+function TJSONStoreMapItem.GetExtraProperties: IJSONStoreExtraProperties;
+begin
+  result := fExtraProperties as IJSONStoreExtraProperties;
+end;
+
+constructor TJSONStoreMapItem.Create(AMap: TMappedCollection; const aKey: String
+  );
+begin
+  inherited Create(AMap, aKey);
+  fExtraProperties := TJSONStoreExtraPropertiesHelper.Create;
+end;
+
+destructor TJSONStoreMapItem.Destroy;
+begin
+  FreeAndNil(fExtraProperties);
+  inherited Destroy;
+end;
 
 
 { TJSONStoreCollection }
@@ -240,6 +335,15 @@ begin
 
 end;
 
+procedure TJSONDestreamer.ClientBeforeReadObject(Sender: TObject;
+  AObject: TObject; JSON: TJSONObject);
+begin
+  if AObject is IJSONCustomSerializer then
+  begin
+    (AObject as IJSONCustomSerializer).BeforeDeserialize(Self,JSON);
+  end;
+end;
+
 procedure TJSONDestreamer.ClientOnPropertyError(Sender: TObject;
   AObject: TObject; Info: PPropInfo; AValue: TJSONData; aError: Exception;
   var Continue: Boolean);
@@ -253,13 +357,14 @@ end;
 constructor TJSONDestreamer.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
+  BeforeReadObject:=@ClientBeforeReadObject;
   AfterReadObject:=@ClientAfterReadObject;
   OnPropertyError:=@ClientOnPropertyError;
 end;
 
 { TJSONStreamer }
 
-procedure TJSONStreamer.ClientBeforeStreamObject(Sender: TObject;
+procedure TJSONStreamer.ClientAfterStreamObject(Sender: TObject;
   AObject: TObject; JSON: TJSONObject);
 var
   I: Integer;
@@ -285,9 +390,20 @@ begin
   end;
 end;
 
+procedure TJSONStreamer.ClientBeforeStreamObject(Sender: TObject;
+  AObject: TObject; JSON: TJSONObject);
+begin
+  if AObject is IJSONCustomSerializer then
+  begin
+    (AObject as IJSONCustomSerializer).AfterSerialize(Self,JSON);
+  end;
+end;
+
 constructor TJSONStreamer.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
+  AfterStreamObject:=@ClientAfterStreamObject;
+;
   BeforeStreamObject:=@ClientBeforeStreamObject;
 end;
 
@@ -472,14 +588,12 @@ var
 begin
   loader := TJSONDeStreamer.Create(nil);
   try
-//    loader.OnRestoreProperty:=; // TODO:
     with TJSONParser.Create(aData) do
     try
       data := Parse;
       if (data <> nil) and (data.JSONType = jtObject) then
       begin
         loader.JSONToObject(data as TJSONObject,aObject);
-        DebugLn('Done loading');
       end
       else
         raise Exception.Create('Invalid format for JSON file');
