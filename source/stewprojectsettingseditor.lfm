@@ -1,9 +1,10 @@
 inherited ProjectSettingsEditor: TProjectSettingsEditor
-  Height = 427
+  Height = 643
   Width = 540
-  ClientHeight = 427
+  ClientHeight = 643
   ClientWidth = 540
-  DesignLeft = 564
+  DesignLeft = 451
+  DesignTop = 86
   inherited ToolbarPanel: TPanel
     Height = 24
     Width = 540
@@ -263,6 +264,28 @@ inherited ProjectSettingsEditor: TProjectSettingsEditor
           ParentColor = False
         end
       end
+    end
+  end
+  object UserPropertiesPanel: TPanel[5]
+    Left = 0
+    Height = 218
+    Top = 406
+    Width = 540
+    Align = alTop
+    BorderSpacing.Top = 10
+    BevelOuter = bvNone
+    ClientHeight = 218
+    ClientWidth = 540
+    TabOrder = 5
+    object UserPropertiesLabel: TLabel
+      Left = 10
+      Height = 16
+      Top = 0
+      Width = 530
+      Align = alTop
+      BorderSpacing.Left = 10
+      Caption = 'Custom Properties:'
+      ParentColor = False
     end
   end
 end

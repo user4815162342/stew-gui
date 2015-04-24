@@ -5,86 +5,15 @@ unit stewproperties;
 interface
 
 uses
-  Classes, SysUtils, stewpersist, Graphics, fpjsonrtti, fpjson, stewtypes;
+  Classes, SysUtils, stewpersist, Graphics, fpjsonrtti, fpjson, stewtypes, contnrs;
 
 type
 
-  TUserPropertyArray = class;
-  TUserPropertyObject = class;
+  // TODO: For the user property editor, need to make sure that when it's changed,
+  // the properties themselves are marked as changed.
+  // TODO: I'm going to skip 'editors' for now. Which means I'm done with
+  // properties and ready to work with documents!
 
-  TUserPropertyValueType = (upNull, upBoolean, upNumber, upString, upArray, upObject);
-
-  { TUserPropertyValue }
-
-  TUserPropertyValue = class(TPersistent)
-  private
-    fValue: Variant;
-    fObject: TUserPropertyObject;
-    fArray: TUserPropertyArray;
-    FValueType: TUserPropertyValueType;
-    function GetAsArray: TUserPropertyArray;
-    function GetAsBoolean: Boolean;
-    function GetAsNumber: Double;
-    function GetAsObject: TUserPropertyObject;
-    function GetAsString: String;
-    procedure SetAsBoolean(AValue: Boolean);
-    procedure SetAsNumber(AValue: Double);
-    procedure SetAsString(AValue: String);
-    procedure ClearValue;
-  public
-    constructor Create;
-    destructor Destroy; override;
-    procedure SetNull;
-    property AsNumber: Double read GetAsNumber write SetAsNumber;
-    property AsString: String read GetAsString write SetAsString;
-    property AsBoolean: Boolean read GetAsBoolean write SetAsBoolean;
-    property AsArray: TUserPropertyArray read GetAsArray;
-    property AsObject: TUserPropertyObject read GetAsObject;
-    property Kind: TUserPropertyValueType read FValueType;
-    function MakeArray: TUserPropertyArray;
-    function MakeObject: TUserPropertyObject;
-  end;
-
-  { TUserPropertyArrayItem }
-
-  TUserPropertyArrayItem = class(TCollectionItem)
-  private
-    fValue: TUserPropertyValue;
-    function GetValue: TUserPropertyValue;
-  public
-    destructor Destroy; override;
-    property Value: TUserPropertyValue read GetValue;
-  end;
-
-  { TUserPropertyArray }
-
-  TUserPropertyArray = class(TCollection)
-  public
-    constructor Create;
-  end;
-
-  { TUserPropertyMap }
-
-  { TUserPropertyObjectItem }
-
-  TUserPropertyObjectItem = class(TMappedCollectionItem)
-  private
-    fValue: TUserPropertyValue;
-    function GetValue: TUserPropertyValue;
-  public
-    destructor Destroy; override;
-    property Value: TUserPropertyValue read GetValue;
-  end;
-
-  { TUserProperty }
-
-  TUserPropertyObject = class(TMappedCollection, IJSONCustomSerializer)
-  protected
-    procedure AfterSerialize(aSaver: TJSONStreamer; aTarget: TJSONObject); virtual;
-    procedure BeforeDeserialize(aLoader: TJSONDeStreamer; aData: TJSONObject); virtual;
-  public
-    constructor Create;
-  end;
 
   { TKeywordDefinition }
 
@@ -116,11 +45,13 @@ type
     FdefaultStatus: String;
     FdefaultThumbnailExtension: String;
     fStatuses: TKeywordDefinitions;
+    fUserProperties: TJSONData;
     procedure SetdefaultCategory(AValue: String);
     procedure SetdefaultDocExtension(AValue: String);
     procedure SetdefaultNotesExtension(AValue: String);
     procedure SetdefaultStatus(AValue: String);
     procedure SetdefaultThumbnailExtension(AValue: String);
+    procedure SetUserProperties(AValue: TJSONData);
   protected
     procedure Clear; override;
     procedure AfterSerialize({%H-}aSaver: TJSONStreamer; {%H-}aTarget: TJSONObject);
@@ -129,6 +60,8 @@ type
     constructor Create(aProjectPath: TFilename);
     destructor Destroy; override;
     class function GetPath(aFolderPath: TFilename): TFilename;
+    // not published because I need to override the streaming of this.
+    property user: TJSONData read fUserProperties write SetUserProperties;
   published
     property defaultDocExtension: String read FdefaultDocExtension write SetdefaultDocExtension;
     property defaultThumbnailExtension: String read FdefaultThumbnailExtension write SetdefaultThumbnailExtension;
@@ -137,11 +70,92 @@ type
     property defaultCategory: String read FdefaultCategory write SetdefaultCategory;
     property statuses: TKeywordDefinitions read fStatuses;
     property defaultStatus: String read FdefaultStatus write SetdefaultStatus;
-    //
-{ TODO: properties not implemented yet...
-editors
-user
-}
+  end;
+
+  // FUTURE: Okay, I've got a problem with these user properties... the jsonrtti
+  // will only match arrays with collections. If it finds a TObject that's
+  // not a collection, it expects an object, not an array in the JSON format.
+  // And, if it finds a JSON array, it expects a TCollection. There really
+  // isn't much choice. And, since a TCollection can't hold primitive data,
+  // There's no easy way to store primitive arrays. I thought this would solve
+  // it, but then, I realized that when I got to receiving an array, the
+  // deserializer gave me no way of automatically doing it (JSONToObject only
+  // takes TJSONObjects, not TJSONArrays). Therefore, I had to rethink this
+  // whole thing and give up on this.
+  // But, I'm leaving it here in case I ever decide to switch to a different
+  // and more customizable streaming option.
+  TUserPropertyArray = class;
+  TUserPropertyObject = class;
+
+  TUserPropertyValueType = (upNull, upBoolean, upNumber, upString, upArray, upObject);
+
+  { TUserPropertyValue  (Not using see above)}
+
+  TUserPropertyValue = class(TPersistent)
+  private
+    fValue: Variant;
+    fObject: TUserPropertyObject;
+    fArray: TUserPropertyArray;
+    FValueType: TUserPropertyValueType;
+    function GetAsArray: TUserPropertyArray;
+    function GetAsBoolean: Boolean;
+    function GetAsNumber: Double;
+    function GetAsObject: TUserPropertyObject;
+    function GetAsString: String;
+    procedure SetAsBoolean(AValue: Boolean);
+    procedure SetAsNumber(AValue: Double);
+    procedure SetAsString(AValue: String);
+    procedure ClearValue;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure SetNull;
+    property AsNumber: Double read GetAsNumber write SetAsNumber;
+    property AsString: String read GetAsString write SetAsString;
+    property AsBoolean: Boolean read GetAsBoolean write SetAsBoolean;
+    property AsArray: TUserPropertyArray read GetAsArray;
+    property AsObject: TUserPropertyObject read GetAsObject;
+    property Kind: TUserPropertyValueType read FValueType;
+    function MakeArray: TUserPropertyArray;
+    function MakeObject: TUserPropertyObject;
+  end;
+
+
+  { TUserPropertyArray  (Not using see above)}
+  TUserPropertyArray = class(TPersistent)
+  private
+    fList: TFPObjectList;
+    function GetCount: Integer;
+    function GetItem(Index: Integer): TUserPropertyValue;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    function Add: TUserPropertyValue;
+    procedure Delete(Index: Integer);
+    procedure Clear;
+    property Count: Integer read GetCount;
+    property Items[Index: Integer]: TUserPropertyValue read GetItem;
+  end;
+
+  { TUserPropertyObjectItem  (Not using see above) }
+
+  TUserPropertyObjectItem = class(TMappedCollectionItem)
+  private
+    fValue: TUserPropertyValue;
+    function GetValue: TUserPropertyValue;
+  public
+    destructor Destroy; override;
+    property Value: TUserPropertyValue read GetValue;
+  end;
+
+  { TUserProperty  (Not using see above)}
+
+  TUserPropertyObject = class(TMappedCollection, IJSONCustomSerializer)
+  protected
+    procedure AfterSerialize(aSaver: TJSONStreamer; aTarget: TJSONObject); virtual;
+    procedure BeforeDeserialize(aLoader: TJSONDeStreamer; aData: TJSONObject); virtual;
+  public
+    constructor Create;
   end;
 
 implementation
@@ -149,34 +163,53 @@ implementation
 uses
   LCLProc, Math;
 
-{ TUserPropertyArrayItem }
-
-function TUserPropertyArrayItem.GetValue: TUserPropertyValue;
-begin
-  if fValue = nil then
-  begin
-    fValue := TUserPropertyValue.Create;
-    fValue.FPOAttachObserver(Self);
-  end;
-  result := fValue;
-end;
-
-destructor TUserPropertyArrayItem.Destroy;
-begin
-  if Value <> nil then
-  begin
-    fValue.FPODetachObserver(Self);
-    FreeAndNil(fValue);
-  end;
-  inherited Destroy;
-end;
-
 { TUserPropertyArray }
+
+function TUserPropertyArray.GetCount: Integer;
+begin
+  result := fList.Count;
+end;
+
+function TUserPropertyArray.GetItem(Index: Integer): TUserPropertyValue;
+begin
+  result := fList[Index] as TUserPropertyValue;
+end;
 
 constructor TUserPropertyArray.Create;
 begin
-  inherited Create(TUserPropertyArrayItem);
+  inherited Create;
+  fList := TFPObjectList.Create(false);
 end;
+
+destructor TUserPropertyArray.Destroy;
+begin
+  Clear;
+  FreeAndNil(fList);
+  inherited Destroy;
+end;
+
+function TUserPropertyArray.Add: TUserPropertyValue;
+begin
+  result := TUserPropertyValue.Create;
+  fList.Add(Result);
+end;
+
+procedure TUserPropertyArray.Delete(Index: Integer);
+var
+  Val: TUserPropertyValue;
+begin
+  Val := fList[Index] as TUserPropertyValue;
+  fList.Delete(Index);
+  FreeAndNil(Val);
+end;
+
+procedure TUserPropertyArray.Clear;
+begin
+  while Count > 0 do
+    Delete(0);
+end;
+
+
 
 { TUserPropertyValue }
 
@@ -263,7 +296,7 @@ begin
       begin
         if i > 0 then
           result := result + ',';
-        result := result + (fArray.Items[i] as TUserPropertyArrayItem).Value.AsString;
+        result := result + (fArray.Items[i] as TUserPropertyValue).AsString;
       end;
     end;
   end;
@@ -377,7 +410,7 @@ begin
       upBoolean:
         aTarget[aName] := CreateJSON(aProperty.Value.AsBoolean);
       upArray:
-        aTarget[aName] := aSaver.StreamCollection(aProperty.Value.AsArray);
+        raise Exception.Create('Can''t serialize arrays yet');
       upObject:
         aTarget[aName] := aSaver.ObjectToJSON(aProperty.Value.AsObject);
     else
@@ -410,7 +443,7 @@ begin
       jtNull:
         aProperty.Value.SetNull;
       jtArray:
-        aLoader.JSONToCollection(aValue,aProperty.Value.MakeArray);
+        raise Exception.Create('Can''t deserialize arrays');
       jtObject:
         aLoader.JSONToObject(aValue as TJSONObject,aProperty.Value.MakeObject);
     else
@@ -516,6 +549,14 @@ begin
   FdefaultThumbnailExtension:=AValue;
 end;
 
+procedure TProjectProperties.SetUserProperties(AValue: TJSONData);
+begin
+  if fUserProperties <> nil then
+    FreeAndNil(fUserProperties);
+  if AValue <> nil then
+    fUserProperties := AValue.Clone;
+end;
+
 procedure TProjectProperties.Clear;
 begin
   // TODO: Initialize all of the primitive data, clear all of the child data.
@@ -526,12 +567,16 @@ begin
   FdefaultDocExtension := '';
   FdefaultNotesExtension := '';
   FdefaultThumbnailExtension := '';
+  FreeAndNil(fUserProperties);
 end;
 
 procedure TProjectProperties.AfterSerialize(aSaver: TJSONStreamer;
   aTarget: TJSONObject);
 begin
-  // TODO: Do I want to convert statuses back to an array if they were?
+  if fUserProperties <> nil then
+  begin
+    aTarget['user'] := fUserProperties.Clone;
+  end;
 end;
 
 procedure TProjectProperties.BeforeDeserialize(aLoader: TJSONDeStreamer;
@@ -542,6 +587,7 @@ var
   aStatusesObject: TJSONObject;
   aStatus: TJSONObject;
   i: Integer;
+  aUser: TJSONData;
 begin
   // Have to convert an old format which had statuses as an array of strings.
   aStatuses := aData.Find('statuses');
@@ -560,6 +606,16 @@ begin
     aData['statuses'] := aStatusesObject;
 
   end;
+
+  aUser := aData.Find('user');
+  if aUser <> nil then
+  begin
+    SetUserProperties(aUser);
+  end
+  else
+  begin
+    SetUserProperties(nil);
+  end;
 end;
 
 constructor TProjectProperties.Create(aProjectPath: TFilename);
@@ -573,6 +629,8 @@ end;
 
 destructor TProjectProperties.Destroy;
 begin
+  if fUserProperties <> nil then
+     FreeAndNil(fUserProperties);
   Fcategories.FPODetachObserver(Self);
   FreeAndNil(Fcategories);
   fStatuses.FPODetachObserver(Self);

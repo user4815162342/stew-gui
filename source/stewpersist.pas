@@ -83,12 +83,14 @@ type
     FModified: Boolean;
   protected
     procedure FPOObservedChanged({%H-}ASender : TObject; {%H-}Operation : TFPObservedOperation; {%H-}Data : Pointer);
-    procedure SetModified; virtual;
     procedure ClearModified; virtual;
     procedure ParseJSON(aObject: TObject; aData: TStream);
     function GetJSONString(AObject: TObject): String;
   public
     property Modified: Boolean read FModified;
+    // Allow another object to mark it modified, to make sure things
+    // get saved.
+    procedure SetModified; virtual;
   end;
 
   { TJSONFileStoreContainer }
@@ -477,6 +479,7 @@ begin
   end
   else
   begin
+    Clear;
     ParseJSON(Self,aData);
     ClearModified;
   end;
@@ -525,7 +528,6 @@ begin
   fFilename := afileName;
   fCreateDir := aCreateDir;
   fFileAge := -1; // indicates that this might be a new file.
-  Clear;
 end;
 
 destructor TJSONAsyncFileStoreContainer.Destroy;
@@ -645,6 +647,7 @@ begin
   begin
     fs := TFileStream.Create(fFilename,fmOpenRead or fmShareDenyWrite);
     try
+      Clear;
       ParseJSON(Self,fs);
       ClearModified;
 

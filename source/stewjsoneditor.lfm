@@ -1,0 +1,91 @@
+object JSONEditor: TJSONEditor
+  Left = 0
+  Height = 240
+  Top = 0
+  Width = 320
+  ClientHeight = 240
+  ClientWidth = 320
+  TabOrder = 0
+  DesignLeft = 584
+  DesignTop = 176
+  object JSONTree: TTreeView
+    Left = 10
+    Height = 214
+    Top = 26
+    Width = 310
+    Align = alClient
+    BorderSpacing.Left = 10
+    DefaultItemHeight = 18
+    ScrollBars = ssAutoBoth
+    TabOrder = 0
+    OnSelectionChanged = JSONTreeSelectionChanged
+    OnEdited = JSONTreeEdited
+    OnEditing = JSONTreeEditing
+  end
+  object EditToolbar: TToolBar
+    Left = 10
+    Height = 26
+    Top = 0
+    Width = 310
+    BorderSpacing.Left = 10
+    Caption = 'EditToolbar'
+    EdgeBorders = []
+    ShowCaptions = True
+    TabOrder = 1
+    object AddElementButton: TToolButton
+      Left = 1
+      Top = 0
+      Caption = 'Add'
+      OnClick = AddElementButtonClick
+    end
+    object DeleteElementButton: TToolButton
+      Left = 34
+      Top = 0
+      Caption = 'Del'
+      OnClick = DeleteElementButtonClick
+    end
+    object ToolButton1: TToolButton
+      Left = 63
+      Top = 0
+      Width = 10
+      Caption = 'ToolButton1'
+      Style = tbsSeparator
+    end
+    object SetObjectButton: TToolButton
+      Left = 73
+      Top = 0
+      Caption = 'Obj'
+      OnClick = SetObjectButtonClick
+    end
+    object SetArrayButton: TToolButton
+      Left = 102
+      Top = 0
+      Caption = 'Arr'
+      OnClick = SetArrayButtonClick
+    end
+    object SetBooleanButton: TToolButton
+      Left = 129
+      Top = 0
+      Caption = 'Bool'
+      OnClick = SetBooleanButtonClick
+    end
+    object SetNumberButton: TToolButton
+      Left = 166
+      Top = 0
+      Caption = 'Num'
+      OnClick = SetNumberButtonClick
+    end
+    object SetStringButton: TToolButton
+      Left = 203
+      Top = 0
+      Caption = 'Str'
+      OnClick = SetStringButtonClick
+    end
+    object SetNullButton: TToolButton
+      Left = 228
+      Top = 0
+      Caption = 'Null'
+      OnClick = SetNullButtonClick
+    end
+  end
+end

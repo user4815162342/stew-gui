@@ -6,12 +6,15 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, ExtCtrls, ComCtrls, StdCtrls,
-  Grids, steweditorframe, stewproperties, stewmainform;
-// TODO: Show Project Options. This is both the "stew" file and the project root properties.
-//    The possible options include:
-//    - category definitions, including publishing details.
-//    - status definitions
-//    - default file extensions (primary, note, thumbnail)
+  Grids, steweditorframe, stewproperties, stewmainform, stewjsoneditor;
+
+// TODO: There's a weird bug on refresh which I should look into, something
+// in the extra properties thing.
+
+// TODO: Clean up the todos in here and in the json editor and project properties,
+// and move on to documents.
+
+// TODO: More possible properties:
 //    - editors for certain file extensions (See Preferences Menu).
 //    - "Type" of project:
 //      - Notebook: In this project type, there is only a 'primary', no notes,
@@ -20,9 +23,8 @@ uses
 //        and the publishing stuff which might be needed in the stew file.
 //      - Manuscript: In this project type, there are separate notes and things,
 //        basically, everything that's always been in stew.
-//    - user settings (the stew-cli stuff allows user settings both in stew and in the project root)
 //    - Root Index (if allowed for editing in the documents, then it should be here too).
-//    - Notes
+//    - Notes from Root properties.
 
 type
 
@@ -30,6 +32,8 @@ type
 
   TProjectSettingsEditor = class(TEditorFrame)
     CategoryDefinitionsGrid: TStringGrid;
+    UserPropertiesLabel: TLabel;
+    UserPropertiesPanel: TPanel;
     StatusDefinitionsGrid: TStringGrid;
     CategoryDefinitionsHeaderPanel: TPanel;
     StatusDefinitionsHeaderPanel: TPanel;
@@ -57,6 +61,7 @@ type
     procedure SetEditingEnabled(AValue: Boolean);
   private
     { private declarations }
+    fUserPropertiesEditor: TJSONEditor;
     procedure UpdateDataBindings;
     property EditingEnabled: Boolean write SetEditingEnabled;
   public
@@ -108,6 +113,8 @@ begin
   CategoryDefinitionsLabel.Enabled := AValue;
   StatusDefinitionsLabel.Enabled:=AValue;
   StatusDefinitionsGrid.Enabled := AValue;
+  UserPropertiesLabel.Enabled := AValue;
+  fUserPropertiesEditor.Enabled := AValue;
 end;
 
 procedure TProjectSettingsEditor.ObserveMainForm(aAction: TMainFormAction);
@@ -141,12 +148,7 @@ begin
     DefaultDocExtensionEdit.Text := props.defaultDocExtension;
     DefaultNotesExtensionEdit.Text := props.defaultNotesExtension;
     DefaultThumbnailExtensionEdit.Text := props.defaultThumbnailExtension;
-    // TODO: Assign data in properties to the form controls.
 
-    // TODO: Still need 'default category', 'default status', as well
-    // as the ability to add, delete and edit the data. Something better
-    // than a StringGrid might be nice, to allow me to show the colors as
-    // a color and provide a color picker, or at least a drop down.
     with CategoryDefinitionsGrid do
     begin
       Clear;
@@ -175,6 +177,8 @@ begin
       AutoSizeColumns;
     end;
 
+    fUserPropertiesEditor.SetJSON(props.user);
+
   end
   else
     EditingEnabled := false;
@@ -184,6 +188,12 @@ constructor TProjectSettingsEditor.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
   Caption := 'Project Settings';
+  fUserPropertiesEditor := TJSONEditor.Create(UserPropertiesPanel);
+  fUserPropertiesEditor.Parent := UserPropertiesPanel;
+  //fUserPropertiesEditor.Height := 192;
+  fUserPropertiesEditor.Align := alClient;
+  fUserPropertiesEditor.BorderSpacing.Top := 10;
+
   UpdateDataBindings;
   MainForm.Observe(@ObserveMainForm);
 end;
