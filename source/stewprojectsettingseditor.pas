@@ -8,11 +8,12 @@ uses
   Classes, SysUtils, FileUtil, Forms, Controls, ExtCtrls, ComCtrls, StdCtrls,
   Grids, steweditorframe, stewproperties, stewmainform, stewjsoneditor;
 
-// TODO: There's a weird bug on refresh which I should look into, something
-// in the extra properties thing.
-
-// TODO: Clean up the todos in here and in the json editor and project properties,
-// and move on to documents.
+// TODO: Need to enable/disable state based on the loading state of the
+// project properties as well. At the very least, I can't save while already
+// saving. Right now, it's not a problem, but in the future when saving is
+// done in a separate thread against the internet, it will be a problem.
+// The easiest way, of course, is to just disable to whole interface while
+// some sort of saving is going on.
 
 // TODO: More possible properties:
 //    - editors for certain file extensions (See Preferences Menu).
@@ -62,7 +63,8 @@ type
   private
     { private declarations }
     fUserPropertiesEditor: TJSONEditor;
-    procedure UpdateDataBindings;
+    procedure ShowDataToUser;
+    function WriteDataFromUser: Boolean;
     property EditingEnabled: Boolean write SetEditingEnabled;
   public
     { public declarations }
@@ -73,7 +75,7 @@ type
 implementation
 
 uses
-  Dialogs, Graphics;
+  Dialogs, Graphics, fpjson;
 
 {$R *.lfm}
 
@@ -92,10 +94,21 @@ end;
 
 procedure TProjectSettingsEditor.SaveButtonClick(Sender: TObject);
 begin
-  ShowMessage('Saving project properties isn''t implemented yet.')
-  // TODO: Save project properties...
-  // TODO: We only really need this until I'm sure that automatic saving and
-  // loading is working. Although, perhaps I don't want automatic saving?
+  ShowMessage('Sorry, I can''t save these things yet');
+  // TODO: We have to fix the statuses and categories before
+  // we can save them. Right now status is a string list in the
+  // stew cli, but a map like categories here. Statuses actually
+  // need to maintain a workflow order, however, allowing for the
+  // nextstatus command. Which means that I need them to be an array
+  // of objects with unique values. I might as well do the same to
+  // categories.
+  // - In stew CLI, I need to change categories to be an array of objects
+  // instead of a map. I need to be able to accept the old data as well,
+  // however. Which means I need a "converter"
+  // - In this GUI, I need to change both into TCollections after all.
+  // That actually simplifies, to some extent, the serializing.
+
+  // TODO: WriteDataFromUser;
 end;
 
 procedure TProjectSettingsEditor.SetEditingEnabled(AValue: Boolean);
@@ -122,7 +135,7 @@ begin
   // TODO: What else?
   case aAction of
     mfaProjectRefresh:
-      UpdateDataBindings;
+      ShowDataToUser;
   end;
 end;
 
@@ -134,7 +147,7 @@ begin
      IntToHex(Blue(x),2);
 end;
 
-procedure TProjectSettingsEditor.UpdateDataBindings;
+procedure TProjectSettingsEditor.ShowDataToUser;
 var
   props: TProjectProperties;
   i: Integer;
@@ -184,6 +197,35 @@ begin
     EditingEnabled := false;
 end;
 
+function TProjectSettingsEditor.WriteDataFromUser: Boolean;
+var
+  props: TProjectProperties;
+  aUser: TJSONData;
+begin
+  result := false;
+  props := nil;
+  if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
+  begin
+    props := MainForm.Project.Properties;
+    props.defaultDocExtension := DefaultDocExtensionEdit.Text;
+    props.defaultNotesExtension:= DefaultNotesExtensionEdit.Text;
+    props.defaultThumbnailExtension:=DefaultThumbnailExtensionEdit.Text;
+    // TODO: Load Category Definitions and default category.
+    // TODO: Load Status Definitions and default status.
+
+    aUser := fUserPropertiesEditor.CreateJSON;
+    try
+      props.user := aUser;
+    finally
+      aUser.Free;
+    end;
+
+    props.Save;
+    result := true;
+
+  end
+end;
+
 constructor TProjectSettingsEditor.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
@@ -194,7 +236,7 @@ begin
   fUserPropertiesEditor.Align := alClient;
   fUserPropertiesEditor.BorderSpacing.Top := 10;
 
-  UpdateDataBindings;
+  ShowDataToUser;
   MainForm.Observe(@ObserveMainForm);
 end;
 

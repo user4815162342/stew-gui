@@ -5,7 +5,7 @@ unit stewprojectinspector;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, StdCtrls, ComCtrls, stewproject, stewfile, stewmainform;
+  Classes, SysUtils, FileUtil, Forms, Controls, ComCtrls, stewproject, stewfile, stewmainform;
 
 // TODO: I've got to make my own custom tree node classes to store the actual
 // document object.
@@ -15,7 +15,6 @@ type
   { TProjectInspectorFrame }
 
   TProjectInspectorFrame = class(TFrame)
-    FilterDropDownButton: TButton;
     ProjectExplorer: TTreeView;
     procedure ObserveMainForm(aAction: TMainFormAction);
     procedure ProjectDocumentsError(Data: String);

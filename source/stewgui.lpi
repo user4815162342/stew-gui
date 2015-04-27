@@ -35,7 +35,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="17">
+    <Units Count="18">
       <Unit0>
         <Filename Value="stewgui.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -145,6 +145,11 @@
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="stewjsoneditor"/>
       </Unit16>
+      <Unit17>
+        <Filename Value="stewattachments.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="stewattachments"/>
+      </Unit17>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

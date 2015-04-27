@@ -81,7 +81,7 @@ type
 implementation
 
 uses
-  strutils;
+  strutils, FileUtil;
 
 function ExtractPacketName(const aPath: String): String;
 var
@@ -94,6 +94,12 @@ begin
      result := Copy(Result,0,_p - 1);
   end;
 end;
+
+const
+  // formats in something like ISO8601, but I also need to quote the
+  // hyphens, because otherwise they will be replaced with locale
+  // date separators.
+  TimestampFormat: String = 'yyyy"-"mm"-"dd"T"hh"-"mm"-"ss';
 
 { TWriteFile }
 
@@ -136,6 +142,10 @@ begin
   end;
   // otherwise, an error might occur, but that should be handled and reported by the base class here.
 
+  // TODO: Once I'm sure that saving is being done right, get rid
+  // of this.
+  if FileExists(fPath) then
+    CopyFile(fPath,fPath + FormatDateTime(TimestampFormat, Now));
   stream := TFileStream.Create(fPath,fmCreate or fmShareDenyWrite);
   try
     aCurrentAge := FileAge(fPath);

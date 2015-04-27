@@ -5,7 +5,7 @@ unit stewproject;
 interface
 
 uses
-  Classes, SysUtils, stewfile, stewasync, stewproperties, stewtypes;
+  Classes, SysUtils, stewfile, stewasync, stewproperties, stewtypes, contnrs, stewattachments;
 
 type
   // All of these are just strings, representing paths off of the root
@@ -23,6 +23,9 @@ type
   TStewProject = class
   private
     fDisk: TFilename;
+    // TODO: Basically keep a cache of document property objects here,
+    // that are created when requested, and only loaded when necessary.
+    fPropertiesCache: TFPHashObjectList;
     FOnOpened: TNotifyEvent;
     FOnPropertiesError: TExceptionMessageEvent;
     FOnPropertiesLoaded: TNotifyEvent;
@@ -48,12 +51,15 @@ type
     destructor Destroy; override;
     property DiskPath: TFilename read fDisk;
     // TODO: Figure out filtering...
+    // TODO: More importantly, need to 'sort' by directory index.
     procedure ListDocuments(const ADocument: TDocumentID; aTarget: TObject;
       aCallback: TDeferredDocumentListCallback;
   aErrorback: TDeferredExceptionCallback); overload;
     procedure ListRootDocuments(aTarget: TObject;
       aCallback: TDeferredDocumentListCallback;
   aErrorback: TDeferredExceptionCallback); overload;
+    function GetDocumentProperties(const aDocument: TDocumentID): TDocumentProperties;
+    function GetRootProperties: TRootProperties;
     // TODO: Figure out patterns and reg ex...
     // TODO: function Match: TProjectContentEnumerator;
     // TODO: function Add(Name: TPacketBaseName): T;
@@ -107,7 +113,6 @@ function GetDiskPath(const DiskPath: TFileName; const ADocument: TDocumentID): T
 begin
   result := DiskPath + ADocument;
 end;
-
 
 
 { TStewProject }
@@ -214,11 +219,13 @@ end;
 constructor TStewProject.Create(const Path: TFilename);
 begin
   fDisk := IncludeTrailingPathDelimiter(Path);
+  fPropertiesCache := TFPHashObjectList.Create(true);
   fProperties := nil;
 end;
 
 destructor TStewProject.Destroy;
 begin
+  FreeAndNil(fPropertiesCache);
   if fProperties <> nil then
     fProperties.Free;
   inherited Destroy;
@@ -295,6 +302,29 @@ procedure TStewProject.ListRootDocuments(
   aErrorback: TDeferredExceptionCallback);
 begin
   TListDocuments.Create(GetDiskPath(RootDocument),RootDocument,aTarget,aCallback,aErrorback).Enqueue;
+end;
+
+function TStewProject.GetDocumentProperties(const aDocument: TDocumentID
+  ): TDocumentProperties;
+begin
+  if aDocument = RootDocument then
+     raise Exception.Create('Please use GetRootDocumentProperties');
+  result := fPropertiesCache.Find(aDocument) as TDocumentProperties;
+  if result = nil then
+  begin
+    result := TDocumentProperties.Create(aDocument,false);
+    fPropertiesCache.Add(aDocument,Result);
+  end;
+end;
+
+function TStewProject.GetRootProperties: TRootProperties;
+begin
+  result := fPropertiesCache.Find(RootDocument) as TRootProperties;
+  if result = nil then
+  begin
+    result := TRootProperties.Create(RootDocument,false);
+    fPropertiesCache.Add(RootDocument,Result);
+  end;
 end;
 
 function TStewProject.GetDiskPath(const ADocument: TDocumentID): TFileName;

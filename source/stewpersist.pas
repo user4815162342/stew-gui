@@ -385,8 +385,8 @@ begin
         if aData <> nil then
            JSON[aName] := aData.Clone
       end
-      else
-        raise Exception.Create('Extra property ' + aName + ' already restored');
+      // otherwise, skip it, because it's possible that the object
+      // is storying it's own data under that property.
     end;
 
   end;
@@ -427,10 +427,7 @@ end;
 procedure TJSONStoreExtraPropertiesHelper.PersistExtraProperty(
   aName: TJSONStringType; aData: TJSONData);
 begin
-  if fData.IndexOfName(aName) = -1 then
-    fData[aName] := aData.Clone
-  else
-    raise Exception.Create('Extra property ' + aName + ' already persisted.');
+  fData[aName] := aData.Clone
 end;
 
 function TJSONStoreExtraPropertiesHelper.CountPersistedProperties: Integer;

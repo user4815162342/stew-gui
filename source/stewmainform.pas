@@ -6,6 +6,9 @@ interface
 
 {
 
+TODO: Next, work on the document properties and editors. The infrastructure
+looks a lot like the project settings editor, of course.
+
 TODO: Working on rough up of interface.
 - start laying out some components on the DocumentInspector, based on the stuff below.
 (Now that I see what I've got, I have a lot more room, so maybe I don't need tabs on it,

@@ -14,6 +14,13 @@ type
   // TODO: I'm going to skip 'editors' for now. Which means I'm done with
   // properties and ready to work with documents!
 
+  TRootProperties = class(TJSONAsyncFileStoreContainer)
+
+  end;
+
+  TDocumentProperties = class(TRootProperties)
+
+  end;
 
   { TKeywordDefinition }
 
@@ -481,11 +488,16 @@ procedure TKeywordDefinition.AfterSerialize(aSaver: TJSONStreamer;
   aTarget: TJSONObject);
 var aNewData: TJSONObject;
 begin
-  aNewData := TJSONObject.Create;
-  aTarget['color'] := aNewData;
-  aNewData.Add('r',Red(Fcolor));
-  aNewData.Add('g',Green(Fcolor));
-  aNewData.Add('b',Blue(Fcolor));
+  if Fcolor <> clDefault then
+  begin;
+    aNewData := TJSONObject.Create;
+    aTarget['color'] := aNewData;
+    aNewData.Add('r',Red(Fcolor));
+    aNewData.Add('g',Green(Fcolor));
+    aNewData.Add('b',Blue(Fcolor));
+  end
+  else
+    aTarget.Delete('color');
 
 end;
 
@@ -500,14 +512,13 @@ begin
   aOldData := aData.Find('color');
   if (aOldData <> nil) and (aOldData.JSONType = jtObject) then
   begin
-    DebugLn(aOldData.FormatJSON());
     r := ToByte((aOldData as TJSONObject)['r'].AsInteger);
     g := ToByte((aOldData as TJSONObject)['g'].AsInteger);
     b := ToByte((aOldData as TJSONObject)['b'].AsInteger);
     Fcolor := RGBToColor(r,g,b);
   end
   else
-    Fcolor := clBlack;
+    Fcolor := clDefault;
 end;
 
 { TKeywordDefinitions }
@@ -555,6 +566,7 @@ begin
     FreeAndNil(fUserProperties);
   if AValue <> nil then
     fUserProperties := AValue.Clone;
+  SetModified;
 end;
 
 procedure TProjectProperties.Clear;
@@ -588,6 +600,7 @@ var
   aStatus: TJSONObject;
   i: Integer;
   aUser: TJSONData;
+  aColor: TJSONObject;
 begin
   // Have to convert an old format which had statuses as an array of strings.
   aStatuses := aData.Find('statuses');
@@ -599,9 +612,6 @@ begin
     begin
       aStatus := TJSONObject.Create;
       aStatusesObject[aStatusesArray[i].AsString] := aStatus;
-      aStatus.Add('r',0);
-      aStatus.Add('g',0);
-      aStatus.Add('b',0);
     end;
     aData['statuses'] := aStatusesObject;
 

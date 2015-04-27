@@ -10,61 +10,81 @@ uses
 
 type
 
-  { Towards a better interface:
+  // TODO: Carefully move a bunch of the excess code in the frame
+  // which relies on things like 'ImageIndex' and specially formatted
+  // text to store data into this object to make it simpler to change
+  // data types and get data back out of it.
 
-  I could create a whole bunch of complex controls and the like, but...
+  { TJSONTreeNode }
 
-  When you "edit" a tree node, you can easily edit the name of the property
-  and the value, simply by changing the text on the side of the property. If
-  you edit and leave out the ':', then it can easily raise an error, or put
-  one in. This is simple.
-
-  Then, we just need a way to specify data types, and also
-  setting to null. I can do that with a toolbar to specify the
-  type of data, converting as necessary, and show the "type" of the value
-  in the glyph. Validation can be done appropriately after editing the
-  tree node.
-
-  And finally, a way to "add"/"delete" items from the object or array.
-  Again, this would be button.
-
-  }
+  TJSONTreeNode = class(TTreeNode)
+  private
+    FDataType: TJSONtype;
+    function GetAsBoolean: Boolean;
+    function GetAsNumber: Double;
+    function GetAsString: String;
+    function GetKey: String;
+    function GetTextValue: String;
+    procedure SetAsBoolean(AValue: Boolean);
+    procedure SetAsNumber(AValue: Double);
+    procedure SetAsString(AValue: String);
+    procedure SetDataType(AValue: TJSONtype);
+    procedure ExtractKeyAndValue(out aKey: String; out aValue: String);
+    procedure SetKey(AValue: String);
+    procedure SetKeyAndValue(const aKey: String; const aValue: String);
+    procedure SetTextValue(const aValue: String);
+    function IsValidTextValue(const aValue: String): Boolean;
+    function IsValidKey(const aValue: String): Boolean;
+  public
+    // TODO: Convert all imageindex use to use this.
+    property DataType: TJSONtype read fDataType write SetDataType;
+    property AsBoolean: Boolean read GetAsBoolean write SetAsBoolean;
+    property AsNumber: Double read GetAsNumber write SetAsNumber;
+    property AsString: String read GetAsString write SetAsString;
+    property Key: String read GetKey;
+    property TextValue: String read GetTextValue;
+    function IsProperty: Boolean;
+    procedure Edited(var NewText: String);
+    procedure Editing(var AllowEdit: Boolean);
+    procedure SetJSON(aJSON: TJSONData);
+    function CreateJSON: TJSONData;
+  end;
 
   { TJSONEditor }
 
   TJSONEditor = class(TFrame)
     JSONTree: TTreeView;
     EditToolbar: TToolBar;
-    AddElementButton: TToolButton;
     DeleteElementButton: TToolButton;
     ToolButton1: TToolButton;
-    SetObjectButton: TToolButton;
-    SetArrayButton: TToolButton;
-    SetBooleanButton: TToolButton;
-    SetNumberButton: TToolButton;
-    SetStringButton: TToolButton;
-    SetNullButton: TToolButton;
-    procedure AddElementButtonClick(Sender: TObject);
+    AddObjectButton: TToolButton;
+    AddArrayButton: TToolButton;
+    AddBooleanButton: TToolButton;
+    AddNumberButton: TToolButton;
+    AddStringButton: TToolButton;
+    AddNullButton: TToolButton;
     procedure DeleteElementButtonClick(Sender: TObject);
+    procedure JSONTreeCreateNodeClass(Sender: TCustomTreeView;
+      var NodeClass: TTreeNodeClass);
     procedure JSONTreeEdited(Sender: TObject; Node: TTreeNode; var S: string);
     procedure JSONTreeEditing(Sender: TObject; Node: TTreeNode;
       var AllowEdit: Boolean);
     procedure JSONTreeSelectionChanged(Sender: TObject);
-    procedure SetArrayButtonClick(Sender: TObject);
-    procedure SetBooleanButtonClick(Sender: TObject);
-    procedure SetNullButtonClick(Sender: TObject);
-    procedure SetNumberButtonClick(Sender: TObject);
-    procedure SetObjectButtonClick(Sender: TObject);
-    procedure SetStringButtonClick(Sender: TObject);
+    procedure AddArrayButtonClick(Sender: TObject);
+    procedure AddBooleanButtonClick(Sender: TObject);
+    procedure AddNullButtonClick(Sender: TObject);
+    procedure AddNumberButtonClick(Sender: TObject);
+    procedure AddObjectButtonClick(Sender: TObject);
+    procedure AddStringButtonClick(Sender: TObject);
   private
     { private declarations }
-    procedure AddNodes(aParent: TTreeNode; aData: TJSONData);
-    procedure SetToolsEnabled(aValue: Boolean);
+    procedure AddNode(aDataType: TJSONtype);
+    procedure EnableDisable;
   public
     { public declarations }
     constructor Create(TheOwner: TComponent); override;
     procedure SetJSON(aData: TJSONData);
-    function GetJSON: TJSONData;
+    function CreateJSON: TJSONData;
   end;
 
 implementation
@@ -72,342 +92,410 @@ implementation
 uses
   Dialogs;
 
+const
+  TrueCaption: String = 'true';
+  FalseCaption: String = 'false';
+
 {$R *.lfm}
 
-{ TJSONValueEditor }
+{ TJSONTreeNode }
 
-const
-  NullCaption: String = '∅';
-  TrueCaption: String = 'yes';
-  FalseCaption: String = 'no';
+procedure TJSONTreeNode.SetDataType(AValue: TJSONtype);
+begin
+  if FDataType=AValue then Exit;
 
-function GetTypeCaption(aType: TJSONtype): String; overload;
+  // clear all the data from the old data type
+  DeleteChildren;
+  FDataType := AValue;
+  ImageIndex := ord(FDataType);
+  case FDataType of
+    jtBoolean:
+      AsBoolean := false;
+    jtNumber:
+      AsNumber := 0;
+    jtString:
+      AsString := '';
+  else
+    SetTextValue('');
+  end;
+end;
+
+function CorrectTypeText(aType: TJSONType; const aValue: String): String;
 begin
   case aType of
-    jtNull:
-      result := NullCaption;
-    jtObject:
-      result := '<object>';
     jtArray:
       result := '<array>';
+    jtObject:
+      result := '<object>';
+    jtNull:
+      result := '<null>';
+    jtUnknown:
+      result := '<undefined>';
   else
-    result := '';
+    result := aValue;
   end;
 
 end;
 
-function GetCaption(aData: TJSONData): String; overload;
+function BuildKeyAndValue(aType: TJSONtype; const aKey: String; const aValue: String): String;
 begin
-  case aData.JSONType of
-    jtNumber, jtString:
-      result := aData.AsString;
-    jtBoolean:
-      result := BoolToStr(aData.AsBoolean,TrueCaption,FalseCaption);
-    jtNull, jtObject, jtArray:
-      result := GetTypeCaption(aData.JSONType);
-  else
-    result := '';
-  end;
+  result := aKey + ': ' + CorrectTypeText(aType,aValue);
 end;
 
-function BuildKeyAndValue(aKey: String; aValue: String): String;
-begin
-  result := aKey + ': ' + aValue;
-end;
-
-procedure ExtractKeyAndValue(const aData: String; out aKey: String; out aValue: String);
+function ExtractKeyAndValue(const Text: String; out aKey: String; out aValue: String): Boolean;
 var
   aIndex: Integer;
 begin
-  aIndex := Pos(':',aData);
+  aIndex := Pos(':',Text);
   if aIndex > 0 then
   begin
-    aKey := Copy(aData,1,aIndex - 1);
-    aValue := Trim(Copy(aData,aIndex + 1,Length(aData)));
+    aKey := Copy(Text,1,aIndex - 1);
+    aValue := Trim(Copy(Text,aIndex + 1,Length(Text)));
+    result := true;
   end
   else
   begin
-    aKey := aData;
-    aValue := '';
+    aKey := '';
+    aValue := Text;
+    result := false;
   end;
 
+end;
+
+
+procedure TJSONTreeNode.ExtractKeyAndValue(out aKey: String; out aValue: String
+  );
+var
+  aText: String;
+begin
+  aText := Text;
+  if IsProperty then
+  begin
+    if stewjsoneditor.ExtractKeyAndValue(aText,aKey,aValue) then
+      Exit;
+  end;
+  // if it's not a property, or if a ':' was not found, then
+  // the key is the index.
+  aKey := IntToStr(Index);
+  aValue := aText;
+end;
+
+procedure TJSONTreeNode.SetKey(AValue: String);
+begin
+  SetKeyAndValue(AValue,GetTextValue);
+end;
+
+procedure TJSONTreeNode.SetKeyAndValue(const aKey: String; const aValue: String
+  );
+begin
+  if IsProperty then
+    Text := BuildKeyAndValue(DataType,aKey,aValue)
+  else
+    Text := CorrectTypeText(DataType,aValue);
+end;
+
+procedure TJSONTreeNode.SetTextValue(const aValue: String);
+begin
+  SetKeyAndValue(GetKey,aValue);
+end;
+
+function TJSONTreeNode.IsValidTextValue(const aValue: String): Boolean;
+var
+  aDummy1: Boolean;
+  aDummy2: Double;
+begin
+  case FDataType of
+    jtArray, jtUnknown, jtNull, jtObject:
+      // accepts any value, but it will just be switched back to the type. This
+      // makes it possible to change the key.
+      result := false;
+    jtBoolean:
+      result := TryStrToBool(aValue,aDummy1);
+    jtNumber:
+      result := TryStrToFloat(aValue,aDummy2);
+    jtString:
+      result := true;
+  end;
+end;
+
+function TJSONTreeNode.IsValidKey(const aValue: String): Boolean;
+var
+  aSibling: TJSONTreeNode;
+begin
+  result := true;
+  if IsProperty then
+  begin
+    aSibling := Parent.GetFirstChild as TJSONTreeNode;
+    while (aSibling <> nil) do
+    begin
+      if (aSibling <> Self) and (aSibling.Key = aValue) then
+      begin
+        result := false;
+        exit;
+      end;
+      aSibling := aSibling.GetNextSibling as TJSONTreeNode;
+    end;
+  end;
+end;
+
+function TJSONTreeNode.IsProperty: Boolean;
+var
+  aParent: TJSONTreeNode;
+begin
+  aParent := Parent as TJSONTreeNode;
+  result := (aParent <> nil) and (aParent.DataType = jtObject);
+end;
+
+procedure TJSONTreeNode.Edited(var NewText: String);
+var
+  aKey: String;
+  aValue: String;
+begin
+  if IsProperty then
+  begin
+    if not stewjsoneditor.ExtractKeyAndValue(NewText,aKey,aValue) then
+    begin
+      // the user didn't assign a property name, so we're going to make
+      // some assumptions here:
+      if FDataType in [jtArray,jtNull,jtObject,jtUnknown] then
+      begin
+        // if this is a non-editable value, then assume the change was
+        // supposed to be the property name.
+        ExtractKeyAndValue(aKey,aValue);
+        aKey := NewText;
+      end
+      else
+      begin
+        // otherwise, assume the user was just changing the value.
+        ExtractKeyAndValue(aKey,aValue);
+        aValue := NewText;
+      end;
+    end;
+    // now, since the value is being changed, make sure it's valid,
+    // and if so, make sure the new text has the key in there.
+    if IsValidKey(aKey) and
+       ((FDataType in [jtArray,jtNull,jtObject,jtUnknown]) or
+        IsValidTextValue(aValue)) then
+       NewText := BuildKeyAndValue(FDataType,aKey,aValue)
+    else
+      NewText := Text;
+  end
+  else
+  begin
+    if not IsValidTextValue(NewText) then
+      NewText := Text;
+  end;
+
+end;
+
+procedure TJSONTreeNode.Editing(var AllowEdit: Boolean);
+begin
+  AllowEdit := (DataType in [jtBoolean,jtNumber,jtString]) or IsProperty;
+end;
+
+procedure TJSONTreeNode.SetJSON(aJSON: TJSONData);
+var
+  i: Integer;
+  aChild: TJSONTreeNode;
+begin
+  DataType := aJSON.JSONType;
+  DeleteChildren;
+  case aJSON.JSONType of
+    jtObject:
+      begin
+
+        for i := 0 to aJSON.Count -1 do
+        begin
+          aChild := TreeNodes.AddChild(Self,'') as TJSONTreeNode;
+          aChild.SetKey((aJSON as TJSONObject).Names[i]);
+          aChild.SetJSON(aJSON.Items[i]);
+        end;
+        Expanded := true;
+      end;
+    jtArray:
+      begin
+        for i := 0 to aJSON.Count do
+        begin
+          aChild := TreeNodes.AddChild(Self,'') as TJSONTreeNode;
+          aChild.SetJSON(aJSON.Items[i]);
+        end;
+        Expanded := true;
+      end;
+    jtNumber:
+      AsNumber := aJSON.AsFloat;
+    jtString:
+      AsString := aJSON.AsString;
+    jtBoolean:
+      AsBoolean := aJSON.AsBoolean;
+  end;
+end;
+
+function TJSONTreeNode.CreateJSON: TJSONData;
+var
+  rObject: TJSONObject;
+  rArray: TJSONArray;
+  aChild: TJSONTreeNode;
+begin
+  case FDataType of
+    jtUnknown:
+      ;
+    jtNull:
+      result := fpjson.CreateJSON;
+    jtBoolean:
+      result := fpjson.CreateJSON(AsBoolean);
+    jtNumber:
+      result := fpjson.CreateJSON(AsNumber);
+    jtString:
+      result := fpjson.CreateJSON(AsString);
+    jtArray:
+      begin
+        rArray := fpjson.CreateJSONArray([]);
+        result := rArray;
+        aChild := GetFirstChild as TJSONTreeNode;
+        while aChild <> nil do
+        begin
+          rArray.Add(aChild.CreateJSON);
+          aChild := aChild.GetNextSibling as TJSONTreeNode;
+        end;
+      end;
+    jtObject:
+      begin
+        rObject := fpjson.CreateJSONObject([]);
+        result := rObject;
+        aChild := GetFirstChild as TJSONTreeNode;
+        while aChild <> nil do
+        begin
+          rObject.Add(aChild.GetKey,aChild.CreateJSON);
+          aChild := aChild.GetNextSibling as TJSONTreeNode;
+        end;
+      end;
+  end;
+end;
+
+function TJSONTreeNode.GetAsBoolean: Boolean;
+begin
+  case FDataType of
+    jtNumber:
+      result := TextValue <> '0';
+    jtString:
+      result := TextValue <> '';
+    jtBoolean:
+      result := TextValue = TrueCaption;
+    jtNull, jtUnknown:
+      result := false;
+    jtObject, jtArray:
+      result := true;
+  end;
+end;
+
+function TJSONTreeNode.GetAsNumber: Double;
+begin
+  case FDataType of
+    jtNumber, jtString:
+      if not TryStrToFloat(TextValue,result) then
+         result := 0;
+    jtBoolean:
+      if TextValue = TrueCaption then
+        result := 1
+      else
+        result := 0;
+    jtNull, jtUnknown, jtObject, jtArray:
+      result := 0;
+  end;
+
+end;
+
+function TJSONTreeNode.GetAsString: String;
+begin
+  result := TextValue;
+end;
+
+function TJSONTreeNode.GetKey: String;
+var
+  aDummy: String;
+begin
+  ExtractKeyAndValue(result,aDummy);
+end;
+
+function TJSONTreeNode.GetTextValue: String;
+var
+  aDummy: String;
+begin
+  ExtractKeyAndValue(aDummy,result);
+end;
+
+procedure TJSONTreeNode.SetAsBoolean(AValue: Boolean);
+begin
+  case FDataType of
+    jtNumber:
+      AsNumber := ord(AValue);
+    jtString:
+      AsString := BoolToStr(aValue,TrueCaption,FalseCaption);
+    jtBoolean:
+      SetTextValue(BoolToStr(aValue,TrueCaption,FalseCaption));
+    jtNull, jtUnknown,jtObject,jtArray:
+      // nothing
+  end;
+end;
+
+procedure TJSONTreeNode.SetAsNumber(AValue: Double);
+begin
+  case FDataType of
+    jtNumber:
+      SetTextValue(FloatToStr(AValue));
+    jtString:
+      AsString := FloatToStr(AValue);
+    jtBoolean:
+      AsBoolean := aValue <> 0;
+    jtNull, jtUnknown, jtObject, jtArray:
+      // nothing
+  end;
+end;
+
+procedure TJSONTreeNode.SetAsString(AValue: String);
+begin
+  case FDataType of
+    jtNumber:
+      AsNumber := StrToFloat(AValue);
+    jtBoolean:
+      AsBoolean := StrToBool(aValue);
+    jtString:
+      SetTextValue(aValue);
+    jtNull, jtUnknown, jtObject, jtArray:
+      // nothing;
+  end;
 end;
 
 { TJSONEditor }
 
-procedure TJSONEditor.JSONTreeSelectionChanged(Sender: TObject);
+procedure TJSONEditor.AddArrayButtonClick(Sender: TObject);
 begin
-  SetToolsEnabled(JSONTree.Selected <> nil);
+  AddNode(jtArray);
 end;
 
-procedure TJSONEditor.SetArrayButtonClick(Sender: TObject);
-var
-  aParent: TTreeNode;
-  aChild: TTreeNode;
-  aProperty: String;
-  aValue: String;
-  i: Integer;
+procedure TJSONEditor.AddBooleanButtonClick(Sender: TObject);
 begin
-  if JSONTree.Selected <> nil then
-  begin
-    case JSONTree.Selected.ImageIndex of
-      ord(jtArray):
-        // do nothing, it's already an array.
-        // TODO: Should the button be disabled for this?
-        exit;
-      ord(jtObject):
-        begin
-          if MessageDlg('Are you sure you want to do this? You will lose all property names',mtConfirmation,mbYesNo,0) = mrYes then
-          begin
-            // Have to turn all of the children into elements.
-            JSONTree.Selected.ImageIndex := ord(jtArray);
-            aChild := JSONTree.Selected.GetFirstChild;
-            i := 0;
-            while aChild <> nil do
-            begin
-              ExtractKeyAndValue(aChild.Text,aProperty,aValue);
-              aChild.Text := aValue;
-              aChild := aChild.GetNextSibling;
-              inc(i)
-            end;
-          end;
-        end;
-    end;
-    aParent := JSONTree.Selected.Parent;
-    JSONTree.Selected.ImageIndex := ord(jtArray);
-    if aParent.ImageIndex = ord(jtObject) then
-    begin
-      ExtractKeyAndValue(JSONTree.Selected.Text,aProperty,aValue);
-      JSONTree.Selected.Text := BuildKeyAndValue(aProperty,GetTypeCaption(jtArray));
-    end
-    else
-    begin
-      JSONTree.Selected.Text := GetTypeCaption(jtArray);
-    end;
-    JSONTree.Selected.Expanded := true;
-  end;
+  AddNode(jtBoolean);
 end;
 
-procedure TJSONEditor.SetBooleanButtonClick(Sender: TObject);
-var
-  aProperty: String;
-  aValue: String;
-  aParent: TTreeNode;
+procedure TJSONEditor.AddNullButtonClick(Sender: TObject);
 begin
-  if JSONTree.Selected <> nil then
-  begin
-    if JSONTree.Selected.ImageIndex in [ord(jtArray),ord(jtObject)] then
-    begin
-      if MessageDlg('Are you sure you want to do this? You will lose all contained data',mtConfirmation,mbYesNo,0) = mrYes then
-      begin
-        JSONTree.Selected.DeleteChildren;
-      end
-      else
-        Exit;
-    end;
-
-    aParent := JSONTree.Selected.Parent;
-    JSONTree.Selected.ImageIndex := ord(jtBoolean);
-    if aParent.ImageIndex = ord(jtObject) then
-    begin
-       ExtractKeyAndValue(JSONTree.Selected.Text,aProperty,aValue);
-       JSONTree.Selected.Text := BuildKeyAndValue(aProperty,TrueCaption);
-    end
-    else
-    begin
-      JSONTree.Selected.Text := TrueCaption;
-    end;
-  end;
+  AddNode(jtNull);
 end;
 
-procedure TJSONEditor.SetNullButtonClick(Sender: TObject);
-var
-  aProperty: String;
-  aValue: String;
-  aParent: TTreeNode;
+procedure TJSONEditor.AddNumberButtonClick(Sender: TObject);
 begin
-  if JSONTree.Selected <> nil then
-  begin
-    if JSONTree.Selected.ImageIndex in [ord(jtArray),ord(jtObject)] then
-    begin
-      if MessageDlg('Are you sure you want to do this? You will lose all contained data',mtConfirmation,mbYesNo,0) = mrYes then
-      begin
-        JSONTree.Selected.DeleteChildren;
-      end
-      else
-        Exit;
-    end;
-
-    aParent := JSONTree.Selected.Parent;
-    JSONTree.Selected.ImageIndex := ord(jtNull);
-    if aParent.ImageIndex = ord(jtObject) then
-    begin
-       ExtractKeyAndValue(JSONTree.Selected.Text,aProperty,aValue);
-       JSONTree.Selected.Text := BuildKeyAndValue(aProperty,NullCaption);
-    end
-    else
-    begin
-      JSONTree.Selected.Text := NullCaption;
-    end;
-  end;
+  AddNode(jtNumber);
 end;
 
-procedure TJSONEditor.SetNumberButtonClick(Sender: TObject);
-var
-  aProperty: String;
-  aValue: String;
-  aParent: TTreeNode;
-  aNewValue: Double;
+procedure TJSONEditor.AddObjectButtonClick(Sender: TObject);
 begin
-  if JSONTree.Selected <> nil then
-  begin
-    if JSONTree.Selected.ImageIndex in [ord(jtArray),ord(jtObject)] then
-    begin
-      if MessageDlg('Are you sure you want to do this? You will lose all contained data',mtConfirmation,mbYesNo,0) = mrYes then
-      begin
-        JSONTree.Selected.DeleteChildren;
-      end
-      else
-        Exit;
-    end;
-
-    aParent := JSONTree.Selected.Parent;
-    JSONTree.Selected.ImageIndex := ord(jtNumber);
-    if aParent.ImageIndex = ord(jtObject) then
-    begin
-       ExtractKeyAndValue(JSONTree.Selected.Text,aProperty,aValue);
-       if not TryStrToFloat(aValue,aNewValue) then
-         aNewValue := 0;
-       JSONTree.Selected.Text := BuildKeyAndValue(aProperty,FloatToStr(aNewValue));
-    end
-    else
-    begin
-      if not TryStrToFloat(JSONTree.Selected.Text,aNewValue) then
-        aNewValue := 0;
-      JSONTree.Selected.Text := FloatToStr(0);
-    end;
-  end;
+  AddNode(jtObject);
 end;
 
-procedure TJSONEditor.SetObjectButtonClick(Sender: TObject);
-var
-  aParent: TTreeNode;
-  aChild: TTreeNode;
-  aProperty: String;
-  aValue: String;
-  i: Integer;
+procedure TJSONEditor.AddStringButtonClick(Sender: TObject);
 begin
-  if JSONTree.Selected <> nil then
-  begin
-    case JSONTree.Selected.ImageIndex of
-      ord(jtArray):
-        begin
-          // Have to turn all of the children into elements.
-          JSONTree.Selected.ImageIndex := ord(jtObject);
-          aChild := JSONTree.Selected.GetFirstChild;
-          i := 0;
-          while aChild <> nil do
-          begin
-            aChild.Text := BuildKeyAndValue(IntToStr(i),aChild.Text);
-            aChild := aChild.GetNextSibling;
-            inc(i)
-          end;
-        end;
-      ord(jtObject):
-        // do nothing, it's already an object.
-        // TODO: Should the button be disabled for this?
-        exit;
-    end;
-    aParent := JSONTree.Selected.Parent;
-    JSONTree.Selected.ImageIndex := ord(jtObject);
-    if aParent.ImageIndex = ord(jtObject) then
-    begin
-       ExtractKeyAndValue(JSONTree.Selected.Text,aProperty,aValue);
-       JSONTree.Selected.Text := BuildKeyAndValue(aProperty,GetTypeCaption(jtObject));
-    end
-    else
-    begin
-      JSONTree.Selected.Text := GetTypeCaption(jtObject);
-    end;
-    JSONTree.Selected.Expanded := true;
-  end;
-end;
-
-procedure TJSONEditor.SetStringButtonClick(Sender: TObject);
-var
-  aProperty: String;
-  aValue: String;
-  aParent: TTreeNode;
-begin
-  // TODO: Have to convert the old stuff...
-  if JSONTree.Selected <> nil then
-  begin
-    if JSONTree.Selected.ImageIndex in [ord(jtArray),ord(jtObject)] then
-    begin
-      if MessageDlg('Are you sure you want to do this? You will lose all contained data',mtConfirmation,mbYesNo,0) = mrYes then
-      begin
-        JSONTree.Selected.DeleteChildren;
-      end
-      else
-        Exit;
-    end;
-
-    aParent := JSONTree.Selected.Parent;
-    JSONTree.Selected.ImageIndex := ord(jtString);
-    if aParent.ImageIndex = ord(jtObject) then
-    begin
-       ExtractKeyAndValue(JSONTree.Selected.Text,aProperty,aValue);
-       JSONTree.Selected.Text := BuildKeyAndValue(aProperty,aValue);
-    end
-    else
-    begin
-      JSONTree.Selected.Text := JSONTree.Selected.Text;
-    end;
-  end;
-
-end;
-
-procedure TJSONEditor.AddElementButtonClick(Sender: TObject);
-var
-  aNew: TTreeNode;
-  aParent: TTreeNode;
-begin
-  if (JSONTree.Selected = nil) then
-  begin
-    if (JSONTree.Items.Count = 0) then
-    begin
-      aNew := JSONTree.Items.AddChild(nil,GetTypeCaption(jtObject));
-      aNew.ImageIndex := ord(jtObject);
-    end
-    // TODO: Add button should be disabled if the above isn't true.
-  end
-  else
-  begin
-    if JSONTree.Selected.ImageIndex in [ord(jtObject),ord(jtArray)] then
-      aParent := JSONTree.Selected
-    else
-      aParent := JSONTree.Selected.Parent;
-    if aParent <> nil then
-    begin
-      case aParent.ImageIndex of
-        ord(jtObject):
-          begin
-            aNew := JSONTree.Items.AddChild(aParent,'property-name:');
-            aNew.ImageIndex := ord(jtString);
-          end;
-        ord(jtArray):
-          begin
-            aNew := JSONTree.Items.AddChild(aParent,'');
-            aNew.ImageIndex := ord(jtString);
-          end;
-      end;
-      aParent.Expanded := true;
-      aNew.EditText;
-      // TODO: It would be nice if I could 'control' the editing,
-      // so the user doesn't mess with the property name.
-    end;
-    // TODO: Add button should be disabled if the above isn't true.
-  end;
+  AddNode(jtString);
 end;
 
 procedure TJSONEditor.DeleteElementButtonClick(Sender: TObject);
@@ -417,143 +505,129 @@ begin
     if MessageDlg('Are you sure you want to delete this data?',mtConfirmation,mbYesNo,0) = mrYes then
     begin
       JSONTree.Selected.Delete;
+      EnableDisable;
     end;
   end;
   // Else delete button shouldn't even be enabled.
 end;
 
+procedure TJSONEditor.JSONTreeCreateNodeClass(Sender: TCustomTreeView;
+  var NodeClass: TTreeNodeClass);
+begin
+  NodeClass := TJSONTreeNode;
+end;
+
 procedure TJSONEditor.JSONTreeEdited(Sender: TObject; Node: TTreeNode;
   var S: string);
-var
-  aParent: TTreeNode;
-  isProperty: Boolean;
-  aValue: String;
-  aKey: String;
-  aBool: Boolean;
-  aDble: Double;
 begin
-  aParent := Node.Parent;
-  isProperty := false;
-  if (aParent <> nil) and (aParent.ImageIndex = ord(jtObject)) then
-  begin
-    if Pos(':',S) = 0 then
-    begin
-       S := Node.Text;
-       Exit;
-    end;
-    isProperty := true;
-  end;
-  if isProperty then
-    ExtractKeyAndValue(S,aKey,aValue)
-  else
-    aValue := S;
-  case Node.ImageIndex of
-    ord(jtBoolean):
-      // TODO: Need to accept things like 'yes', 'no', etc.
-      if TryStrToBool(aValue,aBool) then
-      begin
-        if isProperty then
-          S := BuildKeyAndValue(aKey,BoolToStr(aBool,TrueCaption,FalseCaption))
-        else
-          S := BoolToStr(aBool,TrueCaption,FalseCaption);
-      end
-      else
-        s := Node.Text;
-    ord(jtNumber):
-      if TryStrToFloat(aValue,aDble) then
-      begin
-        if isProperty then
-          S := BuildKeyAndValue(aKey,FloatToStr(aDble))
-        else
-          S := FloatToStr(aDble);
-      end
-      else
-        s := Node.Text;
-    ord(jtString):
-      // do nothing, just accept it.
-      ;
-  else
-    S := Node.Text;
-  end;
+  (Node as TJSONTreeNode).Edited(S);
 end;
 
 procedure TJSONEditor.JSONTreeEditing(Sender: TObject; Node: TTreeNode;
   var AllowEdit: Boolean);
 begin
-  AllowEdit := (Node.ImageIndex in [ord(jtNumber),ord(jtString),ord(jtBoolean)]);;
+  (Node as TJSONTreeNode).Editing(AllowEdit);
 end;
 
-procedure TJSONEditor.AddNodes(aParent: TTreeNode; aData: TJSONData);
+procedure TJSONEditor.JSONTreeSelectionChanged(Sender: TObject);
+begin
+  EnableDisable;
+end;
+
+procedure TJSONEditor.AddNode(aDataType: TJSONtype);
 var
-  aArray: TJSONArray;
-  aObject: TJSONObject;
-  i: Integer;
-  aKey: String;
-  aChildNode: TTreeNode;
-  aChildJSON: TJSONData;
+  aNew: TJSONTreeNode;
+  aParent: TJSONTreeNode;
 begin
-  case aData.JSONType of
-    jtArray:
-      begin
-        aArray := aData as TJSONArray;
-        for i := 0 to aArray.Count - 1 do
-        begin
-          aChildJSON := aArray[i];
-          aChildNode := JSONTree.Items.AddChild(aParent,GetCaption(aChildJSON));
-          aChildNode.ImageIndex:=ord(aChildJSON.JSONType);
-          AddNodes(aChildNode,aChildJSON);
-        end;
-        aParent.Expanded := true;
-      end;
-    jtObject:
-      begin
-        aObject := aData as TJSONObject;
-        for i := 0 to aObject.Count - 1 do
-        begin
-          aKey := aObject.Names[i];
-          aChildJSON := aObject[aKey];
-          aChildNode := JSONTree.Items.AddChild(aParent,BuildKeyAndValue(aKey,GetCaption(aChildJSON)));
-          aChildNode.ImageIndex:=ord(aChildJSON.JSONType);
-          AddNodes(aChildNode,aChildJSON);
-        end;
-        aParent.Expanded := true;
-      end;
+  if (JSONTree.Selected = nil) then
+  begin
+    if (JSONTree.Items.Count = 0) then
+    begin
+      aNew := JSONTree.Items.AddChild(nil,'') as TJSONTreeNode;
+      aNew.DataType := aDataType;
+      aNew.EditText;
+    end
+  end
+  else
+  begin
+    if (JSONTree.Selected as TJSONTreeNode).DataType in [jtObject,jtArray] then
+      aParent := JSONTree.Selected as TJSONTreeNode
+    else
+      aParent := JSONTree.Selected.Parent as TJSONTreeNode;
+    if aParent <> nil then
+    begin
+      aNew := JSONTree.Items.AddChild(aParent,'') as TJSONTreeNode;
+      aNew.DataType := aDataType;
+      aParent.Expanded := true;
+      aNew.EditText;
+    end;
   end;
+  EnableDisable;
+
 end;
 
-procedure TJSONEditor.SetToolsEnabled(aValue: Boolean);
+procedure TJSONEditor.EnableDisable;
+var
+  aSelected: TJSONTreeNode;
+  aParent: TJSONTreeNode;
+  enableAdd: Boolean;
+  enableDelete: Boolean;
 begin
-  DeleteElementButton.Enabled := aValue;
-  SetArrayButton.Enabled := aValue;
-  SetObjectButton.Enabled := aValue;
-  SetNullButton.Enabled:=aValue;
-  SetNumberButton.Enabled := aValue;
-  SetStringButton.Enabled := aValue;
-  SetBooleanButton.Enabled := aValue;
+  aSelected := JSONTree.Selected as TJSONTreeNode;
+
+  enableDelete := (aSelected <> nil);
+  enableAdd := false;
+  if aSelected <> nil then
+  begin
+    enableDelete := true;
+    if aSelected.DataType in [jtObject,jtArray] then
+      enableAdd := true
+    else
+    begin
+      aParent := aSelected.Parent as TJSONTreeNode;
+      if (aParent <> nil) and (aParent.DataType in [jtObject,jtArray]) then
+        enableAdd := true;
+    end;
+  end
+  else if JSONTree.Items.Count = 0 then
+     enableAdd := true;
+
+  DeleteElementButton.Enabled := enableDelete;
+  AddBooleanButton.Enabled := enableAdd;
+  AddNullButton.Enabled := enableAdd;
+  AddNumberButton.Enabled := enableAdd;
+  AddObjectButton.Enabled := enableAdd;
+  AddStringButton.Enabled := enableAdd;
+  AddArrayButton.Enabled := enableAdd;
 end;
 
 constructor TJSONEditor.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
-  SetToolsEnabled(JSONTree.Selected <> nil);
+  EnableDisable;
 end;
 
 procedure TJSONEditor.SetJSON(aData: TJSONData);
 var
-  aRoot: TTreeNode;
+  aRoot: TJSONTreeNode;
 begin
   JSONTree.Items.Clear;
   if aData <> nil then
   begin
-    aRoot := JSONTree.Items.AddChild(nil,GetCaption(aData));
-    aRoot.ImageIndex := ord(aData.JSONType);
-    AddNodes(aRoot,aData);
+    aRoot := JSONTree.Items.AddChild(nil,'') as TJSONTreeNode;
+    aRoot.SetJSON(aData);
   end;
 end;
 
-function TJSONEditor.GetJSON: TJSONData;
+function TJSONEditor.CreateJSON: TJSONData;
+var
+  aRoot: TJSONTreeNode;
 begin
-  // TODO:
+  aRoot := JSONTree.Items.GetFirstNode as TJSONTreeNode;
+  if aRoot <> nil then
+  begin
+    result := aRoot.CreateJSON;
+  end;
 end;
 
 end.

@@ -18,9 +18,10 @@ object JSONEditor: TJSONEditor
     DefaultItemHeight = 18
     ScrollBars = ssAutoBoth
     TabOrder = 0
-    OnSelectionChanged = JSONTreeSelectionChanged
+    OnCreateNodeClass = JSONTreeCreateNodeClass
     OnEdited = JSONTreeEdited
     OnEditing = JSONTreeEditing
+    OnSelectionChanged = JSONTreeSelectionChanged
   end
   object EditToolbar: TToolBar
     Left = 10
@@ -32,60 +33,54 @@ object JSONEditor: TJSONEditor
     EdgeBorders = []
     ShowCaptions = True
     TabOrder = 1
-    object AddElementButton: TToolButton
-      Left = 1
-      Top = 0
-      Caption = 'Add'
-      OnClick = AddElementButtonClick
-    end
     object DeleteElementButton: TToolButton
-      Left = 34
+      Left = 200
       Top = 0
       Caption = 'Del'
       OnClick = DeleteElementButtonClick
     end
     object ToolButton1: TToolButton
-      Left = 63
+      Left = 190
       Top = 0
       Width = 10
       Caption = 'ToolButton1'
       Style = tbsSeparator
     end
-    object SetObjectButton: TToolButton
-      Left = 73
+    object AddObjectButton: TToolButton
+      Left = 1
       Top = 0
       Caption = 'Obj'
-      OnClick = SetObjectButtonClick
+      OnClick = AddObjectButtonClick
     end
-    object SetArrayButton: TToolButton
-      Left = 102
+    object AddArrayButton: TToolButton
+      Left = 30
       Top = 0
       Caption = 'Arr'
-      OnClick = SetArrayButtonClick
+      OnClick = AddArrayButtonClick
     end
-    object SetBooleanButton: TToolButton
-      Left = 129
+    object AddBooleanButton: TToolButton
+      Left = 57
       Top = 0
       Caption = 'Bool'
-      OnClick = SetBooleanButtonClick
+      OnClick = AddBooleanButtonClick
     end
-    object SetNumberButton: TToolButton
-      Left = 166
+    object AddNumberButton: TToolButton
+      Left = 94
       Top = 0
       Caption = 'Num'
-      OnClick = SetNumberButtonClick
+      OnClick = AddNumberButtonClick
     end
-    object SetStringButton: TToolButton
-      Left = 203
+    object AddStringButton: TToolButton
+      Left = 131
       Top = 0
       Caption = 'Str'
-      OnClick = SetStringButtonClick
+      OnClick = AddStringButtonClick
     end
-    object SetNullButton: TToolButton
-      Left = 228
+    object AddNullButton: TToolButton
+      Left = 156
       Top = 0
       Caption = 'Null'
-      OnClick = SetNullButtonClick
+      OnClick = AddNullButtonClick
     end
   end
 end
