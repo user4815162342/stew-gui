@@ -59,7 +59,7 @@ uses
 
 procedure TEditorFrame.CloseButtonClick(Sender: TObject);
 begin
-  MainForm.DocumentTabCloseRequested(Self);
+  MainForm.RequestTabClose(Self);
 end;
 
 procedure TEditorFrame.SetDocument(AValue: TDocumentID);

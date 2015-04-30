@@ -11,6 +11,19 @@ type
   TExceptionEvent = procedure(Sender: TObject; aError: Exception) of object;
   TExceptionMessageEvent = procedure(Sender: TObject; aError: String) of object;
 
+  { TEZSortStringList }
+
+  TEZSortStringListCompare = function(List: TStringList; Index1, Index2: Integer): Integer of object;
+
+  TEZSortStringList = class(TStringList)
+  private
+    FOnEZSort: TEZSortStringListCompare;
+    procedure SetOnEZSort(AValue: TEZSortStringListCompare);
+  public
+    procedure EZSort;
+    property OnEZSort: TEZSortStringListCompare read FOnEZSort write SetOnEZSort;
+  end;
+
   TMappedCollection = class;
 
   { TMappedCollectionItem }
@@ -71,6 +84,32 @@ type
 
 
 implementation
+
+{ TEZSortStringList }
+
+procedure TEZSortStringList.SetOnEZSort(AValue: TEZSortStringListCompare);
+begin
+  if FOnEZSort=AValue then Exit;
+  FOnEZSort:=AValue;
+end;
+
+function DoEZSortCompare(List: TStringList; Index1, Index2: Integer): Integer;
+begin
+  with List as TEZSortStringList do
+  begin
+    if FOnEZSort <> nil then
+       result := FOnEZSort(List,Index1,Index2)
+    else
+      result := CompareText(List[Index1],List[Index2]);
+  end;
+end;
+
+procedure TEZSortStringList.EZSort;
+begin
+  CustomSort(@DoEZSortCompare);
+end;
+
+{ TEZSortStringList }
 
 { TMappedCollectionItem }
 

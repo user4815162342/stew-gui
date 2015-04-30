@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, ExtCtrls, ComCtrls, StdCtrls,
-  Grids, steweditorframe, stewproperties, stewmainform, stewjsoneditor;
+  Grids, steweditorframe, stewproperties, stewmainform, stewjsoneditor, stewproject;
 
 // TODO: Need to enable/disable state based on the loading state of the
 // project properties as well. At the very least, I can't save while already
@@ -14,6 +14,15 @@ uses
 // done in a separate thread against the internet, it will be a problem.
 // The easiest way, of course, is to just disable to whole interface while
 // some sort of saving is going on.
+// - probably the best way is to have the MainForm handle events on the
+// project, and broadcast the events through the fpoobserver stuff.
+// - for part of this, instead of just handling loaded/failed, etc. There
+// should be a FilingStateChanged event. There probably should be a 'new'
+// state to check whether the file has been loaded or not before calling load,
+// but this would also mean that we'd have to keep a 'failed' state when
+// a load fails (when a saving fails, we can probably keep the old loaded
+// state, however. But, we shouldn't be able to save again if the load
+// failed).
 
 // TODO: More possible properties:
 //    - editors for certain file extensions (See Preferences Menu).
@@ -55,7 +64,7 @@ type
     RefreshButton: TToolButton;
     SaveButton: TToolButton;
     ToolButton1: TToolButton;
-    procedure ObserveMainForm(aAction: TMainFormAction);
+    procedure ObserveMainForm(aAction: TMainFormAction; {%H-}aDocument: TDocumentID);
     procedure RefreshButtonClick(Sender: TObject);
     procedure SaveButtonClick(Sender: TObject);
   private
@@ -130,11 +139,12 @@ begin
   fUserPropertiesEditor.Enabled := AValue;
 end;
 
-procedure TProjectSettingsEditor.ObserveMainForm(aAction: TMainFormAction);
+procedure TProjectSettingsEditor.ObserveMainForm(aAction: TMainFormAction;
+  aDocument: TDocumentID);
 begin
   // TODO: What else?
   case aAction of
-    mfaProjectRefresh:
+    mfaProjectPropertiesLoaded:
       ShowDataToUser;
   end;
 end;

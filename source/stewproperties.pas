@@ -14,12 +14,34 @@ type
   // TODO: I'm going to skip 'editors' for now. Which means I'm done with
   // properties and ready to work with documents!
 
-  TRootProperties = class(TJSONAsyncFileStoreContainer)
+  { TRootProperties }
 
+  TRootProperties = class(TJSONAsyncFileStoreContainer)
+  private
+    fIndex: TStringList;
+    function GetIndex: TStrings;
+  protected
+    procedure Clear; override;
+  public
+    constructor Create(aFilename: TFilename);
+    destructor Destroy; override;
+  published
+    property index: TStrings read GetIndex;
   end;
 
-  TDocumentProperties = class(TRootProperties)
+  { TDocumentProperties }
 
+  TDocumentProperties = class(TJSONAsyncFileStoreContainer)
+  private
+    fIndex: TStringList;
+    function GetIndex: TStrings;
+  protected
+    procedure Clear; override;
+  public
+    constructor Create(afileName: TFilename);
+    destructor Destroy; override;
+  published
+    property index: TStrings read GetIndex;
   end;
 
   { TKeywordDefinition }
@@ -169,6 +191,54 @@ implementation
 
 uses
   LCLProc, Math;
+
+{ TRootProperties }
+
+function TRootProperties.GetIndex: TStrings;
+begin
+  result := fIndex;
+end;
+
+procedure TRootProperties.Clear;
+begin
+  fIndex.Clear;
+end;
+
+constructor TRootProperties.Create(aFilename: TFilename);
+begin
+  inherited Create(IncludeTrailingPathDelimiter(aFilename) + '_properties.json',false);
+  fIndex := TStringList.Create;
+end;
+
+destructor TRootProperties.Destroy;
+begin
+  FreeAndNil(fIndex);
+  inherited Destroy;
+end;
+
+{ TDocumentProperties }
+
+function TDocumentProperties.GetIndex: TStrings;
+begin
+  result := fIndex;
+end;
+
+procedure TDocumentProperties.Clear;
+begin
+  fIndex.Clear;
+end;
+
+constructor TDocumentProperties.Create(afileName: TFilename);
+begin
+  inherited Create(ExcludeTrailingPathDelimiter(afileName) + '_properties.json',false);
+  fIndex := TStringList.Create;
+end;
+
+destructor TDocumentProperties.Destroy;
+begin
+  FreeAndNil(fIndex);
+  inherited Destroy;
+end;
 
 { TUserPropertyArray }
 
@@ -600,7 +670,6 @@ var
   aStatus: TJSONObject;
   i: Integer;
   aUser: TJSONData;
-  aColor: TJSONObject;
 begin
   // Have to convert an old format which had statuses as an array of strings.
   aStatuses := aData.Find('statuses');

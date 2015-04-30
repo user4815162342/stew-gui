@@ -132,6 +132,16 @@ type
     // File age is only passed for informational purposes, and I don't
     // need that information here.
     procedure FileSaveConflicted({%H-}aFileAge: Longint);
+    // These events are protected. In general, the project itself handles
+    // these events, and I want all UI code to handle these actions via the
+    // MainForm observation API. By making these protected, I can control
+    // this better (The project overrides this by creating a subclass of
+    // this that can handle the events).
+    property OnFileLoaded: TNotifyEvent read fOnFileLoaded write fOnFileLoaded;
+    property OnFileLoadFailed: TExceptionMessageEvent read fOnFileLoadFailed write fOnFileLoadFailed;
+    property OnFileSaved: TNotifyEvent read fOnFileSaved write fOnFileSaved;
+    property OnFileSaveFailed: TExceptionMessageEvent read fOnFileSaveFailed write fOnFileSaveFailed;
+    property OnFileSaveConflicted: TNotifyEvent read fOnFileSaveConflicted write fOnFileSaveConflicted;
   public
     constructor Create(afileName: TFilename; aCreateDir: Boolean = false);
     destructor Destroy; override;
@@ -141,11 +151,6 @@ type
     // to save anyway.
     procedure Save(aForce: Boolean = false);
     property FilingState: TFilingState read fFilingState;
-    property OnFileLoaded: TNotifyEvent read fOnFileLoaded write fOnFileLoaded;
-    property OnFileLoadFailed: TExceptionMessageEvent read fOnFileLoadFailed write fOnFileLoadFailed;
-    property OnFileSaved: TNotifyEvent read fOnFileSaved write fOnFileSaved;
-    property OnFileSaveFailed: TExceptionMessageEvent read fOnFileSaveFailed write fOnFileSaveFailed;
-    property OnFileSaveConflicted: TNotifyEvent read fOnFileSaveConflicted write fOnFileSaveConflicted;
   end;
 
   { TJSONStoreCollectionItem }

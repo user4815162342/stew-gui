@@ -5,6 +5,7 @@ object EditorFrame: TEditorFrame
   Width = 320
   ClientHeight = 240
   ClientWidth = 320
+  LCLVersion = '1.2.6.0'
   TabOrder = 0
   DesignLeft = 618
   DesignTop = 198

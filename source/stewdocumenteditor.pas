@@ -5,10 +5,17 @@ unit stewdocumenteditor;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, StdCtrls, stewproject,
-  steweditorframe;
+  Classes, SysUtils, FileUtil, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls,
+  stewproject, steweditorframe;
 
 type
+
+  // TODO: Instead of a DocumentProperties, we need a DocumentMetadata,
+  // that would contain the properties object itself, as well as the 'files'
+  // available. This would allow us to quickly figure out what files are
+  // available, and for that matter, I'm going to be reading them anyway when
+  // I do a 'listdocuments' command. I just have to rework that to not hide
+  // the specific files.
 
 {
   - Directory Index? Although that might be managed in another way.
@@ -27,6 +34,10 @@ type
 
   TDocumentEditor = class(TEditorFrame)
     StatusLabel: TLabel;
+    SaveButton: TToolButton;
+    RefreshButton: TToolButton;
+    procedure RefreshButtonClick(Sender: TObject);
+    procedure SaveButtonClick(Sender: TObject);
     { private declarations }
   protected
     procedure SetDocument(AValue: TDocumentID); override;
@@ -38,11 +49,23 @@ type
 implementation
 
 uses
-  stewmainform, ComCtrls;
+  stewmainform;
 
 {$R *.lfm}
 
 { TDocumentEditor }
+
+procedure TDocumentEditor.SaveButtonClick(Sender: TObject);
+begin
+  // TODO:
+
+end;
+
+procedure TDocumentEditor.RefreshButtonClick(Sender: TObject);
+begin
+  // TODO:
+
+end;
 
 procedure TDocumentEditor.SetDocument(AValue: TDocumentID);
 var

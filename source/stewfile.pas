@@ -11,18 +11,19 @@ function ExtractPacketName(const aPath: String): String;
 
 { TPacketLister }
 type
-  TPacketName = String;
-  TPacketList = array of TPacketName;
-  TDeferredPacketListCallback = specialize GDeferredCallback<TPacketList>;
+  TFileList = array of TFilename;
+  TDeferredFileListCallback = specialize GDeferredCallback<TFileList>;
 
-  TListPackets = class(TDeferredTask)
+  { TListFiles }
+
+  TListFiles = class(TDeferredTask)
   private
-    fPath: TFileName;
-    fCallback: TDeferredPacketListCallback;
+    fPath: TFilename;
+    fCallback: TDeferredFileListCallback;
   protected
     procedure DoTask; override;
   public
-    constructor Create(const aPath: TFileName; aCallback: TDeferredPacketListCallback; aErrorback: TDeferredExceptionCallback);
+    constructor Create(const aPath: TFilename; aCallback: TDeferredFileListCallback; aErrorBack: TDeferredExceptionCallback);
   end;
 
   { TFileExists }
@@ -100,6 +101,44 @@ const
   // hyphens, because otherwise they will be replaced with locale
   // date separators.
   TimestampFormat: String = 'yyyy"-"mm"-"dd"T"hh"-"mm"-"ss';
+
+{ TListFiles }
+
+procedure TListFiles.DoTask;
+var
+  SR: TSearchRec;
+  Answer: TFileList;
+  L: Integer;
+begin
+  L := 0;
+  if DirectoryExists(fPath) then
+  begin
+       if FindFirst(IncludeTrailingPathDelimiter(fPath) + '*',faDirectory,SR) = 0 then
+       begin
+          try
+            repeat
+              if (SR.Name <> '.') and (SR.Name <> '..') then
+              begin
+                 L := L + 1;
+                 SetLength(Answer,L);
+                 Answer[L-1] := SR.Name;
+              end;
+            until FindNext(SR) <> 0;
+          finally
+            FindClose(SR);
+          end;
+       end;
+  end;
+  fCallback(Answer);
+end;
+
+constructor TListFiles.Create(const aPath: TFilename;
+  aCallback: TDeferredFileListCallback; aErrorBack: TDeferredExceptionCallback);
+begin
+  inherited Create(aErrorback);
+  fPath := aPath;
+  fCallback := aCallback;
+end;
 
 { TWriteFile }
 
@@ -229,56 +268,6 @@ begin
   inherited Create(aErrorback);
   fPath := aPath;
   fCallback  := aCallback;
-end;
-
-{ TPacketLister }
-
-constructor TListPackets.Create(const aPath: TFileName; aCallback: TDeferredPacketListCallback; aErrorback: TDeferredExceptionCallback);
-begin
-  inherited Create(aErrorback);
-  fPath := aPath;
-  fCallback := aCallback;
-end;
-
-procedure TListPackets.DoTask;
-var
-  SR: TSearchRec;
-  List: TStringList;
-  Answer: TPacketList;
-  i: Integer;
-begin
-  List := TStringList.Create;
-  try
-    List.Sorted := true;
-    List.Duplicates := dupIgnore;
-    // TODO: Should I allow case insensitive file names on linux?
-    List.CaseSensitive := false;
-
-    if DirectoryExists(fPath) then
-    begin
-         if FindFirst(IncludeTrailingPathDelimiter(ReplaceStr(fPath,'/',PathDelim)) + '*',faDirectory,SR) = 0 then
-         begin
-            try
-              repeat
-                if (SR.Name <> '.') and (SR.Name <> '..') and (SR.Name[1] <> '_') then
-                begin
-                   List.Add(ExtractPacketName(SR.Name));
-                end;
-              until FindNext(SR) <> 0;
-            finally
-              FindClose(SR);
-            end;
-         end;
-    end;
-    SetLength(Answer,List.Count);
-    for i := 0 to List.Count - 1 do
-    begin
-      Answer[i] := List[i];
-    end;
-  finally
-    List.Free;
-  end;
-  fCallback(Answer);
 end;
 
 end.

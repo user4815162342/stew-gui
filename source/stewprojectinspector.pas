@@ -16,17 +16,31 @@ type
 
   TProjectInspectorFrame = class(TFrame)
     ProjectExplorer: TTreeView;
-    procedure ObserveMainForm(aAction: TMainFormAction);
+    procedure ObserveMainForm(aAction: TMainFormAction; {%H-}aDocument: TDocumentID);
     procedure ProjectDocumentsError(Data: String);
     procedure ProjectExplorerCreateNodeClass(Sender: TCustomTreeView;
       var NodeClass: TTreeNodeClass);
     procedure ProjectExplorerDblClick(Sender: TObject);
     procedure ProjectExplorerExpanding(Sender: TObject; Node: TTreeNode;
       var {%H-}AllowExpansion: Boolean);
-    procedure ProjectDocumentsListed({%H-}aPath: TPacketName; aList: TDocumentList; aTarget: TObject);
+  private type
+
+    { TProjectInspectorNode }
+
+    TProjectInspectorNode = class(TTreeNode)
+    private
+      FDocumentID: TDocumentID;
+      fExpandOnList: Boolean;
+      procedure SetDocumentID(AValue: TDocumentID);
+    public
+      property DocumentID: TDocumentID read FDocumentID write SetDocumentID;
+      property ExpandOnList: Boolean read fExpandOnList write fExpandOnList;
+    end;
   private
     { private declarations }
     function GetProject: TStewProject;
+    procedure ReloadNodeForDocument(aDocument: TDocumentID);
+    function GetTreeNodeForDocument(aDocument: TDocumentID): TProjectInspectorNode;
   protected
     property Project: TStewProject read GetProject;
   public
@@ -43,21 +57,9 @@ uses
 
 {$R *.lfm}
 
-type
-
-  { TProjectInspectorNode }
-
-  TProjectInspectorNode = class(TTreeNode)
-  private
-    FDocumentID: TDocumentID;
-    procedure SetDocumentID(AValue: TDocumentID);
-  public
-    property DocumentID: TDocumentID read FDocumentID write SetDocumentID;
-  end;
-
 { TProjectInspectorNode }
 
-procedure TProjectInspectorNode.SetDocumentID(AValue: TDocumentID);
+procedure TProjectInspectorFrame.TProjectInspectorNode.SetDocumentID(AValue: TDocumentID);
 begin
   if FDocumentID <> AValue then
   begin
@@ -77,17 +79,21 @@ begin
   if (Node.HasChildren and (Node.GetFirstChild = nil)) then
   begin
     Document := (Node as TProjectInspectorNode).DocumentID;
-    Project.ListDocuments(Document,Node,@ProjectDocumentsListed,@ProjectDocumentsError);
+    Project.ListDocuments(Document);
+    // also need to reload the properties to get the right sort order.
+    //Project.ListDocuments(Document,Node,@ProjectDocumentsListed,@ProjectDocumentsError);
+    (Node as TProjectInspectorNode).ExpandOnList := true;
   end;
 end;
 
-procedure TProjectInspectorFrame.ObserveMainForm(aAction: TMainFormAction);
+procedure TProjectInspectorFrame.ObserveMainForm(aAction: TMainFormAction;
+  aDocument: TDocumentID);
 begin
   case aAction of
-    mfaProjectRefresh:
-      begin
-        RefreshProject;
-      end;
+    mfaDocumentsListed:
+    begin
+      ReloadNodeForDocument(aDocument);
+    end;
   end;
 end;
 
@@ -120,38 +126,68 @@ begin
 
 end;
 
-procedure TProjectInspectorFrame.ProjectDocumentsListed(aPath: TPacketName;
-  aList: TDocumentList; aTarget: TObject);
-var
-  i: Integer;
-  base: TTreeNode;
-  node: TProjectInspectorNode;
-begin
-  if aTarget is TTreeNode then
-     base := aTarget as TTreeNode
-  else
-     base := nil;
-
-  if (Length(aList) > 0) then
-  begin
-
-    for i := 0 to Length(aList) - 1 do
-    begin
-      node := ProjectExplorer.Items.AddChild(base,'') as TProjectInspectorNode;
-      node.DocumentID := aList[i];
-      node.HasChildren := true;
-    end;
-  end
-  else if base <> nil then
-  begin
-    base.HasChildren := false;
-  end;
-
-end;
-
 function TProjectInspectorFrame.GetProject: TStewProject;
 begin
   result := MainForm.Project;
+end;
+
+procedure TProjectInspectorFrame.ReloadNodeForDocument(aDocument: TDocumentID);
+var
+  aNode: TProjectInspectorNode;
+  aList: TDocumentList;
+  i: Integer;
+  aChild: TProjectInspectorNode;
+begin
+  if aDocument <> RootDocument then
+     aNode := GetTreeNodeForDocument(aDocument)
+  else
+     aNode := nil;
+  if (aDocument = RootDocument) or (aNode <> nil) then
+  begin
+    ProjectExplorer.BeginUpdate;
+    try
+      aList := MainForm.Project.GetDocumentList(aDocument);
+      // TODO: I'd like to replace them in place, so we can keep the expansion
+      // state of some nodes.
+      // -
+      if aNode <> nil then
+         aNode.DeleteChildren
+      else
+         ProjectExplorer.Items.Clear;
+      for i := 0 to Length(aList) - 1 do
+      begin
+        aChild := ProjectExplorer.Items.AddChild(aNode,'') as TProjectInspectorNode;
+        aChild.DocumentID:=aList[i];
+        achild.HasChildren:=true;
+      end;
+      if (aNode <> nil) and (aNode.ExpandOnList) then
+      begin
+        aNode.ExpandOnList := false;
+        aNode.Expanded := true;
+      end;
+
+    finally
+      ProjectExplorer.EndUpdate;
+    end;
+
+
+  end;
+  // else, I don't care about these.
+end;
+
+function TProjectInspectorFrame.GetTreeNodeForDocument(aDocument: TDocumentID): TProjectInspectorNode;
+begin
+  result := ProjectExplorer.Items.GetFirstNode as TProjectInspectorNode;
+  while result <> nil do
+  begin
+    if result.DocumentID = aDocument then
+       Exit;
+    if IsParentDocument(result.DocumentID,aDocument) then
+       result := result.GetFirstChild as TProjectInspectorNode
+    else
+       result := result.GetNextSibling as TProjectInspectorNode;
+  end;
+  result := nil;
 end;
 
 constructor TProjectInspectorFrame.Create(TheOwner: TComponent);
@@ -172,7 +208,7 @@ begin
   ProjectExplorer.Items.Clear;
   if (Project <> nil) then
   begin
-    Project.ListRootDocuments(nil,@ProjectDocumentsListed,@ProjectDocumentsError);
+    Project.ListDocuments(RootDocument);
   end;
 end;
 

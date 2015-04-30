@@ -4,14 +4,29 @@ inherited DocumentEditor: TDocumentEditor
   ClientHeight = 352
   ClientWidth = 417
   inherited ToolbarPanel: TPanel
+    Height = 24
     Width = 417
+    ClientHeight = 24
     ClientWidth = 417
     inherited RightHandToolbar: TToolBar
       Left = 375
-      Flat = True
+      Height = 24
     end
     inherited LeftHandToolbar: TToolBar
-      Flat = True
+      Height = 24
+      Width = 375
+      object SaveButton: TToolButton[0]
+        Left = 1
+        Top = 0
+        Caption = 'Save'
+        OnClick = SaveButtonClick
+      end
+      object RefreshButton: TToolButton[1]
+        Left = 37
+        Top = 0
+        Caption = 'Refresh'
+        OnClick = RefreshButtonClick
+      end
     end
   end
   object StatusLabel: TLabel[1]

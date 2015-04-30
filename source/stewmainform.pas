@@ -6,8 +6,26 @@ interface
 
 {
 
-TODO: Next, work on the document properties and editors. The infrastructure
+TODO: To get this actually usable:
+1. Next, work on the document properties and editors. The infrastructure
 looks a lot like the project settings editor, of course.
+2. Once I have document properties, I should be able to easily 'sort' the
+documents based on the index property of the folder and root properties.
+3. A button for opening documents and notes.
+
+At that point, I can slowly start moving from the command line to the GUI.
+The command line will probably never be completely deprecated, because the
+scripting capabilities there are still quite useful.
+
+TODO: FPC now has 'strict private' and 'strict protected' that make things
+work the way private and protected are supposed to work (just being in the
+same unit doesn't help). Convert everything to that for clearer documentation
+on what fields are actually supposed to be private, and which ones are supposed
+to be unit private.
+
+TODO: Also, I can use nested classes for some of the 'deferred tasks' things,
+also almost anywhere that I've got a class defined in implementation. This
+makes for clearer documentation.
 
 TODO: Working on rough up of interface.
 - start laying out some components on the DocumentInspector, based on the stuff below.
@@ -111,8 +129,19 @@ uses
 
 type
 
-  TMainFormAction = (mfaProjectRefresh);
-  TMainFormObserverHandler = procedure(aAction: TMainFormAction) of object;
+  // TODO: the project refresh thing isn't really something I need to broadcast.
+  // It's really just meant for the project inspector to re-list items. Perhaps
+  // it should be some sort of menu Item that gets automatically added by the
+  // project inspector frame.
+  // TODO: Make use of the properties loaded and saved events.
+  TMainFormAction = (mfaProjectPropertiesLoaded,
+                     mfaProjectPropertiesSaved,
+                     mfaRootPropertiesLoaded,
+                     mfaRootPropertiesSaved,
+                     mfaDocumentsListed,
+                     mfaDocumentPropertiesLoaded,
+                     mfaDocumentPropertiesSaved);
+  TMainFormObserverHandler = procedure(aAction: TMainFormAction; aDocument: TDocumentID) of object;
   TMainFormObserverList = specialize TFPGList<TMainFormObserverHandler>;
 
   { TMainForm }
@@ -129,6 +158,9 @@ type
     ExitMenuItem: TMenuItem;
     OpenProjectDialog: TSelectDirectoryDialog;
     procedure AboutMenuItemClick(Sender: TObject);
+    procedure DocumentListError(Sender: TObject; Document: TDocumentID;
+      Error: String);
+    procedure DocumentsListed(Sender: TObject; Document: TDocumentID);
     procedure DocumentTabCloseRequested(Sender: TObject);
     procedure ExitMenuItemClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var {%H-}CloseAction: TCloseAction);
@@ -136,17 +168,16 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure PreferencesMenuItemClick(Sender: TObject);
-    procedure ProjectLoadFailed(E: String);
-    procedure ProjectOpened(Sender: TObject);
-    procedure ProjectPropertiesError(Sender: TObject; aError: String);
-    procedure ProjectPropertiesLoaded(Sender: TObject);
-    procedure ProjectPropertiesSaveConflicted(Sender: TObject);
-    procedure ProjectPropertiesSaved(Sender: TObject);
     procedure ProjectSettingsMenuItemClick(Sender: TObject);
     procedure RefreshProjectMenuItemClick(Sender: TObject);
+  strict private type
+    TProtectedStewProject = class(TStewProject)
+
+    end;
+
   private
     { private declarations }
-    fProject: TStewProject;
+    fProject: TProtectedStewProject;
     fConfig: TStewApplicationConfig;
     fObservers: TMainFormObserverList;
     fFrames: array[TAlign] of TControl;
@@ -154,22 +185,40 @@ type
     fDocumentPane: TAlign;
     // FUTURE: Should be a hash list, so we can look things up by ID.
     fOpenDocuments: TObjectList;
+    procedure DocumentPropertiesError(Sender: TObject; Document: TDocumentID;
+      Error: String);
+    procedure DocumentPropertiesLoaded(Sender: TObject; Document: TDocumentID);
+    procedure DocumentPropertiesSaveConflicted(Sender: TObject;
+      Document: TDocumentID);
+    procedure DocumentPropertiesSaved(Sender: TObject; Document: TDocumentID);
+    function GetProject: TStewProject;
+    procedure ProjectLoadFailed(E: String);
+    procedure ProjectOpened(Sender: TObject);
+    procedure ProjectPropertiesError(Sender: TObject; aError: String);
+    procedure ProjectPropertiesLoaded(Sender: TObject);
+    procedure ProjectPropertiesSaveConflicted(Sender: TObject);
+    procedure ProjectPropertiesSaved(Sender: TObject);
+    procedure RootProjectPropertiesError(Sender: TObject; aError: String);
+    procedure RootProjectPropertiesLoaded(Sender: TObject);
+    procedure RootProjectPropertiesSaveConflicted(Sender: TObject);
+    procedure RootProjectPropertiesSaved(Sender: TObject);
   protected
     procedure StartupCheckProject({%H-}Data: PtrInt);
     procedure StartupIfProjectExists(aValue: Boolean);
     procedure StartupIfProjectParentDirectoryExists(aValue: Boolean);
-    procedure NotifyObservers(aAction: TMainFormAction);
+    procedure NotifyObservers(aAction: TMainFormAction; aDocument: TDocumentID = '');
     procedure ReadUISettings;
     procedure WriteUISettings;
     procedure LayoutFrames;
   public
     { public declarations }
-    property Project: TStewProject read fProject;
+    property Project: TStewProject read GetProject;
     function OpenDocument(aDocument: TDocumentID): TEditorFrame;
     procedure OpenPreferences;
     procedure OpenProjectSettings;
     procedure Observe(aObserver: TMainFormObserverHandler);
     procedure Unobserve(aObserver: TMainFormObserverHandler);
+    procedure RequestTabClose(aFrame: TEditorFrame);
     // NOTE: I've made these public to make it easier to 'extend' the application,
     // but these layout functions really should only be used during app initialization
     // for now.
@@ -199,6 +248,54 @@ const ProjectSettingsDocumentID: TDocumentID = ':project settings';
 procedure TMainForm.AboutMenuItemClick(Sender: TObject);
 begin
   AboutForm.ShowModal;
+end;
+
+procedure TMainForm.DocumentListError(Sender: TObject; Document: TDocumentID;
+  Error: String);
+begin
+  ShowMessage('An error occurred while listing documents.' + LineEnding +
+              'The parent document''s ID was "' + Document + '".' + LineEnding +
+              Error + LineEnding +
+              'You may want to restart the program, or wait and try your task again later');
+
+end;
+
+procedure TMainForm.DocumentsListed(Sender: TObject; Document: TDocumentID);
+begin
+  NotifyObservers(mfaDocumentsListed,Document);
+end;
+
+procedure TMainForm.DocumentPropertiesError(Sender: TObject;
+  Document: TDocumentID; Error: String);
+begin
+  ShowMessage('An error occurred while saving or loading the document properties.' + LineEnding +
+              'The document''s ID was ' + Document + '.' + LineEnding +
+              Error + LineEnding +
+              'You may want to restart the program, or wait and try your task again later');
+end;
+
+procedure TMainForm.DocumentPropertiesLoaded(Sender: TObject;
+  Document: TDocumentID);
+begin
+  Enabled := true;
+  NotifyObservers(mfaDocumentPropertiesLoaded,Document);
+end;
+
+procedure TMainForm.DocumentPropertiesSaveConflicted(Sender: TObject;
+  Document: TDocumentID);
+begin
+   if MessageDlg('The document properties file has changed on the disk since the last time it was loaded.' + LineEnding +
+             'Document ID: ' + Document + LineEnding +
+             'Would you like to overwrite it''s contents?',mtWarning,mbYesNo,0) = mrYes then
+   begin
+     fProject.GetDocumentProperties(Document).Save(true);
+   end;
+end;
+
+procedure TMainForm.DocumentPropertiesSaved(Sender: TObject;
+  Document: TDocumentID);
+begin
+  NotifyObservers(mfaDocumentPropertiesSaved,Document);
 end;
 
 type
@@ -322,7 +419,7 @@ begin
 
   if stewFolder <> '' then
   begin
-    fProject := TStewProject.Create(stewFolder);
+    fProject := TProtectedStewProject.Create(stewFolder);
   end;
   Application.QueueAsyncCall(@StartupCheckProject,0);
 end;
@@ -344,6 +441,11 @@ begin
   // how it was set in the previous session when restoring it to normal).
   ReadUISettings;
 
+end;
+
+function TMainForm.GetProject: TStewProject;
+begin
+  result := fProject;
 end;
 
 procedure TMainForm.StartupIfProjectParentDirectoryExists(aValue: Boolean);
@@ -389,7 +491,7 @@ begin
   fConfig.MRUProject := fProject.DiskPath;
   Self.Caption := Application.Title + ' - ' + fProject.GetProjectName;
   // But... we don't actually enable anything, not until we get a project properties loaded.
-
+  fProject.ListDocuments(RootDocument);
 end;
 
 procedure TMainForm.ProjectPropertiesError(Sender: TObject; aError: String);
@@ -402,7 +504,7 @@ end;
 procedure TMainForm.ProjectPropertiesLoaded(Sender: TObject);
 begin
   Enabled := true;
-  NotifyObservers(mfaProjectRefresh);
+  NotifyObservers(mfaProjectPropertiesLoaded);
 end;
 
 procedure TMainForm.ProjectPropertiesSaveConflicted(Sender: TObject);
@@ -416,7 +518,7 @@ end;
 
 procedure TMainForm.ProjectPropertiesSaved(Sender: TObject);
 begin
-  // Not sure what to do here...
+  NotifyObservers(mfaProjectPropertiesSaved);
 end;
 
 procedure TMainForm.ProjectSettingsMenuItemClick(Sender: TObject);
@@ -426,7 +528,33 @@ end;
 
 procedure TMainForm.RefreshProjectMenuItemClick(Sender: TObject);
 begin
-  NotifyObservers(mfaProjectRefresh);
+  Project.ListDocuments(RootDocument);
+end;
+
+procedure TMainForm.RootProjectPropertiesError(Sender: TObject; aError: String);
+begin
+  ShowMessage('An error occurred while saving or loading the project root properties.' + LineEnding +
+              aError + LineEnding +
+              'You may want to restart the program, or wait and try your task again later');
+end;
+
+procedure TMainForm.RootProjectPropertiesLoaded(Sender: TObject);
+begin
+  NotifyObservers(mfaRootPropertiesLoaded);
+end;
+
+procedure TMainForm.RootProjectPropertiesSaveConflicted(Sender: TObject);
+begin
+  if MessageDlg('The root properties file has changed on the disk since the last time it was loaded.' + LineEnding +
+             'Would you like to overwrite it''s contents?',mtWarning,mbYesNo,0) = mrYes then
+   begin
+     fProject.GetRootProperties.Save(true);
+   end;
+end;
+
+procedure TMainForm.RootProjectPropertiesSaved(Sender: TObject);
+begin
+  NotifyObservers(mfaRootPropertiesSaved);
 end;
 
 
@@ -437,7 +565,7 @@ begin
     if OpenProjectDialog.Execute then
     begin
 
-      fProject := TStewProject.Create(OpenProjectDialog.FileName);
+      fProject := TProtectedStewProject.Create(OpenProjectDialog.FileName);
 
     end
     else
@@ -452,6 +580,16 @@ begin
   fProject.OnPropertiesLoaded:=@ProjectPropertiesLoaded;
   fProject.OnPropertiesSaveConflicted:=@ProjectPropertiesSaveConflicted;
   fProject.OnPropertiesSaved:=@ProjectPropertiesSaved;
+  fProject.OnRootPropertiesError:=@RootProjectPropertiesError;
+  fProject.OnRootPropertiesLoaded:=@RootProjectPropertiesLoaded;
+  fProject.OnRootPropertiesSaveConflicted:=@RootProjectPropertiesSaveConflicted;
+  fProject.OnRootPropertiesSaved:=@RootProjectPropertiesSaved;
+  fProject.OnDocumentPropertiesError:=@DocumentPropertiesError;
+  fProject.OnDocumentPropertiesLoaded:=@DocumentPropertiesLoaded;
+  fProject.OnDocumentPropertiesSaveConflicted:=@DocumentPropertiesSaveConflicted;
+  fProject.OnDocumentPropertiesSaved:=@DocumentPropertiesSaved;
+  fProject.OnDocumentsListed:=@DocumentsListed;
+  fProject.OnDocumentListError:=@DocumentListError;
   fProject.OpenAtPath(@StartupIfProjectExists,@ProjectLoadFailed);
 
 end;
@@ -476,7 +614,7 @@ begin
 
 end;
 
-procedure TMainForm.NotifyObservers(aAction: TMainFormAction);
+procedure TMainForm.NotifyObservers(aAction: TMainFormAction; aDocument: TDocumentID = '');
 var
   i: Integer;
 begin
@@ -484,7 +622,7 @@ begin
   begin
     for i := fObservers.Count - 1 downto 0 do
     begin
-      fObservers[i](aAction);
+      fObservers[i](aAction,aDocument);
     end;
   end;
 end;
@@ -618,6 +756,11 @@ begin
       fObservers := nil;
     end;
   end;
+end;
+
+procedure TMainForm.RequestTabClose(aFrame: TEditorFrame);
+begin
+  MainForm.DocumentTabCloseRequested(aFrame);
 end;
 
 function TMainForm.LayoutFrame(aFrameClass: TControlClass; aLocation: TAlign

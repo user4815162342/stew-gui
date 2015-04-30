@@ -7,6 +7,44 @@ interface
 uses
   Classes, SysUtils, stewfile, stewasync, stewproperties, stewtypes, contnrs, stewattachments;
 
+// TODO: Problems to solve right now:
+// - I need to replace the project inspector stuff in place, so
+//   I don't lose the nodes expansion states.
+//   DO THIS FIRST, BECAUSE IT'S EASIER TO TEST WHILE WE'RE STILL DOING
+//   DOUBLE UPDATE EVENTS WHICH CLEAR THE EXPANDED FLAG ON THE LAST ONE.
+//     node := firstChild
+//     i := 0;
+//     while node <> nil do
+//     begin
+//       if i > documents.count then
+//          break;
+//       correct := node;
+//       while correct <> nil and correct.document <> documents[i] do
+//       begin
+//         correct := correct.nextSibling
+//       end
+//       if correct <> nil then
+//          correct.moveBefore(node);
+//          node := correct;
+//       else
+//          node := addNodeBefore(node);
+//       node := node.nextSibling;
+//       i := i + 1
+//     end
+//     // at this point any further nodes are extraneous.
+//     while node = nil do
+//     begin
+//       sibling := node.nextSibling;
+//       node.delete
+//       node := sibling;
+//     end
+// - Whenever I load the files I'm causing a document list change twice.
+//   The best way to solve that is with an update count, assuming that there's
+//   no problems causing the update count to not work.
+// - When the root document is loaded, it's not getting it's properties from
+//   the right place. I think that the best way to fix this is to create
+//   a separate RootCache vs. DocumentCache.
+
 type
   // All of these are just strings, representing paths off of the root
   // of the stew project (names always use '/' as separators, and must
@@ -15,49 +53,163 @@ type
   TDocumentBaseName = String;
   TDocumentID = String;
 
+
   TDocumentList = array of TDocumentID;
-  TDeferredDocumentListCallback = procedure(Path: TPacketName; Data: TDocumentList; aTarget: TObject) of object;
+  TDeferredDocumentListCallback = procedure(Path: TFilename; Data: TDocumentList; aTarget: TObject) of object deprecated;
+
+  TDocumentNotifyEvent = procedure(Sender: TObject; Document: TDocumentID) of object;
+  TDocumentExceptionEvent = procedure(Sender: TObject; Document: TDocumentID; Error: String) of object;
 
   { TStewProject }
 
   TStewProject = class
+  strict private type
+
+    { TMetadataCache }
+
+    TMetadataCache = class
+    strict private type
+    type
+    // this allows me access to the protected events on Document Properties,
+    // but avoids making those events accessible from outside of the project,
+    // which I don't want.
+      TProtectedDocumentProperties = class(TDocumentProperties)
+      end;
+    strict private
+      fProject: TStewProject;
+      fDisk: TFilename;
+      fID: TDocumentID;
+      fFiles: TStringList;
+      fDocuments: TFPHashObjectList;
+      fProperties: TDocumentProperties;
+    protected
+      procedure PropertiesLoaded(Sender: TObject);
+      procedure PropertiesLoadFailed(Sender: TObject; aError: String);
+      procedure PropertiesSaveConflicted(Sender: TObject);
+      procedure PropertiesSaved(Sender: TObject);
+      procedure PropertiesSaveFailed(Sender: TObject; aError: String);
+      procedure FilesListed(Data: TFileList);
+      procedure FilesListError(Data: String);
+      function SortDocuments(List: TStringList; Index1, Index2: Integer): Integer;
+    public
+      constructor Create(aProject: TStewProject; aDiskPath: TFilename; aID: TDocumentID);
+      destructor Destroy; override;
+      function PutPath(const aPath: String): TMetadataCache;
+      function PutDocument(aKey: String): TMetadataCache;
+      property Properties: TDocumentProperties read fProperties;
+      procedure ListDocuments;
+      function GetDocumentList: TDocumentList;
+    end;
+
+    // this allows me access to the protected events on Project Properties,
+    // but avoids making those events accessible from outside of the project,
+    // which I don't want.
+    TProtectedProjectProperties = class(TProjectProperties)
+    end;
+
+    // this allows me access to the protected events on Root Properties,
+    // but avoids making those events accessible from outside of the project,
+    // which I don't want.
+    TProtectedRootProperties = class(TRootProperties)
+    end;
   private
     fDisk: TFilename;
     // TODO: Basically keep a cache of document property objects here,
     // that are created when requested, and only loaded when necessary.
-    fPropertiesCache: TFPHashObjectList;
+    // TODO: These should be Metadata objects instead, even if the
+    // procedures below are used to retrieve properties.
+    // TODO: The 'listdocuments' thing should result in an event instead
+    // of a callback, that the project has to handle and broadcast.
+    // For the project inspector, I don't have to search through every tree node, I just have to search
+    // through the ones which might be parents of the node. This
+    // way, I can get rid of the mfaProjectRefresh, and just have mfaDocumentsListed.
+    // Then, have the 'refresh' menu item just clear the cache and list the
+    // root documents on the project, and let the inspector figure the
+    // rest out.
+    // TODO: The cache has to be 'treed', since the hashObjectList is
+    // limited to strings of 255 characters or less, and yes, I don't
+    // want to worry about that. This means, finding an item on the
+    // cache requires spliting a document ID into paths, so I could
+    // potentially just have a dynamic string array as the ID in the
+    // first place. In any case, when I 'refresh' a given document's children:
+    // - I parse the document ID into a path, if I haven't already
+    // been given one.
+    // - I follow the path into the cache, creating cached objects
+    // as I need to (newly created items are marked as such so when
+    // I go to list the files I have to find them)
+    // - I get the list of files in the directory from the file system.
+    // - I clean out the data for the cache I find, removing all child
+    //   caches.
+    // - I go through the list of files, if they represent a document
+    //   I haven't gotten a cache for, then I add it and add the file
+    //   as an available attachment. If it represents a document that
+    //   I have a cached item for, I just add it.
+    // - I do not automatically 'load' the properties. That has to
+    //   wait until I need them. Which means, I need to be able to specify
+    //   a separate callback to also be called back for specific
+    //   cases, not just depend on events.
+    fMetadataCache: TMetadataCache;
+    fOnDocumentsListed: TDocumentNotifyEvent;
+    fOnDocumentListError: TDocumentExceptionEvent;
+    FOnDocumentPropertiesError: TDocumentExceptionEvent;
+    FOnDocumentPropertiesLoaded: TDocumentNotifyEvent;
+    FOnDocumentPropertiesSaveConflicted: TDocumentNotifyEvent;
+    FOnDocumentPropertiesSaved: TDocumentNotifyEvent;
+    FOnRootPropertiesError: TExceptionMessageEvent;
+    FOnRootPropertiesLoaded: TNotifyEvent;
+    FOnRootPropertiesSaveConflicted: TNotifyEvent;
+    FOnRootPropertiesSaved: TNotifyEvent;
+    fRootProperties: TRootProperties;
+    fProperties: TProjectProperties;
     FOnOpened: TNotifyEvent;
     FOnPropertiesError: TExceptionMessageEvent;
     FOnPropertiesLoaded: TNotifyEvent;
     FOnPropertiesSaveConflicted: TNotifyEvent;
     FOnPropertiesSaved: TNotifyEvent;
-    fProperties: TProjectProperties;
     function GetIsOpened: Boolean;
     function GetProperties: TProjectProperties;
     procedure OpenProjectProperties;
     procedure DoOpened;
-    procedure SetOnOpened(AValue: TNotifyEvent);
-    procedure SetOnPropertiesError(AValue: TExceptionMessageEvent);
-    procedure SetOnPropertiesLoaded(AValue: TNotifyEvent);
-    procedure SetOnPropertiesSaveConflicted(AValue: TNotifyEvent);
-    procedure SetOnPropertiesSaved(AValue: TNotifyEvent);
     procedure ProjectPropertiesLoaded(Sender: TObject);
     procedure ProjectPropertiesLoadFailed(Sender: TObject; aError: String);
     procedure ProjectPropertiesSaveConflicted(Sender: TObject);
     procedure ProjectPropertiesSaved(Sender: TObject);
     procedure ProjectPropertiesSaveFailed(Sender: TObject; aError: String);
+    procedure RootPropertiesLoaded(Sender: TObject);
+    procedure RootPropertiesLoadFailed(Sender: TObject; aError: String);
+    procedure RootPropertiesSaveConflicted(Sender: TObject);
+    procedure RootPropertiesSaved(Sender: TObject);
+    procedure RootPropertiesSaveFailed(Sender: TObject; aError: String);
+  protected
+    // These events are protected. In general, the project itself handles
+    // these events, and I want all UI code to handle these actions via the
+    // MainForm observation API. By making these protected, I can control
+    // this better (The form overrides this by creating a subclass of
+    // this that can handle the events).
+    property OnOpened: TNotifyEvent read FOnOpened write fOnOpened;
+    property OnPropertiesLoaded: TNotifyEvent read FOnPropertiesLoaded write fOnPropertiesLoaded;
+    property OnPropertiesSaved: TNotifyEvent read FOnPropertiesSaved write fOnPropertiesSaved;
+    property OnPropertiesError: TExceptionMessageEvent read FOnPropertiesError write fOnPropertiesError;
+    property OnPropertiesSaveConflicted: TNotifyEvent read FOnPropertiesSaveConflicted write fOnPropertiesSaveConflicted;
+    property OnDocumentPropertiesLoaded: TDocumentNotifyEvent read FOnDocumentPropertiesLoaded write FOnDocumentPropertiesLoaded;
+    property OnDocumentPropertiesSaved: TDocumentNotifyEvent read FOnDocumentPropertiesSaved write FOnDocumentPropertiesSaved ;
+    property OnDocumentPropertiesError: TDocumentExceptionEvent read FOnDocumentPropertiesError write FOnDocumentPropertiesError;
+    property OnDocumentPropertiesSaveConflicted: TDocumentNotifyEvent read FOnDocumentPropertiesSaveConflicted write FOnDocumentPropertiesSaveConflicted;
+    property OnRootPropertiesLoaded: TNotifyEvent read FOnRootPropertiesLoaded write fOnRootPropertiesLoaded;
+    property OnRootPropertiesSaved: TNotifyEvent read FOnRootPropertiesSaved write fOnRootPropertiesSaved;
+    property OnRootPropertiesError: TExceptionMessageEvent read FOnRootPropertiesError write fOnRootPropertiesError;
+    property OnRootPropertiesSaveConflicted: TNotifyEvent read FOnRootPropertiesSaveConflicted write fOnRootPropertiesSaveConflicted;
+    property OnDocumentsListed: TDocumentNotifyEvent read fOnDocumentsListed write fOnDocumentsListed;
+    property OnDocumentListError: TDocumentExceptionEvent read fOnDocumentListError write fOnDocumentListError;
   public
     constructor Create(const Path: TFilename);
     destructor Destroy; override;
     property DiskPath: TFilename read fDisk;
     // TODO: Figure out filtering...
     // TODO: More importantly, need to 'sort' by directory index.
-    procedure ListDocuments(const ADocument: TDocumentID; aTarget: TObject;
-      aCallback: TDeferredDocumentListCallback;
-  aErrorback: TDeferredExceptionCallback); overload;
-    procedure ListRootDocuments(aTarget: TObject;
-      aCallback: TDeferredDocumentListCallback;
-  aErrorback: TDeferredExceptionCallback); overload;
+    // TODO: Get rid of the '2' once I've deleted the others.
+    procedure ListDocuments(aDocumentID: TDocumentID);
+    function GetDocumentList(aDocumentID: TDocumentID): TDocumentList;
     function GetDocumentProperties(const aDocument: TDocumentID): TDocumentProperties;
     function GetRootProperties: TRootProperties;
     // TODO: Figure out patterns and reg ex...
@@ -71,22 +223,31 @@ type
     procedure OpenInParentDirectory(aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
     procedure OpenNewAtPath;
     property IsOpened: Boolean read GetIsOpened;
-    property OnOpened: TNotifyEvent read FOnOpened write SetOnOpened;
-    property OnPropertiesLoaded: TNotifyEvent read FOnPropertiesLoaded write SetOnPropertiesLoaded;
-    property OnPropertiesSaved: TNotifyEvent read FOnPropertiesSaved write SetOnPropertiesSaved;
-    property OnPropertiesError: TExceptionMessageEvent read FOnPropertiesError write SetOnPropertiesError;
-    property OnPropertiesSaveConflicted: TNotifyEvent read FOnPropertiesSaveConflicted write SetOnPropertiesSaveConflicted;
     function GetProjectName: String;
     property Properties: TProjectProperties read GetProperties;
   end;
 
-  function IncludeTrailingSlash(Const Path : String) : String;
   function ExcludeLeadingSlash(Const Path: string): string;
+  function IncludeLeadingSlash(Const Path : String) : String;
+  function IncludeTrailingSlash(Const Path : String) : String;
+  function ExcludeTrailingSlash(Const Path: string): string;
+  function IsParentDocument(aParent: TDocumentID; aChild: TDocumentID): Boolean;
+  function ExtractBaseName(const Path: TDocumentID): string;
+
+  const
+    RootDocument: TDocumentID = '/';
 
 implementation
 
-const
-  RootDocument: TDocumentID = '/';
+function IncludeLeadingSlash(const Path: String): String;
+Var
+  L : Integer;
+begin
+  Result:=Path;
+  L:=Length(Result);
+  If (L=0) or (Result[1] <> '/') then
+    result := '/' + Result;
+end;
 
 // document paths are always '/' whether that's the OS path delimiter or not.
 function IncludeTrailingSlash(Const Path : String) : String;
@@ -97,6 +258,32 @@ begin
   l:=Length(Result);
   If (L=0) or (Result[l] <> '/') then
     Result:=Result+'/';
+end;
+
+function ExcludeTrailingSlash(const Path: string): string;
+Var
+  L : Integer;
+begin
+  Result:=Path;
+  L:=Length(Result);
+  If (L>0) and (Result[L] = '/') then
+    Delete(Result,L,1);
+end;
+
+function IsParentDocument(aParent: TDocumentID; aChild: TDocumentID): Boolean;
+begin
+  result := (Pos(IncludeTrailingSlash(aParent),aChild) = 1)
+end;
+
+function ExtractBaseName(const Path: TDocumentID): string;
+var
+  i : longint;
+  EndSep : Set of Char;
+begin
+  I := Length(Path);
+  while (I > 0) and not (Path[I] = '/') do
+    Dec(I);
+  Result := Copy(Path, I + 1, MaxInt);
 end;
 
 function ExcludeLeadingSlash(Const Path: string): string;
@@ -114,6 +301,207 @@ begin
   result := DiskPath + ADocument;
 end;
 
+{ TStewProject.TMetadataCache }
+
+procedure TStewProject.TMetadataCache.PropertiesLoadFailed(Sender: TObject;
+  aError: String);
+begin
+  if fProject.FOnDocumentPropertiesError <> nil then
+    fProject.FOnDocumentPropertiesError(fProject,fID,aError);
+end;
+
+procedure TStewProject.TMetadataCache.PropertiesSaveConflicted(Sender: TObject);
+begin
+  if fProject.FOnDocumentPropertiesSaveConflicted <> nil then
+    fProject.FOnDocumentPropertiesSaveConflicted(fProject,fID);
+end;
+
+procedure TStewProject.TMetadataCache.PropertiesSaved(Sender: TObject);
+begin
+  if fProject.FOnDocumentPropertiesSaved <> nil then
+    fProject.FOnDocumentPropertiesSaved(fProject,fID);
+  // since the properties might have changed the index, notify those people
+  // interested in the document list.
+  if fProject.fOnDocumentsListed <> nil then
+     fProject.fOnDocumentsListed(fProject,fID);
+end;
+
+procedure TStewProject.TMetadataCache.PropertiesSaveFailed(Sender: TObject;
+  aError: String);
+begin
+  if fProject.FOnDocumentPropertiesError <> nil then
+    fProject.FOnDocumentPropertiesError(fProject,fID,aError);
+end;
+
+procedure TStewProject.TMetadataCache.FilesListed(Data: TFileList);
+var
+  aPacket: TFilename;
+  i: Integer;
+  aChild: TMetadataCache;
+begin
+  // clear out the old ones.
+  // TODO: Need to remove the '_' documents.
+  fDocuments.Clear;
+  for i := 0 to Length(Data) - 1 do
+  begin
+    // TODO: The hashlist needs to be case insensitive, can I do that?
+    if (Data[i][1] <> '_') then
+    begin
+      aPacket := ExtractPacketName(Data[i]);
+      aChild := PutDocument(aPacket);
+      aChild.fFiles.Add(Data[i]);
+    end;
+    // TODO: For the 'root' attachments:
+    // - in ListDocuments, if finding the root, instead of pointing the file lister to fMetadata.FilesListed,
+    // point it to another one first, to filter out the '_' files and remember them
+    // as part of the project.
+    // - Or, create a flag on the MetadataCache that handles attachments differently,
+    // and just add these as files on itself.
+  end;
+  if fProject.fOnDocumentsListed <> nil then
+     fProject.fOnDocumentsListed(fProject,fID);
+end;
+
+procedure TStewProject.TMetadataCache.FilesListError(Data: String);
+begin
+  if fProject.fOnDocumentListError <> nil then
+     fProject.fOnDocumentListError(fProject,fID,Data);
+end;
+
+function SimpleIndexOf(List: TStrings; aText: String): Integer; inline;
+begin
+  // TStringList.IndexOf has a little bit of overhead that I don't want
+  // and returns -1 for not found, when I want the final value.
+  result:=0;
+  While (result < List.Count) and (CompareText(list[Result],aText) <> 0) do
+    result:=result+1;
+end;
+
+function TStewProject.TMetadataCache.SortDocuments(List: TStringList; Index1,
+  Index2: Integer): Integer;
+var
+  s1: String;
+  s2: String;
+  i1: Integer;
+  i2: integer;
+  index: TStrings;
+begin
+  s1 := ExtractBaseName(List[Index1]);
+  s2 := ExtractBaseName(List[Index2]);
+  index := Properties.index;
+  i1 := SimpleIndexOf(index,s1);
+  i2 := SimpleIndexOf(index,s2);
+  if (i1 = i2) then
+    result := CompareText(s1,s2)
+  else
+    result := i1 - i2;
+end;
+
+procedure TStewProject.TMetadataCache.PropertiesLoaded(Sender: TObject);
+begin
+  if fProject.fOnDocumentPropertiesLoaded <> nil then
+     fProject.fOnDocumentPropertiesLoaded(fProject,fID);
+  // since the properties might have changed the index, notify those people
+  // interested in the document list as well.
+  if fProject.fOnDocumentsListed <> nil then
+     fProject.fOnDocumentsListed(fProject,fID);
+end;
+
+constructor TStewProject.TMetadataCache.Create(aProject: TStewProject;
+  aDiskPath: TFilename; aID: TDocumentID);
+var
+  aCached: TProtectedDocumentProperties;
+begin
+  inherited Create;
+  fProject := aProject;
+  fDisk := aDiskPath;
+  fID := aID;
+  fFiles := TStringList.Create;
+  fDocuments := TFPHashObjectList.Create(true);
+  aCached := TProtectedDocumentProperties.Create(aDiskPath);
+  fProperties := aCached;
+  aCached.OnFileLoaded:=@PropertiesLoaded;
+  aCached.OnFileLoadFailed:=@PropertiesLoadFailed;
+  aCached.OnFileSaveConflicted:=@PropertiesSaveConflicted;
+  aCached.OnFileSaved:=@PropertiesSaved;
+  aCached.OnFileSaveFailed:=@PropertiesSaveFailed;
+end;
+
+function TStewProject.TMetadataCache.PutPath(const aPath: String
+  ): TMetadataCache;
+var
+  p: Integer;
+  aKey: String;
+  aChildren: String;
+  aSearch: String;
+begin
+  aSearch := ExcludeLeadingSlash(ExcludeTrailingSlash(aPath));
+  p := Pos('/',aSearch);
+  if p > 0 then
+  begin
+    aKey := Copy(aSearch,1,p-1);
+    aChildren := Copy(aSearch,p+1,length(aSearch));
+    result := PutDocument(aKey).PutPath(aChildren);
+  end
+  else
+    result := PutDocument(aSearch);
+end;
+
+function TStewProject.TMetadataCache.PutDocument(aKey: String): TMetadataCache;
+begin
+  // the documents are case insensitive, so make these lowercase.
+  result := fDocuments.Find(LowerCase(aKey)) as TMetadataCache;
+  if result = nil then
+  begin
+    result := TMetadataCache.Create(fProject,IncludeTrailingPathDelimiter(fDisk) + aKey,IncludeTrailingSlash(fID) + aKey);
+    fDocuments.Add(LowerCase(aKey),result);
+  end;
+end;
+
+destructor TStewProject.TMetadataCache.Destroy;
+begin
+  FreeAndNil(fFiles);
+  FreeAndNil(fProperties);
+  FreeAndNil(fDocuments);
+  inherited Destroy;
+end;
+
+procedure TStewProject.TMetadataCache.ListDocuments;
+begin
+  TListFiles.Create(fDisk,@FilesListed,@FilesListError).Enqueue;
+  // also need to get the properties in order to know the right sort order.
+  Properties.Load;
+end;
+
+function SortByIndex(List: TStringList; Index1, Index2: Integer): Integer;
+begin
+  result := CompareText(List[Index1],List[Index2]);
+  // TODO: How to attach the index? I'm going to need to subclass the TStringList.
+end;
+
+function TStewProject.TMetadataCache.GetDocumentList: TDocumentList;
+var
+  i: Integer;
+  list: TEZSortStringList;
+begin
+  list := TEZSortStringList.Create;
+  try
+    list.OnEZSort:=@SortDocuments;
+    for i := 0 to fDocuments.Count - 1 do
+    begin
+      list.Add((fDocuments[i] as TMetadataCache).fid);
+    end;
+    // sort by property index.
+    list.EZSort;
+    SetLength(result,list.Count);
+    for i := 0 to list.Count - 1 do
+    begin
+      result[i] := list[i];
+    end;
+  finally
+    list.Free;
+  end;
+end;
 
 { TStewProject }
 
@@ -153,16 +541,34 @@ begin
 end;
 
 procedure TStewProject.OpenProjectProperties;
+var
+  aProtectedProjectProperties: TProtectedProjectProperties;
+  aProtectedRootProperties: TProtectedRootProperties;
 begin
   if fProperties = nil then
   begin
-    fProperties := TProjectProperties.Create(fDisk);
-    fProperties.OnFileLoaded:=@ProjectPropertiesLoaded;
-    fProperties.OnFileLoadFailed:=@ProjectPropertiesLoadFailed;
-    fProperties.OnFileSaveConflicted:=@ProjectPropertiesSaveConflicted;
-    fProperties.OnFileSaved:=@ProjectPropertiesSaved;
-    fProperties.OnFileSaveFailed:=@ProjectPropertiesSaveFailed;
+    aProtectedProjectProperties := TProtectedProjectProperties.Create(fDisk);
+    fProperties := aProtectedProjectProperties;
+    aProtectedProjectProperties.OnFileLoaded:=@ProjectPropertiesLoaded;
+    aProtectedProjectProperties.OnFileLoadFailed:=@ProjectPropertiesLoadFailed;
+    aProtectedProjectProperties.OnFileSaveConflicted:=@ProjectPropertiesSaveConflicted;
+    aProtectedProjectProperties.OnFileSaved:=@ProjectPropertiesSaved;
+    aProtectedProjectProperties.OnFileSaveFailed:=@ProjectPropertiesSaveFailed;
     fProperties.Load;
+  end;
+  if fRootProperties = nil then
+  begin
+    aProtectedRootProperties := TProtectedRootProperties.Create(fDisk);
+    fRootProperties := aProtectedRootProperties;
+    aProtectedRootProperties.OnFileLoaded:=@RootPropertiesLoaded;
+    aProtectedRootProperties.OnFileLoadFailed:=@RootPropertiesLoadFailed;
+    aProtectedRootProperties.OnFileSaveConflicted:=@RootPropertiesSaveConflicted;
+    aProtectedRootProperties.OnFileSaved:=@RootPropertiesSaved;
+    aProtectedRootProperties.OnFileSaveFailed:=@RootPropertiesSaveFailed;
+  end;
+  if fMetadataCache = nil then
+  begin
+    fMetadataCache := TMetadataCache.Create(Self,fDisk,RootDocument);
   end;
 end;
 
@@ -171,6 +577,42 @@ begin
   if fProperties = nil then
      raise Exception.Create('You must open the project before you can see the properties');
   result := fProperties;
+end;
+
+procedure TStewProject.RootPropertiesLoaded(Sender: TObject);
+begin
+  if fOnRootPropertiesLoaded <> nil then
+    fOnRootPropertiesLoaded(Self);
+  // since the properties might have changed the index, notify those people
+  // interested in the document list as well.
+  if fOnDocumentsListed <> nil then
+     fOnDocumentsListed(Self,RootDocument);
+end;
+
+procedure TStewProject.RootPropertiesLoadFailed(Sender: TObject; aError: String
+  );
+begin
+  if FOnRootPropertiesError <> nil then
+    FOnRootPropertiesError(Self,aError);
+end;
+
+procedure TStewProject.RootPropertiesSaveConflicted(Sender: TObject);
+begin
+  if FOnRootPropertiesSaveConflicted <> nil then
+    FOnRootPropertiesSaveConflicted(Self);
+end;
+
+procedure TStewProject.RootPropertiesSaved(Sender: TObject);
+begin
+  if FOnRootPropertiesSaved <> nil then
+     FOnRootPropertiesSaved(Self);
+end;
+
+procedure TStewProject.RootPropertiesSaveFailed(Sender: TObject; aError: String
+  );
+begin
+  if FOnRootPropertiesError <> nil then
+    FOnRootPropertiesError(Self,aError);
 end;
 
 function TStewProject.GetIsOpened: Boolean;
@@ -186,145 +628,63 @@ begin
     FOnOpened(Self);
 end;
 
-procedure TStewProject.SetOnOpened(AValue: TNotifyEvent);
-begin
-  if FOnOpened=AValue then Exit;
-  FOnOpened:=AValue;
-end;
-
-procedure TStewProject.SetOnPropertiesError(AValue: TExceptionMessageEvent);
-begin
-  if FOnPropertiesError=AValue then Exit;
-  FOnPropertiesError:=AValue;
-end;
-
-procedure TStewProject.SetOnPropertiesLoaded(AValue: TNotifyEvent);
-begin
-  if FOnPropertiesLoaded=AValue then Exit;
-  FOnPropertiesLoaded:=AValue;
-end;
-
-procedure TStewProject.SetOnPropertiesSaveConflicted(AValue: TNotifyEvent);
-begin
-  if FOnPropertiesSaveConflicted=AValue then Exit;
-  FOnPropertiesSaveConflicted:=AValue;
-end;
-
-procedure TStewProject.SetOnPropertiesSaved(AValue: TNotifyEvent);
-begin
-  if FOnPropertiesSaved=AValue then Exit;
-  FOnPropertiesSaved:=AValue;
-end;
-
 constructor TStewProject.Create(const Path: TFilename);
 begin
   fDisk := IncludeTrailingPathDelimiter(Path);
-  fPropertiesCache := TFPHashObjectList.Create(true);
+  fMetadataCache := nil; // created on open.
+  fRootProperties := nil; // created on open.
   fProperties := nil;
 end;
 
 destructor TStewProject.Destroy;
 begin
-  FreeAndNil(fPropertiesCache);
+  FreeAndNil(fRootProperties);
+  FreeAndNil(fMetadataCache);
   if fProperties <> nil then
     fProperties.Free;
   inherited Destroy;
 end;
 
-type
 
-  { TListDocuments }
-
-  TListDocuments = class
-  private
-    fDiskPath: TFilename;
-    fDocument: TDocumentID;
-    fTarget: TObject;
-    fListCallback: TDeferredDocumentListCallback;
-    fErrorback: TDeferredExceptionCallback;
-  protected
-    procedure ConvertPacketListToDocumentList(aList: TPacketList);
-  public
-    constructor Create(const aDiskPath: TFileName; const aDocument: TDocumentID; aTarget: TObject;
-      aCallback: TDeferredDocumentListCallback; aErrorback: TDeferredExceptionCallback);
-    procedure Enqueue;
-  end;
-
-{ TListDocuments }
-
-procedure TListDocuments.ConvertPacketListToDocumentList(aList: TPacketList);
-var
-  DocPath: TPacketName;
-  Answer: TDocumentList;
-  i: Integer;
+procedure TStewProject.ListDocuments(aDocumentID: TDocumentID);
 begin
-  DocPath := IncludeTrailingSlash(fDocument);
-  SetLength(Answer,Length(aList));
-  for i := 0 to Length(aList) - 1 do
-  begin
-    Answer[i] := DocPath + aList[i];
-  end;
-  fListCallback(DocPath,Answer,fTarget);
-
-  // Now, I'm finished.
-  Free;
+  if fMetadataCache = nil then
+     raise Exception.Create('Please open project first');
+  if aDocumentID = RootDocument then
+     TListFiles.Create(fDisk,@fMetadataCache.FilesListed,@fMetadataCache.FilesListError).Enqueue
+  else
+    fMetadataCache.PutPath(aDocumentID).ListDocuments;
 end;
 
-constructor TListDocuments.Create(const aDiskPath: TFileName;
-  const aDocument: TDocumentID; aTarget: TObject;
-  aCallback: TDeferredDocumentListCallback;
-  aErrorback: TDeferredExceptionCallback);
+function TStewProject.GetDocumentList(aDocumentID: TDocumentID): TDocumentList;
 begin
-  inherited Create;
-  fDiskPath := aDiskPath;
-  fErrorback := aErrorback;
-  fDocument := aDocument;
-  fListCallback := aCallback;
-  fTarget := aTarget;
-end;
+  if fMetadataCache = nil then
+     raise Exception.Create('Please open project first');
+  if aDocumentID = RootDocument then
+     result := fMetadataCache.GetDocumentList
+  else
+    result := fMetadataCache.PutPath(aDocumentID).GetDocumentList;
 
-procedure TListDocuments.Enqueue;
-begin
-  TListPackets.Create(fDiskPath,@ConvertPacketListToDocumentList,fErrorback).Enqueue;
-
-end;
-
-procedure TStewProject.ListDocuments(const ADocument: TDocumentID; aTarget: TObject;
-  aCallback: TDeferredDocumentListCallback;
-  aErrorback: TDeferredExceptionCallback);
-begin
-  TListDocuments.Create(GetDiskPath(ADocument),ADocument,aTarget,aCallback,aErrorback).Enqueue;
-end;
-
-procedure TStewProject.ListRootDocuments(
-  aTarget: TObject;
-  aCallback: TDeferredDocumentListCallback;
-  aErrorback: TDeferredExceptionCallback);
-begin
-  TListDocuments.Create(GetDiskPath(RootDocument),RootDocument,aTarget,aCallback,aErrorback).Enqueue;
 end;
 
 function TStewProject.GetDocumentProperties(const aDocument: TDocumentID
   ): TDocumentProperties;
+var
+  meta: TMetadataCache;
 begin
+  if fMetadataCache = nil then
+     raise Exception.Create('Please open project first');
   if aDocument = RootDocument then
      raise Exception.Create('Please use GetRootDocumentProperties');
-  result := fPropertiesCache.Find(aDocument) as TDocumentProperties;
-  if result = nil then
-  begin
-    result := TDocumentProperties.Create(aDocument,false);
-    fPropertiesCache.Add(aDocument,Result);
-  end;
+  meta := fMetadataCache.PutPath(aDocument);
+  result := meta.Properties;
 end;
 
 function TStewProject.GetRootProperties: TRootProperties;
 begin
-  result := fPropertiesCache.Find(RootDocument) as TRootProperties;
-  if result = nil then
-  begin
-    result := TRootProperties.Create(RootDocument,false);
-    fPropertiesCache.Add(RootDocument,Result);
-  end;
+  if fMetadataCache = nil then
+     raise Exception.Create('Please open project first');
+  result := fRootProperties;
 end;
 
 function TStewProject.GetDiskPath(const ADocument: TDocumentID): TFileName;
