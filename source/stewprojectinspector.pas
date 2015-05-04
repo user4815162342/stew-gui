@@ -40,6 +40,7 @@ type
     { private declarations }
     function GetProject: TStewProject;
     procedure ReloadNodeForDocument(aDocument: TDocumentID);
+    procedure ReloadNode(aNode: TProjectInspectorNode);
     function GetTreeNodeForDocument(aDocument: TDocumentID): TProjectInspectorNode;
   protected
     property Project: TStewProject read GetProject;
@@ -134,45 +135,101 @@ end;
 procedure TProjectInspectorFrame.ReloadNodeForDocument(aDocument: TDocumentID);
 var
   aNode: TProjectInspectorNode;
+begin
+  if aDocument <> RootDocument then
+  begin
+     aNode := GetTreeNodeForDocument(aDocument);
+     ReloadNode(aNode);
+  end
+  else
+     ReloadNode(nil);
+  // else, I don't care about this document because I haven't loaded it yet.
+end;
+
+procedure TProjectInspectorFrame.ReloadNode(aNode: TProjectInspectorNode);
+var
   aList: TDocumentList;
   i: Integer;
   aChild: TProjectInspectorNode;
+  aMatch: TProjectInspectorNode;
 begin
-  if aDocument <> RootDocument then
-     aNode := GetTreeNodeForDocument(aDocument)
-  else
-     aNode := nil;
-  if (aDocument = RootDocument) or (aNode <> nil) then
-  begin
-    ProjectExplorer.BeginUpdate;
-    try
-      aList := MainForm.Project.GetDocumentList(aDocument);
-      // TODO: I'd like to replace them in place, so we can keep the expansion
-      // state of some nodes.
-      // -
-      if aNode <> nil then
-         aNode.DeleteChildren
-      else
-         ProjectExplorer.Items.Clear;
-      for i := 0 to Length(aList) - 1 do
+
+  ProjectExplorer.BeginUpdate;
+  try
+    if aNode <> nil then
+    begin
+      aList := MainForm.Project.GetDocumentList(aNode.DocumentID);
+      aChild := aNode.GetFirstChild as TProjectInspectorNode;
+
+    end
+    else
+    begin
+      aList := MainForm.Project.GetDocumentList(RootDocument);
+      aChild := ProjectExplorer.Items.GetFirstNode as TProjectInspectorNode;
+    end;
+
+    for i := 0 to Length(aList) - 1 do
+    begin
+      // first, look for a match starting at the current node.
+      aMatch := aChild; // if this is nil, then the next loop won't even run.
+      while (aMatch <> nil) and (aMatch.DocumentID <> aList[i]) do
+        aMatch := aMatch.GetNextSibling as TProjectInspectorNode;
+
+      // did we find a match? BTW: If child was nil then we didn't find a match.
+      if aMatch <> nil then
       begin
-        aChild := ProjectExplorer.Items.AddChild(aNode,'') as TProjectInspectorNode;
+        // is the match the same as the child we were looking at?
+        if aMatch <> aChild then
+        begin
+          // move it before the one we had before.
+          aMatch.MoveTo(aChild,naInsert);
+          // switch the current child to this moved one.
+          aChild := aMatch;
+        end;
+        // else do nothing and go on to the next
+      end
+      else
+      begin
+        // we didn't find a match, so we need to create one.
+        // create a new node that matches.
+        if aChild <> nil then
+           aChild := ProjectExplorer.Items.Insert(aChild,'') as TProjectInspectorNode
+        else
+           aChild := ProjectExplorer.Items.AddChild(aNode,'') as TProjectInspectorNode;
+        // initialize it.
         aChild.DocumentID:=aList[i];
         achild.HasChildren:=true;
       end;
-      if (aNode <> nil) and (aNode.ExpandOnList) then
-      begin
-        aNode.ExpandOnList := false;
-        aNode.Expanded := true;
-      end;
 
-    finally
-      ProjectExplorer.EndUpdate;
+      // go on to the next sibling and the next item in the list.
+      aChild := aChild.GetNextSibling as TProjectInspectorNode;
+
     end;
 
+    // if achild is not nil then we reached the end of the list
+    // and there are still some extra nodes left.
+    if aChild <> nil then
+    begin
+      aMatch := aChild.GetNextSibling as TProjectInspectorNode;
+      ProjectExplorer.Items.Delete(aChild);
+      aChild := aMatch;
+    end;
 
+    if (aNode <> nil) and (aNode.ExpandOnList) then
+    begin
+      aNode.ExpandOnList := false;
+      if Length(aList) > 0 then
+         aNode.Expanded := true
+      else
+      begin
+        aNode.HasChildren:=false;
+      end;
+    end;
+
+  finally
+    ProjectExplorer.EndUpdate;
   end;
-  // else, I don't care about these.
+
 end;
 
 function TProjectInspectorFrame.GetTreeNodeForDocument(aDocument: TDocumentID): TProjectInspectorNode;

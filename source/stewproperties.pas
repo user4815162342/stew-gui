@@ -14,20 +14,6 @@ type
   // TODO: I'm going to skip 'editors' for now. Which means I'm done with
   // properties and ready to work with documents!
 
-  { TRootProperties }
-
-  TRootProperties = class(TJSONAsyncFileStoreContainer)
-  private
-    fIndex: TStringList;
-    function GetIndex: TStrings;
-  protected
-    procedure Clear; override;
-  public
-    constructor Create(aFilename: TFilename);
-    destructor Destroy; override;
-  published
-    property index: TStrings read GetIndex;
-  end;
 
   { TDocumentProperties }
 
@@ -38,7 +24,7 @@ type
   protected
     procedure Clear; override;
   public
-    constructor Create(afileName: TFilename);
+    constructor Create(afileName: TFilename; aIsRoot: Boolean);
     destructor Destroy; override;
   published
     property index: TStrings read GetIndex;
@@ -192,30 +178,6 @@ implementation
 uses
   LCLProc, Math;
 
-{ TRootProperties }
-
-function TRootProperties.GetIndex: TStrings;
-begin
-  result := fIndex;
-end;
-
-procedure TRootProperties.Clear;
-begin
-  fIndex.Clear;
-end;
-
-constructor TRootProperties.Create(aFilename: TFilename);
-begin
-  inherited Create(IncludeTrailingPathDelimiter(aFilename) + '_properties.json',false);
-  fIndex := TStringList.Create;
-end;
-
-destructor TRootProperties.Destroy;
-begin
-  FreeAndNil(fIndex);
-  inherited Destroy;
-end;
-
 { TDocumentProperties }
 
 function TDocumentProperties.GetIndex: TStrings;
@@ -228,9 +190,15 @@ begin
   fIndex.Clear;
 end;
 
-constructor TDocumentProperties.Create(afileName: TFilename);
+constructor TDocumentProperties.Create(afileName: TFilename; aIsRoot: Boolean);
+var
+  path: String;
 begin
-  inherited Create(ExcludeTrailingPathDelimiter(afileName) + '_properties.json',false);
+  if aIsRoot then
+    path := IncludeTrailingPathDelimiter(afileName) + '_properties.json'
+  else
+    path := ExcludeTrailingPathDelimiter(afileName) + '_properties.json';
+  inherited Create(path,false);
   fIndex := TStringList.Create;
 end;
 

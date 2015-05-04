@@ -136,8 +136,6 @@ type
   // TODO: Make use of the properties loaded and saved events.
   TMainFormAction = (mfaProjectPropertiesLoaded,
                      mfaProjectPropertiesSaved,
-                     mfaRootPropertiesLoaded,
-                     mfaRootPropertiesSaved,
                      mfaDocumentsListed,
                      mfaDocumentPropertiesLoaded,
                      mfaDocumentPropertiesSaved);
@@ -198,10 +196,6 @@ type
     procedure ProjectPropertiesLoaded(Sender: TObject);
     procedure ProjectPropertiesSaveConflicted(Sender: TObject);
     procedure ProjectPropertiesSaved(Sender: TObject);
-    procedure RootProjectPropertiesError(Sender: TObject; aError: String);
-    procedure RootProjectPropertiesLoaded(Sender: TObject);
-    procedure RootProjectPropertiesSaveConflicted(Sender: TObject);
-    procedure RootProjectPropertiesSaved(Sender: TObject);
   protected
     procedure StartupCheckProject({%H-}Data: PtrInt);
     procedure StartupIfProjectExists(aValue: Boolean);
@@ -531,33 +525,6 @@ begin
   Project.ListDocuments(RootDocument);
 end;
 
-procedure TMainForm.RootProjectPropertiesError(Sender: TObject; aError: String);
-begin
-  ShowMessage('An error occurred while saving or loading the project root properties.' + LineEnding +
-              aError + LineEnding +
-              'You may want to restart the program, or wait and try your task again later');
-end;
-
-procedure TMainForm.RootProjectPropertiesLoaded(Sender: TObject);
-begin
-  NotifyObservers(mfaRootPropertiesLoaded);
-end;
-
-procedure TMainForm.RootProjectPropertiesSaveConflicted(Sender: TObject);
-begin
-  if MessageDlg('The root properties file has changed on the disk since the last time it was loaded.' + LineEnding +
-             'Would you like to overwrite it''s contents?',mtWarning,mbYesNo,0) = mrYes then
-   begin
-     fProject.GetRootProperties.Save(true);
-   end;
-end;
-
-procedure TMainForm.RootProjectPropertiesSaved(Sender: TObject);
-begin
-  NotifyObservers(mfaRootPropertiesSaved);
-end;
-
-
 procedure TMainForm.StartupCheckProject(Data: PtrInt);
 begin
   if fProject = nil then
@@ -580,10 +547,6 @@ begin
   fProject.OnPropertiesLoaded:=@ProjectPropertiesLoaded;
   fProject.OnPropertiesSaveConflicted:=@ProjectPropertiesSaveConflicted;
   fProject.OnPropertiesSaved:=@ProjectPropertiesSaved;
-  fProject.OnRootPropertiesError:=@RootProjectPropertiesError;
-  fProject.OnRootPropertiesLoaded:=@RootProjectPropertiesLoaded;
-  fProject.OnRootPropertiesSaveConflicted:=@RootProjectPropertiesSaveConflicted;
-  fProject.OnRootPropertiesSaved:=@RootProjectPropertiesSaved;
   fProject.OnDocumentPropertiesError:=@DocumentPropertiesError;
   fProject.OnDocumentPropertiesLoaded:=@DocumentPropertiesLoaded;
   fProject.OnDocumentPropertiesSaveConflicted:=@DocumentPropertiesSaveConflicted;

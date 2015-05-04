@@ -107,7 +107,7 @@ type
   end;
 
 
-  TFilingState = (fsInactive, fsLoading, fsSaving);
+  TFilingState = (fsNotLoaded, fsLoading, fsLoaded, fsSaving, fsError, fsConflict);
 
   { TJSONAsyncFileStoreContainer }
   // TODO: Should be TJSONAsyncFileStore
@@ -486,41 +486,43 @@ begin
     ClearModified;
   end;
   fFileAge := aFileAge;
+  fFilingState := fsLoaded;
   if fOnFileLoaded <> nil then
     fOnFileLoaded(Self);
-  fFilingState := fsInactive;
 end;
 
 procedure TJSONAsyncFileStoreContainer.FileSaved(aFileAge: Longint);
 begin
   ClearModified;
   fFileAge := aFileAge;
+  fFilingState := fsLoaded;
   if fOnFileSaved <> nil then
     fOnFileSaved(Self);
-  fFilingState := fsInactive;
 end;
 
 procedure TJSONAsyncFileStoreContainer.FileLoadFailed(aError: String);
 begin
+  fFilingState := fsError;
   if fOnFileLoadFailed <> nil then
     fOnFileLoadFailed(Self,aError);
-  fFilingState := fsInactive;
 end;
 
 procedure TJSONAsyncFileStoreContainer.FileSaveFailed(aError: String);
 begin
+  // this doesn't make the state an error, because the data in the
+  // document is still valid, so just return it to loaded.
+  fFilingState := fsLoaded;
   if fOnFileSaveFailed <> nil then
     fOnFileSaveFailed(Self,aError);
-  fFilingState := fsInactive;
 end;
 
 procedure TJSONAsyncFileStoreContainer.FileSaveConflicted(aFileAge: Longint);
 begin
+  fFilingState := fsConflict;
   if fOnFileSaveConflicted <> nil then
     fOnFileSaveConflicted(Self)
   else if fOnFileSaveFailed <> nil then
     fOnFileSaveFailed(Self,'File could not be saved because it was changed on disk since the last save');
-  fFilingState := fsInactive;
 end;
 
 constructor TJSONAsyncFileStoreContainer.Create(afileName: TFilename;
@@ -539,7 +541,7 @@ end;
 
 procedure TJSONAsyncFileStoreContainer.Load;
 begin
-  if fFilingState = fsInactive then
+  if fFilingState in [fsNotLoaded,fsLoaded,fsError,fsConflict] then
      TReadFile.Create(fFilename,@FileLoaded,@FileLoadFailed).Enqueue
   else if fFilingState = fsSaving then
      raise Exception.Create('Can''t load JSON data while saving.');
@@ -552,7 +554,7 @@ var
 begin
   if Modified then
   begin
-    if fFilingState = fsInactive then
+    if fFilingState in [fsNotLoaded,fsLoaded,fsConflict] then
     begin
       fFilingState := fsSaving;
       text := GetJSONString(Self);
@@ -560,7 +562,9 @@ begin
 
     end
     else if fFilingState = fsLoading then
-      raise Exception.Create('Can''t save JSON data while still loading.');
+      raise Exception.Create('Can''t save JSON data while still loading.')
+    else if fFilingState = fsError then
+      raise Exception.Create('Can''t save a JSON file when the last load failed.');
     // otherwise, already saving, so don't worry about it.
   end;
 end;
