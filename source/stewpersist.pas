@@ -388,6 +388,9 @@ begin
       if (JSON.IndexOfName(aName) = -1) then
       begin
         if aData <> nil then
+        // I have to clone here, because the streaming system will
+        // destroy the JSON after it's saved, which would destroy
+        // our state.
            JSON[aName] := aData.Clone
       end
       // otherwise, skip it, because it's possible that the object
@@ -432,6 +435,8 @@ end;
 procedure TJSONStoreExtraPropertiesHelper.PersistExtraProperty(
   aName: TJSONStringType; aData: TJSONData);
 begin
+  // I have to clone this data, because it is created and freed
+  // by the streaming system.
   fData[aName] := aData.Clone
 end;
 

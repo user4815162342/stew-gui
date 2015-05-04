@@ -223,6 +223,8 @@ begin
     // TODO: Load Category Definitions and default category.
     // TODO: Load Status Definitions and default status.
 
+    // I need to create and destroy this object because
+    // it gets cloned when setting the property.
     aUser := fUserPropertiesEditor.CreateJSON;
     try
       props.user := aUser;

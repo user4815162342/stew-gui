@@ -603,6 +603,8 @@ begin
   if fUserProperties <> nil then
     FreeAndNil(fUserProperties);
   if AValue <> nil then
+  // I have to clone it here, because the streaming system might
+  // destroy the original.
     fUserProperties := AValue.Clone;
   SetModified;
 end;
@@ -625,6 +627,8 @@ procedure TProjectProperties.AfterSerialize(aSaver: TJSONStreamer;
 begin
   if fUserProperties <> nil then
   begin
+    // I have to clone here, because the streaming tool is going
+    // to delete the properties.
     aTarget['user'] := fUserProperties.Clone;
   end;
 end;

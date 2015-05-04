@@ -7,10 +7,6 @@ interface
 uses
   Classes, SysUtils, stewfile, stewasync, stewproperties, stewtypes, contnrs, stewattachments;
 
-// TODO: Problems to solve right now:
-// - Check that TJSON objects that are cloned are freed. In fact, better yet,
-//   instead of cloning, find some other way.
-
 type
   // All of these are just strings, representing paths off of the root
   // of the stew project (names always use '/' as separators, and must
@@ -29,7 +25,14 @@ type
   TStewProject = class;
 
   { TMetadataCache }
-
+  // FUTURE: Currently, there's no way to *release* the cache, mostly because
+  // I don't have any way for the project to know when cached data is no longer
+  // needed (properties are needed by at least two UI areas: listing documents and
+  // editing the properties). If this program gets unwieldy with large projects that
+  // remain open for a long time, that would be the place to look.
+  // -- I could just, periodically, remove any properties that are not marked
+  // as modified. But it would be nicer to remove only those properties which
+  // are not being modified in a tab.
   TMetadataCache = class
   strict private type
   type
