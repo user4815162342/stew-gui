@@ -19,6 +19,9 @@ uses
 //     them externally. I'm loathe to do this, because I don't want to get
 //     involved in that game, but I know there are some situations where the
 //     default application is a viewer, not an editor, and therefore not useful.
+//   - Also, default command locations for things like publishing and other tools,
+//     since these won't necessarily be available on the path on certain operating
+//     systems, and might want to be configured differently for others.
 // - Note that at one point I had some of this stuff done a per-project basis,
 //   and it's not a bad idea to do that there. However, I could simply duplicate
 //   the functionality and have this as a default.

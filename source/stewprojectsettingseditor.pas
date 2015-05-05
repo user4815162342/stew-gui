@@ -24,8 +24,16 @@ uses
 // state, however. But, we shouldn't be able to save again if the load
 // failed).
 
-// TODO: More possible properties:
+// TODO: More properties that need to be handled.
 //    - editors for certain file extensions (See Preferences Menu).
+//    - defaultPublishExtension
+//    - category definition publish properties (see stew-cli):
+//      - publishTitle (whether the 'title' is published)
+//      - publishTitleLevel
+//      - publishTitlePrefix
+//      - publishMarkerBefore
+//      - publishMarkerAfter
+//      - publishMarkerBetween
 //    - "Type" of project:
 //      - Notebook: In this project type, there is only a 'primary', no notes,
 //        and no thumbnail, and no synopsis, and as many editors are set to

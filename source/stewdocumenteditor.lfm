@@ -1,20 +1,21 @@
 inherited DocumentEditor: TDocumentEditor
-  Height = 352
-  Width = 417
-  ClientHeight = 352
-  ClientWidth = 417
+  Height = 456
+  Width = 537
+  ClientHeight = 456
+  ClientWidth = 537
+  DesignLeft = 498
   inherited ToolbarPanel: TPanel
     Height = 24
-    Width = 417
+    Width = 537
     ClientHeight = 24
-    ClientWidth = 417
+    ClientWidth = 537
     inherited RightHandToolbar: TToolBar
-      Left = 375
+      Left = 495
       Height = 24
     end
     inherited LeftHandToolbar: TToolBar
       Height = 24
-      Width = 375
+      Width = 495
       object SaveButton: TToolButton[0]
         Left = 1
         Top = 0
@@ -27,16 +28,233 @@ inherited DocumentEditor: TDocumentEditor
         Caption = 'Refresh'
         OnClick = RefreshButtonClick
       end
+      object EditPrimaryButton: TToolButton[2]
+        Left = 91
+        Top = 0
+        Caption = 'Edit'
+        OnClick = EditPrimaryButtonClick
+      end
+      object EditNotesButton: TToolButton[3]
+        Left = 123
+        Top = 0
+        Caption = 'Notes'
+        OnClick = EditNotesButtonClick
+      end
     end
   end
-  object StatusLabel: TLabel[1]
+  object DocumentIDLabel: TLabel[1]
     Left = 0
     Height = 16
-    Top = 336
-    Width = 417
+    Top = 440
+    Width = 537
     Align = alBottom
     Alignment = taCenter
     Caption = '- document path appears here -'
     ParentColor = False
+  end
+  object HeaderPanel: TPanel[2]
+    Left = 0
+    Height = 112
+    Top = 24
+    Width = 537
+    Align = alTop
+    AutoSize = True
+    BevelOuter = bvNone
+    ClientHeight = 112
+    ClientWidth = 537
+    TabOrder = 1
+    object ThumbnailImage: TImage
+      Left = 407
+      Height = 102
+      Top = 10
+      Width = 120
+      Align = alRight
+      BorderSpacing.Left = 10
+      BorderSpacing.Top = 10
+      BorderSpacing.Right = 10
+    end
+    object HeaderFieldsPanel: TPanel
+      Left = 0
+      Height = 112
+      Top = 0
+      Width = 397
+      Align = alClient
+      AutoSize = True
+      BevelOuter = bvNone
+      ClientHeight = 112
+      ClientWidth = 397
+      TabOrder = 0
+      object TitlePanel: TPanel
+        Left = 0
+        Height = 26
+        Top = 10
+        Width = 397
+        Align = alTop
+        AutoSize = True
+        BorderSpacing.Top = 10
+        BevelOuter = bvNone
+        ClientHeight = 26
+        ClientWidth = 397
+        TabOrder = 0
+        object TitleLabel: TLabel
+          Left = 10
+          Height = 26
+          Top = 0
+          Width = 30
+          Align = alLeft
+          BorderSpacing.Left = 10
+          Caption = 'Title:'
+          FocusControl = TitleEdit
+          Layout = tlCenter
+          ParentColor = False
+        end
+        object TitleEdit: TEdit
+          Left = 50
+          Height = 26
+          Top = 0
+          Width = 242
+          Align = alClient
+          BorderSpacing.Left = 10
+          TabOrder = 0
+        end
+        object PublishEdit: TCheckBox
+          Left = 302
+          Height = 26
+          Top = 0
+          Width = 95
+          Align = alRight
+          BorderSpacing.Left = 10
+          Caption = 'Publishable'
+          TabOrder = 1
+        end
+      end
+      object CategoryPanel: TPanel
+        Left = 0
+        Height = 28
+        Top = 46
+        Width = 397
+        Align = alTop
+        AutoSize = True
+        BorderSpacing.Top = 10
+        BevelOuter = bvNone
+        ClientHeight = 28
+        ClientWidth = 397
+        TabOrder = 1
+        object CategoryLabel: TLabel
+          Left = 10
+          Height = 28
+          Top = 0
+          Width = 58
+          Align = alLeft
+          BorderSpacing.Left = 10
+          Caption = 'Category:'
+          FocusControl = CategoryEdit
+          Layout = tlCenter
+          ParentColor = False
+        end
+        object CategoryEdit: TComboBox
+          Left = 78
+          Height = 28
+          Top = 0
+          Width = 180
+          Align = alLeft
+          BorderSpacing.Left = 10
+          ItemHeight = 0
+          TabOrder = 0
+        end
+      end
+      object StatusPanel: TPanel
+        Left = 0
+        Height = 28
+        Top = 84
+        Width = 397
+        Align = alTop
+        AutoSize = True
+        BorderSpacing.Top = 10
+        BevelOuter = bvNone
+        ClientHeight = 28
+        ClientWidth = 397
+        TabOrder = 2
+        object StatusEdit: TComboBox
+          Left = 61
+          Height = 28
+          Top = 0
+          Width = 180
+          Align = alLeft
+          BorderSpacing.Left = 10
+          ItemHeight = 0
+          TabOrder = 0
+        end
+        object StatusLabel: TLabel
+          Left = 10
+          Height = 28
+          Top = 0
+          Width = 41
+          Align = alLeft
+          BorderSpacing.Left = 10
+          Caption = 'Status:'
+          FocusControl = StatusEdit
+          Layout = tlCenter
+          ParentColor = False
+        end
+      end
+    end
+  end
+  object SynopsisPanel: TPanel[3]
+    Left = 0
+    Height = 126
+    Top = 146
+    Width = 537
+    Align = alTop
+    AutoSize = True
+    BorderSpacing.Top = 10
+    BevelOuter = bvNone
+    ClientHeight = 126
+    ClientWidth = 537
+    TabOrder = 2
+    object SynopsisLabel: TLabel
+      Left = 10
+      Height = 16
+      Top = 0
+      Width = 527
+      Align = alTop
+      BorderSpacing.Left = 10
+      Caption = 'Synopsis:'
+      ParentColor = False
+    end
+    object SynopsisEdit: TMemo
+      Left = 10
+      Height = 100
+      Top = 26
+      Width = 517
+      Align = alClient
+      BorderSpacing.Left = 10
+      BorderSpacing.Top = 10
+      BorderSpacing.Right = 10
+      Constraints.MinHeight = 100
+      TabOrder = 0
+    end
+  end
+  object UserPropertiesPanel: TPanel[4]
+    Left = 0
+    Height = 218
+    Top = 282
+    Width = 537
+    Align = alTop
+    BorderSpacing.Top = 10
+    BevelOuter = bvNone
+    ClientHeight = 218
+    ClientWidth = 537
+    TabOrder = 3
+    object UserPropertiesLabel: TLabel
+      Left = 10
+      Height = 16
+      Top = 0
+      Width = 527
+      Align = alTop
+      BorderSpacing.Left = 10
+      Caption = 'Custom Properties:'
+      ParentColor = False
+    end
   end
 end

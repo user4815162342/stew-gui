@@ -20,10 +20,10 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="stewmainform"/>
-        <EditorIndex Value="13"/>
+        <EditorIndex Value="12"/>
         <WindowIndex Value="0"/>
         <TopLine Value="133"/>
-        <CursorPos X="1" Y="139"/>
+        <CursorPos X="32" Y="144"/>
         <UsageCount Value="213"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -32,13 +32,13 @@
         <Filename Value="stewproject.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="stewproject"/>
-        <EditorIndex Value="3"/>
+        <EditorIndex Value="2"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="1"/>
-        <CursorPos X="45" Y="11"/>
+        <TopLine Value="477"/>
+        <CursorPos X="43" Y="485"/>
         <UsageCount Value="213"/>
         <Bookmarks Count="1">
-          <Item0 X="5" Y="335" ID="9"/>
+          <Item0 X="5" Y="298" ID="9"/>
         </Bookmarks>
         <Loaded Value="True"/>
       </Unit2>
@@ -46,7 +46,7 @@
         <Filename Value="stewfile.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="stewfile"/>
-        <EditorIndex Value="10"/>
+        <EditorIndex Value="9"/>
         <WindowIndex Value="0"/>
         <TopLine Value="87"/>
         <CursorPos X="3" Y="91"/>
@@ -57,7 +57,7 @@
         <Filename Value="stewasync.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="stewasync"/>
-        <EditorIndex Value="11"/>
+        <EditorIndex Value="10"/>
         <WindowIndex Value="0"/>
         <TopLine Value="94"/>
         <CursorPos X="1" Y="106"/>
@@ -71,10 +71,10 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="stewprojectinspector"/>
-        <EditorIndex Value="15"/>
+        <EditorIndex Value="14"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="252"/>
-        <CursorPos X="26" Y="268"/>
+        <TopLine Value="1"/>
+        <CursorPos X="69" Y="15"/>
         <UsageCount Value="211"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -104,10 +104,11 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="stewdocumenteditor"/>
+        <IsVisibleTab Value="True"/>
         <EditorIndex Value="0"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="50"/>
-        <CursorPos X="3" Y="67"/>
+        <TopLine Value="87"/>
+        <CursorPos X="1" Y="109"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -120,8 +121,8 @@
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="stewpreferenceseditor"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="1"/>
-        <CursorPos X="54" Y="13"/>
+        <TopLine Value="4"/>
+        <CursorPos X="72" Y="24"/>
         <UsageCount Value="201"/>
       </Unit9>
       <Unit10>
@@ -131,11 +132,10 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="stewprojectsettingseditor"/>
-        <IsVisibleTab Value="True"/>
         <EditorIndex Value="1"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="221"/>
-        <CursorPos X="17" Y="230"/>
+        <TopLine Value="248"/>
+        <CursorPos X="1" Y="258"/>
         <UsageCount Value="201"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -147,7 +147,7 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="steweditorframe"/>
-        <EditorIndex Value="14"/>
+        <EditorIndex Value="13"/>
         <WindowIndex Value="0"/>
         <TopLine Value="51"/>
         <CursorPos X="27" Y="62"/>
@@ -170,7 +170,7 @@
         <Filename Value="stewproperties.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="stewproperties"/>
-        <EditorIndex Value="18"/>
+        <EditorIndex Value="17"/>
         <WindowIndex Value="0"/>
         <TopLine Value="658"/>
         <CursorPos X="22" Y="668"/>
@@ -181,7 +181,7 @@
         <Filename Value="stewtypes.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="stewtypes"/>
-        <EditorIndex Value="6"/>
+        <EditorIndex Value="5"/>
         <WindowIndex Value="0"/>
         <TopLine Value="86"/>
         <CursorPos X="1" Y="97"/>
@@ -192,7 +192,7 @@
         <Filename Value="stewpersist.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="stewpersist"/>
-        <EditorIndex Value="19"/>
+        <EditorIndex Value="18"/>
         <WindowIndex Value="0"/>
         <TopLine Value="379"/>
         <CursorPos X="22" Y="393"/>
@@ -206,12 +206,10 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="stewjsoneditor"/>
-        <EditorIndex Value="2"/>
         <WindowIndex Value="0"/>
         <TopLine Value="316"/>
         <CursorPos X="3" Y="322"/>
         <UsageCount Value="210"/>
-        <Loaded Value="True"/>
       </Unit16>
       <Unit17>
         <Filename Value="stewattachments.pas"/>
@@ -249,7 +247,7 @@
       <Unit21>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/comctrls.pp"/>
         <UnitName Value="ComCtrls"/>
-        <EditorIndex Value="17"/>
+        <EditorIndex Value="16"/>
         <WindowIndex Value="0"/>
         <TopLine Value="2950"/>
         <CursorPos X="14" Y="2960"/>
@@ -258,7 +256,7 @@
       </Unit21>
       <Unit22>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/include/treeview.inc"/>
-        <EditorIndex Value="16"/>
+        <EditorIndex Value="15"/>
         <WindowIndex Value="0"/>
         <TopLine Value="989"/>
         <CursorPos X="1" Y="1001"/>
@@ -307,7 +305,7 @@
       <Unit28>
         <Filename Value="/usr/share/fpcsrc/2.6.4/packages/fcl-json/src/fpjson.pp"/>
         <UnitName Value="fpjson"/>
-        <EditorIndex Value="21"/>
+        <EditorIndex Value="20"/>
         <WindowIndex Value="0"/>
         <TopLine Value="2364"/>
         <CursorPos X="3" Y="2368"/>
@@ -338,7 +336,7 @@
       </Unit31>
       <Unit32>
         <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/classes/classesh.inc"/>
-        <EditorIndex Value="8"/>
+        <EditorIndex Value="7"/>
         <WindowIndex Value="0"/>
         <TopLine Value="659"/>
         <CursorPos X="14" Y="667"/>
@@ -350,7 +348,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="67"/>
         <CursorPos X="3" Y="60"/>
-        <UsageCount Value="0"/>
+        <UsageCount Value="10"/>
       </Unit33>
       <Unit34>
         <Filename Value="/usr/share/fpcsrc/2.6.4/packages/fcl-json/src/jsonparser.pp"/>
@@ -363,7 +361,7 @@
       <Unit35>
         <Filename Value="/usr/share/fpcsrc/2.6.4/packages/fcl-base/src/contnrs.pp"/>
         <UnitName Value="contnrs"/>
-        <EditorIndex Value="7"/>
+        <EditorIndex Value="6"/>
         <WindowIndex Value="0"/>
         <TopLine Value="306"/>
         <CursorPos X="3" Y="324"/>
@@ -499,7 +497,7 @@
       <Unit53>
         <Filename Value="/usr/share/fpcsrc/2.6.4/packages/fcl-json/src/fpjsonrtti.pp"/>
         <UnitName Value="fpjsonrtti"/>
-        <EditorIndex Value="20"/>
+        <EditorIndex Value="19"/>
         <WindowIndex Value="0"/>
         <TopLine Value="446"/>
         <CursorPos X="1" Y="463"/>
@@ -508,7 +506,7 @@
       </Unit53>
       <Unit54>
         <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/classes/stringl.inc"/>
-        <EditorIndex Value="9"/>
+        <EditorIndex Value="8"/>
         <WindowIndex Value="0"/>
         <TopLine Value="776"/>
         <CursorPos X="1" Y="781"/>
@@ -539,7 +537,7 @@
       </Unit57>
       <Unit58>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/include/application.inc"/>
-        <EditorIndex Value="12"/>
+        <EditorIndex Value="11"/>
         <WindowIndex Value="0"/>
         <TopLine Value="1069"/>
         <CursorPos X="1" Y="1080"/>
@@ -580,7 +578,7 @@
       </Unit62>
       <Unit63>
         <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/sysutils/finah.inc"/>
-        <EditorIndex Value="4"/>
+        <EditorIndex Value="3"/>
         <WindowIndex Value="0"/>
         <TopLine Value="12"/>
         <CursorPos X="10" Y="23"/>
@@ -589,7 +587,7 @@
       </Unit63>
       <Unit64>
         <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/sysutils/fina.inc"/>
-        <EditorIndex Value="5"/>
+        <EditorIndex Value="4"/>
         <WindowIndex Value="0"/>
         <TopLine Value="87"/>
         <CursorPos X="1" Y="97"/>
@@ -602,7 +600,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="1"/>
         <CursorPos X="1" Y="1"/>
-        <UsageCount Value="6"/>
+        <UsageCount Value="5"/>
       </Unit65>
     </Units>
     <General>
@@ -610,129 +608,129 @@
     </General>
     <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
-        <Filename Value="stewpersist.pas"/>
-        <Caret Line="391" Column="38" TopLine="373"/>
+        <Filename Value="stewproject.pas"/>
+        <Caret Line="395" Column="24" TopLine="387"/>
       </Position1>
       <Position2>
-        <Filename Value="stewpersist.pas"/>
-        <Caret Line="435" Column="30" TopLine="417"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="36" Column="20" TopLine="8"/>
       </Position2>
       <Position3>
-        <Filename Value="stewpersist.pas"/>
-        <Caret Line="391" Column="38" TopLine="381"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="37" Column="20" TopLine="9"/>
       </Position3>
       <Position4>
-        <Filename Value="stewpersist.pas"/>
-        <Caret Line="435" Column="30" TopLine="417"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="38" Column="20" TopLine="16"/>
       </Position4>
       <Position5>
-        <Filename Value="stewpersist.pas"/>
-        <Caret Line="40" Column="35" TopLine="29"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="39" Column="20" TopLine="17"/>
       </Position5>
       <Position6>
-        <Filename Value="stewpersist.pas"/>
-        <Caret Line="53" Column="35" TopLine="35"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="38" Column="20" TopLine="17"/>
       </Position6>
       <Position7>
-        <Filename Value="stewpersist.pas"/>
-        <Caret Line="336" Column="38" TopLine="319"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="37" Column="20" TopLine="17"/>
       </Position7>
       <Position8>
-        <Filename Value="stewpersist.pas"/>
-        <Caret Line="436" Column="30" TopLine="415"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="38" Column="20" TopLine="17"/>
       </Position8>
       <Position9>
-        <Filename Value="stewpersist.pas"/>
-        <Caret Line="437" Column="30" TopLine="419"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="39" Column="20" TopLine="17"/>
       </Position9>
       <Position10>
-        <Filename Value="stewpersist.pas"/>
-        <Caret Line="387" Column="34" TopLine="381"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="40" Column="20" TopLine="18"/>
       </Position10>
       <Position11>
-        <Filename Value="stewpersist.pas"/>
-        <Caret Line="1" Column="1" TopLine="1"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="41" Column="20" TopLine="19"/>
       </Position11>
       <Position12>
-        <Filename Value="stewpersist.pas"/>
-        <Caret Line="42" Column="35" TopLine="24"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="30" Column="31" TopLine="20"/>
       </Position12>
       <Position13>
-        <Filename Value="stewpersist.pas"/>
-        <Caret Line="55" Column="35" TopLine="37"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="29" Column="8" TopLine="8"/>
       </Position13>
       <Position14>
-        <Filename Value="stewpersist.pas"/>
-        <Caret Line="387" Column="34" TopLine="369"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="18" Column="5" TopLine="8"/>
       </Position14>
       <Position15>
-        <Filename Value="stewpersist.pas"/>
-        <Caret Line="449" Column="63" TopLine="428"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="30" Column="33" TopLine="30"/>
       </Position15>
       <Position16>
-        <Filename Value="stewproperties.pas"/>
-        <Caret Line="606" Column="43" TopLine="595"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="31" Column="28" TopLine="31"/>
       </Position16>
       <Position17>
-        <Filename Value="stewproperties.pas"/>
-        <Caret Line="601" Column="48" TopLine="595"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="43" Column="17" TopLine="31"/>
       </Position17>
       <Position18>
-        <Filename Value="stewproperties.pas"/>
-        <Caret Line="79" Column="19" TopLine="69"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="42" Column="17" TopLine="31"/>
       </Position18>
       <Position19>
-        <Filename Value="stewproperties.pas"/>
-        <Caret Line="660" Column="5" TopLine="650"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="41" Column="17" TopLine="31"/>
       </Position19>
       <Position20>
-        <Filename Value="stewproperties.pas"/>
-        <Caret Line="607" Column="27" TopLine="595"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="43" Column="17" TopLine="31"/>
       </Position20>
       <Position21>
-        <Filename Value="stewprojectsettingseditor.pas"/>
-        <Caret Line="171" Column="1" TopLine="160"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="42" Column="17" TopLine="31"/>
       </Position21>
       <Position22>
-        <Filename Value="stewproperties.pas"/>
-        <Caret Line="666" Column="23" TopLine="651"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="47" Column="19" TopLine="31"/>
       </Position22>
       <Position23>
-        <Filename Value="stewprojectsettingseditor.pas"/>
-        <Caret Line="203" Column="31" TopLine="193"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="46" Column="19" TopLine="31"/>
       </Position23>
       <Position24>
-        <Filename Value="stewjsoneditor.pas"/>
-        <Caret Line="618" Column="12" TopLine="609"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="42" Column="14" TopLine="31"/>
       </Position24>
       <Position25>
-        <Filename Value="stewprojectsettingseditor.pas"/>
-        <Caret Line="203" Column="46" TopLine="193"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="22" Column="5" TopLine="3"/>
       </Position25>
       <Position26>
-        <Filename Value="stewprojectsettingseditor.pas"/>
-        <Caret Line="230" Column="16" TopLine="216"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="19" Column="17" TopLine="3"/>
       </Position26>
       <Position27>
-        <Filename Value="stewproperties.pas"/>
-        <Caret Line="69" Column="32" TopLine="61"/>
+        <Filename Value="stewprojectsettingseditor.pas"/>
+        <Caret Line="253" Column="1" TopLine="248"/>
       </Position27>
       <Position28>
-        <Filename Value="stewproperties.pas"/>
-        <Caret Line="664" Column="22" TopLine="654"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="103" Column="3" TopLine="85"/>
       </Position28>
       <Position29>
-        <Filename Value="stewprojectsettingseditor.pas"/>
-        <Caret Line="230" Column="16" TopLine="216"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="56" Column="1" TopLine="45"/>
       </Position29>
       <Position30>
-        <Filename Value="stewprojectsettingseditor.pas"/>
-        <Caret Line="203" Column="45" TopLine="194"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="55" Column="39" TopLine="44"/>
       </Position30>
     </JumpHistory>
   </ProjectSession>
   <Debugging>
-    <BreakPoints Count="2">
+    <BreakPoints Count="1">
       <Item1>
         <Kind Value="bpkSource"/>
         <WatchScope Value="wpsLocal"/>
@@ -740,13 +738,6 @@
         <Source Value="stewpersist.pas"/>
         <Line Value="280"/>
       </Item1>
-      <Item2>
-        <Kind Value="bpkSource"/>
-        <WatchScope Value="wpsLocal"/>
-        <WatchKind Value="wpkWrite"/>
-        <Source Value="stewproject.pas"/>
-        <Line Value="525"/>
-      </Item2>
     </BreakPoints>
     <Watches Count="1">
       <Item1>

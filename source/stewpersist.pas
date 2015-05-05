@@ -7,6 +7,26 @@ interface
 uses
   Classes, SysUtils, stewtypes, fpjson, fpjsonrtti;
 
+{
+TODO: I'd like to revisit the JSON serialization someday. What I want is
+basically a replacment for fpjson (including the parser). It would basically
+look very similar to what fpjson is right now, except:
+1) "published" properties are considered "managed" properties, so if you
+attempt to set a property key that matches a published property on the object,
+it will attempt to set it through that instead. These values will be stored
+by the owner.
+2) When objects are serialized/deserialized, the actual creation of values will
+be done using a factory paradigm on the parent object: given the property name,
+the object will be created there. (This might make use of published properties).
+3) Streaming knows about these objects, and when special functionality must
+be done before or after streaming, the objects will be queried (sort of like
+defineproperty).
+3) Objects and data would behave similarly to how they behave in JavaScript:
+conversions will be similar, methods to "discover" info about the object will
+be similar. Although, I think adding prototypes might take things a bit too far.
+
+}
+
 {$Interfaces CORBA}
 { I'm using CORBA here to avoid reference counting overhead and pitfalls. Without
 it, I have to be careful of when and how I'm using references to the interface,

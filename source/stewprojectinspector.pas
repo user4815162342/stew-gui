@@ -7,8 +7,12 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, ComCtrls, stewproject, stewfile, stewmainform;
 
-// TODO: I've got to make my own custom tree node classes to store the actual
-// document object.
+// TODO: Should use the 'title' property, if it's set, to display the
+// name of the file. It would be displayed with the actual filename in parenthesis,
+// for example:
+//   The Doom of Valendia: The Final Chapter (the_doom_final_chapter)
+// however, if I allow renaming of a file, it will effect the file name itself,
+// and you need to change the Title property to get the other stuff.
 
 type
 

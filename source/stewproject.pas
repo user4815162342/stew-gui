@@ -7,6 +7,9 @@ interface
 uses
   Classes, SysUtils, stewfile, stewasync, stewproperties, stewtypes, contnrs, stewattachments;
 
+// TODO: When opening 'attachments', need a system of events and handlers
+// for cases where there is ambiguity. Or, just use defaults.
+
 type
   // All of these are just strings, representing paths off of the root
   // of the stew project (names always use '/' as separators, and must
@@ -14,7 +17,6 @@ type
   // make use of more structured types.
   TDocumentBaseName = String;
   TDocumentID = String;
-
 
   TDocumentList = array of TDocumentID;
   TDeferredDocumentListCallback = procedure(Path: TFilename; Data: TDocumentList; aTarget: TObject) of object deprecated;
@@ -82,40 +84,6 @@ type
 
   private
     fDisk: TFilename;
-    // TODO: Basically keep a cache of document property objects here,
-    // that are created when requested, and only loaded when necessary.
-    // TODO: These should be Metadata objects instead, even if the
-    // procedures below are used to retrieve properties.
-    // TODO: The 'listdocuments' thing should result in an event instead
-    // of a callback, that the project has to handle and broadcast.
-    // For the project inspector, I don't have to search through every tree node, I just have to search
-    // through the ones which might be parents of the node. This
-    // way, I can get rid of the mfaProjectRefresh, and just have mfaDocumentsListed.
-    // Then, have the 'refresh' menu item just clear the cache and list the
-    // root documents on the project, and let the inspector figure the
-    // rest out.
-    // TODO: The cache has to be 'treed', since the hashObjectList is
-    // limited to strings of 255 characters or less, and yes, I don't
-    // want to worry about that. This means, finding an item on the
-    // cache requires spliting a document ID into paths, so I could
-    // potentially just have a dynamic string array as the ID in the
-    // first place. In any case, when I 'refresh' a given document's children:
-    // - I parse the document ID into a path, if I haven't already
-    // been given one.
-    // - I follow the path into the cache, creating cached objects
-    // as I need to (newly created items are marked as such so when
-    // I go to list the files I have to find them)
-    // - I get the list of files in the directory from the file system.
-    // - I clean out the data for the cache I find, removing all child
-    //   caches.
-    // - I go through the list of files, if they represent a document
-    //   I haven't gotten a cache for, then I add it and add the file
-    //   as an available attachment. If it represents a document that
-    //   I have a cached item for, I just add it.
-    // - I do not automatically 'load' the properties. That has to
-    //   wait until I need them. Which means, I need to be able to specify
-    //   a separate callback to also be called back for specific
-    //   cases, not just depend on events.
     fMetadataCache: TMetadataCache;
     fOnDocumentsListed: TDocumentNotifyEvent;
     fOnDocumentListError: TDocumentExceptionEvent;
@@ -161,7 +129,6 @@ type
     property DiskPath: TFilename read fDisk;
     // TODO: Figure out filtering...
     // TODO: More importantly, need to 'sort' by directory index.
-    // TODO: Get rid of the '2' once I've deleted the others.
     procedure ListDocuments(aDocumentID: TDocumentID);
     function GetDocumentList(aDocumentID: TDocumentID): TDocumentList;
     function GetDocumentProperties(const aDocument: TDocumentID): TDocumentProperties;
@@ -276,7 +243,7 @@ begin
   if fProject.FOnDocumentPropertiesSaved <> nil then
     fProject.FOnDocumentPropertiesSaved(fProject,fID);
   // just like when loaded, refresh the list.
-  fProject.ListDocuments(fID);
+  ListDocuments;
 end;
 
 procedure TMetadataCache.PropertiesSaveFailed(Sender: TObject;
@@ -368,7 +335,7 @@ begin
   // since the properties might have changed the index, automatically
   // trigger a reload of the list. This means that, in order to refresh
   // the project list, you could just load the properties.
-  fProject.ListDocuments(fID);
+  ListDocuments;
 end;
 
 constructor TMetadataCache.Create(aProject: TStewProject;
@@ -436,23 +403,23 @@ begin
   // also need to get the properties in order to know the right sort order.
 end;
 
-function SortByIndex(List: TStringList; Index1, Index2: Integer): Integer;
-begin
-  result := CompareText(List[Index1],List[Index2]);
-  // TODO: How to attach the index? I'm going to need to subclass the TStringList.
-end;
-
 function TMetadataCache.GetDocumentList: TDocumentList;
 var
   i: Integer;
   list: TEZSortStringList;
+  aChild: TMetadataCache;
 begin
   list := TEZSortStringList.Create;
   try
     list.OnEZSort:=@SortDocuments;
     for i := 0 to fDocuments.Count - 1 do
     begin
-      list.Add((fDocuments[i] as TMetadataCache).fid);
+      // I'm only interested in documents that have associated disk files.
+      // other documents can be retrieved by specific name, but I don't
+      // want to display them as available if they aren't.
+      aChild := fDocuments[i] as TMetadataCache;
+      if aChild.fFiles.Count > 0 then
+         list.Add(aChild.fID);
     end;
     // sort by property index.
     list.EZSort;
