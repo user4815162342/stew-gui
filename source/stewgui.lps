@@ -3,7 +3,7 @@
   <ProjectSession>
     <Version Value="9"/>
     <BuildModes Active="Default"/>
-    <Units Count="66">
+    <Units Count="72">
       <Unit0>
         <Filename Value="stewgui.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -20,25 +20,22 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="stewmainform"/>
-        <EditorIndex Value="12"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="133"/>
-        <CursorPos X="32" Y="144"/>
+        <TopLine Value="270"/>
+        <CursorPos X="1" Y="281"/>
         <UsageCount Value="213"/>
-        <Loaded Value="True"/>
-        <LoadedDesigner Value="True"/>
       </Unit1>
       <Unit2>
         <Filename Value="stewproject.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="stewproject"/>
-        <EditorIndex Value="2"/>
+        <EditorIndex Value="1"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="477"/>
-        <CursorPos X="43" Y="485"/>
+        <TopLine Value="522"/>
+        <CursorPos X="36" Y="527"/>
         <UsageCount Value="213"/>
         <Bookmarks Count="1">
-          <Item0 X="5" Y="298" ID="9"/>
+          <Item0 X="1" Y="330" ID="9"/>
         </Bookmarks>
         <Loaded Value="True"/>
       </Unit2>
@@ -46,23 +43,19 @@
         <Filename Value="stewfile.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="stewfile"/>
-        <EditorIndex Value="9"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="87"/>
-        <CursorPos X="3" Y="91"/>
+        <TopLine Value="229"/>
+        <CursorPos X="1" Y="247"/>
         <UsageCount Value="213"/>
-        <Loaded Value="True"/>
       </Unit3>
       <Unit4>
         <Filename Value="stewasync.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="stewasync"/>
-        <EditorIndex Value="10"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="94"/>
-        <CursorPos X="1" Y="106"/>
+        <TopLine Value="97"/>
+        <CursorPos X="1" Y="109"/>
         <UsageCount Value="210"/>
-        <Loaded Value="True"/>
       </Unit4>
       <Unit5>
         <Filename Value="stewprojectinspector.pas"/>
@@ -71,13 +64,12 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="stewprojectinspector"/>
-        <EditorIndex Value="14"/>
+        <EditorIndex Value="2"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="1"/>
-        <CursorPos X="69" Y="15"/>
+        <TopLine Value="61"/>
+        <CursorPos X="41" Y="72"/>
         <UsageCount Value="211"/>
         <Loaded Value="True"/>
-        <LoadedDesigner Value="True"/>
       </Unit5>
       <Unit6>
         <Filename Value="stewconfig.pas"/>
@@ -104,11 +96,10 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="stewdocumenteditor"/>
-        <IsVisibleTab Value="True"/>
         <EditorIndex Value="0"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="87"/>
-        <CursorPos X="1" Y="109"/>
+        <TopLine Value="135"/>
+        <CursorPos X="32" Y="135"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -132,10 +123,11 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="stewprojectsettingseditor"/>
-        <EditorIndex Value="1"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="13"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="248"/>
-        <CursorPos X="1" Y="258"/>
+        <TopLine Value="161"/>
+        <CursorPos X="55" Y="165"/>
         <UsageCount Value="201"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -147,12 +139,10 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="steweditorframe"/>
-        <EditorIndex Value="13"/>
         <WindowIndex Value="0"/>
         <TopLine Value="51"/>
         <CursorPos X="27" Y="62"/>
         <UsageCount Value="213"/>
-        <Loaded Value="True"/>
       </Unit11>
       <Unit12>
         <Filename Value="stewabout.pas"/>
@@ -170,21 +160,19 @@
         <Filename Value="stewproperties.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="stewproperties"/>
-        <EditorIndex Value="17"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="658"/>
-        <CursorPos X="22" Y="668"/>
+        <TopLine Value="233"/>
+        <CursorPos X="1" Y="238"/>
         <UsageCount Value="208"/>
-        <Loaded Value="True"/>
       </Unit13>
       <Unit14>
         <Filename Value="stewtypes.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="stewtypes"/>
-        <EditorIndex Value="5"/>
+        <EditorIndex Value="3"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="86"/>
-        <CursorPos X="1" Y="97"/>
+        <TopLine Value="1"/>
+        <CursorPos X="34" Y="14"/>
         <UsageCount Value="205"/>
         <Loaded Value="True"/>
       </Unit14>
@@ -192,12 +180,10 @@
         <Filename Value="stewpersist.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="stewpersist"/>
-        <EditorIndex Value="18"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="379"/>
-        <CursorPos X="22" Y="393"/>
+        <TopLine Value="500"/>
+        <CursorPos X="1" Y="517"/>
         <UsageCount Value="202"/>
-        <Loaded Value="True"/>
       </Unit15>
       <Unit16>
         <Filename Value="stewjsoneditor.pas"/>
@@ -206,10 +192,12 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="stewjsoneditor"/>
+        <EditorIndex Value="14"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="316"/>
-        <CursorPos X="3" Y="322"/>
+        <TopLine Value="334"/>
+        <CursorPos X="21" Y="318"/>
         <UsageCount Value="210"/>
+        <Loaded Value="True"/>
       </Unit16>
       <Unit17>
         <Filename Value="stewattachments.pas"/>
@@ -226,7 +214,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="1"/>
         <CursorPos X="15" Y="8"/>
-        <UsageCount Value="25"/>
+        <UsageCount Value="20"/>
       </Unit18>
       <Unit19>
         <Filename Value="test.pas"/>
@@ -234,7 +222,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="1"/>
         <CursorPos X="1" Y="11"/>
-        <UsageCount Value="11"/>
+        <UsageCount Value="6"/>
       </Unit19>
       <Unit20>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/forms.pp"/>
@@ -242,47 +230,43 @@
         <WindowIndex Value="0"/>
         <TopLine Value="293"/>
         <CursorPos X="18" Y="302"/>
-        <UsageCount Value="76"/>
+        <UsageCount Value="71"/>
       </Unit20>
       <Unit21>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/comctrls.pp"/>
         <UnitName Value="ComCtrls"/>
-        <EditorIndex Value="16"/>
         <WindowIndex Value="0"/>
         <TopLine Value="2950"/>
         <CursorPos X="14" Y="2960"/>
         <UsageCount Value="102"/>
-        <Loaded Value="True"/>
       </Unit21>
       <Unit22>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/include/treeview.inc"/>
-        <EditorIndex Value="15"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="989"/>
-        <CursorPos X="1" Y="1001"/>
+        <TopLine Value="403"/>
+        <CursorPos X="1" Y="422"/>
         <UsageCount Value="102"/>
-        <Loaded Value="True"/>
       </Unit22>
       <Unit23>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/include/screen.inc"/>
         <WindowIndex Value="0"/>
         <TopLine Value="220"/>
         <CursorPos X="1" Y="237"/>
-        <UsageCount Value="23"/>
+        <UsageCount Value="18"/>
       </Unit23>
       <Unit24>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/include/control.inc"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="2712"/>
-        <CursorPos X="1" Y="2722"/>
-        <UsageCount Value="68"/>
+        <TopLine Value="3114"/>
+        <CursorPos X="1" Y="3133"/>
+        <UsageCount Value="63"/>
       </Unit24>
       <Unit25>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/include/customform.inc"/>
         <WindowIndex Value="0"/>
         <TopLine Value="920"/>
         <CursorPos X="62" Y="932"/>
-        <UsageCount Value="72"/>
+        <UsageCount Value="67"/>
       </Unit25>
       <Unit26>
         <Filename Value="stewpropertyeditorform.pas"/>
@@ -292,7 +276,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="1"/>
         <CursorPos X="37" Y="13"/>
-        <UsageCount Value="13"/>
+        <UsageCount Value="8"/>
       </Unit26>
       <Unit27>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/controls.pp"/>
@@ -300,31 +284,33 @@
         <WindowIndex Value="0"/>
         <TopLine Value="1341"/>
         <CursorPos X="15" Y="1349"/>
-        <UsageCount Value="68"/>
+        <UsageCount Value="63"/>
       </Unit27>
       <Unit28>
         <Filename Value="/usr/share/fpcsrc/2.6.4/packages/fcl-json/src/fpjson.pp"/>
         <UnitName Value="fpjson"/>
-        <EditorIndex Value="20"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="2364"/>
-        <CursorPos X="3" Y="2368"/>
+        <TopLine Value="1713"/>
+        <CursorPos X="1" Y="1725"/>
         <UsageCount Value="114"/>
-        <Loaded Value="True"/>
       </Unit28>
       <Unit29>
         <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/sysutils/sysstrh.inc"/>
+        <EditorIndex Value="7"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="204"/>
-        <CursorPos X="10" Y="215"/>
-        <UsageCount Value="67"/>
+        <TopLine Value="89"/>
+        <CursorPos X="10" Y="100"/>
+        <UsageCount Value="63"/>
+        <Loaded Value="True"/>
       </Unit29>
       <Unit30>
         <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/sysutils/sysstr.inc"/>
+        <EditorIndex Value="8"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="1834"/>
-        <CursorPos X="3" Y="1845"/>
-        <UsageCount Value="67"/>
+        <TopLine Value="566"/>
+        <CursorPos X="21" Y="568"/>
+        <UsageCount Value="63"/>
+        <Loaded Value="True"/>
       </Unit30>
       <Unit31>
         <Filename Value="/usr/share/fpcsrc/2.6.4/packages/fcl-json/src/jsonconf.pp"/>
@@ -332,23 +318,21 @@
         <WindowIndex Value="0"/>
         <TopLine Value="134"/>
         <CursorPos X="1" Y="156"/>
-        <UsageCount Value="18"/>
+        <UsageCount Value="13"/>
       </Unit31>
       <Unit32>
         <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/classes/classesh.inc"/>
-        <EditorIndex Value="7"/>
         <WindowIndex Value="0"/>
         <TopLine Value="659"/>
         <CursorPos X="14" Y="667"/>
         <UsageCount Value="111"/>
-        <Loaded Value="True"/>
       </Unit32>
       <Unit33>
         <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/classes/lists.inc"/>
         <WindowIndex Value="0"/>
         <TopLine Value="67"/>
         <CursorPos X="3" Y="60"/>
-        <UsageCount Value="10"/>
+        <UsageCount Value="5"/>
       </Unit33>
       <Unit34>
         <Filename Value="/usr/share/fpcsrc/2.6.4/packages/fcl-json/src/jsonparser.pp"/>
@@ -356,31 +340,29 @@
         <WindowIndex Value="0"/>
         <TopLine Value="85"/>
         <CursorPos X="1" Y="96"/>
-        <UsageCount Value="30"/>
+        <UsageCount Value="25"/>
       </Unit34>
       <Unit35>
         <Filename Value="/usr/share/fpcsrc/2.6.4/packages/fcl-base/src/contnrs.pp"/>
         <UnitName Value="contnrs"/>
-        <EditorIndex Value="6"/>
         <WindowIndex Value="0"/>
         <TopLine Value="306"/>
         <CursorPos X="3" Y="324"/>
         <UsageCount Value="111"/>
-        <Loaded Value="True"/>
       </Unit35>
       <Unit36>
         <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/sysutils/filutilh.inc"/>
         <WindowIndex Value="0"/>
         <TopLine Value="70"/>
         <CursorPos X="10" Y="81"/>
-        <UsageCount Value="53"/>
+        <UsageCount Value="48"/>
       </Unit36>
       <Unit37>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/include/menuitem.inc"/>
         <WindowIndex Value="0"/>
         <TopLine Value="75"/>
         <CursorPos X="1" Y="86"/>
-        <UsageCount Value="47"/>
+        <UsageCount Value="42"/>
       </Unit37>
       <Unit38>
         <Filename Value="versionsupport.pas"/>
@@ -388,7 +370,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="251"/>
         <CursorPos X="33" Y="261"/>
-        <UsageCount Value="70"/>
+        <UsageCount Value="65"/>
       </Unit38>
       <Unit39>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/dialogs.pp"/>
@@ -396,28 +378,28 @@
         <WindowIndex Value="0"/>
         <TopLine Value="498"/>
         <CursorPos X="11" Y="509"/>
-        <UsageCount Value="69"/>
+        <UsageCount Value="64"/>
       </Unit39>
       <Unit40>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/include/messagedialogs.inc"/>
         <WindowIndex Value="0"/>
         <TopLine Value="122"/>
         <CursorPos X="17" Y="128"/>
-        <UsageCount Value="50"/>
+        <UsageCount Value="45"/>
       </Unit40>
       <Unit41>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/include/lclintfh.inc"/>
         <WindowIndex Value="0"/>
         <TopLine Value="127"/>
         <CursorPos X="11" Y="138"/>
-        <UsageCount Value="50"/>
+        <UsageCount Value="45"/>
       </Unit41>
       <Unit42>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/include/intfbaselcl.inc"/>
         <WindowIndex Value="0"/>
         <TopLine Value="544"/>
         <CursorPos X="32" Y="549"/>
-        <UsageCount Value="50"/>
+        <UsageCount Value="45"/>
       </Unit42>
       <Unit43>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/interfacebase.pp"/>
@@ -425,14 +407,14 @@
         <WindowIndex Value="0"/>
         <TopLine Value="215"/>
         <CursorPos X="75" Y="226"/>
-        <UsageCount Value="50"/>
+        <UsageCount Value="45"/>
       </Unit43>
       <Unit44>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/include/promptdialog.inc"/>
         <WindowIndex Value="0"/>
         <TopLine Value="138"/>
         <CursorPos X="27" Y="153"/>
-        <UsageCount Value="50"/>
+        <UsageCount Value="45"/>
       </Unit44>
       <Unit45>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/themes.pas"/>
@@ -440,7 +422,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="1902"/>
         <CursorPos X="3" Y="1906"/>
-        <UsageCount Value="50"/>
+        <UsageCount Value="45"/>
       </Unit45>
       <Unit46>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/graphics.pp"/>
@@ -448,14 +430,14 @@
         <WindowIndex Value="0"/>
         <TopLine Value="286"/>
         <CursorPos X="3" Y="294"/>
-        <UsageCount Value="69"/>
+        <UsageCount Value="64"/>
       </Unit46>
       <Unit47>
         <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/classes/streams.inc"/>
         <WindowIndex Value="0"/>
         <TopLine Value="542"/>
         <CursorPos X="18" Y="549"/>
-        <UsageCount Value="29"/>
+        <UsageCount Value="24"/>
       </Unit47>
       <Unit48>
         <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/unix/sysutils.pp"/>
@@ -463,21 +445,21 @@
         <WindowIndex Value="0"/>
         <TopLine Value="349"/>
         <CursorPos X="19" Y="369"/>
-        <UsageCount Value="66"/>
+        <UsageCount Value="61"/>
       </Unit48>
       <Unit49>
         <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/unix/bunxovlh.inc"/>
         <WindowIndex Value="0"/>
         <TopLine Value="21"/>
         <CursorPos X="11" Y="32"/>
-        <UsageCount Value="29"/>
+        <UsageCount Value="24"/>
       </Unit49>
       <Unit50>
         <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/unix/bunxovl.inc"/>
         <WindowIndex Value="0"/>
         <TopLine Value="188"/>
         <CursorPos X="12" Y="201"/>
-        <UsageCount Value="29"/>
+        <UsageCount Value="24"/>
       </Unit50>
       <Unit51>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/lclclasses.pp"/>
@@ -485,47 +467,43 @@
         <WindowIndex Value="0"/>
         <TopLine Value="124"/>
         <CursorPos X="1" Y="140"/>
-        <UsageCount Value="27"/>
+        <UsageCount Value="22"/>
       </Unit51>
       <Unit52>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/include/lclintf.inc"/>
         <WindowIndex Value="0"/>
         <TopLine Value="368"/>
         <CursorPos X="3" Y="371"/>
-        <UsageCount Value="30"/>
+        <UsageCount Value="25"/>
       </Unit52>
       <Unit53>
         <Filename Value="/usr/share/fpcsrc/2.6.4/packages/fcl-json/src/fpjsonrtti.pp"/>
         <UnitName Value="fpjsonrtti"/>
-        <EditorIndex Value="19"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="446"/>
+        <TopLine Value="445"/>
         <CursorPos X="1" Y="463"/>
         <UsageCount Value="113"/>
-        <Loaded Value="True"/>
       </Unit53>
       <Unit54>
         <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/classes/stringl.inc"/>
-        <EditorIndex Value="8"/>
         <WindowIndex Value="0"/>
         <TopLine Value="776"/>
         <CursorPos X="1" Y="781"/>
         <UsageCount Value="107"/>
-        <Loaded Value="True"/>
       </Unit54>
       <Unit55>
         <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/classes/collect.inc"/>
         <WindowIndex Value="0"/>
         <TopLine Value="104"/>
         <CursorPos X="3" Y="108"/>
-        <UsageCount Value="74"/>
+        <UsageCount Value="69"/>
       </Unit55>
       <Unit56>
         <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/classes/persist.inc"/>
         <WindowIndex Value="0"/>
         <TopLine Value="89"/>
         <CursorPos X="3" Y="96"/>
-        <UsageCount Value="73"/>
+        <UsageCount Value="68"/>
       </Unit56>
       <Unit57>
         <Filename Value="/usr/share/lazarus/1.2.6/components/lazutils/lazmethodlist.pas"/>
@@ -533,16 +511,14 @@
         <WindowIndex Value="0"/>
         <TopLine Value="146"/>
         <CursorPos X="1" Y="164"/>
-        <UsageCount Value="72"/>
+        <UsageCount Value="67"/>
       </Unit57>
       <Unit58>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/include/application.inc"/>
-        <EditorIndex Value="11"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="1069"/>
-        <CursorPos X="1" Y="1080"/>
+        <TopLine Value="1051"/>
+        <CursorPos X="1" Y="1063"/>
         <UsageCount Value="158"/>
-        <Loaded Value="True"/>
       </Unit58>
       <Unit59>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/graphtype.pp"/>
@@ -550,7 +526,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="31"/>
         <CursorPos X="3" Y="33"/>
-        <UsageCount Value="68"/>
+        <UsageCount Value="63"/>
       </Unit59>
       <Unit60>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/grids.pas"/>
@@ -558,7 +534,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="8893"/>
         <CursorPos X="1" Y="8910"/>
-        <UsageCount Value="67"/>
+        <UsageCount Value="62"/>
       </Unit60>
       <Unit61>
         <Filename Value="/usr/share/lazarus/1.2.6/components/rtticontrols/rttigrids.pas"/>
@@ -566,7 +542,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="28"/>
         <CursorPos X="34" Y="29"/>
-        <UsageCount Value="50"/>
+        <UsageCount Value="45"/>
       </Unit61>
       <Unit62>
         <Filename Value="/usr/share/lazarus/1.2.6/components/rtticontrols/rttictrls.pas"/>
@@ -574,34 +550,90 @@
         <WindowIndex Value="0"/>
         <TopLine Value="244"/>
         <CursorPos X="31" Y="254"/>
-        <UsageCount Value="50"/>
+        <UsageCount Value="45"/>
       </Unit62>
       <Unit63>
         <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/sysutils/finah.inc"/>
-        <EditorIndex Value="3"/>
+        <EditorIndex Value="11"/>
         <WindowIndex Value="0"/>
         <TopLine Value="12"/>
-        <CursorPos X="10" Y="23"/>
+        <CursorPos X="10" Y="20"/>
         <UsageCount Value="104"/>
         <Loaded Value="True"/>
       </Unit63>
       <Unit64>
         <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/sysutils/fina.inc"/>
-        <EditorIndex Value="4"/>
+        <EditorIndex Value="12"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="87"/>
-        <CursorPos X="1" Y="97"/>
+        <TopLine Value="17"/>
+        <CursorPos X="3" Y="22"/>
         <UsageCount Value="104"/>
         <Loaded Value="True"/>
       </Unit64>
       <Unit65>
-        <Filename Value="stewmetadata.pas"/>
-        <UnitName Value="stewmetadata"/>
+        <Filename Value="/usr/share/lazarus/1.2.6/lcl/stdctrls.pp"/>
+        <UnitName Value="StdCtrls"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="309"/>
+        <CursorPos X="15" Y="317"/>
+        <UsageCount Value="10"/>
+      </Unit65>
+      <Unit66>
+        <Filename Value="/usr/share/lazarus/1.2.6/lcl/include/customcombobox.inc"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="742"/>
+        <CursorPos X="3" Y="751"/>
+        <UsageCount Value="10"/>
+      </Unit66>
+      <Unit67>
+        <Filename Value="stewshell.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="stewshell"/>
+        <EditorIndex Value="4"/>
         <WindowIndex Value="0"/>
         <TopLine Value="1"/>
-        <CursorPos X="1" Y="1"/>
-        <UsageCount Value="5"/>
-      </Unit65>
+        <CursorPos X="39" Y="10"/>
+        <UsageCount Value="24"/>
+        <Loaded Value="True"/>
+      </Unit67>
+      <Unit68>
+        <Filename Value="/usr/share/lazarus/1.2.6/lcl/lclintf.pas"/>
+        <UnitName Value="LCLIntf"/>
+        <EditorIndex Value="5"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="71"/>
+        <CursorPos X="38" Y="77"/>
+        <UsageCount Value="12"/>
+        <Loaded Value="True"/>
+      </Unit68>
+      <Unit69>
+        <Filename Value="/usr/share/lazarus/1.2.6/lcl/include/sysenvapis_unix.inc"/>
+        <EditorIndex Value="6"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="25"/>
+        <CursorPos X="1" Y="46"/>
+        <UsageCount Value="12"/>
+        <Loaded Value="True"/>
+      </Unit69>
+      <Unit70>
+        <Filename Value="/usr/share/lazarus/1.2.6/components/lazutils/unixlazfileutils.inc"/>
+        <EditorIndex Value="10"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="28"/>
+        <CursorPos X="1" Y="42"/>
+        <UsageCount Value="11"/>
+        <Loaded Value="True"/>
+      </Unit70>
+      <Unit71>
+        <Filename Value="/usr/share/lazarus/1.2.6/components/lazutils/utf8process.pp"/>
+        <UnitName Value="UTF8Process"/>
+        <EditorIndex Value="9"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="194"/>
+        <CursorPos X="1" Y="211"/>
+        <UsageCount Value="11"/>
+        <Loaded Value="True"/>
+      </Unit71>
     </Units>
     <General>
       <ActiveWindowIndexAtStart Value="0"/>
@@ -609,139 +641,146 @@
     <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
         <Filename Value="stewproject.pas"/>
-        <Caret Line="395" Column="24" TopLine="387"/>
+        <Caret Line="527" Column="43" TopLine="518"/>
       </Position1>
       <Position2>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="36" Column="20" TopLine="8"/>
+        <Filename Value="stewproject.pas"/>
+        <Caret Line="528" Column="1" TopLine="518"/>
       </Position2>
       <Position3>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="37" Column="20" TopLine="9"/>
+        <Filename Value="stewproject.pas"/>
+        <Caret Line="529" Column="1" TopLine="518"/>
       </Position3>
       <Position4>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="38" Column="20" TopLine="16"/>
+        <Filename Value="stewproject.pas"/>
+        <Caret Line="531" Column="1" TopLine="518"/>
       </Position4>
       <Position5>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="39" Column="20" TopLine="17"/>
+        <Filename Value="stewproject.pas"/>
+        <Caret Line="532" Column="1" TopLine="518"/>
       </Position5>
       <Position6>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="38" Column="20" TopLine="17"/>
+        <Filename Value="stewproject.pas"/>
+        <Caret Line="534" Column="1" TopLine="518"/>
       </Position6>
       <Position7>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="37" Column="20" TopLine="17"/>
+        <Filename Value="stewproject.pas"/>
+        <Caret Line="535" Column="1" TopLine="518"/>
       </Position7>
       <Position8>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="38" Column="20" TopLine="17"/>
+        <Filename Value="stewproject.pas"/>
+        <Caret Line="537" Column="1" TopLine="519"/>
       </Position8>
       <Position9>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="39" Column="20" TopLine="17"/>
+        <Filename Value="stewproject.pas"/>
+        <Caret Line="538" Column="1" TopLine="520"/>
       </Position9>
       <Position10>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="40" Column="20" TopLine="18"/>
+        <Filename Value="stewproject.pas"/>
+        <Caret Line="539" Column="1" TopLine="521"/>
       </Position10>
       <Position11>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="41" Column="20" TopLine="19"/>
+        <Filename Value="stewproject.pas"/>
+        <Caret Line="529" Column="1" TopLine="521"/>
       </Position11>
       <Position12>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="30" Column="31" TopLine="20"/>
+        <Filename Value="stewproject.pas"/>
+        <Caret Line="531" Column="1" TopLine="521"/>
       </Position12>
       <Position13>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="29" Column="8" TopLine="8"/>
+        <Filename Value="stewproject.pas"/>
+        <Caret Line="532" Column="1" TopLine="521"/>
       </Position13>
       <Position14>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="18" Column="5" TopLine="8"/>
+        <Filename Value="stewproject.pas"/>
+        <Caret Line="529" Column="1" TopLine="521"/>
       </Position14>
       <Position15>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="30" Column="33" TopLine="30"/>
+        <Filename Value="stewproject.pas"/>
+        <Caret Line="544" Column="1" TopLine="533"/>
       </Position15>
       <Position16>
         <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="31" Column="28" TopLine="31"/>
+        <Caret Line="167" Column="42" TopLine="156"/>
       </Position16>
       <Position17>
         <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="43" Column="17" TopLine="31"/>
+        <Caret Line="156" Column="39" TopLine="141"/>
       </Position17>
       <Position18>
         <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="42" Column="17" TopLine="31"/>
+        <Caret Line="135" Column="32" TopLine="135"/>
       </Position18>
       <Position19>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="41" Column="17" TopLine="31"/>
+        <Filename Value="stewproject.pas"/>
+        <Caret Line="150" Column="15" TopLine="139"/>
       </Position19>
       <Position20>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="43" Column="17" TopLine="31"/>
+        <Filename Value="stewproject.pas"/>
+        <Caret Line="698" Column="43" TopLine="688"/>
       </Position20>
       <Position21>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="42" Column="17" TopLine="31"/>
+        <Filename Value="stewproject.pas"/>
+        <Caret Line="85" Column="25" TopLine="74"/>
       </Position21>
       <Position22>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="47" Column="19" TopLine="31"/>
+        <Filename Value="stewproject.pas"/>
+        <Caret Line="538" Column="1" TopLine="517"/>
       </Position22>
       <Position23>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="46" Column="19" TopLine="31"/>
+        <Filename Value="stewprojectsettingseditor.pas"/>
+        <Caret Line="213" Column="1" TopLine="194"/>
       </Position23>
       <Position24>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="42" Column="14" TopLine="31"/>
+        <Filename Value="stewprojectsettingseditor.pas"/>
+        <Caret Line="219" Column="1" TopLine="200"/>
       </Position24>
       <Position25>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="22" Column="5" TopLine="3"/>
+        <Filename Value="stewprojectsettingseditor.pas"/>
+        <Caret Line="170" Column="3" TopLine="149"/>
       </Position25>
       <Position26>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="19" Column="17" TopLine="3"/>
+        <Filename Value="stewprojectsettingseditor.pas"/>
+        <Caret Line="1" Column="1" TopLine="1"/>
       </Position26>
       <Position27>
         <Filename Value="stewprojectsettingseditor.pas"/>
-        <Caret Line="253" Column="1" TopLine="248"/>
+        <Caret Line="105" Column="60" TopLine="86"/>
       </Position27>
       <Position28>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="103" Column="3" TopLine="85"/>
+        <Filename Value="stewprojectsettingseditor.pas"/>
+        <Caret Line="181" Column="60" TopLine="162"/>
       </Position28>
       <Position29>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="56" Column="1" TopLine="45"/>
+        <Filename Value="stewprojectsettingseditor.pas"/>
+        <Caret Line="231" Column="60" TopLine="212"/>
       </Position29>
       <Position30>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="55" Column="39" TopLine="44"/>
+        <Filename Value="stewprojectsettingseditor.pas"/>
+        <Caret Line="111" Column="1" TopLine="94"/>
       </Position30>
     </JumpHistory>
   </ProjectSession>
   <Debugging>
-    <BreakPoints Count="1">
+    <BreakPoints Count="2">
       <Item1>
         <Kind Value="bpkSource"/>
         <WatchScope Value="wpsLocal"/>
         <WatchKind Value="wpkWrite"/>
         <Source Value="stewpersist.pas"/>
-        <Line Value="280"/>
+        <Line Value="300"/>
       </Item1>
+      <Item2>
+        <Kind Value="bpkSource"/>
+        <WatchScope Value="wpsLocal"/>
+        <WatchKind Value="wpkWrite"/>
+        <Source Value="stewproperties.pas"/>
+        <Line Value="224"/>
+      </Item2>
     </BreakPoints>
     <Watches Count="1">
       <Item1>
-        <Expression Value="FHash.fHashlist"/>
+        <Expression Value="APath"/>
       </Item1>
     </Watches>
   </Debugging>

@@ -121,6 +121,11 @@ TODO: Support some internal editors:
 - TextEditor for TXT
 - SynEdit for Markdown, possibly some other stuff.
 
+TODO: Divide the units into three parts:
+- UI (forms, frames and controls): prefix is ui
+- Stew Data Structures: prefix is stew
+- Platform Interface (basically just stewfile, stewasync, future stewshell): prefix is sys
+
 }
 
 uses

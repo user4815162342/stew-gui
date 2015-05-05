@@ -11,6 +11,9 @@ interface
 // Although, with a type-safe language, I am guaranteed not to accidentally
 // call a procedure that requires a callback.
 
+// TODO: The 'QueueAsyncCall' should be a method handler that is set from outside
+// the project, so that another non-GUI application can still make use of it.
+
 {This unit allows the other units to easily behave in an asynchronous manner.
 The mechanism isn't to create actual, separate threads, but to split longer
 tasks into smaller tasks and queue them into the application's event loop,

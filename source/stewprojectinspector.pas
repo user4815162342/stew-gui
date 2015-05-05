@@ -69,7 +69,7 @@ begin
   if FDocumentID <> AValue then
   begin
     FDocumentID := AValue;
-    Text := MainForm.Project.GetBaseName(AValue);
+    Text := ExtractDocumentName(AValue);
   end;
 end;
 

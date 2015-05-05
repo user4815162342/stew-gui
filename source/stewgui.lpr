@@ -10,7 +10,7 @@ uses
   Forms, stewmainform, stewproject, stewfile, stewasync, stewprojectinspector,
   stewconfig, stewjson, stewdocumenteditor, stewpreferenceseditor,
   stewprojectsettingseditor, steweditorframe, stewabout, stewproperties,
-  stewtypes, stewpersist, stewjsoneditor, stewattachments;
+  stewtypes, stewpersist, stewjsoneditor, stewattachments, stewshell;
 
 {$R *.res}
 

@@ -12,22 +12,35 @@ type
   // TODO: For the user property editor, need to make sure that when it's changed,
   // the properties themselves are marked as changed.
   // TODO: I'm going to skip 'editors' for now. Which means I'm done with
-  // properties and ready to work with documents!
+  // project properties and ready to work with documents!
 
 
   { TDocumentProperties }
 
-  TDocumentProperties = class(TJSONAsyncFileStoreContainer)
+  TDocumentProperties = class(TJSONAsyncFileStoreContainer, IJSONCustomSerializer)
   private
+    fCategory: String;
     fIndex: TStringList;
+    fPublish: boolean;
+    fStatus: String;
+    fTitle: String;
+    fUserProperties: TJSONData;
+    procedure SetUserProperties(AValue: TJSONData);
     function GetIndex: TStrings;
   protected
     procedure Clear; override;
+    procedure AfterSerialize({%H-}aSaver: TJSONStreamer; aTarget: TJSONObject);
+    procedure BeforeDeserialize({%H-}aLoader: TJSONDeStreamer; aData: TJSONObject);
   public
     constructor Create(afileName: TFilename; aIsRoot: Boolean);
     destructor Destroy; override;
+    property user: TJSONData read fUserProperties write SetUserProperties;
   published
     property index: TStrings read GetIndex;
+    property title: String read fTitle write fTitle;
+    property publish: boolean read fPublish write fPublish;
+    property category: String read fCategory write fCategory;
+    property status: String read fStatus write fStatus;
   end;
 
   { TKeywordDefinition }
@@ -180,6 +193,17 @@ uses
 
 { TDocumentProperties }
 
+procedure TDocumentProperties.SetUserProperties(AValue: TJSONData);
+begin
+  if fUserProperties <> nil then
+    FreeAndNil(fUserProperties);
+  if AValue <> nil then
+  // I have to clone it here, because the streaming system might
+  // destroy the original.
+    fUserProperties := AValue.Clone;
+  SetModified;
+end;
+
 function TDocumentProperties.GetIndex: TStrings;
 begin
   result := fIndex;
@@ -188,6 +212,38 @@ end;
 procedure TDocumentProperties.Clear;
 begin
   fIndex.Clear;
+  fCategory := '';
+  fPublish := false;
+  fStatus := '';
+  fTitle := '';
+  FreeAndNil(fUserProperties);
+end;
+
+procedure TDocumentProperties.AfterSerialize(aSaver: TJSONStreamer;
+  aTarget: TJSONObject);
+begin
+  if fUserProperties <> nil then
+  begin
+    // I have to clone here, because the streaming tool is going
+    // to delete the properties.
+    aTarget['user'] := fUserProperties.Clone;
+  end;
+end;
+
+procedure TDocumentProperties.BeforeDeserialize(aLoader: TJSONDeStreamer;
+  aData: TJSONObject);
+var
+  aUser: TJSONData;
+begin
+  aUser := aData.Find('user');
+  if aUser <> nil then
+  begin
+    SetUserProperties(aUser);
+  end
+  else
+  begin
+    SetUserProperties(nil);
+  end;
 end;
 
 constructor TDocumentProperties.Create(afileName: TFilename; aIsRoot: Boolean);

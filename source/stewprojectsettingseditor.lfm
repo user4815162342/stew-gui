@@ -31,6 +31,12 @@ inherited ProjectSettingsEditor: TProjectSettingsEditor
         Caption = 'Save'
         OnClick = SaveButtonClick
       end
+      object EditNotesButton: TToolButton[2]
+        Left = 91
+        Top = 0
+        Caption = 'Notes'
+        OnClick = EditNotesButtonClick
+      end
     end
   end
   object DefaultDocExtensionPanel: TPanel[1]

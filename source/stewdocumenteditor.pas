@@ -6,11 +6,18 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls,
-  stewproject, steweditorframe, stewjsoneditor;
+  stewproject, steweditorframe, stewjsoneditor, stewmainform;
 
 type
 
 {
+TODO: Need to enable disable based on loading state of properties
+and some other things. Figure this out before we do the synopsis,
+because I have a feeling the synopsis is going to rely on
+similar stuff.
+
+TODO: Keep the paradigms similar in projectsettingseditor.
+
 TODO: Edit the following properties...
   - Directory Index? Although that might be managed in another way.
   - x Title
@@ -28,6 +35,9 @@ TODO: Thumbnail image should only show up if it's set.
 
 TODO: Someday, I should revisit the layout... I'd like something more like a
 flow-based layout.
+
+FUTURE: The 'Notes' and 'Edit' buttons should have some way of indicating if
+the file exists already. Or, we need to come up with a different way of doing that.
 }
 
   { TDocumentEditor }
@@ -58,21 +68,28 @@ flow-based layout.
     UserPropertiesPanel: TPanel;
     procedure EditNotesButtonClick(Sender: TObject);
     procedure EditPrimaryButtonClick(Sender: TObject);
+    procedure ObserveMainForm(aAction: TMainFormAction; aDocument: TDocumentID);
     procedure RefreshButtonClick(Sender: TObject);
     procedure SaveButtonClick(Sender: TObject);
     { private declarations }
+  private
+    procedure SetEditingEnabled(AValue: Boolean);
   protected
     fUserPropertiesEditor: TJSONEditor;
     procedure SetDocument(AValue: TDocumentID); override;
+    procedure ShowDataToUser;
+    procedure UpdateLookupLists;
+    property EditingEnabled: Boolean write SetEditingEnabled;
   public
     { public declarations }
     constructor Create(TheOwner: TComponent); override;
+    destructor Destroy; override;
   end;
 
 implementation
 
 uses
-  stewmainform;
+  Dialogs, stewproperties;
 
 {$R *.lfm}
 
@@ -80,24 +97,74 @@ uses
 
 procedure TDocumentEditor.SaveButtonClick(Sender: TObject);
 begin
-  // TODO:
+  ShowMessage('Sorry, I can''t save these things yet');
 
+  // TODO: WriteDataFromUser;
+
+end;
+
+procedure TDocumentEditor.SetEditingEnabled(AValue: Boolean);
+begin
+  // TODO: Instead of setting it to a specific state, we should set
+  // the values enabled or disabled based on other states.
+  RefreshButton.Enabled := AValue;
+  SaveButton.Enabled := AValue;
+  EditPrimaryButton.Enabled := AValue;
+  EditNotesButton.Enabled := AValue;
+  TitleLabel.Enabled := aValue;
+  TitleEdit.Enabled := AValue;
+  PublishEdit.Enabled := AValue;
+  CategoryLabel.Enabled := AValue;
+  CategoryEdit.Enabled := AValue;
+  StatusLabel.Enabled := AValue;
+  StatusEdit.Enabled:=AValue;
+  // Synopsis is dependent on something else besides properties.
+  // TODO: Need to load synopsis.
+  SynopsisLabel.Enabled := false;
+  SynopsisEdit.Enabled := false;
+  UserPropertiesLabel.Enabled := AValue;
+  fUserPropertiesEditor.Enabled := AValue;
 end;
 
 procedure TDocumentEditor.RefreshButtonClick(Sender: TObject);
 begin
-  // TODO:
+  // TODO: Test this.
+  if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
+  begin
+       MainForm.Project.GetDocumentProperties(Document).Load;
+       // this should automatically call something on the main form
+       // which will notify that the project has refreshed, and do so.
+  end;
 
 end;
 
 procedure TDocumentEditor.EditPrimaryButtonClick(Sender: TObject);
 begin
-  // TODO:
+  if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
+  begin
+    MainForm.Project.EditDocumentPrimary(Document);
+  end;
+end;
+
+procedure TDocumentEditor.ObserveMainForm(aAction: TMainFormAction;
+  aDocument: TDocumentID);
+begin
+  case aAction of
+    mfaDocumentPropertiesLoaded:
+      if aDocument = Document then
+         ShowDataToUser;
+    mfaProjectPropertiesLoaded:
+      UpdateLookupLists;
+  end;
 end;
 
 procedure TDocumentEditor.EditNotesButtonClick(Sender: TObject);
 begin
-  // TODO:
+  // TODO: Test this.
+  if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
+  begin
+    MainForm.Project.EditDocumentNotes(Document);
+  end;
 end;
 
 procedure TDocumentEditor.SetDocument(AValue: TDocumentID);
@@ -108,12 +175,57 @@ begin
   begin
     inherited SetDocument(aValue);
     DocumentIDLabel.Caption := AValue;
-    aName := MainForm.Project.GetBaseName(AValue);
+    // TODO: Make use of 'title'?
+    aName := ExtractDocumentName(AValue);
     if (Parent <> nil) and (Parent is ttabsheet) then
     begin
       Parent.Caption := aName;
     end;
+    UpdateLookupLists;
+    ShowDataToUser;
   end;
+end;
+
+procedure TDocumentEditor.ShowDataToUser;
+var
+  props: TDocumentProperties;
+begin
+  props := nil;
+  if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
+  begin
+    EditingEnabled := true;
+    props := MainForm.Project.GetDocumentProperties(Document);
+    TitleEdit.Text := props.title;
+    PublishEdit.Checked := props.publish;
+    CategoryEdit.Text := props.category;
+    StatusEdit.Text := props.status;
+    fUserPropertiesEditor.SetJSON(props.user);
+
+  end
+  else
+    EditingEnabled := false;
+end;
+
+procedure TDocumentEditor.UpdateLookupLists;
+var
+  props: TProjectProperties;
+  i: Integer;
+begin
+  props := nil;
+  if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
+  begin
+    props := MainForm.Project.Properties;
+    StatusEdit.Items.Clear;
+    for i := 0 to props.statuses.NameCount - 1 do
+      StatusEdit.Items.Add(props.statuses.Names[i]);
+    CategoryEdit.Items.Clear;
+    for i := 0 to props.categories.NameCount - 1 do
+      CategoryEdit.Items.Add(props.categories.Names[i]);
+
+  end
+  else
+    EditingEnabled := false;
+
 end;
 
 constructor TDocumentEditor.Create(TheOwner: TComponent);
@@ -127,6 +239,13 @@ begin
   fUserPropertiesEditor.Align := alClient;
   fUserPropertiesEditor.BorderSpacing.Top := 10;
 
+  MainForm.Observe(@ObserveMainForm);
+end;
+
+destructor TDocumentEditor.Destroy;
+begin
+  MainForm.Unobserve(@ObserveMainForm);
+  inherited Destroy;
 end;
 
 end.

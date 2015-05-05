@@ -71,7 +71,8 @@ type
     CategoryDefinitionsPanel: TPanel;
     RefreshButton: TToolButton;
     SaveButton: TToolButton;
-    ToolButton1: TToolButton;
+    EditNotesButton: TToolButton;
+    procedure EditNotesButtonClick(Sender: TObject);
     procedure ObserveMainForm(aAction: TMainFormAction; {%H-}aDocument: TDocumentID);
     procedure RefreshButtonClick(Sender: TObject);
     procedure SaveButtonClick(Sender: TObject);
@@ -155,6 +156,15 @@ begin
     mfaProjectPropertiesLoaded:
       ShowDataToUser;
   end;
+end;
+
+procedure TProjectSettingsEditor.EditNotesButtonClick(Sender: TObject);
+begin
+  if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
+  begin
+       MainForm.Project.EditDocumentNotes(RootDocument);
+  end;
+
 end;
 
 function ColorToHex(x: TColor): String;

@@ -314,7 +314,7 @@ begin
       end;
     jtArray:
       begin
-        for i := 0 to aJSON.Count do
+        for i := 0 to aJSON.Count -1 do
         begin
           aChild := TreeNodes.AddChild(Self,'') as TJSONTreeNode;
           aChild.SetJSON(aJSON.Items[i]);

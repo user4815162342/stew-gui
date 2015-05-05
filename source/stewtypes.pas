@@ -11,6 +11,8 @@ type
   TExceptionEvent = procedure(Sender: TObject; aError: Exception) of object;
   TExceptionMessageEvent = procedure(Sender: TObject; aError: String) of object;
 
+  TStringArray = array of string;
+
   { TEZSortStringList }
 
   TEZSortStringListCompare = function(List: TStringList; Index1, Index2: Integer): Integer of object;
@@ -80,6 +82,7 @@ type
     property Items[const Key: String]: TMappedCollectionItem read GetItem write SetItem; default;
     property NameCount: Integer read GetNameCount;
     property Names[const Index: Integer]: String read GetName;
+
   end;
 
 
