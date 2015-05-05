@@ -12,9 +12,12 @@ type
 
 {
 TODO: Need to enable disable based on loading state of properties
-and some other things. Figure this out before we do the synopsis,
-because I have a feeling the synopsis is going to rely on
-similar stuff.
+and some other things, not just setting a value.
+
+TODO: Need to load the synopses.
+
+TODO: Possibly also need to have a contents grid which shows the
+values of specific properties.
 
 TODO: Keep the paradigms similar in projectsettingseditor.
 

@@ -17,6 +17,8 @@ At that point, I can slowly start moving from the command line to the GUI.
 The command line will probably never be completely deprecated, because the
 scripting capabilities there are still quite useful.
 
+TODO: Test with an empty or new project again.
+
 TODO: FPC now has 'strict private' and 'strict protected' that make things
 work the way private and protected are supposed to work (just being in the
 same unit doesn't help). Convert everything to that for clearer documentation
@@ -134,15 +136,18 @@ uses
 
 type
 
-  // TODO: the project refresh thing isn't really something I need to broadcast.
-  // It's really just meant for the project inspector to re-list items. Perhaps
-  // it should be some sort of menu Item that gets automatically added by the
-  // project inspector frame.
-  // TODO: Make use of the properties loaded and saved events.
-  TMainFormAction = (mfaProjectPropertiesLoaded,
+  // TODO: It might be better to be able to register events for a specific action
+  // and even document ID. Currently, each tab is a separate observer. If I add
+  // in other objects which might observe, and I get to a point where there's
+  // a lot, then cycling through the list could get expensive.
+  TMainFormAction = (mfaProjectPropertiesLoading,
+                     mfaProjectPropertiesLoaded,
+                     mfaProjectPropertiesSaving,
                      mfaProjectPropertiesSaved,
                      mfaDocumentsListed,
+                     mfaDocumentPropertiesLoading,
                      mfaDocumentPropertiesLoaded,
+                     mfaDocumentPropertiesSaving,
                      mfaDocumentPropertiesSaved);
   TMainFormObserverHandler = procedure(aAction: TMainFormAction; aDocument: TDocumentID) of object;
   TMainFormObserverList = specialize TFPGList<TMainFormObserverHandler>;
@@ -163,6 +168,8 @@ type
     procedure AboutMenuItemClick(Sender: TObject);
     procedure DocumentListError(Sender: TObject; Document: TDocumentID;
       Error: String);
+    procedure DocumentPropertiesLoading(Sender: TObject; Document: TDocumentID);
+    procedure DocumentPropertiesSaving(Sender: TObject; Document: TDocumentID);
     procedure DocumentsListed(Sender: TObject; Document: TDocumentID);
     procedure DocumentTabCloseRequested(Sender: TObject);
     procedure ExitMenuItemClick(Sender: TObject);
@@ -171,6 +178,8 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure PreferencesMenuItemClick(Sender: TObject);
+    procedure ProjectPropertiesLoading(Sender: TObject);
+    procedure ProjectPropertiesSaving(Sender: TObject);
     procedure ProjectSettingsMenuItemClick(Sender: TObject);
     procedure RefreshProjectMenuItemClick(Sender: TObject);
   strict private type
@@ -256,6 +265,21 @@ begin
               'The parent document''s ID was "' + Document + '".' + LineEnding +
               Error + LineEnding +
               'You may want to restart the program, or wait and try your task again later');
+
+end;
+
+procedure TMainForm.DocumentPropertiesLoading(Sender: TObject;
+  Document: TDocumentID);
+begin
+  Enabled := false;
+  NotifyObservers(mfaDocumentPropertiesLoading,Document);
+end;
+
+procedure TMainForm.DocumentPropertiesSaving(Sender: TObject;
+  Document: TDocumentID);
+begin
+  Enabled := false;
+  NotifyObservers(mfaDocumentPropertiesSaving,Document);
 
 end;
 
@@ -477,6 +501,19 @@ begin
   OpenPreferences;
 end;
 
+procedure TMainForm.ProjectPropertiesLoading(Sender: TObject);
+begin
+  Enabled := false;
+  NotifyObservers(mfaProjectPropertiesLoading);
+end;
+
+procedure TMainForm.ProjectPropertiesSaving(Sender: TObject);
+begin
+  Enabled := false;
+  NotifyObservers(mfaProjectPropertiesSaving);
+
+end;
+
 procedure TMainForm.ProjectLoadFailed(E: String);
 begin
   ShowMessage('The project couldn''t be loaded.' + LineEnding +
@@ -552,10 +589,14 @@ begin
   fProject.OnPropertiesLoaded:=@ProjectPropertiesLoaded;
   fProject.OnPropertiesSaveConflicted:=@ProjectPropertiesSaveConflicted;
   fProject.OnPropertiesSaved:=@ProjectPropertiesSaved;
+  fProject.OnPropertiesLoading:=@ProjectPropertiesLoading;
+  fProject.OnPropertiesSaving:=@ProjectPropertiesSaving;
   fProject.OnDocumentPropertiesError:=@DocumentPropertiesError;
   fProject.OnDocumentPropertiesLoaded:=@DocumentPropertiesLoaded;
   fProject.OnDocumentPropertiesSaveConflicted:=@DocumentPropertiesSaveConflicted;
   fProject.OnDocumentPropertiesSaved:=@DocumentPropertiesSaved;
+  fProject.OnDocumentPropertiesSaving:=@DocumentPropertiesSaving;
+  fProject.OnDocumentPropertiesLoading:=@DocumentPropertiesLoading;
   fProject.OnDocumentsListed:=@DocumentsListed;
   fProject.OnDocumentListError:=@DocumentListError;
   fProject.OpenAtPath(@StartupIfProjectExists,@ProjectLoadFailed);

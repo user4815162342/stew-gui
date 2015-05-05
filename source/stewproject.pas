@@ -46,6 +46,8 @@ type
   // as modified. But it would be nicer to remove only those properties which
   // are not being modified in a tab.
   TMetadataCache = class
+    procedure PropertiesLoading(Sender: TObject);
+    procedure PropertiesSaving(Sender: TObject);
   strict private type
   type
   // this allows me access to the protected events on Document Properties,
@@ -104,8 +106,12 @@ type
     fOnDocumentListError: TDocumentExceptionEvent;
     FOnDocumentPropertiesError: TDocumentExceptionEvent;
     FOnDocumentPropertiesLoaded: TDocumentNotifyEvent;
+    fOnDocumentPropertiesLoading: TDocumentNotifyEvent;
+    fOnDocumentPropertiesSaving: TDocumentNotifyEvent;
     FOnDocumentPropertiesSaveConflicted: TDocumentNotifyEvent;
     FOnDocumentPropertiesSaved: TDocumentNotifyEvent;
+    FOnPropertiesLoading: TNotifyEvent;
+    fOnPropertiesSaving: TNotifyEvent;
     fProperties: TProjectProperties;
     FOnOpened: TNotifyEvent;
     FOnPropertiesError: TExceptionMessageEvent;
@@ -116,6 +122,8 @@ type
     function GetProperties: TProjectProperties;
     procedure OpenProjectProperties;
     procedure DoOpened;
+    procedure ProjectPropertiesLoading(Sender: TObject);
+    procedure ProjectPropertiesSaving(Sender: TObject);
     procedure ProjectPropertiesLoaded(Sender: TObject);
     procedure ProjectPropertiesLoadFailed(Sender: TObject; aError: String);
     procedure ProjectPropertiesSaveConflicted(Sender: TObject);
@@ -132,10 +140,14 @@ type
     property OnPropertiesSaved: TNotifyEvent read FOnPropertiesSaved write fOnPropertiesSaved;
     property OnPropertiesError: TExceptionMessageEvent read FOnPropertiesError write fOnPropertiesError;
     property OnPropertiesSaveConflicted: TNotifyEvent read FOnPropertiesSaveConflicted write fOnPropertiesSaveConflicted;
+    property OnPropertiesSaving: TNotifyEvent read fOnPropertiesSaving write FOnPropertiesSaving;
+    property OnPropertiesLoading: TNotifyEvent read FOnPropertiesLoading write FOnPropertiesLoading;
     property OnDocumentPropertiesLoaded: TDocumentNotifyEvent read FOnDocumentPropertiesLoaded write FOnDocumentPropertiesLoaded;
     property OnDocumentPropertiesSaved: TDocumentNotifyEvent read FOnDocumentPropertiesSaved write FOnDocumentPropertiesSaved ;
     property OnDocumentPropertiesError: TDocumentExceptionEvent read FOnDocumentPropertiesError write FOnDocumentPropertiesError;
     property OnDocumentPropertiesSaveConflicted: TDocumentNotifyEvent read FOnDocumentPropertiesSaveConflicted write FOnDocumentPropertiesSaveConflicted;
+    property OnDocumentPropertiesSaving: TDocumentNotifyEvent read fOnDocumentPropertiesSaving write fOnDocumentPropertiesSaving;
+    property OnDocumentPropertiesLoading: TDocumentNotifyEvent read fOnDocumentPropertiesLoading write fOnDocumentPropertiesLoading;
     property OnDocumentsListed: TDocumentNotifyEvent read fOnDocumentsListed write fOnDocumentsListed;
     property OnDocumentListError: TDocumentExceptionEvent read fOnDocumentListError write fOnDocumentListError;
   public
@@ -386,6 +398,18 @@ begin
     result := i1 - i2;
 end;
 
+procedure TMetadataCache.PropertiesLoading(Sender: TObject);
+begin
+  if fProject.fOnDocumentPropertiesLoading <> nil then
+    fProject.fOnDocumentPropertiesLoading(fProject,fID);
+end;
+
+procedure TMetadataCache.PropertiesSaving(Sender: TObject);
+begin
+  if fProject.fOnDocumentPropertiesSaving <> nil then
+    fProject.fOnDocumentPropertiesSaving(fProject,fID);
+end;
+
 procedure TMetadataCache.PropertiesLoaded(Sender: TObject);
 begin
   if fProject.fOnDocumentPropertiesLoaded <> nil then
@@ -415,6 +439,8 @@ begin
   aCached.OnFileSaveConflicted:=@PropertiesSaveConflicted;
   aCached.OnFileSaved:=@PropertiesSaved;
   aCached.OnFileSaveFailed:=@PropertiesSaveFailed;
+  aCached.OnFileSaving:=@PropertiesSaving;
+  aCached.OnFileLoading:=@PropertiesLoading;
 end;
 
 function TMetadataCache.PutPath(const aPath: String
@@ -618,6 +644,8 @@ begin
     aProtectedProjectProperties.OnFileSaveConflicted:=@ProjectPropertiesSaveConflicted;
     aProtectedProjectProperties.OnFileSaved:=@ProjectPropertiesSaved;
     aProtectedProjectProperties.OnFileSaveFailed:=@ProjectPropertiesSaveFailed;
+    aProtectedProjectProperties.OnFileSaving:=@ProjectPropertiesSaving;
+    aProtectedProjectProperties.OnFileLoading:=@ProjectPropertiesLoading;
     fProperties.Load;
   end;
   if fMetadataCache = nil then
@@ -631,6 +659,19 @@ begin
   if fProperties = nil then
      raise Exception.Create('You must open the project before you can see the properties');
   result := fProperties;
+end;
+
+procedure TStewProject.ProjectPropertiesLoading(Sender: TObject);
+begin
+  if FOnPropertiesLoading <> nil then
+    FOnPropertiesLoading(Self);
+
+end;
+
+procedure TStewProject.ProjectPropertiesSaving(Sender: TObject);
+begin
+  if FOnPropertiesSaving <> nil then
+    FOnPropertiesSaving(Self);
 end;
 
 function TStewProject.GetIsOpened: Boolean;

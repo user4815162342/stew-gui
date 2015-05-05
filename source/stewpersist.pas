@@ -139,10 +139,12 @@ type
     fCreateDir: Boolean;
     fOnFileLoaded: TNotifyEvent;
     fOnFileLoadFailed: TExceptionMessageEvent;
+    fOnFileLoading: TNotifyEvent;
     fOnFileSaved: TNotifyEvent;
     fOnFileSaveFailed: TExceptionMessageEvent;
     fOnFileSaveConflicted: TNotifyEvent;
     fFilingState: TFilingState;
+    fOnFileSaving: TNotifyEvent;
   protected
     procedure Clear; virtual; abstract;
     procedure FileLoaded(aData: TStream; aFileAge: Longint);
@@ -162,6 +164,8 @@ type
     property OnFileSaved: TNotifyEvent read fOnFileSaved write fOnFileSaved;
     property OnFileSaveFailed: TExceptionMessageEvent read fOnFileSaveFailed write fOnFileSaveFailed;
     property OnFileSaveConflicted: TNotifyEvent read fOnFileSaveConflicted write fOnFileSaveConflicted;
+    property OnFileLoading: TNotifyEvent read fOnFileLoading write fOnFileLoading;
+    property OnFileSaving: TNotifyEvent read fOnFileSaving write fOnFileSaving;
   public
     constructor Create(afileName: TFilename; aCreateDir: Boolean = false);
     destructor Destroy; override;
@@ -567,7 +571,12 @@ end;
 procedure TJSONAsyncFileStoreContainer.Load;
 begin
   if fFilingState in [fsNotLoaded,fsLoaded,fsError,fsConflict] then
-     TReadFile.Create(fFilename,@FileLoaded,@FileLoadFailed).Enqueue
+  begin
+    fFilingState := fsLoading;
+    if fOnFileLoading <> nil then
+      fOnFileLoading(Self);
+    TReadFile.Create(fFilename,@FileLoaded,@FileLoadFailed).Enqueue
+  end
   else if fFilingState = fsSaving then
      raise Exception.Create('Can''t load JSON data while saving.');
   // otherwise, already loading, so ignore.
@@ -579,13 +588,17 @@ var
 begin
   if Modified then
   begin
-    if fFilingState in [fsNotLoaded,fsLoaded,fsConflict] then
+    if fFilingState in [fsLoaded,fsConflict] then
     begin
       fFilingState := fsSaving;
+      if fOnFileSaving <> nil then
+        fOnFileSaving(Self);
       text := GetJSONString(Self);
       TWriteFile.Create(fFilename,fCreateDir and (fFileAge = -1),not aForce,fFileAge,text,@FileSaved,@FileSaveConflicted,@FileSaveFailed).Enqueue;
 
     end
+    else if fFilingState = fsNotLoaded then
+      raise Exception.Create('Can''t save JSON data when it has not yet been loaded')
     else if fFilingState = fsLoading then
       raise Exception.Create('Can''t save JSON data while still loading.')
     else if fFilingState = fsError then

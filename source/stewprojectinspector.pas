@@ -7,6 +7,12 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, ComCtrls, stewproject, stewfile, stewmainform;
 
+// TODO: Need to make use of status and category colors somehow. Category is
+// actually associated with a glyph on a treeview, and should therefore be used
+// to draw a little circle. While the status colors should change the text. I
+// should also like to find out what the background is for the text and if it's
+// too similar to the status text color, change it just for that node.
+
 // TODO: Should use the 'title' property, if it's set, to display the
 // name of the file. It would be displayed with the actual filename in parenthesis,
 // for example:
@@ -21,7 +27,6 @@ type
   TProjectInspectorFrame = class(TFrame)
     ProjectExplorer: TTreeView;
     procedure ObserveMainForm(aAction: TMainFormAction; {%H-}aDocument: TDocumentID);
-    procedure ProjectDocumentsError(Data: String);
     procedure ProjectExplorerCreateNodeClass(Sender: TCustomTreeView;
       var NodeClass: TTreeNodeClass);
     procedure ProjectExplorerDblClick(Sender: TObject);
@@ -86,7 +91,6 @@ begin
     Document := (Node as TProjectInspectorNode).DocumentID;
     Project.ListDocuments(Document);
     // also need to reload the properties to get the right sort order.
-    //Project.ListDocuments(Document,Node,@ProjectDocumentsListed,@ProjectDocumentsError);
     (Node as TProjectInspectorNode).ExpandOnList := true;
   end;
 end;
@@ -100,13 +104,6 @@ begin
       ReloadNodeForDocument(aDocument);
     end;
   end;
-end;
-
-procedure TProjectInspectorFrame.ProjectDocumentsError(Data: String);
-begin
-  ShowMessage('An error occurred while refreshin the project inspector.' + LineEnding +
-              Data + LineEnding +
-              'You may wish to wait a little bit and try again later.');
 end;
 
 procedure TProjectInspectorFrame.ProjectExplorerCreateNodeClass(
