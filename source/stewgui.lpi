@@ -16,7 +16,7 @@
     <VersionInfo>
       <UseVersionInfo Value="True"/>
       <AutoIncrementBuild Value="True"/>
-      <BuildNr Value="11"/>
+      <BuildNr Value="15"/>
       <StringTable CompanyName="Town's Edge Technology, LLC" FileDescription="A Notekeeping and Manuscript management tool." LegalCopyright="Copyright © 2015 Neil M. Sheldon" ProductName="Stew" ProductVersion="0.1"/>
     </VersionInfo>
     <BuildModes Count="1">
@@ -35,7 +35,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="19">
+    <Units Count="18">
       <Unit0>
         <Filename Value="stewgui.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -146,15 +146,10 @@
         <UnitName Value="stewjsoneditor"/>
       </Unit16>
       <Unit17>
-        <Filename Value="stewattachments.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="stewattachments"/>
-      </Unit17>
-      <Unit18>
         <Filename Value="stewshell.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="stewshell"/>
-      </Unit18>
+      </Unit17>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

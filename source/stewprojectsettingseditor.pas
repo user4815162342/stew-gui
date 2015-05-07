@@ -92,7 +92,7 @@ type
 implementation
 
 uses
-  Dialogs, Graphics, fpjson, stewpersist;
+  Dialogs, Graphics, fpjson, stewtypes;
 
 {$R *.lfm}
 
@@ -111,7 +111,7 @@ end;
 
 procedure TProjectSettingsEditor.SaveButtonClick(Sender: TObject);
 begin
-  ShowMessage('Sorry, I can''t save these things yet');
+  ShowMessage('Sorry, I can''t save these things quite yet.');
   // TODO: We have to fix the statuses and categories before
   // we can save them. Right now status is a string list in the
   // stew cli, but a map like categories here. Statuses actually
@@ -166,7 +166,7 @@ procedure TProjectSettingsEditor.EditNotesButtonClick(Sender: TObject);
 begin
   if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
   begin
-       MainForm.Project.EditDocumentNotes(RootDocument);
+       MainForm.Project.GetDocument(RootDocument).Notes.OpenInEditor;
   end;
 
 end;

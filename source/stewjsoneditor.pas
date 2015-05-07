@@ -625,9 +625,9 @@ var
 begin
   aRoot := JSONTree.Items.GetFirstNode as TJSONTreeNode;
   if aRoot <> nil then
-  begin
-    result := aRoot.CreateJSON;
-  end;
+    result := aRoot.CreateJSON
+  else
+    result := nil;
 end;
 
 end.

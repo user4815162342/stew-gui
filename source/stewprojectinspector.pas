@@ -161,13 +161,13 @@ begin
   try
     if aNode <> nil then
     begin
-      aList := MainForm.Project.GetDocumentList(aNode.DocumentID);
+      aList := MainForm.Project.GetDocument(aNode.DocumentID).GetContents;
       aChild := aNode.GetFirstChild as TProjectInspectorNode;
 
     end
     else
     begin
-      aList := MainForm.Project.GetDocumentList(RootDocument);
+      aList := MainForm.Project.GetDocument(RootDocument).GetContents;
       aChild := ProjectExplorer.Items.GetFirstNode as TProjectInspectorNode;
     end;
 

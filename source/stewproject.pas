@@ -5,12 +5,20 @@ unit stewproject;
 interface
 
 uses
-  Classes, SysUtils, stewfile, stewasync, stewproperties, stewtypes, contnrs, stewattachments;
+  Classes, SysUtils, stewfile, stewasync, stewproperties, stewtypes, contnrs;
 
 // TODO: The additional overhead of working through the project with documents
 // is getting unwieldly. Instead, expose the MetadataCache objects, keep a flag
 // on them for whether they are 'root' or not, and just have a single GetDocument
 // which returns the metadata.
+
+// TODO: So that we can deal with attachments better, maybe move those off into
+// a separate object:
+// - edit: opens it up for editing
+// - load: loads contents into a string if that's possible.
+// - contents: gets the contents of the string if it's loaded.
+// - loaded: Returns whether it's loaded
+// - onloaded: etc.
 
 // TODO: When opening 'attachments', need a system of events and handlers
 // for cases where there is ambiguity. Or, just use defaults.
@@ -38,16 +46,69 @@ type
 
   TDocumentNotifyEvent = procedure(Sender: TObject; Document: TDocumentID) of object;
   TDocumentExceptionEvent = procedure(Sender: TObject; Document: TDocumentID; Error: String) of object;
+  TAttachmentNotifyEvent = procedure(Sender: TObject; Document: TDocumentID; AttachmentName: String) of object;
+  TAttachmentExceptionEvent = procedure(Sender: TObject; Document: TDocumentID; AttachmentName: String; Error: String) of object;
 
-  TSynopsis = record
-    Loaded: Boolean;
-    FileAge: Longint;
-    Value: String;
+  TDocumentMetadata = class;
+
+  { TAttachmentMetadata }
+
+  TAttachmentMetadata = class
+  private
+    fDocument: TDocumentMetadata;
+    fFileAge: Longint;
+    fFilingState: TFilingState;
+    fContents: String;
+  protected
+    function GetCandidateFiles: TStringArray; virtual;
+    function GetDescriptor: String; virtual; abstract;
+    function GetDefaultExtension: String; virtual; abstract;
+    function GetName: String; virtual; abstract;
+    procedure FileLoaded(aData: TStream; aFileAge: Longint);
+    procedure FileLoadFailed(Data: String);
+    procedure FileSaveConflicted({%H-}aFileAge: Longint);
+    procedure FileSaved(aFileAge: Longint);
+    procedure FileSaveFailed(Data: String);
+  public
+    constructor Create(aDocument: TDocumentMetadata);
+    procedure Load;
+    procedure Save(aNewContents: String; aForce: Boolean = false);
+    procedure OpenInEditor;
+    function GetContents: String;
+    property FilingState: TFilingState read fFilingState;
+  end;
+
+  { TPrimaryMetadata }
+
+  TPrimaryMetadata = class(TAttachmentMetadata)
+  protected
+    function GetDescriptor: String; override;
+    function GetName: String; override;
+    function GetDefaultExtension: String; override;
+  end;
+
+  { TNotesMetadata }
+
+  TNotesMetadata = class(TAttachmentMetadata)
+  protected
+    function GetDescriptor: String; override;
+    function GetName: String; override;
+    function GetDefaultExtension: String; override;
+  end;
+
+  { TSynopsisMetadata }
+
+  TSynopsisMetadata = class(TAttachmentMetadata)
+  protected
+    function GetCandidateFiles: TStringArray; override;
+    function GetDescriptor: String; override;
+    function GetName: String; override;
+    function GetDefaultExtension: String; override;
   end;
 
   TStewProject = class;
 
-  { TMetadataCache }
+  { TDocumentMetadata }
   // FUTURE: Currently, there's no way to *release* the cache, mostly because
   // I don't have any way for the project to know when cached data is no longer
   // needed (properties are needed by at least two UI areas: listing documents and
@@ -56,7 +117,7 @@ type
   // -- I could just, periodically, remove any properties that are not marked
   // as modified. But it would be nicer to remove only those properties which
   // are not being modified in a tab.
-  TMetadataCache = class
+  TDocumentMetadata = class
   strict private type
   type
   // this allows me access to the protected events on Document Properties,
@@ -65,13 +126,17 @@ type
     TProtectedDocumentProperties = class(TDocumentProperties)
     end;
   strict private
+    fIsRoot: Boolean;
     fProject: TStewProject;
     fDisk: TFilename;
     fID: TDocumentID;
     fFiles: TStringList;
-    fDocuments: TFPHashObjectList;
+    fContents: TFPHashObjectList;
     fProperties: TDocumentProperties;
-    fSynopsis: TSynopsis;
+    fSynopsis: TSynopsisMetadata;
+    fPrimary: TPrimaryMetadata;
+    fNotes: TNotesMetadata;
+    function GetPrimary: TPrimaryMetadata;
   protected
     procedure PropertiesLoaded(Sender: TObject);
     procedure PropertiesLoadFailed(Sender: TObject; aError: String);
@@ -80,30 +145,36 @@ type
     procedure PropertiesSaveFailed(Sender: TObject; aError: String);
     procedure PropertiesLoading(Sender: TObject);
     procedure PropertiesSaving(Sender: TObject);
-    procedure SynopsisLoaded(aData: TStream; aFileAge: Longint);
-    procedure SynopsisLoadError(Data: String);
+    procedure AttachmentLoading(const aName: String);
+    procedure AttachmentLoaded(const aName: String);
+    procedure AttachmentLoadFailed(const aName: String; aError: String);
+    procedure AttachmentSaving(const aName: String);
+    procedure AttachmentSaved(const aName: String);
+    procedure AttachmentSaveConflicted(const aName: String);
+    procedure AttachmentSaveFailed(const aName: String; aError: String);
     procedure FilesListed(Data: TFileList);
     procedure FilesListError(Data: String);
     procedure ClearFiles;
     procedure ClearChildFiles;
     procedure AddFile(const aFile: TFilename);
     function SortDocuments(List: TStringList; Index1, Index2: Integer): Integer;
+    function PutPath(const aPath: String): TDocumentMetadata;
+    function PutDocument(aKey: String): TDocumentMetadata;
+    function GetAttachments(const aDescriptor: String; const aExtension: String): TStringArray;
+    function GetNewAttachmentName(const aDescriptor: String; const aExtension: String): String;
+    function GetSynopsis: TSynopsisMetadata;
+    property Project: TStewProject read fProject;
   public
     constructor Create(aProject: TStewProject; aDiskPath: TFilename;
       aID: TDocumentID; aIsRoot: Boolean);
     destructor Destroy; override;
-    function PutPath(const aPath: String): TMetadataCache;
-    function PutDocument(aKey: String): TMetadataCache;
     property Properties: TDocumentProperties read fProperties;
     procedure ListDocuments;
-    function GetDocumentList: TDocumentList;
-    function IsListed: Boolean;
-    function HasSynopsis: Boolean;
-    function GetSynopsis: String;
-    procedure LoadSynopsis;
-    procedure EditPrimary;
-    procedure EditNotes;
-    function GetAttachments(const aDescriptor: String): TStringArray;
+    function GetContents: TDocumentList;
+    function AreAttachmentsListed: Boolean;
+    property Synopsis: TSynopsisMetadata read GetSynopsis;
+    property Primary: TPrimaryMetadata read GetPrimary;
+    property Notes: TNotesMetadata read fNotes;
   end;
 
   { TStewProject }
@@ -119,7 +190,13 @@ type
 
   private
     fDisk: TFilename;
-    fMetadataCache: TMetadataCache;
+    fMetadataCache: TDocumentMetadata;
+    FOnDocumentAttachmentError: TAttachmentExceptionEvent;
+    FOnDocumentAttachmentLoaded: TAttachmentNotifyEvent;
+    FOnDocumentAttachmentLoading: TAttachmentNotifyEvent;
+    FOnDocumentAttachmentSaveConflicted: TAttachmentNotifyEvent;
+    FOnDocumentAttachmentSaved: TAttachmentNotifyEvent;
+    FOnDocumentAttachmentSaving: TAttachmentNotifyEvent;
     fOnDocumentsListed: TDocumentNotifyEvent;
     fOnDocumentListError: TDocumentExceptionEvent;
     FOnDocumentPropertiesError: TDocumentExceptionEvent;
@@ -128,8 +205,6 @@ type
     fOnDocumentPropertiesSaving: TDocumentNotifyEvent;
     FOnDocumentPropertiesSaveConflicted: TDocumentNotifyEvent;
     FOnDocumentPropertiesSaved: TDocumentNotifyEvent;
-    FOnDocumentSynopsisLoaded: TDocumentNotifyEvent;
-    FOnDocumentSynopsisLoadError: TDocumentExceptionEvent;
     FOnPropertiesLoading: TNotifyEvent;
     fOnPropertiesSaving: TNotifyEvent;
     fProperties: TProjectProperties;
@@ -169,8 +244,12 @@ type
     property OnDocumentPropertiesSaveConflicted: TDocumentNotifyEvent read FOnDocumentPropertiesSaveConflicted write FOnDocumentPropertiesSaveConflicted;
     property OnDocumentPropertiesSaving: TDocumentNotifyEvent read fOnDocumentPropertiesSaving write fOnDocumentPropertiesSaving;
     property OnDocumentPropertiesLoading: TDocumentNotifyEvent read fOnDocumentPropertiesLoading write fOnDocumentPropertiesLoading;
-    property OnDocumentSynopsisLoaded: TDocumentNotifyEvent read FOnDocumentSynopsisLoaded write FOnDocumentSynopsisLoaded;
-    property OnDocumentSynopsisLoadError: TDocumentExceptionEvent read FOnDocumentSynopsisLoadError write FOnDocumentSynopsisLoadError;
+    property OnDocumentAttachmentLoading: TAttachmentNotifyEvent read FOnDocumentAttachmentLoading write FOnDocumentAttachmentLoading;
+    property OnDocumentAttachmentLoaded: TAttachmentNotifyEvent read FOnDocumentAttachmentLoaded write FOnDocumentAttachmentLoaded;
+    property OnDocumentAttachmentError: TAttachmentExceptionEvent read FOnDocumentAttachmentError write FOnDocumentAttachmentError;
+    property OnDocumentAttachmentSaving: TAttachmentNotifyEvent read FOnDocumentAttachmentSaving write FOnDocumentAttachmentSaving;
+    property OnDocumentAttachmentSaved: TAttachmentNotifyEvent read FOnDocumentAttachmentSaved write FOnDocumentAttachmentSaved;
+    property OnDocumentAttachmentSaveConflicted: TAttachmentNotifyEvent read FOnDocumentAttachmentSaveConflicted write FOnDocumentAttachmentSaveConflicted;
     property OnDocumentsListed: TDocumentNotifyEvent read fOnDocumentsListed write fOnDocumentsListed;
     property OnDocumentListError: TDocumentExceptionEvent read fOnDocumentListError write fOnDocumentListError;
   public
@@ -180,14 +259,7 @@ type
     // TODO: Figure out filtering...
     // TODO: More importantly, need to 'sort' by directory index.
     procedure ListDocuments(const aDocumentID: TDocumentID);
-    function IsDocumentListed(const aDocumentID: TDocumentID): Boolean;
-    function GetDocumentList(const aDocumentID: TDocumentID): TDocumentList;
-    function GetDocumentProperties(const aDocument: TDocumentID): TDocumentProperties;
-    procedure LoadDocumentSynopsis(const aDocument: TDocumentID);
-    procedure EditDocumentPrimary(const aDocumentID: TDocumentID);
-    procedure EditDocumentNotes(const aDocumentID: TDocumentID);
-    function HasDocumentSynopsis(const aDocumentID: TDocumentID): Boolean;
-    function GetDocumentSynopsis(const aDocumentID: TdocumentID): String;
+    function GetDocument(const aDocumentID: TDocumentID): TDocumentMetadata;
     // TODO: Figure out patterns and reg ex...
     // TODO: function Match: TProjectContentEnumerator;
     // TODO: function Add(Name: TPacketBaseName): T;
@@ -215,7 +287,7 @@ type
 implementation
 
 uses
-  stewpersist, stewshell;
+  stewshell;
 
 function IncludeLeadingSlash(const Path: String): String;
 Var
@@ -278,22 +350,240 @@ begin
   result := DiskPath + ADocument;
 end;
 
-{ TStewProject.TMetadataCache }
+{ TSynopsisMetadata }
 
-procedure TMetadataCache.PropertiesLoadFailed(Sender: TObject;
+function TSynopsisMetadata.GetCandidateFiles: TStringArray;
+begin
+  Result:=fDocument.GetAttachments(GetDescriptor,GetDefaultExtension);
+end;
+
+function TSynopsisMetadata.GetDescriptor: String;
+begin
+  result := '_synopsis';
+end;
+
+function TSynopsisMetadata.GetName: String;
+begin
+  result := 'Synopsis';
+
+end;
+
+function TSynopsisMetadata.GetDefaultExtension: String;
+begin
+  result := '.txt';
+end;
+
+{ TNotesMetadata }
+
+function TNotesMetadata.GetDescriptor: String;
+begin
+  result := '_notes';
+end;
+
+function TNotesMetadata.GetName: String;
+begin
+  result := 'Notes';
+end;
+
+function TNotesMetadata.GetDefaultExtension: String;
+begin
+  result := fDocument.Project.Properties.defaultNotesExtension;
+end;
+
+{ TPrimaryMetadata }
+
+function TPrimaryMetadata.GetDescriptor: String;
+begin
+  result := '';
+end;
+
+function TPrimaryMetadata.GetName: String;
+begin
+  result := 'Primary';
+end;
+
+function TPrimaryMetadata.GetDefaultExtension: String;
+begin
+  // TODO: Do I need a '.'?
+  result := fDocument.Project.GetProperties.defaultDocExtension;
+end;
+
+{ TAttachmentMetadata }
+
+procedure TAttachmentMetadata.FileLoaded(aData: TStream; aFileAge: Longint);
+begin
+  if (aData = nil) then
+  begin
+    // the file does not exist yet, so create a blank data object.
+    fContents := '';
+  end
+  else
+  begin
+    with TStringStream.Create('') do
+    try
+      CopyFrom(aData,0);
+      fContents := DataString;
+    finally
+      Free;
+    end;
+  end;
+  fFileAge := aFileAge;
+  fFilingState := fsLoaded;
+  fDocument.AttachmentLoaded(GetName);
+
+end;
+
+procedure TAttachmentMetadata.FileLoadFailed(Data: String);
+begin
+  fFilingState := fsError;
+  fDocument.AttachmentLoadFailed(GetName,Data);
+
+end;
+
+procedure TAttachmentMetadata.FileSaveConflicted(aFileAge: Longint);
+begin
+  fFilingState := fsConflict;
+  fDocument.AttachmentSaveConflicted(GetName);
+end;
+
+procedure TAttachmentMetadata.FileSaved(aFileAge: Longint);
+begin
+  fFileAge := aFileAge;
+  fFilingState := fsLoaded;
+  fDocument.AttachmentSaved(GetName);
+end;
+
+procedure TAttachmentMetadata.FileSaveFailed(Data: String);
+begin
+  // this doesn't make the state an error, because the data in the
+  // document is still valid, so just return it to loaded.
+  fFilingState := fsLoaded;
+  fDocument.AttachmentSaveFailed(GetName,Data);
+end;
+
+function TAttachmentMetadata.GetCandidateFiles: TStringArray;
+begin
+  result := fDocument.GetAttachments(GetDescriptor,'');
+end;
+
+constructor TAttachmentMetadata.Create(aDocument: TDocumentMetadata);
+begin
+  inherited Create;
+  fDocument := aDocument;
+  fFilingState := fsNotLoaded;
+  fContents := '';
+end;
+
+procedure TAttachmentMetadata.Load;
+var
+  aCandidates: TStringArray;
+begin
+  if fFilingState in [fsNotLoaded,fsLoaded,fsError,fsConflict] then
+  begin
+    aCandidates := GetCandidateFiles;
+    case Length(aCandidates) of
+      0:
+      // just pretend it's loaded.
+        FileLoaded(nil,NewFileAge);
+      1:
+      begin
+        fFilingState := fsLoading;
+        fDocument.AttachmentLoading(GetName);
+        ReadFile(aCandidates[0],@FileLoaded,@FileLoadFailed);
+      end
+    else
+        // TODO: Should ask user which one to load instead. This requires
+        // an event.
+        raise Exception.Create('Too many ' + GetName + ' files');
+    end;
+  end
+  else if fFilingState = fsSaving then
+     raise Exception.Create('Can''t load attachment data while saving.');
+  // otherwise, already loading, so ignore.
+end;
+
+procedure TAttachmentMetadata.Save(aNewContents: String; aForce: Boolean);
+var
+  aCandidates: TStringArray;
+begin
+  if aNewContents <> fContents then
+  begin
+    fContents := aNewContents;
+    if fFilingState in [fsLoaded,fsConflict] then
+    begin
+      aCandidates := GetCandidateFiles;
+      case Length(aCandidates) of
+        0:
+        // not ready yet, so create a new name.
+        begin
+          SetLength(aCandidates,1);
+          aCandidates[0] := fDocument.GetNewAttachmentName(GetDescriptor,GetDefaultExtension);
+        end;
+        1: // do nothing, we save in a minute.
+      else
+          // TODO: Should ask user which one to load instead. This requires
+          // an event.
+          raise Exception.Create('Too many ' + GetName + ' files');
+      end;
+
+      fFilingState := fsSaving;
+      fDocument.AttachmentSaving(GetName);
+      WriteFile(aCandidates[0],false,not aForce,fFileAge,aNewContents,@FileSaved,@FileSaveConflicted,@FileSaveFailed);
+    end
+    else if fFilingState = fsNotLoaded then
+      raise Exception.Create('Can''t save attachment data when it has not yet been loaded')
+    else if fFilingState = fsLoading then
+      raise Exception.Create('Can''t save attachment data while still loading.')
+    else if fFilingState = fsError then
+      raise Exception.Create('Can''t save attachment data when the last load failed.');
+    // otherwise, already saving, so don't worry about it.
+  end;
+end;
+
+procedure TAttachmentMetadata.OpenInEditor;
+var
+  aCandidates: TStringArray;
+begin
+  aCandidates := GetCandidateFiles;
+  case Length(aCandidates) of
+    0:
+      // TODO: If the file does not exist, ask the user if they wish
+      // to attempt to create the file. This requires an event.
+      raise Exception.Create(GetName + ' file does not exist yet.');
+    1:
+      // TODO: Open up the specified file in an application appropriate
+      // for the platform and file system.
+      //EditFile(IncludeTrailingPathDelimiter()
+      EditFile(aCandidates[0]);
+  else
+      // TODO: Should ask user which one to edit instead. This requires
+      // an event.
+      raise Exception.Create('Too many ' + GetName + ' files');
+  end;
+
+end;
+
+function TAttachmentMetadata.GetContents: String;
+begin
+  result := fContents;
+end;
+
+{ TStewProject.TDocumentMetadata }
+
+procedure TDocumentMetadata.PropertiesLoadFailed(Sender: TObject;
   aError: String);
 begin
   if fProject.FOnDocumentPropertiesError <> nil then
     fProject.FOnDocumentPropertiesError(fProject,fID,aError);
 end;
 
-procedure TMetadataCache.PropertiesSaveConflicted(Sender: TObject);
+procedure TDocumentMetadata.PropertiesSaveConflicted(Sender: TObject);
 begin
   if fProject.FOnDocumentPropertiesSaveConflicted <> nil then
     fProject.FOnDocumentPropertiesSaveConflicted(fProject,fID);
 end;
 
-procedure TMetadataCache.PropertiesSaved(Sender: TObject);
+procedure TDocumentMetadata.PropertiesSaved(Sender: TObject);
 begin
   if fProject.FOnDocumentPropertiesSaved <> nil then
     fProject.FOnDocumentPropertiesSaved(fProject,fID);
@@ -301,18 +591,18 @@ begin
   ListDocuments;
 end;
 
-procedure TMetadataCache.PropertiesSaveFailed(Sender: TObject;
+procedure TDocumentMetadata.PropertiesSaveFailed(Sender: TObject;
   aError: String);
 begin
   if fProject.FOnDocumentPropertiesError <> nil then
     fProject.FOnDocumentPropertiesError(fProject,fID,aError);
 end;
 
-procedure TMetadataCache.FilesListed(Data: TFileList);
+procedure TDocumentMetadata.FilesListed(Data: TFileList);
 var
   aPacket: TFilename;
   i: Integer;
-  aChild: TMetadataCache;
+  aChild: TDocumentMetadata;
 begin
   // clear out the old ones.
   // NOTE: We don't want to actuall delete all of the items in the cache,
@@ -337,19 +627,19 @@ begin
      fProject.fOnDocumentsListed(fProject,fID);
 end;
 
-procedure TMetadataCache.FilesListError(Data: String);
+procedure TDocumentMetadata.FilesListError(Data: String);
 begin
   if fProject.fOnDocumentListError <> nil then
      fProject.fOnDocumentListError(fProject,fID,Data);
 end;
 
-procedure TMetadataCache.ClearFiles;
+procedure TDocumentMetadata.ClearFiles;
 begin
   FreeAndNil(fFiles);
   ClearChildFiles;
 end;
 
-procedure TMetadataCache.ClearChildFiles;
+procedure TDocumentMetadata.ClearChildFiles;
 var
   i: Integer;
 begin
@@ -361,13 +651,13 @@ begin
          fFiles.Delete(i);
     end;
   end;
-  for i := 0 to fDocuments.Count - 1 do
+  for i := 0 to fContents.Count - 1 do
   begin
-    (fDocuments[i] as TMetadataCache).ClearFiles;
+    (fContents[i] as TDocumentMetadata).ClearFiles;
   end;
 end;
 
-procedure TMetadataCache.AddFile(const aFile: TFilename);
+procedure TDocumentMetadata.AddFile(const aFile: TFilename);
 begin
   if fFiles = nil then
   begin
@@ -386,7 +676,7 @@ begin
     result:=result+1;
 end;
 
-function TMetadataCache.SortDocuments(List: TStringList; Index1,
+function TDocumentMetadata.SortDocuments(List: TStringList; Index1,
   Index2: Integer): Integer;
 var
   s1: String;
@@ -406,49 +696,78 @@ begin
     result := i1 - i2;
 end;
 
-procedure TMetadataCache.PropertiesLoading(Sender: TObject);
+procedure TDocumentMetadata.PropertiesLoading(Sender: TObject);
 begin
   if fProject.fOnDocumentPropertiesLoading <> nil then
     fProject.fOnDocumentPropertiesLoading(fProject,fID);
 end;
 
-procedure TMetadataCache.PropertiesSaving(Sender: TObject);
+procedure TDocumentMetadata.PropertiesSaving(Sender: TObject);
 begin
   if fProject.fOnDocumentPropertiesSaving <> nil then
     fProject.fOnDocumentPropertiesSaving(fProject,fID);
 end;
 
-procedure TMetadataCache.SynopsisLoaded(aData: TStream; aFileAge: Longint);
+procedure TDocumentMetadata.AttachmentLoading(const aName: String);
 begin
-  if aData <> nil then
-  begin
-    with TStringStream.Create('') do
-    try
-      CopyFrom(aData,0);
-      fSynopsis.Loaded := true;
-      fSynopsis.Value := DataString;
-      fSynopsis.FileAge := aFileAge;
-    finally
-      Free;
-    end;
-  end
+  if fProject.fOnDocumentAttachmentLoading <> nil then
+    fProject.fOnDocumentAttachmentLoading(fProject,fID,aName);
+
+end;
+
+procedure TDocumentMetadata.AttachmentLoaded(const aName: String);
+begin
+  if fProject.fOnDocumentAttachmentLoaded <> nil then
+    fProject.fOnDocumentAttachmentLoaded(fProject,fID,aName);
+
+end;
+
+procedure TDocumentMetadata.AttachmentLoadFailed(const aName: String;
+  aError: String);
+begin
+  if fProject.FOnDocumentAttachmentError <> nil then
+    fProject.FOnDocumentAttachmentError(fProject,fID,aName,aError);
+
+end;
+
+procedure TDocumentMetadata.AttachmentSaving(const aName: String);
+begin
+  if fProject.fOnDocumentAttachmentSaving <> nil then
+    fProject.fOnDocumentAttachmentSaving(fProject,fID,aName);
+
+end;
+
+procedure TDocumentMetadata.AttachmentSaved(const aName: String);
+begin
+  if fProject.fOnDocumentAttachmentSaved <> nil then
+    fProject.fOnDocumentAttachmentSaved(fProject,fID,aName);
+
+end;
+
+procedure TDocumentMetadata.AttachmentSaveConflicted(const aName: String);
+begin
+  if fProject.fOnDocumentAttachmentSaveConflicted <> nil then
+    fProject.fOnDocumentAttachmentSaveConflicted(fProject,fID,aName);
+
+end;
+
+procedure TDocumentMetadata.AttachmentSaveFailed(const aName: String;
+  aError: String);
+begin
+  if fProject.FOnDocumentAttachmentError <> nil then
+    fProject.FOnDocumentAttachmentError(fProject,fID,aName,aError);
+
+end;
+
+function TDocumentMetadata.GetPrimary: TPrimaryMetadata;
+begin
+  if fPrimary <> nil then
+    result := fPrimary
   else
-  begin
-    fSynopsis.Loaded := true;
-    fSynopsis.Value := '';
-    fSynopsis.FileAge := -1;
-  end;
-  if fProject.fOnDocumentSynopsisLoaded <> nil then
-    fProject.fOnDocumentSynopsisLoaded(fProject,fID);
+     raise Exception.Create('The root document does not have a primary file');
 end;
 
-procedure TMetadataCache.SynopsisLoadError(Data: String);
-begin
-  if fProject.fOnDocumentSynopsisLoadError <> nil then
-     fProject.fOnDocumentSynopsisLoadError(fProject,fID,Data);
-end;
-
-procedure TMetadataCache.PropertiesLoaded(Sender: TObject);
+procedure TDocumentMetadata.PropertiesLoaded(Sender: TObject);
 begin
   if fProject.fOnDocumentPropertiesLoaded <> nil then
      fProject.fOnDocumentPropertiesLoaded(fProject,fID);
@@ -458,21 +777,35 @@ begin
   ListDocuments;
 end;
 
-constructor TMetadataCache.Create(aProject: TStewProject;
+constructor TDocumentMetadata.Create(aProject: TStewProject;
   aDiskPath: TFilename; aID: TDocumentID; aIsRoot: Boolean);
 var
   aCached: TProtectedDocumentProperties;
 begin
   inherited Create;
+  // TODO: Actually, if we move the attachments into separate objects,
+  // then we can simply not create them, and we can check for that
+  // in the property.
+  fIsRoot := aIsRoot;
   fProject := aProject;
   fDisk := ExcludeTrailingPathDelimiter(aDiskPath);
   fID := aID;
   fFiles := nil; // this is created as needed. A nil item here means the
                  // file has not been listed yet.
-  fSynopsis.FileAge:=-1;
-  fSynopsis.Loaded := false;
-  fSynopsis.Value := '';
-  fDocuments := TFPHashObjectList.Create(true);
+  if aIsRoot then
+  begin
+    fSynopsis := nil;
+    fPrimary := nil;
+  end
+  else
+  begin
+    fSynopsis := TSynopsisMetadata.Create(Self);
+    fPrimary := TPrimaryMetadata.Create(Self);
+  end;
+  // root document *can* have notes.
+  fNotes := TNotesMetadata.Create(Self);
+
+  fContents := TFPHashObjectList.Create(true);
   aCached := TProtectedDocumentProperties.Create(aDiskPath,aIsRoot);
   fProperties := aCached;
   aCached.OnFileLoaded:=@PropertiesLoaded;
@@ -484,8 +817,8 @@ begin
   aCached.OnFileLoading:=@PropertiesLoading;
 end;
 
-function TMetadataCache.PutPath(const aPath: String
-  ): TMetadataCache;
+function TDocumentMetadata.PutPath(const aPath: String
+  ): TDocumentMetadata;
 var
   p: Integer;
   aKey: String;
@@ -504,46 +837,55 @@ begin
     result := PutDocument(aSearch);
 end;
 
-function TMetadataCache.PutDocument(aKey: String): TMetadataCache;
+function TDocumentMetadata.PutDocument(aKey: String): TDocumentMetadata;
 begin
   // the documents are case insensitive, so make these lowercase.
-  result := fDocuments.Find(LowerCase(aKey)) as TMetadataCache;
+  result := fContents.Find(LowerCase(aKey)) as TDocumentMetadata;
   if result = nil then
   begin
-    result := TMetadataCache.Create(fProject,IncludeTrailingPathDelimiter(fDisk) + aKey,IncludeTrailingSlash(fID) + aKey,false);
-    fDocuments.Add(LowerCase(aKey),result);
+    result := TDocumentMetadata.Create(fProject,IncludeTrailingPathDelimiter(fDisk) + aKey,IncludeTrailingSlash(fID) + aKey,false);
+    fContents.Add(LowerCase(aKey),result);
   end;
 end;
 
-destructor TMetadataCache.Destroy;
+destructor TDocumentMetadata.Destroy;
 begin
   FreeAndNil(fFiles);
+  FreeAndNil(fNotes);
+  FreeAndNil(fPrimary);
+  FreeAndNil(fSynopsis);
   FreeAndNil(fProperties);
-  FreeAndNil(fDocuments);
+  FreeAndNil(fContents);
   inherited Destroy;
 end;
 
-procedure TMetadataCache.ListDocuments;
+procedure TDocumentMetadata.ListDocuments;
 begin
-  ListFiles(fDisk,@FilesListed,@FilesListError);
-  // also need to get the properties in order to know the right sort order.
+  // the list sorting depends on the properties, which means we have to
+  // make sure they are loaded first. The documents will be automatically
+  // listed when that calls back anyway.
+  if Properties.FilingState = fsNotLoaded then
+     Properties.Load
+  else
+     ListFiles(fDisk,@FilesListed,@FilesListError);
+
 end;
 
-function TMetadataCache.GetDocumentList: TDocumentList;
+function TDocumentMetadata.GetContents: TDocumentList;
 var
   i: Integer;
   list: TEZSortStringList;
-  aChild: TMetadataCache;
+  aChild: TDocumentMetadata;
 begin
   list := TEZSortStringList.Create;
   try
     list.OnEZSort:=@SortDocuments;
-    for i := 0 to fDocuments.Count - 1 do
+    for i := 0 to fContents.Count - 1 do
     begin
       // I'm only interested in documents that have associated disk files.
       // other documents can be retrieved by specific name, but I don't
       // want to display them as available if they aren't.
-      aChild := fDocuments[i] as TMetadataCache;
+      aChild := fContents[i] as TDocumentMetadata;
       if (aChild.fFiles <> nil) and (aChild.fFiles.Count > 0) then
          list.Add(aChild.fID);
     end;
@@ -559,72 +901,13 @@ begin
   end;
 end;
 
-function TMetadataCache.IsListed: Boolean;
+function TDocumentMetadata.AreAttachmentsListed: Boolean;
 begin
   result := fFiles <> nil;
 end;
 
-function TMetadataCache.HasSynopsis: Boolean;
-begin
-  result := fSynopsis.Loaded;
-end;
-
-function TMetadataCache.GetSynopsis: String;
-begin
-  result := fSynopsis.Value;
-end;
-
-procedure TMetadataCache.LoadSynopsis;
-begin
-  ReadFile(fDisk + '_synopsis.txt',@SynopsisLoaded,@SynopsisLoadError);
-end;
-
-procedure TMetadataCache.EditPrimary;
-var
-  aPrimaryFiles: TStringArray;
-begin
-  aPrimaryFiles := GetAttachments('');
-  case Length(aPrimaryFiles) of
-    0:
-      // TODO: If the file does not exist, ask the user if they wish
-      // to attempt to create the file. This requires an event.
-      raise Exception.Create('Primary file does not exist yet.');
-    1:
-      // TODO: Open up the specified file in an application appropriate
-      // for the platform and file system.
-      //EditFile(IncludeTrailingPathDelimiter()
-      EditFile(aPrimaryFiles[0]);
-  else
-      // TODO: Should ask user which one to edit instead. This requires
-      // an event.
-      raise Exception.Create('Too many primary files');
-  end;
-
-end;
-
-procedure TMetadataCache.EditNotes;
-var
-  aNoteFiles: TStringArray;
-begin
-  aNoteFiles := GetAttachments('_notes');
-  case Length(aNoteFiles) of
-    0:
-      // TODO: If the file does not exist, ask the user if they wish
-      // to attempt to create the file. This requires an event.
-      raise Exception.Create('Notes file does not exist yet.');
-    1:
-      // TODO: Open up the specified file in an application appropriate
-      // for the platform and file system.
-      //EditFile(IncludeTrailingPathDelimiter()
-      EditFile(aNoteFiles[0]);
-    2:
-      // TODO: Should ask user which one to edit instead. This requires
-      // an event.
-      raise Exception.Create('Too many note files');
-  end;
-end;
-
-function TMetadataCache.GetAttachments(const aDescriptor: String): TStringArray;
+function TDocumentMetadata.GetAttachments(const aDescriptor: String;
+  const aExtension: String): TStringArray;
 var
   aItemDesc: String;
   aExt: String;
@@ -641,7 +924,7 @@ begin
   for i := 0 to fFiles.Count - 1 do
   begin
     aExt := ExtractFileExt(fFiles[i]);
-    if aExt <> '' then
+    if (aExt <> '') and ((aExtension = '') or (aExt = aExtension)) then
     begin
       aItemDesc := ExtractFileDescriptor(fFiles[i]);
       if (aItemDesc = aDescriptor) or ((aDescriptor = '') and (aItemDesc = '_')) then
@@ -653,6 +936,20 @@ begin
     end;
   end;
 
+end;
+
+function TDocumentMetadata.GetNewAttachmentName(const aDescriptor: String;
+  const aExtension: String): String;
+begin
+  result := fDisk + aDescriptor + aExtension;
+end;
+
+function TDocumentMetadata.GetSynopsis: TSynopsisMetadata;
+begin
+  if fSynopsis <> nil then
+    result := fSynopsis
+  else
+     raise Exception.Create('The root document does not have a synopsis');
 end;
 
 { TStewProject }
@@ -711,7 +1008,7 @@ begin
   end;
   if fMetadataCache = nil then
   begin
-    fMetadataCache := TMetadataCache.Create(Self,fDisk,RootDocument,true);
+    fMetadataCache := TDocumentMetadata.Create(Self,fDisk,RootDocument,true);
   end;
 end;
 
@@ -750,6 +1047,9 @@ end;
 
 constructor TStewProject.Create(const Path: TFilename);
 begin
+  // TODO: Should I be including, or excluding? Documents have it
+  // excluded (for good reason, since it's easier to find attachments and
+  // they're not always directories).
   fDisk := IncludeTrailingPathDelimiter(Path);
   fMetadataCache := nil; // created on open.
   fProperties := nil;
@@ -784,7 +1084,7 @@ begin
     // the list sorting depends on the properties, which means we have to
     // load them first. The documents will be automatically listed when that
     // calls back anyway.
-    props := GetDocumentProperties(aDocumentID);
+    props := GetDocument(aDocumentID).Properties;
     if props.FilingState = fsNotLoaded then
        props.Load
     else
@@ -792,93 +1092,15 @@ begin
   end;
 end;
 
-function TStewProject.IsDocumentListed(const aDocumentID: TDocumentID): Boolean;
+function TStewProject.GetDocument(const aDocumentID: TDocumentID
+  ): TDocumentMetadata;
 begin
   if fMetadataCache = nil then
      raise Exception.Create('Please open project first');
   if aDocumentID = RootDocument then
-     result := fMetadataCache.IsListed
+    result := fMetadataCache
   else
-    result := fMetadataCache.PutPath(aDocumentID).IsListed
-
-end;
-
-function TStewProject.GetDocumentList(const aDocumentID: TDocumentID
-  ): TDocumentList;
-begin
-  if fMetadataCache = nil then
-     raise Exception.Create('Please open project first');
-  if aDocumentID = RootDocument then
-     result := fMetadataCache.GetDocumentList
-  else
-    result := fMetadataCache.PutPath(aDocumentID).GetDocumentList;
-
-end;
-
-function TStewProject.GetDocumentProperties(const aDocument: TDocumentID
-  ): TDocumentProperties;
-begin
-  if fMetadataCache = nil then
-     raise Exception.Create('Please open project first');
-  if aDocument = RootDocument then
-    result := fMetadataCache.Properties
-  else
-    result := fMetadataCache.PutPath(aDocument).Properties;
-end;
-
-procedure TStewProject.LoadDocumentSynopsis(const aDocument: TDocumentID);
-begin
-  if fMetadataCache = nil then
-     raise Exception.Create('Please open project first');
-  if aDocument = RootDocument then
-     raise Exception.Create('The root document has no synopsis.');
-
-  fMetadataCache.PutPath(aDocument).LoadSynopsis;
-end;
-
-procedure TStewProject.EditDocumentPrimary(const aDocumentID: TDocumentID);
-begin
-  if fMetadataCache = nil then
-     raise Exception.Create('Please open project first');
-  if aDocumentID = RootDocument then
-     raise Exception.Create('The root document primary can not be edited');
-  fMetadataCache.PutPath(aDocumentID).EditPrimary;
-
-end;
-
-procedure TStewProject.EditDocumentNotes(const aDocumentID: TDocumentID);
-begin
-  if fMetadataCache = nil then
-     raise Exception.Create('Please open project first');
-  if aDocumentID = RootDocument then
-     fMetadataCache.EditNotes
-  else
-     fMetadataCache.PutPath(aDocumentID).EditNotes;
-
-end;
-
-function TStewProject.HasDocumentSynopsis(const aDocumentID: TDocumentID
-  ): Boolean;
-begin
-  if fMetadataCache = nil then
-     raise Exception.Create('Please open project first');
-  if aDocumentID = RootDocument then
-     raise Exception.Create('The root document has no synopsis.');
-
-  result := fMetadataCache.PutPath(aDocumentID).HasSynopsis;
-
-end;
-
-function TStewProject.GetDocumentSynopsis(const aDocumentID: TdocumentID
-  ): String;
-begin
-  if fMetadataCache = nil then
-     raise Exception.Create('Please open project first');
-  if aDocumentID = RootDocument then
-     raise Exception.Create('The root document has no synopsis.');
-
-  result := fMetadataCache.PutPath(aDocumentID).GetSynopsis;
-
+     result := fMetadataCache.PutPath(aDocumentID);
 end;
 
 function TStewProject.GetDiskPath(const ADocument: TDocumentID): TFileName;
@@ -947,7 +1169,7 @@ var
 begin
   if (Data) then
   begin
-    fProject.fDisk := fPath;
+    fProject.fDisk := IncludeTrailingPathDelimiter(fPath);
     fProject.DoOpened;
     fCallback(true);
   end

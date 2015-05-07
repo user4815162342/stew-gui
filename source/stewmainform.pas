@@ -7,7 +7,6 @@ interface
 {
 
 TODO: To get this actually usable and publish it on Github, at least.
-- Need to finish editing document properties
 - Need to see categories and statuses visually in the inspector.
 - Need to be able to create files
   (Has to be done in such a way that I don't have to actually create the
@@ -170,7 +169,11 @@ type
                      mfaDocumentPropertiesLoaded,
                      mfaDocumentPropertiesSaving,
                      mfaDocumentPropertiesSaved,
-                     mfaDocumentSynopsisLoaded);
+                     mfaDocumentSynopsisLoaded,
+                     mfaDocumentSynopsisLoading,
+                     mfaDocumentSynopsisSaving,
+                     mfaDocumentSynopsisSaved,
+                     mfaDocumentSynopsisSaveConflicted);
   TMainFormObserverHandler = procedure(aAction: TMainFormAction; aDocument: TDocumentID) of object;
   TMainFormObserverList = specialize TFPGList<TMainFormObserverHandler>;
 
@@ -188,14 +191,23 @@ type
     ExitMenuItem: TMenuItem;
     OpenProjectDialog: TSelectDirectoryDialog;
     procedure AboutMenuItemClick(Sender: TObject);
+    procedure DocumentAttachmentLoading(Sender: TObject; Document: TDocumentID;
+      AttachmentName: String);
+    procedure DocumentAttachmentSaveConflicted(Sender: TObject;
+      Document: TDocumentID; AttachmentName: String);
+    procedure DocumentAttachmentSaved(Sender: TObject; Document: TDocumentID;
+      AttachmentName: String);
+    procedure DocumentAttachmentSaving(Sender: TObject; Document: TDocumentID;
+      AttachmentName: String);
     procedure DocumentListError(Sender: TObject; Document: TDocumentID;
       Error: String);
     procedure DocumentPropertiesLoading(Sender: TObject; Document: TDocumentID);
     procedure DocumentPropertiesSaving(Sender: TObject; Document: TDocumentID);
     procedure DocumentsListed(Sender: TObject; Document: TDocumentID);
-    procedure DocumentSynopsisLoaded(Sender: TObject; Document: TDocumentID);
-    procedure DocumentSynopsisLoadError(Sender: TObject; Document: TDocumentID;
-      Error: String);
+    procedure DocumentAttachmentLoaded(Sender: TObject; Document: TDocumentID;
+      Attachment: String);
+    procedure DocumentAttachmentError(Sender: TObject; Document: TDocumentID;
+      Attachment: String; Error: String);
     procedure DocumentTabCloseRequested(Sender: TObject);
     procedure ExitMenuItemClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var {%H-}CloseAction: TCloseAction);
@@ -283,6 +295,38 @@ begin
   AboutForm.ShowModal;
 end;
 
+procedure TMainForm.DocumentAttachmentLoading(Sender: TObject;
+  Document: TDocumentID; AttachmentName: String);
+begin
+  if AttachmentName = 'Synopsis' then
+    NotifyObservers(mfaDocumentSynopsisLoading,Document);
+
+end;
+
+procedure TMainForm.DocumentAttachmentSaveConflicted(Sender: TObject;
+  Document: TDocumentID; AttachmentName: String);
+begin
+  if AttachmentName = 'Synopsis' then
+    NotifyObservers(mfaDocumentSynopsisSaveConflicted,Document);
+
+end;
+
+procedure TMainForm.DocumentAttachmentSaved(Sender: TObject;
+  Document: TDocumentID; AttachmentName: String);
+begin
+  if AttachmentName = 'Synopsis' then
+    NotifyObservers(mfaDocumentSynopsisSaved,Document);
+
+end;
+
+procedure TMainForm.DocumentAttachmentSaving(Sender: TObject;
+  Document: TDocumentID; AttachmentName: String);
+begin
+  if AttachmentName = 'Synopsis' then
+    NotifyObservers(mfaDocumentSynopsisSaving,Document);
+
+end;
+
 procedure TMainForm.DocumentListError(Sender: TObject; Document: TDocumentID;
   Error: String);
 begin
@@ -311,17 +355,20 @@ begin
   NotifyObservers(mfaDocumentsListed,Document);
 end;
 
-procedure TMainForm.DocumentSynopsisLoaded(Sender: TObject;
-  Document: TDocumentID);
+procedure TMainForm.DocumentAttachmentLoaded(Sender: TObject;
+  Document: TDocumentID; Attachment: String);
 begin
-  NotifyObservers(mfaDocumentSynopsisLoaded,Document);
+  if Attachment = 'Synopsis' then
+     NotifyObservers(mfaDocumentSynopsisLoaded,Document);
+  // TODO: What other attachments;
 end;
 
-procedure TMainForm.DocumentSynopsisLoadError(Sender: TObject;
-  Document: TDocumentID; Error: String);
+procedure TMainForm.DocumentAttachmentError(Sender: TObject;
+  Document: TDocumentID; Attachment: String; Error: String);
 begin
-  ShowMessage('An error occurred while saving or loading the synopsis.' + LineEnding +
+  ShowMessage('An error occurred while saving or loading an attachment.' + LineEnding +
               'The document''s ID was ' + Document + '.' + LineEnding +
+              'The attachment type was ' + Attachment + '.' + LineEnding +
               Error + LineEnding +
               'You may want to restart the program, or wait and try your task again later');
 end;
@@ -348,7 +395,7 @@ begin
              'Document ID: ' + Document + LineEnding +
              'Would you like to overwrite it''s contents?',mtWarning,mbYesNo,0) = mrYes then
    begin
-     fProject.GetDocumentProperties(Document).Save(true);
+     fProject.GetDocument(Document).Properties.Save(true);
    end;
 end;
 
@@ -632,8 +679,12 @@ begin
   fProject.OnDocumentPropertiesSaved:=@DocumentPropertiesSaved;
   fProject.OnDocumentPropertiesSaving:=@DocumentPropertiesSaving;
   fProject.OnDocumentPropertiesLoading:=@DocumentPropertiesLoading;
-  fProject.OnDocumentSynopsisLoaded:=@DocumentSynopsisLoaded;
-  fProject.OnDocumentSynopsisLoadError:=@DocumentSynopsisLoadError;
+  fProject.OnDocumentAttachmentLoaded:=@DocumentAttachmentLoaded;
+  fProject.OnDocumentAttachmentError:=@DocumentAttachmentError;
+  fProject.OnDocumentAttachmentLoading:=@DocumentAttachmentLoading;
+  fProject.OnDocumentAttachmentSaving:=@DocumentAttachmentSaving;
+  fProject.OnDocumentAttachmentSaved:=@DocumentAttachmentSaved;
+  fProject.OnDocumentAttachmentSaveConflicted:=@DocumentAttachmentSaveConflicted;
   fProject.OnDocumentsListed:=@DocumentsListed;
   fProject.OnDocumentListError:=@DocumentListError;
   fProject.OpenAtPath(@StartupIfProjectExists,@ProjectLoadFailed);

@@ -77,7 +77,8 @@ the file exists already. Or, we need to come up with a different way of doing th
   protected
     fUserPropertiesEditor: TJSONEditor;
     procedure SetDocument(AValue: TDocumentID); override;
-    procedure ShowDataToUser;
+    procedure ShowPropertiesToUser;
+    procedure WriteDataFromUser;
     procedure ShowSynopsisToUser;
     procedure UpdateLookupLists;
   public
@@ -89,7 +90,7 @@ the file exists already. Or, we need to come up with a different way of doing th
 implementation
 
 uses
-  Dialogs, stewproperties, stewpersist;
+  Dialogs, stewproperties, stewtypes, fpjson;
 
 {$R *.lfm}
 
@@ -97,9 +98,8 @@ uses
 
 procedure TDocumentEditor.SaveButtonClick(Sender: TObject);
 begin
-  ShowMessage('Sorry, I can''t save these things yet');
-
-  // TODO: WriteDataFromUser;
+  ShowMessage('The old version will be backed up in case this doesn''t work.');
+  WriteDataFromUser;
 
 end;
 
@@ -108,22 +108,25 @@ var
   canEditProps: Boolean;
   canEditSynopsis: Boolean;
   canEditAttachments: Boolean;
+  aData: TDocumentMetadata;
 begin
-  canEditProps := (MainForm.Project <> nil) and
-                  (MainForm.Project.IsOpened) and
+  if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
+    aData := MainForm.Project.GetDocument(Document)
+  else
+    aData := nil;
+  canEditProps := (aData <> nil) and
                   // properties depends on valid values from the project properties as well.
                   (MainForm.Project.Properties.FilingState in [fsLoaded]) and
-                  (MainForm.Project.GetDocumentProperties(Document).FilingState in [fsLoaded]);
+                  (aData.Properties.FilingState in [fsLoaded]);
   canEditAttachments := (MainForm.Project <> nil) and
                   (MainForm.Project.IsOpened) and
-                  (MainForm.Project.IsDocumentListed(Document));
+                  (aData.AreAttachmentsListed);
   // Synopsis is dependent on something else besides properties.
-  canEditSynopsis := (MainForm.Project <> nil) and
-                  (MainForm.Project.IsOpened) and
-                  (MainForm.Project.HasDocumentSynopsis(Document));
+  canEditSynopsis := canEditAttachments and
+                  (aData.Synopsis.FilingState in [fsLoaded]);
 
   RefreshButton.Enabled := canEditProps;
-  SaveButton.Enabled := canEditProps;
+  SaveButton.Enabled := canEditProps and canEditSynopsis;
   EditPrimaryButton.Enabled := canEditAttachments;
   EditNotesButton.Enabled := canEditAttachments;
   TitleLabel.Enabled := canEditProps;
@@ -142,12 +145,15 @@ begin
 end;
 
 procedure TDocumentEditor.RefreshButtonClick(Sender: TObject);
+var
+  aData: TDocumentMetadata;
 begin
   // TODO: Test this.
   if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
   begin
-       MainForm.Project.GetDocumentProperties(Document).Load;
-       MainForm.Project.LoadDocumentSynopsis(Document);
+    aData := MainForm.Project.GetDocument(Document);
+    aData.Properties.Load;
+    aData.Synopsis.Load;
        // this should automatically call something on the main form
        // which will notify that the project has refreshed, and do so.
   end;
@@ -158,7 +164,7 @@ procedure TDocumentEditor.EditPrimaryButtonClick(Sender: TObject);
 begin
   if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
   begin
-    MainForm.Project.EditDocumentPrimary(Document);
+    MainForm.Project.GetDocument(Document).Primary.OpenInEditor;
   end;
 end;
 
@@ -166,14 +172,32 @@ procedure TDocumentEditor.ObserveMainForm(aAction: TMainFormAction;
   aDocument: TDocumentID);
 begin
   case aAction of
-    mfaDocumentPropertiesLoaded, mfaDocumentPropertiesLoading, mfaDocumentPropertiesSaved, mfaDocumentPropertiesSaving:
+    mfaDocumentPropertiesLoaded, mfaDocumentPropertiesSaved:
       if aDocument = Document then
-         ShowDataToUser;
-    mfaDocumentSynopsisLoaded:
+      begin
+         ShowPropertiesToUser;
+         SetupControls;
+      end;
+    mfaDocumentPropertiesLoading, mfaDocumentPropertiesSaving:
+      if aDocument = Document then
+         SetupControls;
+    mfaDocumentSynopsisLoaded, mfaDocumentSynopsisSaved:
       if aDocument = Document then
       begin
          ShowSynopsisToUser;
          SetupControls;
+      end;
+    mfaDocumentSynopsisLoading, mfaDocumentSynopsisSaving:
+      if aDocument = Document then
+        SetupControls;
+    mfaDocumentSynopsisSaveConflicted:
+      if aDocument = Document then
+      begin
+        if MessageDlg('The synopsis has changed on the disk since the last time it was loaded.' + LineEnding +
+                  'Would you like to overwrite it''s contents?',mtWarning,mbYesNo,0) = mrYes then
+        begin
+          MainForm.Project.GetDocument(Document).Synopsis.Save(SynopsisEdit.Lines.Text,true);
+        end;
       end;
     mfaProjectPropertiesLoaded, mfaProjectPropertiesLoading, mfaProjectPropertiesSaved, mfaProjectPropertiesSaving:
       SetupControls;
@@ -185,7 +209,7 @@ begin
   // TODO: Test this.
   if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
   begin
-    MainForm.Project.EditDocumentNotes(Document);
+    MainForm.Project.GetDocument(Document).Notes.OpenInEditor;
   end;
 end;
 
@@ -204,38 +228,79 @@ begin
       Parent.Caption := aName;
     end;
     if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
-      MainForm.Project.LoadDocumentSynopsis(AValue);
-    ShowDataToUser;
+    begin
+      with MainForm.Project.GetDocument(AValue) do
+      begin
+        Properties.Load;
+        Synopsis.Load;
+      end;
+    end;
+
 
   end;
 end;
 
-procedure TDocumentEditor.ShowDataToUser;
+procedure TDocumentEditor.ShowPropertiesToUser;
 var
   props: TDocumentProperties;
 begin
   props := nil;
   if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
   begin
-    props := MainForm.Project.GetDocumentProperties(Document);
+    props := MainForm.Project.GetDocument(Document).Properties;
     TitleEdit.Text := props.title;
     PublishEdit.Checked := props.publish;
     CategoryEdit.Text := props.category;
     StatusEdit.Text := props.status;
     fUserPropertiesEditor.SetJSON(props.user);
-    ShowSynopsisToUser;
 
   end;
-  SetupControls;
+
+end;
+
+procedure TDocumentEditor.WriteDataFromUser;
+var
+  doc: TDocumentMetadata;
+  props: TDocumentProperties;
+  aUser: TJSONData;
+begin
+  props := nil;
+  if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
+  begin
+    doc := MainForm.Project.GetDocument(Document);
+    props := doc.Properties;
+    props.title := TitleEdit.Text;
+    props.publish := PublishEdit.Checked;
+    props.category := CategoryEdit.Text;
+    props.status := StatusEdit.Text;
+
+    // I need to create and destroy this object because
+    // it gets cloned when setting the property.
+    aUser := fUserPropertiesEditor.CreateJSON;
+    try
+      props.user := aUser;
+    finally
+      aUser.Free;
+    end;
+
+    props.Save;
+    doc.Synopsis.Save(SynopsisEdit.Lines.Text);
+
+
+
+  end
 
 end;
 
 procedure TDocumentEditor.ShowSynopsisToUser;
+var
+  aMeta: TDocumentMetadata;
 begin
   if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
   begin
-    if MainForm.Project.HasDocumentSynopsis(Document) then
-      SynopsisEdit.Lines.Text := MainForm.Project.GetDocumentSynopsis(Document);
+    aMeta := MainForm.Project.GetDocument(Document);
+    if aMeta.Synopsis.FilingState in [fsLoaded] then
+      SynopsisEdit.Lines.Text := aMeta.Synopsis.GetContents;
   end;
 end;
 

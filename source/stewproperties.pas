@@ -195,6 +195,8 @@ uses
 
 procedure TDocumentProperties.SetUserProperties(AValue: TJSONData);
 begin
+  // TODO: Instead of cloning... apply data in place so that we
+  // can tell if something was modified.
   if fUserProperties <> nil then
     FreeAndNil(fUserProperties);
   if AValue <> nil then
@@ -626,6 +628,8 @@ end;
 
 procedure TProjectProperties.SetdefaultDocExtension(AValue: String);
 begin
+  if (aValue = '') or (aValue[1] <> '.') then
+    aValue := '.' + aValue;
   if FdefaultDocExtension=AValue then Exit;
   FdefaultDocExtension:=AValue;
 end;
@@ -638,6 +642,8 @@ end;
 
 procedure TProjectProperties.SetdefaultNotesExtension(AValue: String);
 begin
+  if (aValue = '') or (aValue[1] <> '.') then
+    aValue := '.' + aValue;
   if FdefaultNotesExtension=AValue then Exit;
   FdefaultNotesExtension:=AValue;
 end;
@@ -650,6 +656,8 @@ end;
 
 procedure TProjectProperties.SetdefaultThumbnailExtension(AValue: String);
 begin
+  if (aValue = '') or (aValue[1] <> '.') then
+    aValue := '.' + aValue;
   if FdefaultThumbnailExtension=AValue then Exit;
   FdefaultThumbnailExtension:=AValue;
 end;

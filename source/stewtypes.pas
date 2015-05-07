@@ -8,6 +8,8 @@ uses
   Classes, SysUtils, contnrs;
 
 type
+  TFilingState = (fsNotLoaded, fsLoading, fsLoaded, fsSaving, fsError, fsConflict);
+
   TExceptionEvent = procedure(Sender: TObject; aError: Exception) of object;
   TExceptionMessageEvent = procedure(Sender: TObject; aError: String) of object;
 

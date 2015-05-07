@@ -157,7 +157,7 @@ procedure WriteFile(const aPath: TFilename; aCreateDir: Boolean;
   aCallback: TWriteFileCallback; aConflictBack: TWriteFileCallback;
   aErrorback: TDeferredExceptionCallback);
 begin
-  TWriteFile.Create(aPath,aCreateDir,aCheckFileAge,aFileAge,aData,aCallback,aConflictBack,aErrorback);
+  TWriteFile.Create(aPath,aCreateDir,aCheckFileAge,aFileAge,aData,aCallback,aConflictBack,aErrorback).Enqueue;
 end;
 
 

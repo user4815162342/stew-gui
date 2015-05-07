@@ -127,8 +127,6 @@ type
   end;
 
 
-  TFilingState = (fsNotLoaded, fsLoading, fsLoaded, fsSaving, fsError, fsConflict);
-
   { TJSONAsyncFileStoreContainer }
   // TODO: Should be TJSONAsyncFileStore
 
