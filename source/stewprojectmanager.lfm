@@ -15,6 +15,7 @@ object ProjectManager: TProjectManager
     Width = 253
     Align = alClient
     DefaultItemHeight = 18
+    Images = DocumentGlyphs
     ReadOnly = True
     ScrollBars = ssAutoBoth
     TabOrder = 0
@@ -22,5 +23,9 @@ object ProjectManager: TProjectManager
     OnDblClick = ProjectExplorerDblClick
     OnExpanding = ProjectExplorerExpanding
     Options = [tvoAutoItemHeight, tvoHideSelection, tvoKeepCollapsedNodes, tvoReadOnly, tvoShowButtons, tvoShowLines, tvoShowRoot, tvoToolTips, tvoThemedDraw]
+  end
+  object DocumentGlyphs: TImageList
+    left = 34
+    top = 35
   end
 end

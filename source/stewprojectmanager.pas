@@ -5,7 +5,13 @@ unit stewprojectmanager;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, ComCtrls, stewproject, stewfile, stewmainform;
+  Classes, SysUtils, FileUtil, Forms, Controls, ComCtrls, stewproject, stewfile, stewmainform, stewproperties;
+
+// TODO: Need custom text or background color based on statuses in categories.
+// - whenever the project properties are loaded or saved:
+//   - update the treeview drawing
+// - in the treeviewitem oncustomdraw, supposedly, we can set the font background color
+//   and then just set DefaultDraw to true to get it to work.
 
 // TODO: Should be called a 'manager', not an 'inspector'.
 
@@ -27,6 +33,7 @@ type
   { TProjectManager }
 
   TProjectManager = class(TFrame)
+    DocumentGlyphs: TImageList;
     ProjectExplorer: TTreeView;
     procedure ObserveMainForm(aAction: TMainFormAction; {%H-}aDocument: TDocumentID);
     procedure ProjectExplorerCreateNodeClass(Sender: TCustomTreeView;
@@ -46,26 +53,29 @@ type
     public
       property DocumentID: TDocumentID read FDocumentID write SetDocumentID;
       property ExpandOnList: Boolean read fExpandOnList write fExpandOnList;
+      procedure UpdateGlyph(aProps: TProjectProperties);
     end;
   private
     { private declarations }
     function GetProject: TStewProject;
     procedure ReloadNodeForDocument(aDocument: TDocumentID);
-    procedure ReloadNode(aNode: TProjectInspectorNode);
+    procedure ReloadNode(aNode: TProjectInspectorNode; aProps: TProjectProperties);
     function GetTreeNodeForDocument(aDocument: TDocumentID): TProjectInspectorNode;
+    procedure InitializeNode(aNode: TProjectInspectorNode; aDocument: TDocumentID;
+      aProps: TProjectProperties);
+    procedure UpdateCategoryGlyphs;
   protected
     property Project: TStewProject read GetProject;
   public
     { public declarations }
     constructor Create(TheOwner: TComponent); override;
     destructor Destroy; override;
-    procedure RefreshProject;
   end;
 
 implementation
 
 uses
-  dialogs;
+  dialogs, Graphics, stewtypes;
 
 {$R *.lfm}
 
@@ -80,30 +90,54 @@ begin
   end;
 end;
 
+procedure TProjectManager.TProjectInspectorNode.UpdateGlyph(
+  aProps: TProjectProperties);
+begin
+  if aProps = nil then
+  begin
+    if (MainForm.Project <> nil) and MainForm.Project.IsOpened then
+      aProps := MainForm.Project.Properties
+    else
+    begin
+      ImageIndex := -1;
+      SelectedIndex := -1;
+      Exit;
+    end;
+  end;
+  ImageIndex := aProps.categories.IndexOf(MainForm.Project.GetDocument(DocumentID).Properties.category);
+  SelectedIndex:= ImageIndex;
+end;
+
 { TProjectManager }
 
 procedure TProjectManager.ProjectExplorerExpanding(Sender: TObject;
   Node: TTreeNode; var AllowExpansion: Boolean);
 var
   Document: TDocumentID;
+  aDoc: TDocumentMetadata;
 begin
 
-  if (Node.HasChildren and (Node.GetFirstChild = nil)) then
-  begin
     Document := (Node as TProjectInspectorNode).DocumentID;
-    Project.ListDocuments(Document);
-    // also need to reload the properties to get the right sort order.
-    (Node as TProjectInspectorNode).ExpandOnList := true;
-  end;
+    aDoc := Project.GetDocument(Document);
+    if aDoc.ListingState = lsNotListed then
+    begin
+      Project.GetDocument(Document).ListDocuments(false);
+      // also need to reload the properties to get the right sort order.
+      (Node as TProjectInspectorNode).ExpandOnList := true;
+    end;
 end;
 
 procedure TProjectManager.ObserveMainForm(aAction: TMainFormAction;
   aDocument: TDocumentID);
 begin
   case aAction of
-    mfaDocumentsListed:
+    mfaDocumentsListed,mfaDocumentPropertiesLoaded,mfaDocumentPropertiesSaved:
     begin
       ReloadNodeForDocument(aDocument);
+    end;
+    mfaProjectPropertiesLoaded, mfaProjectPropertiesSaved:
+    begin
+      UpdateCategoryGlyphs;
     end;
   end;
 end;
@@ -142,14 +176,14 @@ begin
   if aDocument <> RootDocument then
   begin
      aNode := GetTreeNodeForDocument(aDocument);
-     ReloadNode(aNode);
+     ReloadNode(aNode,nil);
   end
   else
-     ReloadNode(nil);
+     ReloadNode(nil,nil);
   // else, I don't care about this document because I haven't loaded it yet.
 end;
 
-procedure TProjectManager.ReloadNode(aNode: TProjectInspectorNode);
+procedure TProjectManager.ReloadNode(aNode: TProjectInspectorNode; aProps: TProjectProperties);
 var
   aList: TDocumentList;
   i: Integer;
@@ -157,10 +191,17 @@ var
   aMatch: TProjectInspectorNode;
 begin
 
+  if aProps = nil then
+  begin
+    if (MainForm.Project <> nil) and MainForm.Project.IsOpened then
+      aProps := MainForm.Project.Properties;
+  end;
+
   ProjectExplorer.BeginUpdate;
   try
     if aNode <> nil then
     begin
+      aNode.UpdateGlyph(aProps);
       aList := MainForm.Project.GetDocument(aNode.DocumentID).GetContents;
       aChild := aNode.GetFirstChild as TProjectInspectorNode;
 
@@ -190,6 +231,12 @@ begin
           aChild := aMatch;
         end;
         // else do nothing and go on to the next
+
+        // reload the node from it's list and properties. This will
+        // not go and get data it doesn't have, it will just update
+        // the data it *does* have.
+        ReloadNode(aChild,aProps);
+
       end
       else
       begin
@@ -200,8 +247,7 @@ begin
         else
            aChild := ProjectExplorer.Items.AddChild(aNode,'') as TProjectInspectorNode;
         // initialize it.
-        aChild.DocumentID:=aList[i];
-        achild.HasChildren:=true;
+        InitializeNode(aChild,aList[i],aProps);
       end;
 
       // go on to the next sibling and the next item in the list.
@@ -211,7 +257,7 @@ begin
 
     // if achild is not nil then we reached the end of the list
     // and there are still some extra nodes left.
-    if aChild <> nil then
+    while aChild <> nil do
     begin
       aMatch := aChild.GetNextSibling as TProjectInspectorNode;
       ProjectExplorer.Items.Delete(aChild);
@@ -250,6 +296,80 @@ begin
   result := nil;
 end;
 
+procedure TProjectManager.InitializeNode(aNode: TProjectInspectorNode;
+  aDocument: TDocumentID; aProps: TProjectProperties);
+var
+  docProps: TDocumentProperties;
+begin
+  aNode.DocumentID:=aDocument;
+  aNode.HasChildren:=true;
+  aNode.UpdateGlyph(aProps);
+  if (MainForm.Project <> nil) then
+  begin
+    // we need property information to display it.
+    docProps := MainForm.Project.GetDocument(aDocument).Properties;
+    if docProps.FilingState = fsNotLoaded then
+      docProps.Load;
+  end;
+end;
+
+procedure TProjectManager.UpdateCategoryGlyphs;
+var
+  imHeight: Integer;
+  props: TProjectProperties;
+  i: Integer;
+
+  function AddBitmapForColor(aColor: TColor): Integer;
+  var
+    bm: TBitmap;
+  begin
+    bm := TBitmap.Create;
+    try
+      bm.Width := imHeight;
+      bm.Height := imHeight;
+      with bm.Canvas do
+      begin
+        // TODO: okay.. this is pretty ugly, a png would be better,
+        // but it will do for now since I'm going to switch to glyphs
+        // later anyway.
+        Brush.Color := clWindow;
+        Pen.Color := clWindow;
+        FillRect(0,0,imHeight,imHeight);
+        Brush.Color := aColor;
+        Pen.Color := clWindowText;
+        Pen.Width := 2;
+        Ellipse(2,2,imHeight - 2,imHeight - 2);
+      end;
+      result := DocumentGlyphs.AddMasked(bm,clDefault);
+    finally
+      bm.Free;
+    end;
+
+  end;
+
+begin
+  if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
+  begin
+    props := MainForm.Project.Properties;
+    DocumentGlyphs.BeginUpdate;
+    try
+      DocumentGlyphs.Clear;
+      imHeight := ProjectExplorer.DefaultItemHeight-1;
+      for i := 0 to props.categories.NameCount - 1 do
+        AddBitmapForColor((props.categories.Items[props.categories.Names[i]] as TKeywordDefinition).color);
+    finally
+      DocumentGlyphs.EndUpdate;
+    end;
+    ProjectExplorer.BeginUpdate;
+    try
+      for i := 0 to ProjectExplorer.Items.Count - 1 do
+        (ProjectExplorer.Items[i] as TProjectInspectorNode).UpdateGlyph(props);
+    finally
+      ProjectExplorer.EndUpdate;
+    end;
+  end;
+end;
+
 constructor TProjectManager.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
@@ -261,15 +381,6 @@ destructor TProjectManager.Destroy;
 begin
   MainForm.Unobserve(@ObserveMainForm);
   inherited Destroy;
-end;
-
-procedure TProjectManager.RefreshProject;
-begin
-  ProjectExplorer.Items.Clear;
-  if (Project <> nil) then
-  begin
-    Project.ListDocuments(RootDocument);
-  end;
 end;
 
 end.

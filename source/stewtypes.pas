@@ -9,6 +9,7 @@ uses
 
 type
   TFilingState = (fsNotLoaded, fsLoading, fsLoaded, fsSaving, fsError, fsConflict);
+  TListingState = (lsNotListed, lsListing, lsListed);
 
   TExceptionEvent = procedure(Sender: TObject; aError: Exception) of object;
   TExceptionMessageEvent = procedure(Sender: TObject; aError: String) of object;
@@ -80,6 +81,7 @@ type
     procedure Delete(const Key: String);
     function Insert(const Key: String): TMappedCollectionItem;
     function Find(const Key: String): TMappedCollectionItem;
+    function IndexOf(const Key: String): Integer;
     property ItemClass: TMappedCollectionItemClass read FItemClass;
     property Items[const Key: String]: TMappedCollectionItem read GetItem write SetItem; default;
     property NameCount: Integer read GetNameCount;
@@ -336,6 +338,11 @@ begin
     Result:=fHash[i] as TMappedCollectionItem
   else
     Result := nil;
+end;
+
+function TMappedCollection.IndexOf(const Key: String): Integer;
+begin
+  result := fHash.FindIndexOf(Key);
 end;
 
 end.

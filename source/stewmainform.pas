@@ -8,6 +8,7 @@ interface
 
 TODO: To get this actually usable and publish it on Github, at least.
 - Need to see categories and statuses visually in the inspector.
+- Need to be able to edit categories and statuses in the grids.
 - Need to be able to create files
   (Has to be done in such a way that I don't have to actually create the
    data until I save. Perhaps a new filingstate flag, plus a flag on the
@@ -609,7 +610,11 @@ begin
   fConfig.MRUProject := fProject.DiskPath;
   Self.Caption := Application.Title + ' - ' + fProject.GetProjectName;
   Enabled := true;
-  fProject.ListDocuments(RootDocument);
+  with fProject.GetDocument(RootDocument) do
+  begin
+    Properties.Load;
+    ListDocuments(false);
+  end;
 end;
 
 procedure TMainForm.ProjectPropertiesError(Sender: TObject; aError: String);
@@ -646,7 +651,7 @@ end;
 
 procedure TMainForm.RefreshProjectMenuItemClick(Sender: TObject);
 begin
-  Project.ListDocuments(RootDocument);
+  Project.GetDocument(RootDocument).ListDocuments(true);
 end;
 
 procedure TMainForm.StartupCheckProject(Data: PtrInt);

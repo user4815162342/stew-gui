@@ -126,7 +126,7 @@ type
     TProtectedDocumentProperties = class(TDocumentProperties)
     end;
   strict private
-    fIsRoot: Boolean;
+    fListingState: TListingState;
     fProject: TStewProject;
     fDisk: TFilename;
     fID: TDocumentID;
@@ -152,10 +152,11 @@ type
     procedure AttachmentSaved(const aName: String);
     procedure AttachmentSaveConflicted(const aName: String);
     procedure AttachmentSaveFailed(const aName: String; aError: String);
-    procedure FilesListed(Data: TFileList);
+    procedure FilesListed(Data: TFileList; aRecursive: Boolean);
+    procedure FilesListedNonrecursive(Data: TFileList);
+    procedure FilesListedRecursive(Data: TFileList);
     procedure FilesListError(Data: String);
     procedure ClearFiles;
-    procedure ClearChildFiles;
     procedure AddFile(const aFile: TFilename);
     function SortDocuments(List: TStringList; Index1, Index2: Integer): Integer;
     function PutPath(const aPath: String): TDocumentMetadata;
@@ -169,7 +170,12 @@ type
       aID: TDocumentID; aIsRoot: Boolean);
     destructor Destroy; override;
     property Properties: TDocumentProperties read fProperties;
-    procedure ListDocuments;
+    // This isn't a true recursive. It is more of a recursive refresh that doesn't
+    // cause new documents to appear. It will list the current document, yes.
+    // But it will only cause children docs to list themselves if they have already
+    // been listed.
+    procedure ListDocuments(Recursive: Boolean);
+    property ListingState: TListingState read fListingState;
     function GetContents: TDocumentList;
     function AreAttachmentsListed: Boolean;
     property Synopsis: TSynopsisMetadata read GetSynopsis;
@@ -258,7 +264,6 @@ type
     property DiskPath: TFilename read fDisk;
     // TODO: Figure out filtering...
     // TODO: More importantly, need to 'sort' by directory index.
-    procedure ListDocuments(const aDocumentID: TDocumentID);
     function GetDocument(const aDocumentID: TDocumentID): TDocumentMetadata;
     // TODO: Figure out patterns and reg ex...
     // TODO: function Match: TProjectContentEnumerator;
@@ -587,8 +592,6 @@ procedure TDocumentMetadata.PropertiesSaved(Sender: TObject);
 begin
   if fProject.FOnDocumentPropertiesSaved <> nil then
     fProject.FOnDocumentPropertiesSaved(fProject,fID);
-  // just like when loaded, refresh the list.
-  ListDocuments;
 end;
 
 procedure TDocumentMetadata.PropertiesSaveFailed(Sender: TObject;
@@ -598,18 +601,23 @@ begin
     fProject.FOnDocumentPropertiesError(fProject,fID,aError);
 end;
 
-procedure TDocumentMetadata.FilesListed(Data: TFileList);
+procedure TDocumentMetadata.FilesListed(Data: TFileList; aRecursive: Boolean);
 var
   aPacket: TFilename;
   i: Integer;
   aChild: TDocumentMetadata;
 begin
+  // TODO: If recursive, I want to refresh all existing lists, but I don't
+  // want to do any lists that aren't already listed. I need a listing state
+  // for this.
+
   // clear out the old ones.
   // NOTE: We don't want to actuall delete all of the items in the cache,
   // we just want to delete the files. If we delete the actual items, we
   // run to risk of deleting a properties object that is maintaining some
-  // data which hasn't been applied to disk yet.
-  ClearChildFiles;
+  // data which hasn't been applied to disk yet. Also, we don't
+  // want to delete everything recursively.
+  ClearFiles;
   for i := 0 to Length(Data) - 1 do
   begin
     if (Data[i][1] <> '_') then
@@ -623,8 +631,26 @@ begin
     // in the root metadata.
       AddFile(IncludeTrailingPathDelimiter(ExtractFileName(fDisk)) + Data[i]);
   end;
+
+  if aRecursive then
+  begin
+    for i := 0 to fContents.Count - 1 do
+    begin
+      aChild := fContents[i] as TDocumentMetadata;
+      if aChild.ListingState = lsListed then
+        aChild.ListDocuments(true);
+    end;
+
+  end;
+
+  fListingState := lsListed;
   if fProject.fOnDocumentsListed <> nil then
      fProject.fOnDocumentsListed(fProject,fID);
+end;
+
+procedure TDocumentMetadata.FilesListedNonrecursive(Data: TFileList);
+begin
+  FilesListed(Data,false);
 end;
 
 procedure TDocumentMetadata.FilesListError(Data: String);
@@ -634,26 +660,27 @@ begin
 end;
 
 procedure TDocumentMetadata.ClearFiles;
-begin
-  FreeAndNil(fFiles);
-  ClearChildFiles;
-end;
-
-procedure TDocumentMetadata.ClearChildFiles;
 var
   i: Integer;
+  j: Integer;
+  aChild: TDocumentMetadata;
 begin
   if fFiles <> nil then
   begin
     for i := fFiles.Count - 1 downto 0 do
     begin
-      if (Length(fFiles[i]) > 0) and (fFiles[i][1] = '_') then
+      if (Length(fFiles[i]) = 0) or (fFiles[i][1] = '_') then
          fFiles.Delete(i);
     end;
   end;
   for i := 0 to fContents.Count - 1 do
   begin
-    (fContents[i] as TDocumentMetadata).ClearFiles;
+    aChild := fContents[i] as TDocumentMetadata;
+    for j := aChild.fFiles.Count - 1 downto 0 do
+    begin
+      if (Length(aChild.fFiles[j]) = 0) or (aChild.fFiles[j][1] <> '_') then
+         aChild.fFiles.Delete(j);
+    end;
   end;
 end;
 
@@ -759,6 +786,11 @@ begin
 
 end;
 
+procedure TDocumentMetadata.FilesListedRecursive(Data: TFileList);
+begin
+  FilesListed(Data,true);
+end;
+
 function TDocumentMetadata.GetPrimary: TPrimaryMetadata;
 begin
   if fPrimary <> nil then
@@ -771,10 +803,6 @@ procedure TDocumentMetadata.PropertiesLoaded(Sender: TObject);
 begin
   if fProject.fOnDocumentPropertiesLoaded <> nil then
      fProject.fOnDocumentPropertiesLoaded(fProject,fID);
-  // since the properties might have changed the index, automatically
-  // trigger a reload of the list. This means that, in order to refresh
-  // the project list, you could just load the properties.
-  ListDocuments;
 end;
 
 constructor TDocumentMetadata.Create(aProject: TStewProject;
@@ -783,13 +811,10 @@ var
   aCached: TProtectedDocumentProperties;
 begin
   inherited Create;
-  // TODO: Actually, if we move the attachments into separate objects,
-  // then we can simply not create them, and we can check for that
-  // in the property.
-  fIsRoot := aIsRoot;
   fProject := aProject;
   fDisk := ExcludeTrailingPathDelimiter(aDiskPath);
   fID := aID;
+  fListingState := lsNotListed;
   fFiles := nil; // this is created as needed. A nil item here means the
                  // file has not been listed yet.
   if aIsRoot then
@@ -859,15 +884,19 @@ begin
   inherited Destroy;
 end;
 
-procedure TDocumentMetadata.ListDocuments;
+procedure TDocumentMetadata.ListDocuments(Recursive: Boolean);
 begin
   // the list sorting depends on the properties, which means we have to
   // make sure they are loaded first. The documents will be automatically
   // listed when that calls back anyway.
-  if Properties.FilingState = fsNotLoaded then
-     Properties.Load
-  else
-     ListFiles(fDisk,@FilesListed,@FilesListError);
+  if fListingState <> lsListing then
+  begin
+    fListingState := lsListing;
+    if Recursive then
+       ListFiles(fDisk,@FilesListedRecursive,@FilesListError)
+    else
+       ListFiles(fDisk,@FilesListedNonrecursive,@FilesListError);
+  end;
 
 end;
 
@@ -921,20 +950,21 @@ begin
   // Also, "attachments" must have an extension. If a document does not
   // have an extension, it is a directory.
   SetLength(result,0);
-  for i := 0 to fFiles.Count - 1 do
-  begin
-    aExt := ExtractFileExt(fFiles[i]);
-    if (aExt <> '') and ((aExtension = '') or (aExt = aExtension)) then
+  if fFiles <> nil then
+    for i := 0 to fFiles.Count - 1 do
     begin
-      aItemDesc := ExtractFileDescriptor(fFiles[i]);
-      if (aItemDesc = aDescriptor) or ((aDescriptor = '') and (aItemDesc = '_')) then
+      aExt := ExtractFileExt(fFiles[i]);
+      if (aExt <> '') and ((aExtension = '') or (aExt = aExtension)) then
       begin
-        l := Length(Result);
-        SetLength(Result,l + 1);
-        Result[l] := IncludeTrailingPathDelimiter(ExtractFileDir(fDisk)) + fFiles[i];
+        aItemDesc := ExtractFileDescriptor(fFiles[i]);
+        if (aItemDesc = aDescriptor) or ((aDescriptor = '') and (aItemDesc = '_')) then
+        begin
+          l := Length(Result);
+          SetLength(Result,l + 1);
+          Result[l] := IncludeTrailingPathDelimiter(ExtractFileDir(fDisk)) + fFiles[i];
+        end;
       end;
     end;
-  end;
 
 end;
 
@@ -1061,35 +1091,6 @@ begin
   if fProperties <> nil then
     fProperties.Free;
   inherited Destroy;
-end;
-
-
-procedure TStewProject.ListDocuments(const aDocumentID: TDocumentID);
-var
-  props: TDocumentProperties;
-begin
-  if fMetadataCache = nil then
-     raise Exception.Create('Please open project first');
-  if aDocumentID = RootDocument then
-  begin
-    // TODO: Do the same as with documents in order to get the list sorted.
-    props := fMetadataCache.Properties;
-    if props.FilingState = fsNotLoaded then
-       props.Load
-    else
-       fMetadataCache.ListDocuments;
-  end
-  else
-  begin
-    // the list sorting depends on the properties, which means we have to
-    // load them first. The documents will be automatically listed when that
-    // calls back anyway.
-    props := GetDocument(aDocumentID).Properties;
-    if props.FilingState = fsNotLoaded then
-       props.Load
-    else
-       fMetadataCache.PutPath(aDocumentID).ListDocuments;
-  end;
 end;
 
 function TStewProject.GetDocument(const aDocumentID: TDocumentID
