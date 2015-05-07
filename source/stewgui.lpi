@@ -65,12 +65,12 @@
         <UnitName Value="stewasync"/>
       </Unit4>
       <Unit5>
-        <Filename Value="stewprojectinspector.pas"/>
+        <Filename Value="stewprojectmanager.pas"/>
         <IsPartOfProject Value="True"/>
-        <ComponentName Value="ProjectInspectorFrame"/>
+        <ComponentName Value="ProjectManager"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
-        <UnitName Value="stewprojectinspector"/>
+        <UnitName Value="stewprojectmanager"/>
       </Unit5>
       <Unit6>
         <Filename Value="stewconfig.pas"/>

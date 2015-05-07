@@ -1,4 +1,4 @@
-unit stewprojectinspector;
+unit stewprojectmanager;
 
 {$mode objfpc}{$H+}
 
@@ -24,9 +24,9 @@ uses
 
 type
 
-  { TProjectInspectorFrame }
+  { TProjectManager }
 
-  TProjectInspectorFrame = class(TFrame)
+  TProjectManager = class(TFrame)
     ProjectExplorer: TTreeView;
     procedure ObserveMainForm(aAction: TMainFormAction; {%H-}aDocument: TDocumentID);
     procedure ProjectExplorerCreateNodeClass(Sender: TCustomTreeView;
@@ -71,7 +71,7 @@ uses
 
 { TProjectInspectorNode }
 
-procedure TProjectInspectorFrame.TProjectInspectorNode.SetDocumentID(AValue: TDocumentID);
+procedure TProjectManager.TProjectInspectorNode.SetDocumentID(AValue: TDocumentID);
 begin
   if FDocumentID <> AValue then
   begin
@@ -80,9 +80,9 @@ begin
   end;
 end;
 
-{ TProjectInspectorFrame }
+{ TProjectManager }
 
-procedure TProjectInspectorFrame.ProjectExplorerExpanding(Sender: TObject;
+procedure TProjectManager.ProjectExplorerExpanding(Sender: TObject;
   Node: TTreeNode; var AllowExpansion: Boolean);
 var
   Document: TDocumentID;
@@ -97,7 +97,7 @@ begin
   end;
 end;
 
-procedure TProjectInspectorFrame.ObserveMainForm(aAction: TMainFormAction;
+procedure TProjectManager.ObserveMainForm(aAction: TMainFormAction;
   aDocument: TDocumentID);
 begin
   case aAction of
@@ -108,13 +108,13 @@ begin
   end;
 end;
 
-procedure TProjectInspectorFrame.ProjectExplorerCreateNodeClass(
+procedure TProjectManager.ProjectExplorerCreateNodeClass(
   Sender: TCustomTreeView; var NodeClass: TTreeNodeClass);
 begin
   NodeClass := TProjectInspectorNode;
 end;
 
-procedure TProjectInspectorFrame.ProjectExplorerDblClick(Sender: TObject);
+procedure TProjectManager.ProjectExplorerDblClick(Sender: TObject);
 var
   Node: TTreeNode;
   Document: TDocumentID;
@@ -130,12 +130,12 @@ begin
 
 end;
 
-function TProjectInspectorFrame.GetProject: TStewProject;
+function TProjectManager.GetProject: TStewProject;
 begin
   result := MainForm.Project;
 end;
 
-procedure TProjectInspectorFrame.ReloadNodeForDocument(aDocument: TDocumentID);
+procedure TProjectManager.ReloadNodeForDocument(aDocument: TDocumentID);
 var
   aNode: TProjectInspectorNode;
 begin
@@ -149,7 +149,7 @@ begin
   // else, I don't care about this document because I haven't loaded it yet.
 end;
 
-procedure TProjectInspectorFrame.ReloadNode(aNode: TProjectInspectorNode);
+procedure TProjectManager.ReloadNode(aNode: TProjectInspectorNode);
 var
   aList: TDocumentList;
   i: Integer;
@@ -235,7 +235,7 @@ begin
 
 end;
 
-function TProjectInspectorFrame.GetTreeNodeForDocument(aDocument: TDocumentID): TProjectInspectorNode;
+function TProjectManager.GetTreeNodeForDocument(aDocument: TDocumentID): TProjectInspectorNode;
 begin
   result := ProjectExplorer.Items.GetFirstNode as TProjectInspectorNode;
   while result <> nil do
@@ -250,20 +250,20 @@ begin
   result := nil;
 end;
 
-constructor TProjectInspectorFrame.Create(TheOwner: TComponent);
+constructor TProjectManager.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
   MainForm.Observe(@ObserveMainForm);
   Text := 'Project';
 end;
 
-destructor TProjectInspectorFrame.Destroy;
+destructor TProjectManager.Destroy;
 begin
   MainForm.Unobserve(@ObserveMainForm);
   inherited Destroy;
 end;
 
-procedure TProjectInspectorFrame.RefreshProject;
+procedure TProjectManager.RefreshProject;
 begin
   ProjectExplorer.Items.Clear;
   if (Project <> nil) then

@@ -20,10 +20,11 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="stewmainform"/>
+        <IsVisibleTab Value="True"/>
         <EditorIndex Value="20"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="341"/>
-        <CursorPos X="1" Y="352"/>
+        <TopLine Value="766"/>
+        <CursorPos X="30" Y="777"/>
         <UsageCount Value="213"/>
         <Loaded Value="True"/>
       </Unit1>
@@ -31,7 +32,6 @@
         <Filename Value="stewproject.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="stewproject"/>
-        <IsVisibleTab Value="True"/>
         <EditorIndex Value="3"/>
         <WindowIndex Value="0"/>
         <TopLine Value="514"/>
@@ -65,18 +65,19 @@
         <Loaded Value="True"/>
       </Unit4>
       <Unit5>
-        <Filename Value="stewprojectinspector.pas"/>
+        <Filename Value="stewprojectmanager.pas"/>
         <IsPartOfProject Value="True"/>
-        <ComponentName Value="ProjectInspectorFrame"/>
+        <ComponentName Value="ProjectManager"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
-        <UnitName Value="stewprojectinspector"/>
+        <UnitName Value="stewprojectmanager"/>
         <EditorIndex Value="8"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="90"/>
-        <CursorPos X="1" Y="109"/>
+        <TopLine Value="1"/>
+        <CursorPos X="59" Y="17"/>
         <UsageCount Value="211"/>
         <Loaded Value="True"/>
+        <LoadedDesigner Value="True"/>
       </Unit5>
       <Unit6>
         <Filename Value="stewconfig.pas"/>
@@ -593,7 +594,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="71"/>
         <CursorPos X="38" Y="77"/>
-        <UsageCount Value="55"/>
+        <UsageCount Value="56"/>
         <Loaded Value="True"/>
       </Unit65>
       <Unit66>
@@ -602,7 +603,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="25"/>
         <CursorPos X="1" Y="46"/>
-        <UsageCount Value="55"/>
+        <UsageCount Value="56"/>
         <Loaded Value="True"/>
       </Unit66>
       <Unit67>
@@ -649,123 +650,123 @@
     <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
         <Filename Value="stewfile.pas"/>
-        <Caret Line="140" Column="21" TopLine="121"/>
+        <Caret Line="160" Column="111" TopLine="141"/>
       </Position1>
       <Position2>
         <Filename Value="stewfile.pas"/>
-        <Caret Line="146" Column="19" TopLine="127"/>
+        <Caret Line="200" Column="30" TopLine="181"/>
       </Position2>
       <Position3>
         <Filename Value="stewfile.pas"/>
-        <Caret Line="160" Column="111" TopLine="141"/>
+        <Caret Line="218" Column="62" TopLine="199"/>
       </Position3>
       <Position4>
         <Filename Value="stewfile.pas"/>
-        <Caret Line="200" Column="30" TopLine="181"/>
+        <Caret Line="239" Column="31" TopLine="221"/>
       </Position4>
       <Position5>
         <Filename Value="stewfile.pas"/>
-        <Caret Line="218" Column="62" TopLine="199"/>
+        <Caret Line="253" Column="31" TopLine="235"/>
       </Position5>
       <Position6>
         <Filename Value="stewfile.pas"/>
-        <Caret Line="239" Column="31" TopLine="221"/>
+        <Caret Line="264" Column="30" TopLine="245"/>
       </Position6>
       <Position7>
         <Filename Value="stewfile.pas"/>
-        <Caret Line="253" Column="31" TopLine="235"/>
+        <Caret Line="290" Column="34" TopLine="271"/>
       </Position7>
       <Position8>
         <Filename Value="stewfile.pas"/>
-        <Caret Line="264" Column="30" TopLine="245"/>
+        <Caret Line="307" Column="29" TopLine="288"/>
       </Position8>
       <Position9>
         <Filename Value="stewfile.pas"/>
-        <Caret Line="290" Column="34" TopLine="271"/>
+        <Caret Line="323" Column="31" TopLine="304"/>
       </Position9>
       <Position10>
-        <Filename Value="stewfile.pas"/>
-        <Caret Line="307" Column="29" TopLine="288"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="276" Column="31" TopLine="266"/>
       </Position10>
       <Position11>
-        <Filename Value="stewfile.pas"/>
-        <Caret Line="323" Column="31" TopLine="304"/>
+        <Filename Value="stewdocumenteditor.pas"/>
+        <Caret Line="1" Column="1" TopLine="1"/>
       </Position11>
       <Position12>
         <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="276" Column="31" TopLine="266"/>
+        <Caret Line="80" Column="29" TopLine="62"/>
       </Position12>
       <Position13>
         <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="1" Column="1" TopLine="1"/>
+        <Caret Line="175" Column="121" TopLine="158"/>
       </Position13>
       <Position14>
         <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="80" Column="29" TopLine="62"/>
+        <Caret Line="1" Column="1" TopLine="1"/>
       </Position14>
       <Position15>
         <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="175" Column="121" TopLine="158"/>
+        <Caret Line="80" Column="34" TopLine="62"/>
       </Position15>
       <Position16>
         <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="1" Column="1" TopLine="1"/>
+        <Caret Line="200" Column="24" TopLine="180"/>
       </Position16>
       <Position17>
         <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="80" Column="34" TopLine="62"/>
+        <Caret Line="198" Column="58" TopLine="177"/>
       </Position17>
       <Position18>
         <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="200" Column="24" TopLine="180"/>
+        <Caret Line="1" Column="1" TopLine="1"/>
       </Position18>
       <Position19>
         <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="198" Column="58" TopLine="177"/>
+        <Caret Line="80" Column="35" TopLine="62"/>
       </Position19>
       <Position20>
         <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="1" Column="1" TopLine="1"/>
+        <Caret Line="178" Column="30" TopLine="159"/>
       </Position20>
       <Position21>
         <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="80" Column="35" TopLine="62"/>
+        <Caret Line="258" Column="1" TopLine="241"/>
       </Position21>
       <Position22>
         <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="178" Column="30" TopLine="159"/>
+        <Caret Line="80" Column="35" TopLine="70"/>
       </Position22>
       <Position23>
         <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="258" Column="1" TopLine="241"/>
+        <Caret Line="178" Column="30" TopLine="159"/>
       </Position23>
       <Position24>
         <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="80" Column="35" TopLine="70"/>
+        <Caret Line="243" Column="47" TopLine="224"/>
       </Position24>
       <Position25>
         <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="178" Column="30" TopLine="159"/>
+        <Caret Line="302" Column="18" TopLine="288"/>
       </Position25>
       <Position26>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="243" Column="47" TopLine="224"/>
+        <Filename Value="stewproject.pas"/>
+        <Caret Line="175" Column="35" TopLine="165"/>
       </Position26>
       <Position27>
-        <Filename Value="stewdocumenteditor.pas"/>
-        <Caret Line="302" Column="18" TopLine="288"/>
+        <Filename Value="stewproject.pas"/>
+        <Caret Line="517" Column="59" TopLine="498"/>
       </Position27>
       <Position28>
         <Filename Value="stewproject.pas"/>
-        <Caret Line="175" Column="35" TopLine="165"/>
+        <Caret Line="531" Column="81" TopLine="513"/>
       </Position28>
       <Position29>
-        <Filename Value="stewproject.pas"/>
-        <Caret Line="517" Column="59" TopLine="498"/>
+        <Filename Value="stewmainform.pas"/>
+        <Caret Line="352" Column="29" TopLine="341"/>
       </Position29>
       <Position30>
-        <Filename Value="stewproject.pas"/>
-        <Caret Line="531" Column="81" TopLine="513"/>
+        <Filename Value="stewmainform.pas"/>
+        <Caret Line="10" Column="1" TopLine="1"/>
       </Position30>
     </JumpHistory>
   </ProjectSession>

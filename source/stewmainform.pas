@@ -280,7 +280,7 @@ var
 implementation
 
 uses
-  stewprojectinspector, stewdocumenteditor, stewasync, stewpreferenceseditor, stewprojectsettingseditor, LCLProc, stewabout;
+  stewprojectmanager, stewdocumenteditor, stewasync, stewpreferenceseditor, stewprojectsettingseditor, LCLProc, stewabout;
 
 {$R *.lfm}
 
@@ -774,7 +774,7 @@ begin
   // Layout and docking stuff...
   // TODO: This is where we set up the basic layout for the application.
   // Any changes to where things are laid out should occur here.
-  LayoutFrame(TProjectInspectorFrame,alLeft);
+  LayoutFrame(TProjectManager,alLeft);
   // lay out the document pane
   LayoutDocumentPane(alClient);
 
