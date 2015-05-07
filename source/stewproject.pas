@@ -7,6 +7,11 @@ interface
 uses
   Classes, SysUtils, stewfile, stewasync, stewproperties, stewtypes, contnrs, stewattachments;
 
+// TODO: The additional overhead of working through the project with documents
+// is getting unwieldly. Instead, expose the MetadataCache objects, keep a flag
+// on them for whether they are 'root' or not, and just have a single GetDocument
+// which returns the metadata.
+
 // TODO: When opening 'attachments', need a system of events and handlers
 // for cases where there is ambiguity. Or, just use defaults.
 
@@ -34,6 +39,12 @@ type
   TDocumentNotifyEvent = procedure(Sender: TObject; Document: TDocumentID) of object;
   TDocumentExceptionEvent = procedure(Sender: TObject; Document: TDocumentID; Error: String) of object;
 
+  TSynopsis = record
+    Loaded: Boolean;
+    FileAge: Longint;
+    Value: String;
+  end;
+
   TStewProject = class;
 
   { TMetadataCache }
@@ -46,8 +57,6 @@ type
   // as modified. But it would be nicer to remove only those properties which
   // are not being modified in a tab.
   TMetadataCache = class
-    procedure PropertiesLoading(Sender: TObject);
-    procedure PropertiesSaving(Sender: TObject);
   strict private type
   type
   // this allows me access to the protected events on Document Properties,
@@ -62,12 +71,17 @@ type
     fFiles: TStringList;
     fDocuments: TFPHashObjectList;
     fProperties: TDocumentProperties;
+    fSynopsis: TSynopsis;
   protected
     procedure PropertiesLoaded(Sender: TObject);
     procedure PropertiesLoadFailed(Sender: TObject; aError: String);
     procedure PropertiesSaveConflicted(Sender: TObject);
     procedure PropertiesSaved(Sender: TObject);
     procedure PropertiesSaveFailed(Sender: TObject; aError: String);
+    procedure PropertiesLoading(Sender: TObject);
+    procedure PropertiesSaving(Sender: TObject);
+    procedure SynopsisLoaded(aData: TStream; aFileAge: Longint);
+    procedure SynopsisLoadError(Data: String);
     procedure FilesListed(Data: TFileList);
     procedure FilesListError(Data: String);
     procedure ClearFiles;
@@ -83,6 +97,10 @@ type
     property Properties: TDocumentProperties read fProperties;
     procedure ListDocuments;
     function GetDocumentList: TDocumentList;
+    function IsListed: Boolean;
+    function HasSynopsis: Boolean;
+    function GetSynopsis: String;
+    procedure LoadSynopsis;
     procedure EditPrimary;
     procedure EditNotes;
     function GetAttachments(const aDescriptor: String): TStringArray;
@@ -110,6 +128,8 @@ type
     fOnDocumentPropertiesSaving: TDocumentNotifyEvent;
     FOnDocumentPropertiesSaveConflicted: TDocumentNotifyEvent;
     FOnDocumentPropertiesSaved: TDocumentNotifyEvent;
+    FOnDocumentSynopsisLoaded: TDocumentNotifyEvent;
+    FOnDocumentSynopsisLoadError: TDocumentExceptionEvent;
     FOnPropertiesLoading: TNotifyEvent;
     fOnPropertiesSaving: TNotifyEvent;
     fProperties: TProjectProperties;
@@ -135,6 +155,7 @@ type
     // MainForm observation API. By making these protected, I can control
     // this better (The form overrides this by creating a subclass of
     // this that can handle the events).
+
     property OnOpened: TNotifyEvent read FOnOpened write fOnOpened;
     property OnPropertiesLoaded: TNotifyEvent read FOnPropertiesLoaded write fOnPropertiesLoaded;
     property OnPropertiesSaved: TNotifyEvent read FOnPropertiesSaved write fOnPropertiesSaved;
@@ -148,6 +169,8 @@ type
     property OnDocumentPropertiesSaveConflicted: TDocumentNotifyEvent read FOnDocumentPropertiesSaveConflicted write FOnDocumentPropertiesSaveConflicted;
     property OnDocumentPropertiesSaving: TDocumentNotifyEvent read fOnDocumentPropertiesSaving write fOnDocumentPropertiesSaving;
     property OnDocumentPropertiesLoading: TDocumentNotifyEvent read fOnDocumentPropertiesLoading write fOnDocumentPropertiesLoading;
+    property OnDocumentSynopsisLoaded: TDocumentNotifyEvent read FOnDocumentSynopsisLoaded write FOnDocumentSynopsisLoaded;
+    property OnDocumentSynopsisLoadError: TDocumentExceptionEvent read FOnDocumentSynopsisLoadError write FOnDocumentSynopsisLoadError;
     property OnDocumentsListed: TDocumentNotifyEvent read fOnDocumentsListed write fOnDocumentsListed;
     property OnDocumentListError: TDocumentExceptionEvent read fOnDocumentListError write fOnDocumentListError;
   public
@@ -157,10 +180,14 @@ type
     // TODO: Figure out filtering...
     // TODO: More importantly, need to 'sort' by directory index.
     procedure ListDocuments(const aDocumentID: TDocumentID);
+    function IsDocumentListed(const aDocumentID: TDocumentID): Boolean;
     function GetDocumentList(const aDocumentID: TDocumentID): TDocumentList;
     function GetDocumentProperties(const aDocument: TDocumentID): TDocumentProperties;
+    procedure LoadDocumentSynopsis(const aDocument: TDocumentID);
     procedure EditDocumentPrimary(const aDocumentID: TDocumentID);
     procedure EditDocumentNotes(const aDocumentID: TDocumentID);
+    function HasDocumentSynopsis(const aDocumentID: TDocumentID): Boolean;
+    function GetDocumentSynopsis(const aDocumentID: TdocumentID): String;
     // TODO: Figure out patterns and reg ex...
     // TODO: function Match: TProjectContentEnumerator;
     // TODO: function Add(Name: TPacketBaseName): T;
@@ -410,6 +437,36 @@ begin
     fProject.fOnDocumentPropertiesSaving(fProject,fID);
 end;
 
+procedure TMetadataCache.SynopsisLoaded(aData: TStream; aFileAge: Longint);
+begin
+  if aData <> nil then
+  begin
+    with TStringStream.Create('') do
+    try
+      CopyFrom(aData,0);
+      fSynopsis.Loaded := true;
+      fSynopsis.Value := DataString;
+      fSynopsis.FileAge := aFileAge;
+    finally
+      Free;
+    end;
+  end
+  else
+  begin
+    fSynopsis.Loaded := true;
+    fSynopsis.Value := '';
+    fSynopsis.FileAge := -1;
+  end;
+  if fProject.fOnDocumentSynopsisLoaded <> nil then
+    fProject.fOnDocumentSynopsisLoaded(fProject,fID);
+end;
+
+procedure TMetadataCache.SynopsisLoadError(Data: String);
+begin
+  if fProject.fOnDocumentSynopsisLoadError <> nil then
+     fProject.fOnDocumentSynopsisLoadError(fProject,fID,Data);
+end;
+
 procedure TMetadataCache.PropertiesLoaded(Sender: TObject);
 begin
   if fProject.fOnDocumentPropertiesLoaded <> nil then
@@ -431,6 +488,9 @@ begin
   fID := aID;
   fFiles := nil; // this is created as needed. A nil item here means the
                  // file has not been listed yet.
+  fSynopsis.FileAge:=-1;
+  fSynopsis.Loaded := false;
+  fSynopsis.Value := '';
   fDocuments := TFPHashObjectList.Create(true);
   aCached := TProtectedDocumentProperties.Create(aDiskPath,aIsRoot);
   fProperties := aCached;
@@ -518,6 +578,26 @@ begin
   end;
 end;
 
+function TMetadataCache.IsListed: Boolean;
+begin
+  result := fFiles <> nil;
+end;
+
+function TMetadataCache.HasSynopsis: Boolean;
+begin
+  result := fSynopsis.Loaded;
+end;
+
+function TMetadataCache.GetSynopsis: String;
+begin
+  result := fSynopsis.Value;
+end;
+
+procedure TMetadataCache.LoadSynopsis;
+begin
+  TReadFile.Create(fDisk + '_synopsis.txt',@SynopsisLoaded,@SynopsisLoadError).Enqueue;
+end;
+
 procedure TMetadataCache.EditPrimary;
 var
   aPrimaryFiles: TStringArray;
@@ -533,7 +613,7 @@ begin
       // for the platform and file system.
       //EditFile(IncludeTrailingPathDelimiter()
       EditFile(aPrimaryFiles[0]);
-    2:
+  else
       // TODO: Should ask user which one to edit instead. This requires
       // an event.
       raise Exception.Create('Too many primary files');
@@ -731,6 +811,17 @@ begin
   end;
 end;
 
+function TStewProject.IsDocumentListed(const aDocumentID: TDocumentID): Boolean;
+begin
+  if fMetadataCache = nil then
+     raise Exception.Create('Please open project first');
+  if aDocumentID = RootDocument then
+     result := fMetadataCache.IsListed
+  else
+    result := fMetadataCache.PutPath(aDocumentID).IsListed
+
+end;
+
 function TStewProject.GetDocumentList(const aDocumentID: TDocumentID
   ): TDocumentList;
 begin
@@ -754,6 +845,16 @@ begin
     result := fMetadataCache.PutPath(aDocument).Properties;
 end;
 
+procedure TStewProject.LoadDocumentSynopsis(const aDocument: TDocumentID);
+begin
+  if fMetadataCache = nil then
+     raise Exception.Create('Please open project first');
+  if aDocument = RootDocument then
+     raise Exception.Create('The root document has no synopsis.');
+
+  fMetadataCache.PutPath(aDocument).LoadSynopsis;
+end;
+
 procedure TStewProject.EditDocumentPrimary(const aDocumentID: TDocumentID);
 begin
   if fMetadataCache = nil then
@@ -772,6 +873,30 @@ begin
      fMetadataCache.EditNotes
   else
      fMetadataCache.PutPath(aDocumentID).EditNotes;
+
+end;
+
+function TStewProject.HasDocumentSynopsis(const aDocumentID: TDocumentID
+  ): Boolean;
+begin
+  if fMetadataCache = nil then
+     raise Exception.Create('Please open project first');
+  if aDocumentID = RootDocument then
+     raise Exception.Create('The root document has no synopsis.');
+
+  result := fMetadataCache.PutPath(aDocumentID).HasSynopsis;
+
+end;
+
+function TStewProject.GetDocumentSynopsis(const aDocumentID: TdocumentID
+  ): String;
+begin
+  if fMetadataCache = nil then
+     raise Exception.Create('Please open project first');
+  if aDocumentID = RootDocument then
+     raise Exception.Create('The root document has no synopsis.');
+
+  result := fMetadataCache.PutPath(aDocumentID).GetSynopsis;
 
 end;
 

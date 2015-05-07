@@ -77,13 +77,12 @@ type
     procedure RefreshButtonClick(Sender: TObject);
     procedure SaveButtonClick(Sender: TObject);
   private
-    procedure SetEditingEnabled(AValue: Boolean);
+    procedure SetupControls;
   private
     { private declarations }
     fUserPropertiesEditor: TJSONEditor;
     procedure ShowDataToUser;
     function WriteDataFromUser: Boolean;
-    property EditingEnabled: Boolean write SetEditingEnabled;
   public
     { public declarations }
     constructor Create(TheOwner: TComponent); override;
@@ -93,7 +92,7 @@ type
 implementation
 
 uses
-  Dialogs, Graphics, fpjson;
+  Dialogs, Graphics, fpjson, stewpersist;
 
 {$R *.lfm}
 
@@ -129,31 +128,36 @@ begin
   // TODO: WriteDataFromUser;
 end;
 
-procedure TProjectSettingsEditor.SetEditingEnabled(AValue: Boolean);
+procedure TProjectSettingsEditor.SetupControls;
+var
+  canEdit: Boolean;
 begin
-  // TODO: Make sure all data controls are enabled as appropriate.
-  RefreshButton.Enabled := AValue;
-  SaveButton.Enabled := AValue;
-  DefaultDocExtensionLabel.Enabled := AValue;
-  DefaultDocExtensionEdit.Enabled := AValue;
-  DefaultNotesExtensionLabel.Enabled := AValue;
-  DefaultNotesExtensionEdit.Enabled := AValue;
-  DefaultThumbnailExtensionLabel.Enabled := AValue;
-  DefaultThumbnailExtensionEdit.Enabled := AValue;
-  CategoryDefinitionsGrid.Enabled := AValue;
-  CategoryDefinitionsLabel.Enabled := AValue;
-  StatusDefinitionsLabel.Enabled:=AValue;
-  StatusDefinitionsGrid.Enabled := AValue;
-  UserPropertiesLabel.Enabled := AValue;
-  fUserPropertiesEditor.Enabled := AValue;
+  canEdit := (MainForm.Project <> nil) and
+             (MainForm.Project.IsOpened) and
+             (MainForm.Project.Properties.FilingState in [fsLoaded]);
+  RefreshButton.Enabled := canEdit;
+  SaveButton.Enabled := canEdit;
+  EditNotesButton.Enabled := canEdit;
+  DefaultDocExtensionLabel.Enabled := canEdit;
+  DefaultDocExtensionEdit.Enabled := canEdit;
+  DefaultNotesExtensionLabel.Enabled := canEdit;
+  DefaultNotesExtensionEdit.Enabled := canEdit;
+  DefaultThumbnailExtensionLabel.Enabled := canEdit;
+  DefaultThumbnailExtensionEdit.Enabled := canEdit;
+  CategoryDefinitionsGrid.Enabled := canEdit;
+  CategoryDefinitionsLabel.Enabled := canEdit;
+  StatusDefinitionsLabel.Enabled:=canEdit;
+  StatusDefinitionsGrid.Enabled := canEdit;
+  UserPropertiesLabel.Enabled := canEdit;
+  fUserPropertiesEditor.Enabled := canEdit;
+
 end;
 
 procedure TProjectSettingsEditor.ObserveMainForm(aAction: TMainFormAction;
   aDocument: TDocumentID);
 begin
-  // TODO: What else?
   case aAction of
-    mfaProjectPropertiesLoaded:
+    mfaProjectPropertiesLoaded, mfaProjectPropertiesLoading, mfaProjectPropertiesSaved, mfaDocumentPropertiesSaving:
       ShowDataToUser;
   end;
 end;
@@ -182,9 +186,8 @@ var
   aName: String;
 begin
   props := nil;
-  if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
+  if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) and (MainForm.Project.Properties.FilingState in [fsLoaded]) then
   begin
-    EditingEnabled := true;
     props := MainForm.Project.Properties;
     DefaultDocExtensionEdit.Text := props.defaultDocExtension;
     DefaultNotesExtensionEdit.Text := props.defaultNotesExtension;
@@ -220,9 +223,8 @@ begin
 
     fUserPropertiesEditor.SetJSON(props.user);
 
-  end
-  else
-    EditingEnabled := false;
+  end;
+  SetupControls;
 end;
 
 function TProjectSettingsEditor.WriteDataFromUser: Boolean;

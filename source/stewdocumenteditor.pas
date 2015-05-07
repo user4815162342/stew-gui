@@ -11,10 +11,7 @@ uses
 type
 
 {
-TODO: Need to enable disable based on loading state of properties
-and some other things, not just setting a value.
-
-TODO: Need to load the synopses.
+TODO: Need to be able to 'save'.
 
 TODO: Possibly also need to have a contents grid which shows the
 values of specific properties.
@@ -76,13 +73,13 @@ the file exists already. Or, we need to come up with a different way of doing th
     procedure SaveButtonClick(Sender: TObject);
     { private declarations }
   private
-    procedure SetEditingEnabled(AValue: Boolean);
+    procedure SetupControls;
   protected
     fUserPropertiesEditor: TJSONEditor;
     procedure SetDocument(AValue: TDocumentID); override;
     procedure ShowDataToUser;
+    procedure ShowSynopsisToUser;
     procedure UpdateLookupLists;
-    property EditingEnabled: Boolean write SetEditingEnabled;
   public
     { public declarations }
     constructor Create(TheOwner: TComponent); override;
@@ -92,7 +89,7 @@ the file exists already. Or, we need to come up with a different way of doing th
 implementation
 
 uses
-  Dialogs, stewproperties;
+  Dialogs, stewproperties, stewpersist;
 
 {$R *.lfm}
 
@@ -106,27 +103,42 @@ begin
 
 end;
 
-procedure TDocumentEditor.SetEditingEnabled(AValue: Boolean);
+procedure TDocumentEditor.SetupControls;
+var
+  canEditProps: Boolean;
+  canEditSynopsis: Boolean;
+  canEditAttachments: Boolean;
 begin
-  // TODO: Instead of setting it to a specific state, we should set
-  // the values enabled or disabled based on other states.
-  RefreshButton.Enabled := AValue;
-  SaveButton.Enabled := AValue;
-  EditPrimaryButton.Enabled := AValue;
-  EditNotesButton.Enabled := AValue;
-  TitleLabel.Enabled := aValue;
-  TitleEdit.Enabled := AValue;
-  PublishEdit.Enabled := AValue;
-  CategoryLabel.Enabled := AValue;
-  CategoryEdit.Enabled := AValue;
-  StatusLabel.Enabled := AValue;
-  StatusEdit.Enabled:=AValue;
+  canEditProps := (MainForm.Project <> nil) and
+                  (MainForm.Project.IsOpened) and
+                  // properties depends on valid values from the project properties as well.
+                  (MainForm.Project.Properties.FilingState in [fsLoaded]) and
+                  (MainForm.Project.GetDocumentProperties(Document).FilingState in [fsLoaded]);
+  canEditAttachments := (MainForm.Project <> nil) and
+                  (MainForm.Project.IsOpened) and
+                  (MainForm.Project.IsDocumentListed(Document));
   // Synopsis is dependent on something else besides properties.
-  // TODO: Need to load synopsis.
-  SynopsisLabel.Enabled := false;
-  SynopsisEdit.Enabled := false;
-  UserPropertiesLabel.Enabled := AValue;
-  fUserPropertiesEditor.Enabled := AValue;
+  canEditSynopsis := (MainForm.Project <> nil) and
+                  (MainForm.Project.IsOpened) and
+                  (MainForm.Project.HasDocumentSynopsis(Document));
+
+  RefreshButton.Enabled := canEditProps;
+  SaveButton.Enabled := canEditProps;
+  EditPrimaryButton.Enabled := canEditAttachments;
+  EditNotesButton.Enabled := canEditAttachments;
+  TitleLabel.Enabled := canEditProps;
+  TitleEdit.Enabled := canEditProps;
+  PublishEdit.Enabled := canEditProps;
+  CategoryLabel.Enabled := canEditProps;
+  CategoryEdit.Enabled := canEditProps;
+  StatusLabel.Enabled := canEditProps;
+  StatusEdit.Enabled := canEditProps;
+  SynopsisLabel.Enabled := canEditSynopsis;
+  SynopsisEdit.Enabled := canEditSynopsis;
+  UserPropertiesLabel.Enabled := canEditProps;
+  fUserPropertiesEditor.Enabled := canEditProps;
+
+  UpdateLookupLists;
 end;
 
 procedure TDocumentEditor.RefreshButtonClick(Sender: TObject);
@@ -135,6 +147,7 @@ begin
   if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
   begin
        MainForm.Project.GetDocumentProperties(Document).Load;
+       MainForm.Project.LoadDocumentSynopsis(Document);
        // this should automatically call something on the main form
        // which will notify that the project has refreshed, and do so.
   end;
@@ -153,11 +166,17 @@ procedure TDocumentEditor.ObserveMainForm(aAction: TMainFormAction;
   aDocument: TDocumentID);
 begin
   case aAction of
-    mfaDocumentPropertiesLoaded:
+    mfaDocumentPropertiesLoaded, mfaDocumentPropertiesLoading, mfaDocumentPropertiesSaved, mfaDocumentPropertiesSaving:
       if aDocument = Document then
          ShowDataToUser;
-    mfaProjectPropertiesLoaded:
-      UpdateLookupLists;
+    mfaDocumentSynopsisLoaded:
+      if aDocument = Document then
+      begin
+         ShowSynopsisToUser;
+         SetupControls;
+      end;
+    mfaProjectPropertiesLoaded, mfaProjectPropertiesLoading, mfaProjectPropertiesSaved, mfaProjectPropertiesSaving:
+      SetupControls;
   end;
 end;
 
@@ -184,8 +203,10 @@ begin
     begin
       Parent.Caption := aName;
     end;
-    UpdateLookupLists;
+    if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
+      MainForm.Project.LoadDocumentSynopsis(AValue);
     ShowDataToUser;
+
   end;
 end;
 
@@ -196,17 +217,26 @@ begin
   props := nil;
   if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
   begin
-    EditingEnabled := true;
     props := MainForm.Project.GetDocumentProperties(Document);
     TitleEdit.Text := props.title;
     PublishEdit.Checked := props.publish;
     CategoryEdit.Text := props.category;
     StatusEdit.Text := props.status;
     fUserPropertiesEditor.SetJSON(props.user);
+    ShowSynopsisToUser;
 
-  end
-  else
-    EditingEnabled := false;
+  end;
+  SetupControls;
+
+end;
+
+procedure TDocumentEditor.ShowSynopsisToUser;
+begin
+  if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
+  begin
+    if MainForm.Project.HasDocumentSynopsis(Document) then
+      SynopsisEdit.Lines.Text := MainForm.Project.GetDocumentSynopsis(Document);
+  end;
 end;
 
 procedure TDocumentEditor.UpdateLookupLists;
@@ -214,20 +244,18 @@ var
   props: TProjectProperties;
   i: Integer;
 begin
+  StatusEdit.Items.Clear;
+  CategoryEdit.Items.Clear;
   props := nil;
-  if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
+  if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) and (MainForm.Project.Properties.FilingState in [fsLoaded]) then
   begin
     props := MainForm.Project.Properties;
-    StatusEdit.Items.Clear;
     for i := 0 to props.statuses.NameCount - 1 do
       StatusEdit.Items.Add(props.statuses.Names[i]);
-    CategoryEdit.Items.Clear;
     for i := 0 to props.categories.NameCount - 1 do
       CategoryEdit.Items.Add(props.categories.Names[i]);
 
   end
-  else
-    EditingEnabled := false;
 
 end;
 

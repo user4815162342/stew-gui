@@ -7,6 +7,8 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, ComCtrls, stewproject, stewfile, stewmainform;
 
+// TODO: Should be called a 'manager', not an 'inspector'.
+
 // TODO: Need to make use of status and category colors somehow. Category is
 // actually associated with a glyph on a treeview, and should therefore be used
 // to draw a little circle. While the status colors should change the text. I

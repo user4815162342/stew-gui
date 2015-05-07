@@ -6,7 +6,20 @@ interface
 
 {
 
-TODO: To get this actually usable:
+TODO: To get this actually usable and publish it on Github, at least.
+- Need to finish editing document properties
+- Need to see categories and statuses visually in the inspector.
+- Need to be able to create files
+  (Has to be done in such a way that I don't have to actually create the
+   data until I save. Perhaps a new filingstate flag, plus a flag on the
+   metadata cache to prevent removing the document from the explorer despite
+   not having any actual files)
+- Need to be able to move files
+- Need to be able to rename files
+- Update the CLI version to work with the new schema for status, so I can still
+use that for more complex tasks.
+- Need a .DEB package (and a place to put the DEB package)
+
 1. Next, work on the document properties and editors. The infrastructure
 looks a lot like the project settings editor, of course.
 2. Once I have document properties, I should be able to easily 'sort' the
@@ -16,6 +29,14 @@ documents based on the index property of the folder and root properties.
 At that point, I can slowly start moving from the command line to the GUI.
 The command line will probably never be completely deprecated, because the
 scripting capabilities there are still quite useful.
+
+TODO: A rework of architecture: Possibly, instead of keeping properties objects,
+we've got to think of each document as a 'page', almost like a webpage. On load,
+it gets the properties object which is then displayed for editing, and on save
+it writes back to a new properties object which is then saved. I can still cache
+data internally, but it might simplify activity. We would basically be dealing
+with requests and responses instead of a stored properties object that we keep
+on having to retrieve.
 
 TODO: Test with an empty or new project again.
 
@@ -148,7 +169,8 @@ type
                      mfaDocumentPropertiesLoading,
                      mfaDocumentPropertiesLoaded,
                      mfaDocumentPropertiesSaving,
-                     mfaDocumentPropertiesSaved);
+                     mfaDocumentPropertiesSaved,
+                     mfaDocumentSynopsisLoaded);
   TMainFormObserverHandler = procedure(aAction: TMainFormAction; aDocument: TDocumentID) of object;
   TMainFormObserverList = specialize TFPGList<TMainFormObserverHandler>;
 
@@ -171,6 +193,9 @@ type
     procedure DocumentPropertiesLoading(Sender: TObject; Document: TDocumentID);
     procedure DocumentPropertiesSaving(Sender: TObject; Document: TDocumentID);
     procedure DocumentsListed(Sender: TObject; Document: TDocumentID);
+    procedure DocumentSynopsisLoaded(Sender: TObject; Document: TDocumentID);
+    procedure DocumentSynopsisLoadError(Sender: TObject; Document: TDocumentID;
+      Error: String);
     procedure DocumentTabCloseRequested(Sender: TObject);
     procedure ExitMenuItemClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var {%H-}CloseAction: TCloseAction);
@@ -271,14 +296,12 @@ end;
 procedure TMainForm.DocumentPropertiesLoading(Sender: TObject;
   Document: TDocumentID);
 begin
-  Enabled := false;
   NotifyObservers(mfaDocumentPropertiesLoading,Document);
 end;
 
 procedure TMainForm.DocumentPropertiesSaving(Sender: TObject;
   Document: TDocumentID);
 begin
-  Enabled := false;
   NotifyObservers(mfaDocumentPropertiesSaving,Document);
 
 end;
@@ -286,6 +309,21 @@ end;
 procedure TMainForm.DocumentsListed(Sender: TObject; Document: TDocumentID);
 begin
   NotifyObservers(mfaDocumentsListed,Document);
+end;
+
+procedure TMainForm.DocumentSynopsisLoaded(Sender: TObject;
+  Document: TDocumentID);
+begin
+  NotifyObservers(mfaDocumentSynopsisLoaded,Document);
+end;
+
+procedure TMainForm.DocumentSynopsisLoadError(Sender: TObject;
+  Document: TDocumentID; Error: String);
+begin
+  ShowMessage('An error occurred while saving or loading the synopsis.' + LineEnding +
+              'The document''s ID was ' + Document + '.' + LineEnding +
+              Error + LineEnding +
+              'You may want to restart the program, or wait and try your task again later');
 end;
 
 procedure TMainForm.DocumentPropertiesError(Sender: TObject;
@@ -300,7 +338,6 @@ end;
 procedure TMainForm.DocumentPropertiesLoaded(Sender: TObject;
   Document: TDocumentID);
 begin
-  Enabled := true;
   NotifyObservers(mfaDocumentPropertiesLoaded,Document);
 end;
 
@@ -503,13 +540,11 @@ end;
 
 procedure TMainForm.ProjectPropertiesLoading(Sender: TObject);
 begin
-  Enabled := false;
   NotifyObservers(mfaProjectPropertiesLoading);
 end;
 
 procedure TMainForm.ProjectPropertiesSaving(Sender: TObject);
 begin
-  Enabled := false;
   NotifyObservers(mfaProjectPropertiesSaving);
 
 end;
@@ -526,7 +561,7 @@ procedure TMainForm.ProjectOpened(Sender: TObject);
 begin
   fConfig.MRUProject := fProject.DiskPath;
   Self.Caption := Application.Title + ' - ' + fProject.GetProjectName;
-  // But... we don't actually enable anything, not until we get a project properties loaded.
+  Enabled := true;
   fProject.ListDocuments(RootDocument);
 end;
 
@@ -597,6 +632,8 @@ begin
   fProject.OnDocumentPropertiesSaved:=@DocumentPropertiesSaved;
   fProject.OnDocumentPropertiesSaving:=@DocumentPropertiesSaving;
   fProject.OnDocumentPropertiesLoading:=@DocumentPropertiesLoading;
+  fProject.OnDocumentSynopsisLoaded:=@DocumentSynopsisLoaded;
+  fProject.OnDocumentSynopsisLoadError:=@DocumentSynopsisLoadError;
   fProject.OnDocumentsListed:=@DocumentsListed;
   fProject.OnDocumentListError:=@DocumentListError;
   fProject.OpenAtPath(@StartupIfProjectExists,@ProjectLoadFailed);
