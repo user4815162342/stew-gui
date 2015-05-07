@@ -208,7 +208,6 @@ type
   function ExcludeTrailingSlash(Const Path: string): string;
   function IsParentDocument(aParent: TDocumentID; aChild: TDocumentID): Boolean;
   function ExtractDocumentName(const Path: TDocumentID): string;
-  function ExtractFileDescriptor(const Filename: TFilename): string;
 
   const
     RootDocument: TDocumentID = '/';
@@ -262,24 +261,6 @@ begin
   while (I > 0) and not (Path[I] = '/') do
     Dec(I);
   Result := Copy(Path, I + 1, MaxInt);
-end;
-
-function ExtractFileDescriptor(const Filename: TFilename): string;
-var
-  i : longint;
-  EndSep : Set of Char;
-begin
-  I := Length(FileName);
-  EndSep:=AllowDirectorySeparators+AllowDriveSeparators+['_'];
-  while (I > 0) and not (FileName[I] in EndSep) do
-    Dec(I);
-  if (I > 0) and (FileName[I] = '_') then
-  begin
-    Result := Copy(FileName, I, MaxInt);
-    Result := ChangeFileExt(Result,'');
-  end
-  else
-    Result := '';
 end;
 
 function ExcludeLeadingSlash(const Path: string): string;
@@ -544,7 +525,7 @@ end;
 
 procedure TMetadataCache.ListDocuments;
 begin
-  TListFiles.Create(fDisk,@FilesListed,@FilesListError).Enqueue;
+  ListFiles(fDisk,@FilesListed,@FilesListError);
   // also need to get the properties in order to know the right sort order.
 end;
 
@@ -595,7 +576,7 @@ end;
 
 procedure TMetadataCache.LoadSynopsis;
 begin
-  TReadFile.Create(fDisk + '_synopsis.txt',@SynopsisLoaded,@SynopsisLoadError).Enqueue;
+  ReadFile(fDisk + '_synopsis.txt',@SynopsisLoaded,@SynopsisLoadError);
 end;
 
 procedure TMetadataCache.EditPrimary;
@@ -980,7 +961,7 @@ begin
     else
     begin
       fPath := aPath;
-      TFileExists.Create(TProjectProperties.GetPath(fPath),@FileExistsCallback,fErrorback).Enqueue;
+      CheckFileExistence(TProjectProperties.GetPath(fPath),@FileExistsCallback,fErrorback);
     end;
   end;
 end;
@@ -998,7 +979,7 @@ end;
 
 procedure TSearchParentDirectories.Enqueue;
 begin
-  TFileExists.Create(TProjectProperties.GetPath(fPath),@FileExistsCallback,fErrorback).Enqueue;
+  CheckFileExistence(TProjectProperties.GetPath(fPath),@FileExistsCallback,fErrorback);
 end;
 
 

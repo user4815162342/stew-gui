@@ -575,7 +575,7 @@ begin
     fFilingState := fsLoading;
     if fOnFileLoading <> nil then
       fOnFileLoading(Self);
-    TReadFile.Create(fFilename,@FileLoaded,@FileLoadFailed).Enqueue
+    ReadFile(fFilename,@FileLoaded,@FileLoadFailed);
   end
   else if fFilingState = fsSaving then
      raise Exception.Create('Can''t load JSON data while saving.');
@@ -594,7 +594,7 @@ begin
       if fOnFileSaving <> nil then
         fOnFileSaving(Self);
       text := GetJSONString(Self);
-      TWriteFile.Create(fFilename,fCreateDir and (fFileAge = -1),not aForce,fFileAge,text,@FileSaved,@FileSaveConflicted,@FileSaveFailed).Enqueue;
+      WriteFile(fFilename,fCreateDir and (fFileAge = -1),not aForce,fFileAge,text,@FileSaved,@FileSaveConflicted,@FileSaveFailed);
 
     end
     else if fFilingState = fsNotLoaded then

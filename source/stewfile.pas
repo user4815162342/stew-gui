@@ -7,12 +7,17 @@ interface
 uses
   Classes, SysUtils, stewasync;
 
-function ExtractPacketName(const aPath: String): String;
+const NewFileAge: Longint = -1;
 
-{ TPacketLister }
+function ExtractPacketName(const aPath: String): String;
+function ExtractFileDescriptor(const Filename: TFilename): string;
+
+
 type
   TFileList = array of TFilename;
   TDeferredFileListCallback = specialize GDeferredCallback<TFileList>;
+  TReadFileCallback = procedure(aData: TStream; aFileAge: Longint) of object;
+  TWriteFileCallback = procedure(aFileAge: Longint) of object;
 
   { TListFiles }
 
@@ -38,8 +43,6 @@ type
     constructor Create(const aPath: TFilename; aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
   end;
 
-  TReadFileCallback = procedure(aData: TStream; aFileAge: Longint) of object;
-
   { TReadFile }
 
   TReadFile = class(TDeferredTask)
@@ -52,8 +55,6 @@ type
     constructor Create(const aPath: TFilename; aCallback: TReadFileCallback; aErrorback: TDeferredExceptionCallback);
   end;
 
-
-  TWriteFileCallback = procedure(aFileAge: Longint) of object;
 
   { TWriteFile }
 
@@ -69,15 +70,28 @@ type
   protected
     procedure DoTask; override;
   public
-    constructor Create(const aPath: TFilename; const aData: UTF8String;
-      aCallback: TWriteFileCallback; aErrorback: TDeferredExceptionCallback);
-  overload;
     // NOTE: for FileAge, pass the mtime retrieved by the TReadFile.
-    // If the file was new, pass -1.
+    // If the file was new, pass NewFileAge(-1).
     constructor Create(const aPath: TFilename; aCreateDir: Boolean; aCheckFileAge: Boolean; aFileAge: Longint;
       const aData: UTF8String; aCallback: TWriteFileCallback; aConflictBack: TWriteFileCallback;
-  aErrorback: TDeferredExceptionCallback); overload;
+  aErrorback: TDeferredExceptionCallback);
   end;
+
+procedure ListFiles(const aPath: TFilename; aCallback: TDeferredFileListCallback; aErrorBack: TDeferredExceptionCallback);
+procedure CheckFileExistence(const aPath: TFilename; aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
+procedure ReadFile(const aPath: TFilename; aCallback: TReadFileCallback; aErrorback: TDeferredExceptionCallback);
+procedure WriteFile(const aPath: TFilename;
+                    const aData: UTF8String;
+                    aCallback: TWriteFileCallback;
+                    aErrorback: TDeferredExceptionCallback); overload;
+procedure WriteFile(const aPath: TFilename;
+                    aCreateDir: Boolean;
+                    aCheckFileAge: Boolean;
+                    aFileAge: Longint;
+                    const aData: UTF8String;
+                    aCallback: TWriteFileCallback;
+                    aConflictBack: TWriteFileCallback;
+                    aErrorback: TDeferredExceptionCallback); overload;
 
 implementation
 
@@ -95,6 +109,57 @@ begin
      result := Copy(Result,0,_p - 1);
   end;
 end;
+
+function ExtractFileDescriptor(const Filename: TFilename): string;
+var
+  i : longint;
+  EndSep : Set of Char;
+begin
+  I := Length(FileName);
+  EndSep:=AllowDirectorySeparators+AllowDriveSeparators+['_'];
+  while (I > 0) and not (FileName[I] in EndSep) do
+    Dec(I);
+  if (I > 0) and (FileName[I] = '_') then
+  begin
+    Result := Copy(FileName, I, MaxInt);
+    Result := ChangeFileExt(Result,'');
+  end
+  else
+    Result := '';
+end;
+
+procedure ListFiles(const aPath: TFilename;
+  aCallback: TDeferredFileListCallback; aErrorBack: TDeferredExceptionCallback);
+begin
+  TListFiles.Create(aPath,aCallback,aErrorBack).Enqueue;
+end;
+
+procedure CheckFileExistence(const aPath: TFilename;
+  aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
+begin
+  TFileExists.Create(aPath,aCallback,aErrorback).Enqueue;
+end;
+
+procedure ReadFile(const aPath: TFilename; aCallback: TReadFileCallback;
+  aErrorback: TDeferredExceptionCallback);
+begin
+  TReadFile.Create(aPath,aCallback,aErrorback).Enqueue;
+end;
+
+procedure WriteFile(const aPath: TFilename; const aData: UTF8String;
+  aCallback: TWriteFileCallback; aErrorback: TDeferredExceptionCallback);
+begin
+  WriteFile(aPath,false,false,NewFileAge,aData,aCallback,nil,aErrorback);
+end;
+
+procedure WriteFile(const aPath: TFilename; aCreateDir: Boolean;
+  aCheckFileAge: Boolean; aFileAge: Longint; const aData: UTF8String;
+  aCallback: TWriteFileCallback; aConflictBack: TWriteFileCallback;
+  aErrorback: TDeferredExceptionCallback);
+begin
+  TWriteFile.Create(aPath,aCreateDir,aCheckFileAge,aFileAge,aData,aCallback,aConflictBack,aErrorback);
+end;
+
 
 const
   // formats in something like ISO8601, but I also need to quote the
@@ -196,13 +261,6 @@ begin
 
 end;
 
-constructor TWriteFile.Create(const aPath: TFilename; const aData: UTF8String;
-  aCallback: TWriteFileCallback; aErrorback: TDeferredExceptionCallback);
-begin
-  Create(aPath,false,false,-1,aData,aCallback,nil,aErrorback);
-
-end;
-
 constructor TWriteFile.Create(const aPath: TFilename; aCreateDir: Boolean;
   aCheckFileAge: Boolean; aFileAge: Longint; const aData: UTF8String;
   aCallback: TWriteFileCallback; aConflictBack: TWriteFileCallback;
@@ -241,7 +299,7 @@ begin
   end
   else
   begin
-    fCallback(nil,-1);
+    fCallback(nil,NewFileAge);
   end;
 
 end;
