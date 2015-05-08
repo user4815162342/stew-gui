@@ -5,28 +5,7 @@ unit stewprojectmanager;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, ComCtrls, stewproject, stewfile, stewmainform, stewproperties;
-
-// TODO: Need custom text or background color based on statuses in categories.
-// - whenever the project properties are loaded or saved:
-//   - update the treeview drawing
-// - in the treeviewitem oncustomdraw, supposedly, we can set the font background color
-//   and then just set DefaultDraw to true to get it to work.
-
-// TODO: Should be called a 'manager', not an 'inspector'.
-
-// TODO: Need to make use of status and category colors somehow. Category is
-// actually associated with a glyph on a treeview, and should therefore be used
-// to draw a little circle. While the status colors should change the text. I
-// should also like to find out what the background is for the text and if it's
-// too similar to the status text color, change it just for that node.
-
-// TODO: Should use the 'title' property, if it's set, to display the
-// name of the file. It would be displayed with the actual filename in parenthesis,
-// for example:
-//   The Doom of Valendia: The Final Chapter (the_doom_final_chapter)
-// however, if I allow renaming of a file, it will effect the file name itself,
-// and you need to change the Title property to get the other stuff.
+  Classes, SysUtils, FileUtil, Forms, Controls, ComCtrls, stewproject, stewfile, stewmainform, stewproperties, graphics;
 
 type
 
@@ -38,6 +17,8 @@ type
     procedure ObserveMainForm(aAction: TMainFormAction; {%H-}aDocument: TDocumentID);
     procedure ProjectExplorerCreateNodeClass(Sender: TCustomTreeView;
       var NodeClass: TTreeNodeClass);
+    procedure ProjectExplorerCustomDrawItem(Sender: TCustomTreeView;
+      Node: TTreeNode; {%H-}State: TCustomDrawState; var DefaultDraw: Boolean);
     procedure ProjectExplorerDblClick(Sender: TObject);
     procedure ProjectExplorerExpanding(Sender: TObject; Node: TTreeNode;
       var {%H-}AllowExpansion: Boolean);
@@ -49,11 +30,14 @@ type
     private
       FDocumentID: TDocumentID;
       fExpandOnList: Boolean;
+      FStatusColor: TColor;
       procedure SetDocumentID(AValue: TDocumentID);
+      procedure SetStatusColor(AValue: TColor);
     public
       property DocumentID: TDocumentID read FDocumentID write SetDocumentID;
       property ExpandOnList: Boolean read fExpandOnList write fExpandOnList;
-      procedure UpdateGlyph(aProps: TProjectProperties);
+      property StatusColor: TColor read FStatusColor write SetStatusColor;
+      procedure SetStyleFromProjectProperties(aProps: TProjectProperties);
     end;
   private
     { private declarations }
@@ -75,7 +59,7 @@ type
 implementation
 
 uses
-  dialogs, Graphics, stewtypes;
+  dialogs, stewtypes;
 
 {$R *.lfm}
 
@@ -90,8 +74,18 @@ begin
   end;
 end;
 
-procedure TProjectManager.TProjectInspectorNode.UpdateGlyph(
+procedure TProjectManager.TProjectInspectorNode.SetStatusColor(AValue: TColor);
+begin
+  if FStatusColor=AValue then Exit;
+  FStatusColor:=AValue;
+end;
+
+procedure TProjectManager.TProjectInspectorNode.SetStyleFromProjectProperties(
   aProps: TProjectProperties);
+var
+  docProps: TDocumentProperties;
+  status: TKeywordDefinition;
+  name: String;
 begin
   if aProps = nil then
   begin
@@ -99,13 +93,28 @@ begin
       aProps := MainForm.Project.Properties
     else
     begin
-      ImageIndex := -1;
-      SelectedIndex := -1;
+      ImageIndex := 0;
+      SelectedIndex := 0;
+      StatusColor := clDefault;
       Exit;
     end;
   end;
-  ImageIndex := aProps.categories.IndexOf(MainForm.Project.GetDocument(DocumentID).Properties.category);
+
+  docProps := MainForm.Project.GetDocument(DocumentID).Properties;
+  ImageIndex := aProps.categories.IndexOf(docProps.category) + 1;
   SelectedIndex:= ImageIndex;
+
+  status := aProps.statuses.Find(docProps.status) as TKeywordDefinition;
+  if status <> nil then
+     StatusColor := status.color
+  else
+     StatusColor := clDefault;
+
+  name := ExtractDocumentName(DocumentID);
+  if docProps.title <> '' then
+    Text := docProps.title + ' (' + name + ')'
+  else
+    Text := name;
 end;
 
 { TProjectManager }
@@ -146,6 +155,16 @@ procedure TProjectManager.ProjectExplorerCreateNodeClass(
   Sender: TCustomTreeView; var NodeClass: TTreeNodeClass);
 begin
   NodeClass := TProjectInspectorNode;
+end;
+
+procedure TProjectManager.ProjectExplorerCustomDrawItem(
+  Sender: TCustomTreeView; Node: TTreeNode; State: TCustomDrawState;
+  var DefaultDraw: Boolean);
+begin
+  // NOTE: In order for this to work, tvoThemedDraw must be turned off
+  // in the TTreeView options.
+   Sender.Canvas.Font.Color := (Node as TProjectInspectorNode).StatusColor;
+   DefaultDraw := true;
 end;
 
 procedure TProjectManager.ProjectExplorerDblClick(Sender: TObject);
@@ -201,7 +220,7 @@ begin
   try
     if aNode <> nil then
     begin
-      aNode.UpdateGlyph(aProps);
+      aNode.SetStyleFromProjectProperties(aProps);
       aList := MainForm.Project.GetDocument(aNode.DocumentID).GetContents;
       aChild := aNode.GetFirstChild as TProjectInspectorNode;
 
@@ -303,7 +322,7 @@ var
 begin
   aNode.DocumentID:=aDocument;
   aNode.HasChildren:=true;
-  aNode.UpdateGlyph(aProps);
+  aNode.SetStyleFromProjectProperties(aProps);
   if (MainForm.Project <> nil) then
   begin
     // we need property information to display it.
@@ -315,7 +334,8 @@ end;
 
 procedure TProjectManager.UpdateCategoryGlyphs;
 var
-  imHeight: Integer;
+  circleOffset: Integer;
+  iconWidth: Integer;
   props: TProjectProperties;
   i: Integer;
 
@@ -325,8 +345,8 @@ var
   begin
     bm := TBitmap.Create;
     try
-      bm.Width := imHeight;
-      bm.Height := imHeight;
+      bm.Width := iconWidth;
+      bm.Height := iconWidth;
       with bm.Canvas do
       begin
         // TODO: okay.. this is pretty ugly, a png would be better,
@@ -334,11 +354,11 @@ var
         // later anyway.
         Brush.Color := clWindow;
         Pen.Color := clWindow;
-        FillRect(0,0,imHeight,imHeight);
+        FillRect(0,0,iconWidth,iconWidth);
         Brush.Color := aColor;
         Pen.Color := clWindowText;
         Pen.Width := 2;
-        Ellipse(2,2,imHeight - 2,imHeight - 2);
+        Ellipse(circleOffset,circleOffset,iconWidth - circleOffset,iconWidth - circleOffset);
       end;
       result := DocumentGlyphs.AddMasked(bm,clDefault);
     finally
@@ -354,7 +374,10 @@ begin
     DocumentGlyphs.BeginUpdate;
     try
       DocumentGlyphs.Clear;
-      imHeight := ProjectExplorer.DefaultItemHeight-1;
+      iconWidth := DocumentGlyphs.Width;
+      circleOffset := 2;
+      // add the basic, default glyph.
+      AddBitmapForColor(clDefault);
       for i := 0 to props.categories.NameCount - 1 do
         AddBitmapForColor((props.categories.Items[props.categories.Names[i]] as TKeywordDefinition).color);
     finally
@@ -363,7 +386,7 @@ begin
     ProjectExplorer.BeginUpdate;
     try
       for i := 0 to ProjectExplorer.Items.Count - 1 do
-        (ProjectExplorer.Items[i] as TProjectInspectorNode).UpdateGlyph(props);
+        (ProjectExplorer.Items[i] as TProjectInspectorNode).SetStyleFromProjectProperties(props);
     finally
       ProjectExplorer.EndUpdate;
     end;

@@ -7,7 +7,6 @@ interface
 {
 
 TODO: To get this actually usable and publish it on Github, at least.
-- Need to see categories and statuses visually in the inspector.
 - Need to be able to edit categories and statuses in the grids.
 - Need to be able to create files
   (Has to be done in such a way that I don't have to actually create the
@@ -15,7 +14,9 @@ TODO: To get this actually usable and publish it on Github, at least.
    metadata cache to prevent removing the document from the explorer despite
    not having any actual files)
 - Need to be able to move files
-- Need to be able to rename files
+- Need to be able to rename files (Keep in mind that the project manager tree
+  shows the title if present, so don't just allow editing without doing something
+  about that. Can I set the text of a node in the OnEditing event?)
 - Update the CLI version to work with the new schema for status, so I can still
 use that for more complex tasks.
 - Need a .DEB package (and a place to put the DEB package)

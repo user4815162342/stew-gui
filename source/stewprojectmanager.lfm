@@ -20,9 +20,10 @@ object ProjectManager: TProjectManager
     ScrollBars = ssAutoBoth
     TabOrder = 0
     OnCreateNodeClass = ProjectExplorerCreateNodeClass
+    OnCustomDrawItem = ProjectExplorerCustomDrawItem
     OnDblClick = ProjectExplorerDblClick
     OnExpanding = ProjectExplorerExpanding
-    Options = [tvoAutoItemHeight, tvoHideSelection, tvoKeepCollapsedNodes, tvoReadOnly, tvoShowButtons, tvoShowLines, tvoShowRoot, tvoToolTips, tvoThemedDraw]
+    Options = [tvoAutoItemHeight, tvoHideSelection, tvoKeepCollapsedNodes, tvoReadOnly, tvoShowButtons, tvoShowLines, tvoShowRoot, tvoToolTips, tvoNoDoubleClickExpand]
   end
   object DocumentGlyphs: TImageList
     left = 34

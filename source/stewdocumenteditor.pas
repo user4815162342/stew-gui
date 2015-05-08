@@ -11,8 +11,6 @@ uses
 type
 
 {
-TODO: Need to be able to 'save'.
-
 TODO: Possibly also need to have a contents grid which shows the
 values of specific properties.
 
@@ -109,6 +107,7 @@ var
   canEditSynopsis: Boolean;
   canEditAttachments: Boolean;
   aData: TDocumentMetadata;
+  aTabCaption: String;
 begin
   if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
     aData := MainForm.Project.GetDocument(Document)
@@ -124,6 +123,17 @@ begin
   // Synopsis is dependent on something else besides properties.
   canEditSynopsis := canEditAttachments and
                   (aData.Synopsis.FilingState in [fsLoaded]);
+
+  if canEditProps then
+  begin
+    if (Parent <> nil) and (Parent is TTabSheet) then
+    begin
+      aTabCaption := aData.Properties.title;
+      if aTabCaption = '' then
+         aTabCaption := ExtractDocumentName(Document);
+      Parent.Caption := aTabCaption;
+    end;
+  end;
 
   RefreshButton.Enabled := canEditProps;
   SaveButton.Enabled := canEditProps and canEditSynopsis;
@@ -223,7 +233,7 @@ begin
     DocumentIDLabel.Caption := AValue;
     // TODO: Make use of 'title'?
     aName := ExtractDocumentName(AValue);
-    if (Parent <> nil) and (Parent is ttabsheet) then
+    if (Parent <> nil) and (Parent is TTabSheet) then
     begin
       Parent.Caption := aName;
     end;

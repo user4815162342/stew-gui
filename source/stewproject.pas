@@ -7,11 +7,6 @@ interface
 uses
   Classes, SysUtils, stewfile, stewasync, stewproperties, stewtypes, contnrs;
 
-// TODO: The additional overhead of working through the project with documents
-// is getting unwieldly. Instead, expose the MetadataCache objects, keep a flag
-// on them for whether they are 'root' or not, and just have a single GetDocument
-// which returns the metadata.
-
 // TODO: So that we can deal with attachments better, maybe move those off into
 // a separate object:
 // - edit: opens it up for editing
