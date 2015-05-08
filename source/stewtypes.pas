@@ -86,6 +86,7 @@ type
     property Items[const Key: String]: TMappedCollectionItem read GetItem write SetItem; default;
     property NameCount: Integer read GetNameCount;
     property Names[const Index: Integer]: String read GetName;
+    function GetNameList: TStringArray;
 
   end;
 
@@ -343,6 +344,17 @@ end;
 function TMappedCollection.IndexOf(const Key: String): Integer;
 begin
   result := fHash.FindIndexOf(Key);
+end;
+
+function TMappedCollection.GetNameList: TStringArray;
+var
+  i: Integer;
+begin
+  SetLength(result,NameCount);
+  for i := 0 to NameCount - 1 do
+  begin
+    result[i] := Names[i];
+  end;
 end;
 
 end.

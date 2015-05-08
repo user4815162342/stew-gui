@@ -99,7 +99,7 @@ end;
 
 constructor TStewApplicationConfig.Create;
 begin
-  inherited Create(GetAppConfigDir(false) + 'config.json');
+  inherited Create(GetAppConfigDir(false) + 'stew-gui-config.json');
   // TODO: Need to set a way to mark it modified when these things change.
   fMainWindowConfig := TMainWindowConfig.Create;
   fMainWindowConfig.FPOAttachObserver(Self);

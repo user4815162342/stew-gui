@@ -14,6 +14,14 @@ type
   TProjectManager = class(TFrame)
     DocumentGlyphs: TImageList;
     ProjectExplorer: TTreeView;
+    ProjectToolbar: TToolBar;
+    NewDocumentButton: TToolButton;
+    RenameDocumentButton: TToolButton;
+    DeleteDocumentButton: TToolButton;
+    MoveDocumentButton: TToolButton;
+    procedure DeleteDocumentButtonClick(Sender: TObject);
+    procedure MoveDocumentButtonClick(Sender: TObject);
+    procedure NewDocumentButtonClick(Sender: TObject);
     procedure ObserveMainForm(aAction: TMainFormAction; {%H-}aDocument: TDocumentID);
     procedure ProjectExplorerCreateNodeClass(Sender: TCustomTreeView;
       var NodeClass: TTreeNodeClass);
@@ -22,6 +30,8 @@ type
     procedure ProjectExplorerDblClick(Sender: TObject);
     procedure ProjectExplorerExpanding(Sender: TObject; Node: TTreeNode;
       var {%H-}AllowExpansion: Boolean);
+    procedure ProjectExplorerSelectionChanged(Sender: TObject);
+    procedure RenameDocumentButtonClick(Sender: TObject);
   private type
 
     { TProjectInspectorNode }
@@ -48,6 +58,7 @@ type
     procedure InitializeNode(aNode: TProjectInspectorNode; aDocument: TDocumentID;
       aProps: TProjectProperties);
     procedure UpdateCategoryGlyphs;
+    procedure SetupControls;
   protected
     property Project: TStewProject read GetProject;
   public
@@ -136,6 +147,16 @@ begin
     end;
 end;
 
+procedure TProjectManager.ProjectExplorerSelectionChanged(Sender: TObject);
+begin
+  SetupControls;
+end;
+
+procedure TProjectManager.RenameDocumentButtonClick(Sender: TObject);
+begin
+  ShowMessage('I can''t rename documents yet');
+end;
+
 procedure TProjectManager.ObserveMainForm(aAction: TMainFormAction;
   aDocument: TDocumentID);
 begin
@@ -149,6 +170,31 @@ begin
       UpdateCategoryGlyphs;
     end;
   end;
+end;
+
+procedure TProjectManager.NewDocumentButtonClick(Sender: TObject);
+var
+  aNode: TProjectInspectorNode;
+  aName: String;
+begin
+  aNode := ProjectExplorer.Selected as TProjectInspectorNode;
+  InputQuery(MainForm.Caption,'What would you like to name the new document?',aName);
+
+{
+  if aNode = nil then
+    MainForm.Project.CreateDocument
+  else
+  ;}
+end;
+
+procedure TProjectManager.DeleteDocumentButtonClick(Sender: TObject);
+begin
+  ShowMessage('I can''t delete documents yet');
+end;
+
+procedure TProjectManager.MoveDocumentButtonClick(Sender: TObject);
+begin
+  ShowMessage('I can''t move documents yet');
 end;
 
 procedure TProjectManager.ProjectExplorerCreateNodeClass(
@@ -393,11 +439,22 @@ begin
   end;
 end;
 
+procedure TProjectManager.SetupControls;
+var
+  canManageNode: Boolean;
+begin
+  canManageNode := ProjectExplorer.Selected <> nil;
+  RenameDocumentButton.Enabled := canManageNode;
+  MoveDocumentButton.Enabled := canManageNode;
+  DeleteDocumentButton.Enabled := canManageNode;
+end;
+
 constructor TProjectManager.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
   MainForm.Observe(@ObserveMainForm);
   Text := 'Project';
+  SetupControls;
 end;
 
 destructor TProjectManager.Destroy;

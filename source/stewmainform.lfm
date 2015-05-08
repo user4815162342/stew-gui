@@ -20,6 +20,9 @@ object MainForm: TMainForm
         Caption = 'Preferences'
         OnClick = PreferencesMenuItemClick
       end
+      object Separator1: TMenuItem
+        Caption = '-'
+      end
       object ExitMenuItem: TMenuItem
         Caption = 'Exit'
         OnClick = ExitMenuItemClick

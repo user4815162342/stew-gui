@@ -10,8 +10,8 @@ object ProjectManager: TProjectManager
   DesignTop = 268
   object ProjectExplorer: TTreeView
     Left = 0
-    Height = 420
-    Top = 0
+    Height = 394
+    Top = 26
     Width = 253
     Align = alClient
     DefaultItemHeight = 18
@@ -23,7 +23,40 @@ object ProjectManager: TProjectManager
     OnCustomDrawItem = ProjectExplorerCustomDrawItem
     OnDblClick = ProjectExplorerDblClick
     OnExpanding = ProjectExplorerExpanding
+    OnSelectionChanged = ProjectExplorerSelectionChanged
     Options = [tvoAutoItemHeight, tvoHideSelection, tvoKeepCollapsedNodes, tvoReadOnly, tvoShowButtons, tvoShowLines, tvoShowRoot, tvoToolTips, tvoNoDoubleClickExpand]
+  end
+  object ProjectToolbar: TToolBar
+    Left = 0
+    Height = 26
+    Top = 0
+    Width = 253
+    ShowCaptions = True
+    TabOrder = 1
+    object NewDocumentButton: TToolButton
+      Left = 1
+      Top = 2
+      Caption = 'New'
+      OnClick = NewDocumentButtonClick
+    end
+    object RenameDocumentButton: TToolButton
+      Left = 36
+      Top = 2
+      Caption = 'Rename'
+      OnClick = RenameDocumentButtonClick
+    end
+    object DeleteDocumentButton: TToolButton
+      Left = 134
+      Top = 2
+      Caption = 'Delete'
+      OnClick = DeleteDocumentButtonClick
+    end
+    object MoveDocumentButton: TToolButton
+      Left = 92
+      Top = 2
+      Caption = 'Move'
+      OnClick = MoveDocumentButtonClick
+    end
   end
   object DocumentGlyphs: TImageList
     left = 34

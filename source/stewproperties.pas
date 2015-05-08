@@ -11,8 +11,6 @@ type
 
   // TODO: For the user property editor, need to make sure that when it's changed,
   // the properties themselves are marked as changed.
-  // TODO: I'm going to skip 'editors' for now. Which means I'm done with
-  // project properties and ready to work with documents!
 
 
   { TDocumentProperties }
@@ -58,7 +56,40 @@ type
   { TKeywordDefinitions }
 
   TKeywordDefinitions = class(TJSONStoreMap)
-  public
+  end;
+
+  { TCategoryDefinition }
+
+  TCategoryDefinition = class(TKeywordDefinition)
+  private
+    FpublishMarkerAfter: Boolean;
+    FpublishMarkerBefore: Boolean;
+    FpublishMarkerBetween: Boolean;
+    FpublishTitle: Boolean;
+    fpublishTitleLevel: Integer;
+    FpublishTitlePrefix: String;
+  published
+    property publishTitle: Boolean read FpublishTitle write FpublishTitle default false;
+    property publishTitleLevel: Integer read fpublishTitleLevel write FpublishTitleLevel default 0;
+    property publishTitlePrefix: String read FpublishTitlePrefix write FpublishTitlePrefix;
+    property publishMarkerBefore: Boolean read FpublishMarkerBefore write FpublishMarkerBefore default false;
+    property publishMarkerAfter: Boolean read FpublishMarkerAfter write FpublishMarkerAfter default false;
+    property publishMarkerBetween: Boolean read FpublishMarkerBetween write FpublishMarkerBetween default false;
+  end;
+
+  { TCategoryDefinitions }
+
+  TCategoryDefinitions = class(TKeywordDefinitions)
+    constructor Create;
+  end;
+
+  TStatusDefintion = class(TKeywordDefinition)
+
+  end;
+
+  { TStatusDefinitions }
+
+  TStatusDefinitions = class(TKeywordDefinitions)
     constructor Create;
   end;
 
@@ -190,6 +221,22 @@ implementation
 
 uses
   LCLProc, Math;
+
+{ TCategoryDefinition }
+
+{ TStatusDefinitions }
+
+constructor TStatusDefinitions.Create;
+begin
+  inherited Create(TStatusDefintion);
+end;
+
+{ TCategoryDefinitions }
+
+constructor TCategoryDefinitions.Create;
+begin
+  inherited Create(TCategoryDefinition);
+end;
 
 { TDocumentProperties }
 
@@ -617,13 +664,6 @@ begin
     Fcolor := clDefault;
 end;
 
-{ TKeywordDefinitions }
-
-constructor TKeywordDefinitions.Create;
-begin
-  inherited Create(TKeywordDefinition);
-end;
-
 { TProjectProperties }
 
 procedure TProjectProperties.SetdefaultDocExtension(AValue: String);
@@ -736,9 +776,9 @@ end;
 constructor TProjectProperties.Create(aProjectPath: TFilename);
 begin
   inherited Create(GetPath(aProjectPath),false);
-  Fcategories := TKeywordDefinitions.Create;
+  Fcategories := TCategoryDefinitions.Create;
   Fcategories.FPOAttachObserver(Self);
-  fStatuses := TKeywordDefinitions.Create;
+  fStatuses := TStatusDefinitions.Create;
   fStatuses.FPOAttachObserver(Self);
 end;
 

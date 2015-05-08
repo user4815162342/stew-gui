@@ -7,7 +7,6 @@ interface
 {
 
 TODO: To get this actually usable and publish it on Github, at least.
-- Need to be able to edit categories and statuses in the grids.
 - Need to be able to create files
   (Has to be done in such a way that I don't have to actually create the
    data until I save. Perhaps a new filingstate flag, plus a flag on the
@@ -186,6 +185,7 @@ type
     FileMenuItem: TMenuItem;
     HelpMenuItem: TMenuItem;
     AboutMenuItem: TMenuItem;
+    Separator1: TMenuItem;
     PreferencesMenuItem: TMenuItem;
     ProjectSettingsMenuItem: TMenuItem;
     RefreshProjectMenuItem: TMenuItem;

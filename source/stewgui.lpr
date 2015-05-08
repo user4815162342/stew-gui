@@ -15,7 +15,7 @@ uses
 {$R *.res}
 
 begin
-  Application.Title:='stew-gui';
+  Application.Title:='Stew';
   RequireDerivedFormResource := True;
   Application.Initialize;
   Application.CreateForm(TMainForm, MainForm);

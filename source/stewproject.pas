@@ -122,6 +122,7 @@ type
     end;
   strict private
     fListingState: TListingState;
+    fIsNew: Boolean;
     fProject: TStewProject;
     fDisk: TFilename;
     fID: TDocumentID;
@@ -176,6 +177,7 @@ type
     property Synopsis: TSynopsisMetadata read GetSynopsis;
     property Primary: TPrimaryMetadata read GetPrimary;
     property Notes: TNotesMetadata read fNotes;
+    property IsNew: Boolean read fIsNew;
   end;
 
   { TStewProject }
@@ -602,9 +604,6 @@ var
   i: Integer;
   aChild: TDocumentMetadata;
 begin
-  // TODO: If recursive, I want to refresh all existing lists, but I don't
-  // want to do any lists that aren't already listed. I need a listing state
-  // for this.
 
   // clear out the old ones.
   // NOTE: We don't want to actuall delete all of the items in the cache,
@@ -809,6 +808,7 @@ begin
   fProject := aProject;
   fDisk := ExcludeTrailingPathDelimiter(aDiskPath);
   fID := aID;
+  fIsNew := false;
   fListingState := lsNotListed;
   fFiles := nil; // this is created as needed. A nil item here means the
                  // file has not been listed yet.
@@ -906,11 +906,12 @@ begin
     list.OnEZSort:=@SortDocuments;
     for i := 0 to fContents.Count - 1 do
     begin
-      // I'm only interested in documents that have associated disk files.
-      // other documents can be retrieved by specific name, but I don't
+      // I'm only interested in documents that have associated disk files,
+      // or ones marked specifically as 'new'.
+      // Other documents can be retrieved by specific name, but I don't
       // want to display them as available if they aren't.
       aChild := fContents[i] as TDocumentMetadata;
-      if (aChild.fFiles <> nil) and (aChild.fFiles.Count > 0) then
+      if ((aChild.fFiles <> nil) and (aChild.fFiles.Count > 0)) or (aChild.fIsNew) then
          list.Add(aChild.fID);
     end;
     // sort by property index.
@@ -982,7 +983,8 @@ end;
 procedure TStewProject.ProjectPropertiesLoaded(Sender: TObject);
 begin
   if fProperties.Modified then // it was new, so we want to immediately save
-                               // it to make sure the file was created.
+                               // it to make sure the file was created, and
+                               // that the project now exists.
     fProperties.Save;
   if FOnPropertiesLoaded <> nil then
     FOnPropertiesLoaded(Self);
