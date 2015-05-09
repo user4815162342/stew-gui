@@ -161,6 +161,7 @@ type
     function GetNewAttachmentName(const aDescriptor: String; const aExtension: String): String;
     function GetSynopsis: TSynopsisMetadata;
     property Project: TStewProject read fProject;
+    procedure NoLongerNew;
   public
     constructor Create(aProject: TStewProject; aDiskPath: TFilename;
       aID: TDocumentID; aIsRoot: Boolean);
@@ -178,6 +179,8 @@ type
     property Primary: TPrimaryMetadata read GetPrimary;
     property Notes: TNotesMetadata read fNotes;
     property IsNew: Boolean read fIsNew;
+    procedure CreateDocument(aName: String);
+    function HasDocument(aName: String): Boolean;
   end;
 
   { TStewProject }
@@ -200,6 +203,7 @@ type
     FOnDocumentAttachmentSaveConflicted: TAttachmentNotifyEvent;
     FOnDocumentAttachmentSaved: TAttachmentNotifyEvent;
     FOnDocumentAttachmentSaving: TAttachmentNotifyEvent;
+    FOnDocumentCreated: TDocumentNotifyEvent;
     fOnDocumentsListed: TDocumentNotifyEvent;
     fOnDocumentListError: TDocumentExceptionEvent;
     FOnDocumentPropertiesError: TDocumentExceptionEvent;
@@ -255,6 +259,7 @@ type
     property OnDocumentAttachmentSaveConflicted: TAttachmentNotifyEvent read FOnDocumentAttachmentSaveConflicted write FOnDocumentAttachmentSaveConflicted;
     property OnDocumentsListed: TDocumentNotifyEvent read fOnDocumentsListed write fOnDocumentsListed;
     property OnDocumentListError: TDocumentExceptionEvent read fOnDocumentListError write fOnDocumentListError;
+    property OnDocumentCreated: TDocumentNotifyEvent read FOnDocumentCreated write FOnDocumentCreated;
   public
     constructor Create(const Path: TFilename);
     destructor Destroy; override;
@@ -276,12 +281,13 @@ type
     property Properties: TProjectProperties read GetProperties;
   end;
 
-  function ExcludeLeadingSlash(Const Path: string): string;
-  function IncludeLeadingSlash(Const Path : String) : String;
-  function IncludeTrailingSlash(Const Path : String) : String;
-  function ExcludeTrailingSlash(Const Path: string): string;
+  function ExcludeLeadingSlash(Const Path: TDocumentID): string;
+  function IncludeLeadingSlash(Const Path : TDocumentID) : String;
+  function IncludeTrailingSlash(Const Path : TDocumentID) : String;
+  function ExcludeTrailingSlash(Const Path: TDocumentID): string;
   function IsParentDocument(aParent: TDocumentID; aChild: TDocumentID): Boolean;
   function ExtractDocumentName(const Path: TDocumentID): string;
+  function ExtractParentDocument(const Path: TDocumentID): string;
 
   const
     RootDocument: TDocumentID = '/';
@@ -335,6 +341,18 @@ begin
   while (I > 0) and not (Path[I] = '/') do
     Dec(I);
   Result := Copy(Path, I + 1, MaxInt);
+end;
+
+function ExtractParentDocument(const Path: TDocumentID): string;
+var
+  i : longint;
+begin
+  I := Length(Path);
+  while (I > 0) and not (Path[I] = '/') do
+    Dec(I);
+  Result := Copy(Path, 1, I - 1);
+  if Result = '' then
+    Result := RootDocument;
 end;
 
 function ExcludeLeadingSlash(const Path: string): string;
@@ -587,6 +605,8 @@ end;
 
 procedure TDocumentMetadata.PropertiesSaved(Sender: TObject);
 begin
+  if fIsNew then
+    NoLongerNew;
   if fProject.FOnDocumentPropertiesSaved <> nil then
     fProject.FOnDocumentPropertiesSaved(fProject,fID);
 end;
@@ -659,13 +679,10 @@ var
   j: Integer;
   aChild: TDocumentMetadata;
 begin
-  if fFiles <> nil then
+  for i := fFiles.Count - 1 downto 0 do
   begin
-    for i := fFiles.Count - 1 downto 0 do
-    begin
-      if (Length(fFiles[i]) = 0) or (fFiles[i][1] = '_') then
-         fFiles.Delete(i);
-    end;
+    if (Length(fFiles[i]) = 0) or (fFiles[i][1] = '_') then
+       fFiles.Delete(i);
   end;
   for i := 0 to fContents.Count - 1 do
   begin
@@ -680,12 +697,11 @@ end;
 
 procedure TDocumentMetadata.AddFile(const aFile: TFilename);
 begin
-  if fFiles = nil then
-  begin
-    fFiles := TStringList.Create;
-    fFiles.Duplicates := dupIgnore;
-  end;
   fFiles.Add(aFile);
+  if fIsNew then
+    // we now know that it has disk stuff available, so the document
+    // is definitely not "new";
+    fIsNew := false;
 end;
 
 function SimpleIndexOf(List: TStrings; aText: String): Integer; inline;
@@ -810,8 +826,8 @@ begin
   fID := aID;
   fIsNew := false;
   fListingState := lsNotListed;
-  fFiles := nil; // this is created as needed. A nil item here means the
-                 // file has not been listed yet.
+  fFiles := TStringList.Create;
+  fFiles.Duplicates := dupIgnore;
   if aIsRoot then
   begin
     fSynopsis := nil;
@@ -911,7 +927,7 @@ begin
       // Other documents can be retrieved by specific name, but I don't
       // want to display them as available if they aren't.
       aChild := fContents[i] as TDocumentMetadata;
-      if ((aChild.fFiles <> nil) and (aChild.fFiles.Count > 0)) or (aChild.fIsNew) then
+      if (aChild.fFiles.Count > 0) or (aChild.fIsNew) then
          list.Add(aChild.fID);
     end;
     // sort by property index.
@@ -928,7 +944,33 @@ end;
 
 function TDocumentMetadata.AreAttachmentsListed: Boolean;
 begin
-  result := fFiles <> nil;
+  result := fProject.GetDocument(ExtractParentDocument(fID)).ListingState = lsListed;
+end;
+
+procedure TDocumentMetadata.CreateDocument(aName: String);
+var
+  aChild: TDocumentMetadata;
+begin
+  if ListingState <> lsListed then
+     raise Exception.Create('Can''t create content in unlisted documents');
+  if HasDocument(aName) then
+     raise Exception.Create('Document named "' + aName + '" already exists.');
+  aChild := PutDocument(aName);
+  // mark it as new so it shows up in the listings...
+  aChild.fIsNew := true;
+  // alert the main form that the document listing has changed.
+  if fProject.fOnDocumentCreated <> nil then
+     fProject.fOnDocumentCreated(fProject,aChild.fID);
+  // but also automatically 'list' the files, which shouldn't exist yet, right?
+  // so that it will appear as 'listed'. Note that this has to be done
+  // after the oncreated, or we're getting events for an uncreated document,
+  // which is weird.
+  aChild.FilesListedNonrecursive(nil);
+end;
+
+function TDocumentMetadata.HasDocument(aName: String): Boolean;
+begin
+  result := fContents.Find(LowerCase(aName)) <> nil;
 end;
 
 function TDocumentMetadata.GetAttachments(const aDescriptor: String;
@@ -976,6 +1018,21 @@ begin
     result := fSynopsis
   else
      raise Exception.Create('The root document does not have a synopsis');
+end;
+
+procedure TDocumentMetadata.NoLongerNew;
+var
+  aParent: TDocumentMetadata;
+begin
+  fIsNew := false;
+  if not (fID = RootDocument) then
+  begin
+    aParent := fProject.GetDocument(ExtractParentDocument(fID));
+    if aParent.IsNew then
+      aParent.NoLongerNew;
+    // TODO: We should add the directories to the file.
+  end;
+
 end;
 
 { TStewProject }

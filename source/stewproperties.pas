@@ -84,7 +84,6 @@ type
   end;
 
   TStatusDefintion = class(TKeywordDefinition)
-
   end;
 
   { TStatusDefinitions }
@@ -303,7 +302,7 @@ begin
     path := IncludeTrailingPathDelimiter(afileName) + '_properties.json'
   else
     path := ExcludeTrailingPathDelimiter(afileName) + '_properties.json';
-  inherited Create(path,false);
+  inherited Create(path,true);
   fIndex := TStringList.Create;
 end;
 

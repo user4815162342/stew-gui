@@ -36,23 +36,23 @@ object ProjectManager: TProjectManager
     object NewDocumentButton: TToolButton
       Left = 1
       Top = 2
-      Caption = 'New'
+      Caption = 'Child+'
       OnClick = NewDocumentButtonClick
     end
     object RenameDocumentButton: TToolButton
-      Left = 36
+      Left = 48
       Top = 2
       Caption = 'Rename'
       OnClick = RenameDocumentButtonClick
     end
     object DeleteDocumentButton: TToolButton
-      Left = 134
+      Left = 146
       Top = 2
       Caption = 'Delete'
       OnClick = DeleteDocumentButtonClick
     end
     object MoveDocumentButton: TToolButton
-      Left = 92
+      Left = 104
       Top = 2
       Caption = 'Move'
       OnClick = MoveDocumentButtonClick

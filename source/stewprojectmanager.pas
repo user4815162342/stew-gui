@@ -9,6 +9,8 @@ uses
 
 type
 
+  // TODO: May need a way to distinguish between creating a new sibling and a child document.
+
   { TProjectManager }
 
   TProjectManager = class(TFrame)
@@ -40,6 +42,7 @@ type
     private
       FDocumentID: TDocumentID;
       fExpandOnList: Boolean;
+      fIsNew: Boolean;
       FStatusColor: TColor;
       procedure SetDocumentID(AValue: TDocumentID);
       procedure SetStatusColor(AValue: TColor);
@@ -47,6 +50,7 @@ type
       property DocumentID: TDocumentID read FDocumentID write SetDocumentID;
       property ExpandOnList: Boolean read fExpandOnList write fExpandOnList;
       property StatusColor: TColor read FStatusColor write SetStatusColor;
+      property IsNew: Boolean read fIsNew write fIsNew;
       procedure SetStyleFromProjectProperties(aProps: TProjectProperties);
     end;
   private
@@ -94,6 +98,7 @@ end;
 procedure TProjectManager.TProjectInspectorNode.SetStyleFromProjectProperties(
   aProps: TProjectProperties);
 var
+  docData: TDocumentMetadata;
   docProps: TDocumentProperties;
   status: TKeywordDefinition;
   name: String;
@@ -111,7 +116,8 @@ begin
     end;
   end;
 
-  docProps := MainForm.Project.GetDocument(DocumentID).Properties;
+  docData := MainForm.Project.GetDocument(DocumentID);
+  docProps := docData.Properties;
   ImageIndex := aProps.categories.IndexOf(docProps.category) + 1;
   SelectedIndex:= ImageIndex;
 
@@ -126,6 +132,15 @@ begin
     Text := docProps.title + ' (' + name + ')'
   else
     Text := name;
+
+  // If we are losing "newness", then it's possible that the parent is also
+  // no longer "new", because a directory, at least, has been created.
+  if fIsNew <> docData.IsNew then
+  begin
+    if fIsNew and (Parent <> nil) then
+       (Parent as TProjectInspectorNode).SetStyleFromProjectProperties(aProps);
+    fIsNew := docData.IsNew;
+  end;
 end;
 
 { TProjectManager }
@@ -148,8 +163,19 @@ begin
 end;
 
 procedure TProjectManager.ProjectExplorerSelectionChanged(Sender: TObject);
+var
+  aNode: TProjectInspectorNode;
+  aDoc: TDocumentMetadata;
 begin
   SetupControls;
+  // This is necessary so that I can create child nodes easily.
+  aNode := ProjectExplorer.Selected as TProjectInspectorNode;
+  if aNode <> nil then
+  begin
+    aDoc := MainForm.Project.GetDocument(aNode.DocumentID);
+    if aDoc.ListingState = lsNotListed then
+      aDoc.ListDocuments(false);
+  end;
 end;
 
 procedure TProjectManager.RenameDocumentButtonClick(Sender: TObject);
@@ -164,10 +190,12 @@ begin
     mfaDocumentsListed,mfaDocumentPropertiesLoaded,mfaDocumentPropertiesSaved:
     begin
       ReloadNodeForDocument(aDocument);
+      SetupControls;
     end;
     mfaProjectPropertiesLoaded, mfaProjectPropertiesSaved:
     begin
       UpdateCategoryGlyphs;
+      SetupControls;
     end;
   end;
 end;
@@ -175,16 +203,28 @@ end;
 procedure TProjectManager.NewDocumentButtonClick(Sender: TObject);
 var
   aNode: TProjectInspectorNode;
+  aDocument: TDocumentID;
   aName: String;
+  aParent: TDocumentMetadata;
 begin
-  aNode := ProjectExplorer.Selected as TProjectInspectorNode;
-  InputQuery(MainForm.Caption,'What would you like to name the new document?',aName);
-
-{
-  if aNode = nil then
-    MainForm.Project.CreateDocument
-  else
-  ;}
+  aName := '';
+  if InputQuery(MainForm.Caption,'What would you like to name the new document?',aName) then
+  begin
+    aNode := ProjectExplorer.Selected as TProjectInspectorNode;
+    if aNode = nil then
+      aDocument := RootDocument
+    else
+      aDocument := aNode.DocumentID;
+    aParent := MainForm.Project.GetDocument(aDocument);
+    if aParent.HasDocument(aName) then
+       ShowMessage('A document named "' + aName + '" already exists here.')
+    else
+    begin
+       aParent.CreateDocument(aName);
+       if aNode <> nil then
+         aNode.Expanded := true;
+    end;
+  end;
 end;
 
 procedure TProjectManager.DeleteDocumentButtonClick(Sender: TObject);
@@ -210,6 +250,11 @@ begin
   // NOTE: In order for this to work, tvoThemedDraw must be turned off
   // in the TTreeView options.
    Sender.Canvas.Font.Color := (Node as TProjectInspectorNode).StatusColor;
+   if (Node as TProjectInspectorNode).IsNew then
+     Sender.Canvas.Font.Style := Sender.Canvas.Font.Style + [fsItalic]
+   else
+     Sender.Canvas.Font.Style := Sender.Canvas.Font.Style - [fsItalic];
+
    DefaultDraw := true;
 end;
 
@@ -250,6 +295,7 @@ end;
 
 procedure TProjectManager.ReloadNode(aNode: TProjectInspectorNode; aProps: TProjectProperties);
 var
+  aDoc: TDocumentMetadata;
   aList: TDocumentList;
   i: Integer;
   aChild: TProjectInspectorNode;
@@ -267,76 +313,82 @@ begin
     if aNode <> nil then
     begin
       aNode.SetStyleFromProjectProperties(aProps);
-      aList := MainForm.Project.GetDocument(aNode.DocumentID).GetContents;
+      aDoc := MainForm.Project.GetDocument(aNode.DocumentID);
       aChild := aNode.GetFirstChild as TProjectInspectorNode;
 
     end
     else
     begin
-      aList := MainForm.Project.GetDocument(RootDocument).GetContents;
+      aDoc := MainForm.Project.GetDocument(RootDocument);
       aChild := ProjectExplorer.Items.GetFirstNode as TProjectInspectorNode;
     end;
 
-    for i := 0 to Length(aList) - 1 do
+    if aDoc.ListingState = lsListed then
     begin
-      // first, look for a match starting at the current node.
-      aMatch := aChild; // if this is nil, then the next loop won't even run.
-      while (aMatch <> nil) and (aMatch.DocumentID <> aList[i]) do
-        aMatch := aMatch.GetNextSibling as TProjectInspectorNode;
+      aList := aDoc.GetContents;
 
-      // did we find a match? BTW: If child was nil then we didn't find a match.
-      if aMatch <> nil then
+      for i := 0 to Length(aList) - 1 do
       begin
-        // is the match the same as the child we were looking at?
-        if aMatch <> aChild then
+        // first, look for a match starting at the current node.
+        aMatch := aChild; // if this is nil, then the next loop won't even run.
+        while (aMatch <> nil) and (aMatch.DocumentID <> aList[i]) do
+          aMatch := aMatch.GetNextSibling as TProjectInspectorNode;
+
+        // did we find a match? BTW: If child was nil then we didn't find a match.
+        if aMatch <> nil then
         begin
-          // move it before the one we had before.
-          aMatch.MoveTo(aChild,naInsert);
-          // switch the current child to this moved one.
-          aChild := aMatch;
-        end;
-        // else do nothing and go on to the next
+          // is the match the same as the child we were looking at?
+          if aMatch <> aChild then
+          begin
+            // move it before the one we had before.
+            aMatch.MoveTo(aChild,naInsert);
+            // switch the current child to this moved one.
+            aChild := aMatch;
+          end;
+          // else do nothing and go on to the next
 
-        // reload the node from it's list and properties. This will
-        // not go and get data it doesn't have, it will just update
-        // the data it *does* have.
-        ReloadNode(aChild,aProps);
+          // reload the node from it's list and properties. This will
+          // not go and get data it doesn't have, it will just update
+          // the data it *does* have.
+          ReloadNode(aChild,aProps);
 
-      end
-      else
-      begin
-        // we didn't find a match, so we need to create one.
-        // create a new node that matches.
-        if aChild <> nil then
-           aChild := ProjectExplorer.Items.Insert(aChild,'') as TProjectInspectorNode
+        end
         else
-           aChild := ProjectExplorer.Items.AddChild(aNode,'') as TProjectInspectorNode;
-        // initialize it.
-        InitializeNode(aChild,aList[i],aProps);
+        begin
+          // we didn't find a match, so we need to create one.
+          // create a new node that matches.
+          if aChild <> nil then
+             aChild := ProjectExplorer.Items.Insert(aChild,'') as TProjectInspectorNode
+          else
+             aChild := ProjectExplorer.Items.AddChild(aNode,'') as TProjectInspectorNode;
+          // initialize it.
+          InitializeNode(aChild,aList[i],aProps);
+        end;
+
+        // go on to the next sibling and the next item in the list.
+        aChild := aChild.GetNextSibling as TProjectInspectorNode;
+
       end;
 
-      // go on to the next sibling and the next item in the list.
-      aChild := aChild.GetNextSibling as TProjectInspectorNode;
-
-    end;
-
-    // if achild is not nil then we reached the end of the list
-    // and there are still some extra nodes left.
-    while aChild <> nil do
-    begin
-      aMatch := aChild.GetNextSibling as TProjectInspectorNode;
-      ProjectExplorer.Items.Delete(aChild);
-      aChild := aMatch;
-    end;
-
-    if (aNode <> nil) and (aNode.ExpandOnList) then
-    begin
-      aNode.ExpandOnList := false;
-      if Length(aList) > 0 then
-         aNode.Expanded := true
-      else
+      // if achild is not nil then we reached the end of the list
+      // and there are still some extra nodes left.
+      while aChild <> nil do
       begin
-        aNode.HasChildren:=false;
+        aMatch := aChild.GetNextSibling as TProjectInspectorNode;
+        ProjectExplorer.Items.Delete(aChild);
+        aChild := aMatch;
+      end;
+
+      if (aNode <> nil) then
+      begin
+        if (aNode.ExpandOnList) then
+        begin
+          aNode.ExpandOnList := false;
+          if Length(aList) > 0 then
+             aNode.Expanded := true
+        end;
+        if Length(aList) = 0 then
+           aNode.HasChildren:=false;
       end;
     end;
 
@@ -364,15 +416,19 @@ end;
 procedure TProjectManager.InitializeNode(aNode: TProjectInspectorNode;
   aDocument: TDocumentID; aProps: TProjectProperties);
 var
+  docData: TDocumentMetadata;
   docProps: TDocumentProperties;
 begin
   aNode.DocumentID:=aDocument;
-  aNode.HasChildren:=true;
   aNode.SetStyleFromProjectProperties(aProps);
   if (MainForm.Project <> nil) then
   begin
+    docData := MainForm.Project.GetDocument(aDocument);
+    if (docData.ListingState <> lsListed) then
+       aNode.HasChildren := true;
+
     // we need property information to display it.
-    docProps := MainForm.Project.GetDocument(aDocument).Properties;
+    docProps := docData.Properties;
     if docProps.FilingState = fsNotLoaded then
       docProps.Load;
   end;
@@ -442,11 +498,23 @@ end;
 procedure TProjectManager.SetupControls;
 var
   canManageNode: Boolean;
+  canAddNode: Boolean;
 begin
   canManageNode := ProjectExplorer.Selected <> nil;
+  if ProjectExplorer.Selected = nil then
+  begin
+    canManageNode := false;
+    canAddNode := true;
+  end
+  else
+  begin
+    canManageNode := true;
+    canAddNode := MainForm.Project.GetDocument((ProjectExplorer.Selected as TProjectInspectorNode).DocumentID).ListingState = lsListed;
+  end;
   RenameDocumentButton.Enabled := canManageNode;
   MoveDocumentButton.Enabled := canManageNode;
   DeleteDocumentButton.Enabled := canManageNode;
+  NewDocumentButton.Enabled := canAddNode;
 end;
 
 constructor TProjectManager.Create(TheOwner: TComponent);

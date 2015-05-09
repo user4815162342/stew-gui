@@ -6,29 +6,38 @@ interface
 
 {
 
+TODO: Problems with 'created' document that isn't handled yet.
+1. Can't edit primary or notes. I still need to be able to copy blanks.
+   -- for this, I need to figure out how to copy these files into the directory
+      when I build the application.
+   -- but, remember, I'm *asking* if they want to create one before I do this.
+2. I also need to be able to create a new root-level node even if another node is
+selected. This probably requires having a separate action for creating a sibling
+and for creating a child.
+
+TODO: If I end up putting 'locking' on a metadata when it's tab is open, I might
+be able to use that instead of isNew where that is used. Just an idea.
+
 TODO: To get this actually usable and publish it on Github, at least.
-- Need to be able to create files
-  (Has to be done in such a way that I don't have to actually create the
-   data until I save. Perhaps a new filingstate flag, plus a flag on the
-   metadata cache to prevent removing the document from the explorer despite
-   not having any actual files)
-- Need to be able to move files
 - Need to be able to rename files (Keep in mind that the project manager tree
   shows the title if present, so don't just allow editing without doing something
   about that. Can I set the text of a node in the OnEditing event?)
+  - Need to be able to move files - should I have buttons for this, drag and drop,
+  or a "move state" thing where I press the button, then click on the node I want
+  to put it at (a little nicer than drag and drop, but then, I might as well just
+  *have* drag and drop).
 - Update the CLI version to work with the new schema for status, so I can still
 use that for more complex tasks.
 - Need a .DEB package (and a place to put the DEB package)
 
-1. Next, work on the document properties and editors. The infrastructure
-looks a lot like the project settings editor, of course.
-2. Once I have document properties, I should be able to easily 'sort' the
-documents based on the index property of the folder and root properties.
-3. A button for opening documents and notes.
-
 At that point, I can slowly start moving from the command line to the GUI.
 The command line will probably never be completely deprecated, because the
 scripting capabilities there are still quite useful.
+
+TODO: I just realized that backed up files are going to appear as attachments,
+which could really make the whole thing huge given enough time.
+
+TODO: All MessageDlg's should use MainForm.Title as the caption.
 
 TODO: A rework of architecture: Possibly, instead of keeping properties objects,
 we've got to think of each document as a 'page', almost like a webpage. On load,
@@ -174,7 +183,8 @@ type
                      mfaDocumentSynopsisLoading,
                      mfaDocumentSynopsisSaving,
                      mfaDocumentSynopsisSaved,
-                     mfaDocumentSynopsisSaveConflicted);
+                     mfaDocumentSynopsisSaveConflicted,
+                     mfaDocumentCreated);
   TMainFormObserverHandler = procedure(aAction: TMainFormAction; aDocument: TDocumentID) of object;
   TMainFormObserverList = specialize TFPGList<TMainFormObserverHandler>;
 
@@ -201,6 +211,7 @@ type
       AttachmentName: String);
     procedure DocumentAttachmentSaving(Sender: TObject; Document: TDocumentID;
       AttachmentName: String);
+    procedure DocumentCreated(Sender: TObject; Document: TDocumentID);
     procedure DocumentListError(Sender: TObject; Document: TDocumentID;
       Error: String);
     procedure DocumentPropertiesLoading(Sender: TObject; Document: TDocumentID);
@@ -327,6 +338,12 @@ begin
   if AttachmentName = 'Synopsis' then
     NotifyObservers(mfaDocumentSynopsisSaving,Document);
 
+end;
+
+procedure TMainForm.DocumentCreated(Sender: TObject; Document: TDocumentID);
+begin
+  NotifyObservers(mfaDocumentCreated,Document);
+  OpenDocument(Document);
 end;
 
 procedure TMainForm.DocumentListError(Sender: TObject; Document: TDocumentID;
@@ -693,6 +710,7 @@ begin
   fProject.OnDocumentAttachmentSaveConflicted:=@DocumentAttachmentSaveConflicted;
   fProject.OnDocumentsListed:=@DocumentsListed;
   fProject.OnDocumentListError:=@DocumentListError;
+  fProject.OnDocumentCreated:=@DocumentCreated;
   fProject.OpenAtPath(@StartupIfProjectExists,@ProjectLoadFailed);
 
 end;
