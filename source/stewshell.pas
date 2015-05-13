@@ -5,22 +5,81 @@ unit stewshell;
 interface
 
 uses
-  Classes, SysUtils;
+  Classes, SysUtils, stewasync, stewfile;
+
+type
+
+  { TRunSimpleCommand }
+
+  TRunSimpleCommand = class(TDeferredTask)
+  private
+    fCmd: String;
+    fArgs: Array of String;
+    fCallback: TDeferredStringCallback;
+  protected
+    procedure DoTask; override;
+  public
+    constructor Create(aCmd: String; const aArgs: array of string;
+      aOutput: TDeferredStringCallback; aErrorBack: TDeferredExceptionCallback);
+
+  end;
+
+
+  TTemplate = record
+    Name: String;
+    {$IFDEF Linux}
+    Path: String;
+    {$ENDIF}
+  end;
+
+  TTemplateArray = array of TTemplate;
+
+  TTemplateListCallback = specialize GDeferredCallback<TTemplateArray>;
+
+  { TTemplateLister }
+
+  { TListTemplates }
+
+  TListTemplates = class
+  private
+    fExt: String;
+    fCallback: TTemplateListCallback;
+    fErrorback: TDeferredExceptionCallback;
+    {$IFDEF Linux}
+      fTemplatePath: String;
+    {$ENDIF}
+  protected
+    procedure Failed(Data: String);
+  {$IFDEF Linux}
+    procedure XdgUserDirDone(Data: String);
+    procedure TemplateFilesListed(Data: TFileList);
+  {$ENDIF}
+  public
+    constructor Create(aExt: String; aCallback: TTemplateListCallback; aErrorBack: TDeferredExceptionCallback);
+    procedure Enqueue;
+  end platform;
 
 procedure EditFile(aFile: TFilename);
+procedure RunSimpleCommand(aCmd: String; const aArgs: array of string;
+      aOutput: TDeferredStringCallback; aErrorBack: TDeferredExceptionCallback);
+procedure GetTemplatesForExt(const aExt: String; aCallback: TTemplateListCallback; aErrorback: TDeferredExceptionCallback);
+procedure CreateFileFromTemplate(aTemplate: TTemplate; aFile: TFilename; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
 
 implementation
 
 uses
-  lclintf, FileUtil, UTF8Process;
+  lclintf, FileUtil, process, UTF8Process;
+
 
 
 procedure EditFile(aFile: TFilename);
 {$IFDEF Linux}
 var
   lApp: string;
+{$ENDIF}
 begin
-  // OpenDocument fails on my linux system (Mint 13 XFCE), at least when
+{$IFDEF Linux}
+  // The official FPC OpenDocument fails on my linux system (Mint 13 XFCE), at least when
   // the filename contains spaces: the error reported from xdg-open is that
   // the file could not be found. The problem appears to be that it
   // automatically 'single quotes' the file, which xdg-open doesn't like,
@@ -51,20 +110,187 @@ begin
     if lApp='' then
       lApp:=FindFilenameOfCmd('gnome-open'); // GNOME command
     if lApp='' then
-      raise Exception.Create('No opening program is installed for desktop environment');
+      raise Exception.Create('No known opening command is available for your desktop environment');
 
     if (aFile<>'') and (aFile[1]<>'"') then
       aFile:=AnsiQuotedStr(aFile,'"');
     RunCmdFromPath(lApp,aFile);
 
-end;
 {$ELSE}
-begin
   if not OpenDocument(aFile) then
      raise Exception.Create('Can''t open file: ' + aFile);
+{$ENDIF}
+end;
+
+procedure RunSimpleCommand(aCmd: String; const aArgs: array of string;
+  aOutput: TDeferredStringCallback; aErrorBack: TDeferredExceptionCallback);
+begin
+  TRunSimpleCommand.Create(aCmd,aArgs,aOutput,aErrorBack).Enqueue;
+end;
+
+procedure GetTemplatesForExt(const aExt: String;
+  aCallback: TTemplateListCallback; aErrorback: TDeferredExceptionCallback
+  );
+begin
+  TListTemplates.Create(aExt,aCallback,aErrorback).Enqueue;
+end;
+
+procedure CreateFileFromTemplate(aTemplate: TTemplate; aFile: TFilename;
+  aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
+begin
+{$IFDEF Linux}
+  stewfile.CopyFile(aTemplate.Path,aFile,aCallback,aErrorback)
+{$ELSE}
+{$ERROR Required code is not yet written for this platform.}
+{$ENDIF}
+end;
+
+{ TRunSimpleCommand }
+
+procedure TRunSimpleCommand.DoTask;
+var
+  lApp: String;
+  lOut: String;
+begin
+  lApp := FindDefaultExecutablePath(fCmd);
+  if lApp <> '' then
+  begin
+    lOut := '';
+    if RunCommand(lApp,fArgs,lOut) then
+       fCallback(lOut)
+    else
+      raise Exception.Create('Command "' + fCmd + '" failed to run properly');
+  end
+  else
+     raise Exception.Create('Command "' + fCmd + '" could not be found on your system');
+end;
+
+constructor TRunSimpleCommand.Create(aCmd: String; const aArgs: array of string;
+  aOutput: TDeferredStringCallback; aErrorBack: TDeferredExceptionCallback);
+var
+  i: Integer;
+  l: Integer;
+begin
+  inherited Create(aErrorBack);
+  fCmd := aCmd;
+  l := Length(aArgs);
+  // can't assign "open array" to "dynamic array". Which really doesn't
+  // make sense, since they're both declared the same, but it's always been
+  // a problem, IIRC.
+  SetLength(fArgs,l);
+  for i := 0 to l - 1 do
+  begin
+    fArgs[i] := aArgs[i];
+  end;
+  fCallback := aOutput;
+end;
+
+{ TTemplateLister }
+
+{$IFDEF Linux}
+
+procedure TListTemplates.TemplateFilesListed(Data: TFileList);
+var
+  aAnswer: TTemplateArray;
+  l: Integer;
+  i: Integer;
+  j: Integer;
+begin
+  try
+    l := Length(Data);
+    j := 0;
+    for i := 0 to l - 1 do
+    begin
+      if (fExt = '') or (ExtractFileExt(Data[i]) = fExt) then
+      begin
+        SetLength(aAnswer,j + 1);
+        aAnswer[j].Name := ExtractFileNameWithoutExt(Data[i]);
+        aAnswer[j].Path := fTemplatePath + Data[i];
+        j := j + 1;
+      end;
+    end;
+    fCallback(aAnswer);
+  except
+    on E: Exception do
+    begin
+      Failed(E.Message);
+      // Failed already freed us, so don't do anything more.
+      exit;
+    end;
+  end;
+  // process is complete, so free it.
+  Free;
+end;
+
+procedure TListTemplates.XdgUserDirDone(Data: String);
+begin
+  try
+    fTemplatePath := IncludeTrailingPathDelimiter(Trim(Data));
+    ListFiles(fTemplatePath,@TemplateFilesListed,@Failed);
+  except
+    on E: Exception do
+      Failed(E.Message);
+  end;
 end;
 {$ENDIF}
 
+procedure TListTemplates.Failed(Data: String);
+begin
+  fErrorback(Data);
+  // an error occurred, so we're done.
+  Free;
+end;
+
+
+constructor TListTemplates.Create(aExt: String;
+  aCallback: TTemplateListCallback; aErrorBack: TDeferredExceptionCallback);
+begin
+  inherited Create;
+  fErrorback := aErrorBack;
+  fCallback := aCallback;
+  fExt := aExt;
+end;
+
+procedure TListTemplates.Enqueue;
+begin
+{$IFDEF Linux}
+{ There are two possible ways to do this:
+1. Read the configuration files directly:
+   a. Figure out where the config home directory is
+      i. get $XDG_CONFIG_HOME
+      ii. If that's blank, get $HOME and add '.config'
+   b. Read $XDG_CONFIG_HOME/user-dirs.dirs
+   c. Look for a XDG_TEMPLATES_DIR and read in the value
+   d. Expand environment variables in the value, such as $HOME
+   e. And now we have our directory. Or,
+2. Run xdg-user-dirs "TEMPLATES" and the directory will be in the output.
+
+I think I know which way *I* want to do it, at least until we find out that it
+doesn't work. }
+  RunSimpleCommand('xdg-user-dir',['TEMPLATES'],@XdgUserDirDone,@Failed);
+
+{$ELSE}
+{$ERROR Required code is not yet written for this platform.}
+{-- Windows
+   - much more complex, since it uses the registry
+   - http://mc-computing.com/WinExplorer/WinExplorerRegistry_ShellNew.htm
+     -- that document is marked for Windows 95, however, so I'm not certain
+        how it pertains to Windows 7, 8, etc. But, other sources seem to
+        imply it should still work.
+   - because the process of *adding* a template is much more involved, I
+     may want to allow a secondary search through an application directory
+     for templates as well.
+-- Mac
+   - after rudimentary research, it appears that Mac doesn't support this
+     type of thing. The closest thing they have is the ability to mark a
+     file as a "stationery pad", which means that when you open it, it will
+     copy the file (in a temp directory?) and open that in some way. Assuming
+     I still have to choose the location when saving the document later,
+     this isn't at all helpful.
+     - So, I think for the Mac, I have to create my own template directory
+       anyway.}
+{$ENDIF}
+end;
 
 end.
 

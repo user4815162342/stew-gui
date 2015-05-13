@@ -1,0 +1,87 @@
+object ListDialog: TListDialog
+  Left = 324
+  Height = 170
+  Top = 280
+  Width = 284
+  Anchors = [akLeft]
+  Caption = 'ListDialog'
+  ClientHeight = 170
+  ClientWidth = 284
+  Position = poMainFormCenter
+  LCLVersion = '1.2.6.0'
+  object CaptionLabel: TLabel
+    AnchorSideLeft.Control = Owner
+    AnchorSideTop.Control = Owner
+    AnchorSideRight.Control = Owner
+    AnchorSideRight.Side = asrBottom
+    Left = 20
+    Height = 16
+    Top = 10
+    Width = 244
+    Anchors = [akTop, akLeft, akRight]
+    BorderSpacing.Left = 20
+    BorderSpacing.Top = 10
+    BorderSpacing.Right = 20
+    Caption = 'Caption goes here...'
+    ParentColor = False
+  end
+  object AcceptButton: TButton
+    AnchorSideTop.Control = ChoiceList
+    AnchorSideTop.Side = asrBottom
+    AnchorSideRight.Control = Owner
+    AnchorSideRight.Side = asrBottom
+    AnchorSideBottom.Control = Owner
+    AnchorSideBottom.Side = asrBottom
+    Left = 193
+    Height = 25
+    Top = 135
+    Width = 81
+    Anchors = [akRight, akBottom]
+    BorderSpacing.Left = 10
+    BorderSpacing.Top = 10
+    BorderSpacing.Right = 10
+    BorderSpacing.Bottom = 10
+    Caption = 'Accept'
+    ModalResult = 1
+    TabOrder = 0
+  end
+  object CancelButton: TButton
+    AnchorSideTop.Control = ChoiceList
+    AnchorSideTop.Side = asrBottom
+    AnchorSideRight.Control = AcceptButton
+    AnchorSideBottom.Control = Owner
+    AnchorSideBottom.Side = asrBottom
+    Left = 108
+    Height = 25
+    Top = 135
+    Width = 75
+    Anchors = [akRight, akBottom]
+    BorderSpacing.Left = 10
+    BorderSpacing.Top = 10
+    BorderSpacing.Right = 10
+    BorderSpacing.Bottom = 10
+    Caption = 'Cancel'
+    ModalResult = 2
+    TabOrder = 1
+  end
+  object ChoiceList: TListBox
+    AnchorSideLeft.Control = Owner
+    AnchorSideTop.Control = CaptionLabel
+    AnchorSideTop.Side = asrBottom
+    AnchorSideRight.Control = Owner
+    AnchorSideRight.Side = asrBottom
+    AnchorSideBottom.Control = AcceptButton
+    Left = 40
+    Height = 89
+    Top = 36
+    Width = 204
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    BorderSpacing.Left = 40
+    BorderSpacing.Top = 10
+    BorderSpacing.Right = 40
+    ItemHeight = 0
+    ScrollWidth = 202
+    TabOrder = 2
+    TopIndex = -1
+  end
+end

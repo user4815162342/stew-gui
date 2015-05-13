@@ -10,7 +10,7 @@ uses
   Forms, stewmainform, stewproject, stewfile, stewasync, stewprojectmanager,
   stewconfig, stewjson, stewdocumenteditor, stewpreferenceseditor,
   stewprojectsettingseditor, steweditorframe, stewabout, stewproperties,
-  stewtypes, stewpersist, stewjsoneditor, stewshell;
+  stewtypes, stewpersist, stewjsoneditor, stewshell, stewlistdialog;
 
 {$R *.res}
 
@@ -20,6 +20,7 @@ begin
   Application.Initialize;
   Application.CreateForm(TMainForm, MainForm);
   Application.CreateForm(TAboutForm, AboutForm);
+  Application.CreateForm(TListDialog, ListDialog);
   Application.Run;
 end.
 

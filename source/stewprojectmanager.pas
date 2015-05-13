@@ -17,19 +17,26 @@ type
     DocumentGlyphs: TImageList;
     ProjectExplorer: TTreeView;
     ProjectToolbar: TToolBar;
-    NewDocumentButton: TToolButton;
+    NewChildDocumentButton: TToolButton;
     RenameDocumentButton: TToolButton;
     DeleteDocumentButton: TToolButton;
-    MoveDocumentButton: TToolButton;
+    NewSiblingDocumentButton: TToolButton;
+    MoveDocumentUpButton: TToolButton;
+    MoveDocumentDownButton: TToolButton;
     procedure DeleteDocumentButtonClick(Sender: TObject);
-    procedure MoveDocumentButtonClick(Sender: TObject);
-    procedure NewDocumentButtonClick(Sender: TObject);
+    procedure MoveDocumentDownButtonClick(Sender: TObject);
+    procedure MoveDocumentUpButtonClick(Sender: TObject);
+    procedure NewChildDocumentButtonClick(Sender: TObject);
+    procedure NewSiblingDocumentButtonClick(Sender: TObject);
     procedure ObserveMainForm(aAction: TMainFormAction; {%H-}aDocument: TDocumentID);
     procedure ProjectExplorerCreateNodeClass(Sender: TCustomTreeView;
       var NodeClass: TTreeNodeClass);
     procedure ProjectExplorerCustomDrawItem(Sender: TCustomTreeView;
       Node: TTreeNode; {%H-}State: TCustomDrawState; var DefaultDraw: Boolean);
     procedure ProjectExplorerDblClick(Sender: TObject);
+    procedure ProjectExplorerDragDrop(Sender, Source: TObject; X, Y: Integer);
+    procedure ProjectExplorerDragOver(Sender, Source: TObject; {%H-}X, {%H-}Y: Integer;
+      {%H-}State: TDragState; var Accept: Boolean);
     procedure ProjectExplorerExpanding(Sender: TObject; Node: TTreeNode;
       var {%H-}AllowExpansion: Boolean);
     procedure ProjectExplorerSelectionChanged(Sender: TObject);
@@ -42,6 +49,7 @@ type
     private
       FDocumentID: TDocumentID;
       fExpandOnList: Boolean;
+      fIsLocked: Boolean;
       fIsNew: Boolean;
       FStatusColor: TColor;
       procedure SetDocumentID(AValue: TDocumentID);
@@ -51,6 +59,7 @@ type
       property ExpandOnList: Boolean read fExpandOnList write fExpandOnList;
       property StatusColor: TColor read FStatusColor write SetStatusColor;
       property IsNew: Boolean read fIsNew write fIsNew;
+      property IsLocked: Boolean read fIsLocked write fIsLocked;
       procedure SetStyleFromProjectProperties(aProps: TProjectProperties);
     end;
   private
@@ -63,6 +72,7 @@ type
       aProps: TProjectProperties);
     procedure UpdateCategoryGlyphs;
     procedure SetupControls;
+    procedure CreateNewDocument(aChild: Boolean);
   protected
     property Project: TStewProject read GetProject;
   public
@@ -127,19 +137,20 @@ begin
   else
      StatusColor := clDefault;
 
-  name := ExtractDocumentName(DocumentID);
+  name := docData.GetName;
   if docProps.title <> '' then
     Text := docProps.title + ' (' + name + ')'
   else
     Text := name;
 
-  // If we are losing "newness", then it's possible that the parent is also
-  // no longer "new", because a directory, at least, has been created.
   if fIsNew <> docData.IsNew then
   begin
-    if fIsNew and (Parent <> nil) then
-       (Parent as TProjectInspectorNode).SetStyleFromProjectProperties(aProps);
     fIsNew := docData.IsNew;
+  end;
+
+  if fIsLocked <> docData.IsLocked then
+  begin
+    fIsLocked := docData.IsLocked;
   end;
 end;
 
@@ -179,15 +190,41 @@ begin
 end;
 
 procedure TProjectManager.RenameDocumentButtonClick(Sender: TObject);
+var
+  aNode: TProjectInspectorNode;
+  aDoc: TDocumentMetadata;
+  aParent: TDocumentMetadata;
+  aOldName: String;
+  aNewName: String;
 begin
-  ShowMessage('I can''t rename documents yet');
+  aNode := ProjectExplorer.Selected as TProjectInspectorNode;
+  aDoc := MainForm.Project.GetDocument(aNode.DocumentID);
+  if aDoc.IsLocked then
+  begin
+    ShowMessage('This document is open in a tab, to avoid problems with unsaved data, I can''t rename it until that tab is closed.');
+    Exit;
+  end;
+  aOldName := aDoc.GetName;
+  aNewName := aOldName;
+  if InputQuery(MainForm.Caption,'Enter new name for document:',aNewName) then
+  begin
+    aParent := aDoc.GetParent;
+    if aParent.IsTroublesome(aNewName) then
+       ShowMessage('The name "' + aNewName + '" would cause problems as a filename on some computers.' + LineEnding +
+                   'For example, the following characters are not allowed: <, >, :, ", /, \, |, ?, *, %, [, ], ~,{ ,}, ;' + LineEnding +
+                   'Plus, spaces at the beginning or end of the name, a hyphen at the beginning, or two or more spaces together in the middle of a name.')
+    else if aParent.HasDocument(aNewName) then
+       ShowMessage('A document named "' + aNewName + '" already exists here.')
+    else
+       aParent.Rename(aOldName,aNewName);
+  end;
 end;
 
 procedure TProjectManager.ObserveMainForm(aAction: TMainFormAction;
   aDocument: TDocumentID);
 begin
   case aAction of
-    mfaDocumentsListed,mfaDocumentPropertiesLoaded,mfaDocumentPropertiesSaved:
+    mfaDocumentsListed,mfaDocumentPropertiesLoaded,mfaDocumentPropertiesSaved,mfaDocumentChanged:
     begin
       ReloadNodeForDocument(aDocument);
       SetupControls;
@@ -200,31 +237,14 @@ begin
   end;
 end;
 
-procedure TProjectManager.NewDocumentButtonClick(Sender: TObject);
-var
-  aNode: TProjectInspectorNode;
-  aDocument: TDocumentID;
-  aName: String;
-  aParent: TDocumentMetadata;
+procedure TProjectManager.NewChildDocumentButtonClick(Sender: TObject);
 begin
-  aName := '';
-  if InputQuery(MainForm.Caption,'What would you like to name the new document?',aName) then
-  begin
-    aNode := ProjectExplorer.Selected as TProjectInspectorNode;
-    if aNode = nil then
-      aDocument := RootDocument
-    else
-      aDocument := aNode.DocumentID;
-    aParent := MainForm.Project.GetDocument(aDocument);
-    if aParent.HasDocument(aName) then
-       ShowMessage('A document named "' + aName + '" already exists here.')
-    else
-    begin
-       aParent.CreateDocument(aName);
-       if aNode <> nil then
-         aNode.Expanded := true;
-    end;
-  end;
+  CreateNewDocument(true);
+end;
+
+procedure TProjectManager.NewSiblingDocumentButtonClick(Sender: TObject);
+begin
+  CreateNewDocument(false);
 end;
 
 procedure TProjectManager.DeleteDocumentButtonClick(Sender: TObject);
@@ -232,9 +252,68 @@ begin
   ShowMessage('I can''t delete documents yet');
 end;
 
-procedure TProjectManager.MoveDocumentButtonClick(Sender: TObject);
+procedure TProjectManager.MoveDocumentDownButtonClick(Sender: TObject);
+var
+  aNode: TProjectInspectorNode;
+  aSiblingNode: TProjectInspectorNode;
+  aDoc: TDocumentMetadata;
+  aParent: TDocumentMetadata;
+  aSibling: TDocumentMetadata;
 begin
-  ShowMessage('I can''t move documents yet');
+  aNode := ProjectExplorer.Selected as TProjectInspectorNode;
+  aSiblingNode := aNode.GetNextSibling as TProjectInspectorNode;
+  if aSiblingNode = nil then
+  // TODO: Prevent by disabling button.
+    Exit;
+  aDoc := MainForm.Project.GetDocument(aNode.DocumentID);
+  aSibling := MainForm.Project.GetDocument(aSiblingNode.DocumentID);
+  aParent := aDoc.GetParent;
+  with aNode.GetPrevSibling do;
+  if aParent.IsLocked then
+  // TODO: Moving the document requires saving the properties, therefore we can't really
+  // do that if the user is editing those properties. Revisit this once we can
+  // track for modifications in the editor and have closequery working for those,
+  // because then we can either check for modifications and save if none, or let
+  // the user choose to save (although we have to make sure we can mark the data
+  // as modified).
+  // TODO: Alternatively, this may be a good enough reason to move the 'index' into
+  // a separate attachment, outside of properties. (_index.txt)
+     ShowMessage('The containing document is open in a tab. Please close that before you re-order it''s contents');
+
+  aParent.OrderDocument(aDoc,odpAfter,aSibling);
+
+end;
+
+procedure TProjectManager.MoveDocumentUpButtonClick(Sender: TObject);
+var
+  aNode: TProjectInspectorNode;
+  aSiblingNode: TProjectInspectorNode;
+  aDoc: TDocumentMetadata;
+  aParent: TDocumentMetadata;
+  aSibling: TDocumentMetadata;
+begin
+  aNode := ProjectExplorer.Selected as TProjectInspectorNode;
+  aSiblingNode := aNode.GetPrevSibling as TProjectInspectorNode;
+  if aSiblingNode = nil then
+  // TODO: Prevent by disabling button.
+    Exit;
+  aDoc := MainForm.Project.GetDocument(aNode.DocumentID);
+  aSibling := MainForm.Project.GetDocument(aSiblingNode.DocumentID);
+  aParent := aDoc.GetParent;
+  with aNode.GetPrevSibling do;
+  if aParent.IsLocked then
+  // TODO: Moving the document requires saving the properties, therefore we can't really
+  // do that if the user is editing those properties. Revisit this once we can
+  // track for modifications in the editor and have closequery working for those,
+  // because then we can either check for modifications and save if none, or let
+  // the user choose to save (although we have to make sure we can mark the data
+  // as modified).
+  // TODO: Alternatively, this may be a good enough reason to move the 'index' into
+  // a separate attachment, outside of properties. (_index.txt)
+     ShowMessage('The containing document is open in a tab. Please close that before you re-order it''s contents');
+
+  aParent.OrderDocument(aDoc,odpBefore,aSibling);
+
 end;
 
 procedure TProjectManager.ProjectExplorerCreateNodeClass(
@@ -249,11 +328,20 @@ procedure TProjectManager.ProjectExplorerCustomDrawItem(
 begin
   // NOTE: In order for this to work, tvoThemedDraw must be turned off
   // in the TTreeView options.
-   Sender.Canvas.Font.Color := (Node as TProjectInspectorNode).StatusColor;
-   if (Node as TProjectInspectorNode).IsNew then
-     Sender.Canvas.Font.Style := Sender.Canvas.Font.Style + [fsItalic]
-   else
-     Sender.Canvas.Font.Style := Sender.Canvas.Font.Style - [fsItalic];
+  with Node as TProjectInspectorNode do
+  begin
+    Sender.Canvas.Font.Color := StatusColor;
+    if IsNew then
+      Sender.Canvas.Font.Style := Sender.Canvas.Font.Style + [fsItalic]
+    else
+      Sender.Canvas.Font.Style := Sender.Canvas.Font.Style - [fsItalic];
+
+    if IsLocked then
+      Sender.Canvas.Font.Style := Sender.Canvas.Font.Style + [fsBold]
+    else
+      Sender.Canvas.Font.Style := Sender.Canvas.Font.Style - [fsBold];
+
+  end;
 
    DefaultDraw := true;
 end;
@@ -272,6 +360,75 @@ begin
 
   end;
 
+end;
+
+procedure TProjectManager.ProjectExplorerDragDrop(Sender, Source: TObject; X,
+  Y: Integer);
+var
+  aDraggingNode: TProjectInspectorNode;
+  aTargetNode: TProjectInspectorNode;
+  aDraggingDocID: TDocumentID;
+  aTargetDocID: TDocumentID;
+  aTargetDoc: TDocumentMetadata;
+  aDraggingDoc: TDocumentMetadata;
+begin
+  aTargetNode := ProjectExplorer.GetNodeAt(X,Y) as TProjectInspectorNode;
+  if Source = Sender then
+  begin
+    aDraggingNode := ProjectExplorer.Selected as TProjectInspectorNode;
+    if (aDraggingNode <> nil) and (aTargetNode <> aDraggingNode) and
+       (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
+    begin
+      aDraggingDocID := aDraggingNode.DocumentID;
+      if aTargetNode <> nil then
+        aTargetDocID := aTargetNode.DocumentID
+      else
+        aTargetDocID := RootDocument;
+      aTargetDoc := MainForm.Project.GetDocument(aTargetDocID);
+      aDraggingDoc:= MainForm.Project.GetDocument(aDraggingDocID);
+      if aTargetDoc.ListingState <> lsListed then
+        Exit;
+      if aTargetDoc.HasDocument(aDraggingDoc.GetName) then
+      begin
+        ShowMessage('A document named "' + aDraggingDoc.GetName + '" already exists there.');
+        Exit;
+      end;
+      aTargetDoc.MoveDocToHere(aDraggingDoc);
+    end
+  end;
+end;
+
+procedure TProjectManager.ProjectExplorerDragOver(Sender, Source: TObject; X,
+  Y: Integer; State: TDragState; var Accept: Boolean);
+var
+  aTargetNode: TProjectInspectorNode;
+  aDraggingNode: TProjectInspectorNode;
+  aTargetDoc: TDocumentMetadata;
+begin
+  Accept := false;
+  if Source = Sender then
+  begin
+    aTargetNode := ProjectExplorer.GetNodeAt(X,Y) as TProjectInspectorNode;
+    aDraggingNode := ProjectExplorer.Selected as TProjectInspectorNode;
+    if aDraggingNode <> nil then
+    begin
+      if aTargetNode <> nil then
+      begin
+        if aTargetNode.HasAsParent(aDraggingNode) then
+           Exit;
+        if aTargetNode = aDraggingNode.Parent then
+           Exit;
+        aTargetDoc := MainForm.Project.GetDocument(aTargetNode.DocumentID)
+      end
+      else
+        aTargetDoc := MainForm.Project.GetDocument(RootDocument);
+
+      if aTargetDoc.ListingState = lsNotListed then
+        // list documents so we can retry very soon.
+        aTargetDoc.ListDocuments(false);
+      Accept := aTargetDoc.ListingState = lsListed;
+    end;
+  end;
 end;
 
 function TProjectManager.GetProject: TStewProject;
@@ -498,23 +655,79 @@ end;
 procedure TProjectManager.SetupControls;
 var
   canManageNode: Boolean;
-  canAddNode: Boolean;
+  canAddChildNode: Boolean;
+  canAddSibNode: Boolean;
+  canMoveDown: Boolean;
+  canMoveUp: Boolean;
 begin
   canManageNode := ProjectExplorer.Selected <> nil;
   if ProjectExplorer.Selected = nil then
   begin
     canManageNode := false;
-    canAddNode := true;
+    canAddChildNode := true;
+    canAddSibNode := false;
+    canMoveDown := false;
+    canMoveUp := false;
   end
   else
   begin
     canManageNode := true;
-    canAddNode := MainForm.Project.GetDocument((ProjectExplorer.Selected as TProjectInspectorNode).DocumentID).ListingState = lsListed;
+    canAddChildNode := MainForm.Project.GetDocument((ProjectExplorer.Selected as TProjectInspectorNode).DocumentID).ListingState = lsListed;
+    // if we're adding a sibling node, then the document is probably already
+    // listed.
+    canAddSibNode := true;
+    canMoveDown:= ProjectExplorer.Selected.GetNextSibling <> nil;
+    canMoveUp := ProjectExplorer.Selected.GetPrevSibling <> nil;
   end;
   RenameDocumentButton.Enabled := canManageNode;
-  MoveDocumentButton.Enabled := canManageNode;
   DeleteDocumentButton.Enabled := canManageNode;
-  NewDocumentButton.Enabled := canAddNode;
+  NewChildDocumentButton.Enabled := canAddChildNode;
+  NewSiblingDocumentButton.Enabled:= canAddSibNode;
+  MoveDocumentDownButton.Enabled:=canMoveDown;
+  MoveDocumentUpButton.Enabled := canMoveUp;
+
+end;
+
+procedure TProjectManager.CreateNewDocument(aChild: Boolean);
+var
+  aNode: TProjectInspectorNode;
+  aDocument: TDocumentID;
+  aName: String;
+  aParent: TDocumentMetadata;
+begin
+  aName := '';
+  if InputQuery(MainForm.Caption,'What would you like to name the new document?',aName) then
+  begin
+    aNode := ProjectExplorer.Selected as TProjectInspectorNode;
+    if aNode = nil then
+    begin
+      if not aChild then
+        raise Exception.Create('Can''t add a sibling document without a selected node');
+      aDocument := RootDocument
+    end
+    else
+      aDocument := aNode.DocumentID;
+    if aChild then
+       aParent := MainForm.Project.GetDocument(aDocument)
+    else
+    begin
+       aParent := MainForm.Project.GetDocument(aDocument).GetParent;
+       // the 'aDocument' should never be root, so the above should
+       // always return *something*.
+    end;
+    if aParent.IsTroublesome(aName) then
+       ShowMessage('The name "' + aName + '" would cause problems as a filename on some computers.' + LineEnding +
+                   'For example, the following characters are not allowed: <, >, :, ", /, \, |, ?, *, %, [, ], ~,{ ,}, ;' + LineEnding +
+                   'Plus, spaces at the beginning or end of the name, a hyphen at the beginning, or two or more spaces together in the middle of a name.')
+    else if aParent.HasDocument(aName) then
+       ShowMessage('A document named "' + aName + '" already exists here.')
+    else
+    begin
+       aParent.CreateDocument(aName);
+       if aChild and (aNode <> nil) then
+         aNode.Expanded := true;
+    end;
+  end;
 end;
 
 constructor TProjectManager.Create(TheOwner: TComponent);

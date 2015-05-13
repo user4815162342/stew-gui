@@ -15,6 +15,7 @@ object ProjectManager: TProjectManager
     Width = 253
     Align = alClient
     DefaultItemHeight = 18
+    DragMode = dmAutomatic
     Images = DocumentGlyphs
     ReadOnly = True
     ScrollBars = ssAutoBoth
@@ -22,6 +23,8 @@ object ProjectManager: TProjectManager
     OnCreateNodeClass = ProjectExplorerCreateNodeClass
     OnCustomDrawItem = ProjectExplorerCustomDrawItem
     OnDblClick = ProjectExplorerDblClick
+    OnDragDrop = ProjectExplorerDragDrop
+    OnDragOver = ProjectExplorerDragOver
     OnExpanding = ProjectExplorerExpanding
     OnSelectionChanged = ProjectExplorerSelectionChanged
     Options = [tvoAutoItemHeight, tvoHideSelection, tvoKeepCollapsedNodes, tvoReadOnly, tvoShowButtons, tvoShowLines, tvoShowRoot, tvoToolTips, tvoNoDoubleClickExpand]
@@ -33,29 +36,41 @@ object ProjectManager: TProjectManager
     Width = 253
     ShowCaptions = True
     TabOrder = 1
-    object NewDocumentButton: TToolButton
-      Left = 1
+    object NewChildDocumentButton: TToolButton
+      Left = 35
       Top = 2
       Caption = 'Child+'
-      OnClick = NewDocumentButtonClick
+      OnClick = NewChildDocumentButtonClick
     end
     object RenameDocumentButton: TToolButton
-      Left = 48
+      Left = 82
       Top = 2
-      Caption = 'Rename'
+      Caption = 'Name'
       OnClick = RenameDocumentButtonClick
     end
     object DeleteDocumentButton: TToolButton
-      Left = 146
+      Left = 194
       Top = 2
-      Caption = 'Delete'
+      Caption = 'Del'
       OnClick = DeleteDocumentButtonClick
     end
-    object MoveDocumentButton: TToolButton
-      Left = 104
+    object NewSiblingDocumentButton: TToolButton
+      Left = 1
       Top = 2
-      Caption = 'Move'
-      OnClick = MoveDocumentButtonClick
+      Caption = 'Sib+'
+      OnClick = NewSiblingDocumentButtonClick
+    end
+    object MoveDocumentUpButton: TToolButton
+      Left = 125
+      Top = 2
+      Caption = 'Up'
+      OnClick = MoveDocumentUpButtonClick
+    end
+    object MoveDocumentDownButton: TToolButton
+      Left = 150
+      Top = 2
+      Caption = 'Down'
+      OnClick = MoveDocumentDownButtonClick
     end
   end
   object DocumentGlyphs: TImageList

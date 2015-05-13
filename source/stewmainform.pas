@@ -6,26 +6,7 @@ interface
 
 {
 
-TODO: Problems with 'created' document that isn't handled yet.
-1. Can't edit primary or notes. I still need to be able to copy blanks.
-   -- for this, I need to figure out how to copy these files into the directory
-      when I build the application.
-   -- but, remember, I'm *asking* if they want to create one before I do this.
-2. I also need to be able to create a new root-level node even if another node is
-selected. This probably requires having a separate action for creating a sibling
-and for creating a child.
-
-TODO: If I end up putting 'locking' on a metadata when it's tab is open, I might
-be able to use that instead of isNew where that is used. Just an idea.
-
 TODO: To get this actually usable and publish it on Github, at least.
-- Need to be able to rename files (Keep in mind that the project manager tree
-  shows the title if present, so don't just allow editing without doing something
-  about that. Can I set the text of a node in the OnEditing event?)
-  - Need to be able to move files - should I have buttons for this, drag and drop,
-  or a "move state" thing where I press the button, then click on the node I want
-  to put it at (a little nicer than drag and drop, but then, I might as well just
-  *have* drag and drop).
 - Update the CLI version to work with the new schema for status, so I can still
 use that for more complex tasks.
 - Need a .DEB package (and a place to put the DEB package)
@@ -34,18 +15,80 @@ At that point, I can slowly start moving from the command line to the GUI.
 The command line will probably never be completely deprecated, because the
 scripting capabilities there are still quite useful.
 
-TODO: I just realized that backed up files are going to appear as attachments,
-which could really make the whole thing huge given enough time.
+TODO: We also need to make use of the 'closeQuery' on the editors, check if values
+are modified prior to saving.
+-- Actually, *this* is where we want to check modified, not the property objects themselves,
+because we've been saving them immediately after writing out the data.
+
+TODO: Don't forget to revisit the "Tasks" Idea, and all of the other thoughts
+I had on the stew-cli that can still be transferred over.
+
+TODO: I just realized that the temporary back up files are going to appear as attachments,
+which could really make the whole data structure for the cache huge given enough
+time.
 
 TODO: All MessageDlg's should use MainForm.Title as the caption.
 
-TODO: A rework of architecture: Possibly, instead of keeping properties objects,
-we've got to think of each document as a 'page', almost like a webpage. On load,
-it gets the properties object which is then displayed for editing, and on save
-it writes back to a new properties object which is then saved. I can still cache
-data internally, but it might simplify activity. We would basically be dealing
-with requests and responses instead of a stored properties object that we keep
-on having to retrieve.
+TODO: At this point, I think I can consider it "done for now". Just clean up
+todo's and collect them all into a single file for use later. Then, check into
+github, and fix the versioning and look into creating a deb file.
+
+TODO: Need to test this with documents containing '_'. I might have to "fix"
+certain names before applying them.
+
+TODO: A search function would basically bring up a DocumentQuery Tab. You would
+specify what document to start at, what properties to filter by (including user
+props), and whether to search recursively. The document would show up as a grid
+showing all of the documents, including the color coding and glyphs of the
+project manager. The document ID would be something like :query?category=Chapter;status=Complete...
+
+TODO: At some point, I need to go through and convert all string-based and
+file-based functions to UTF8 equivalents.
+
+TODO: At some point in the future, I might feel the need to "clear" the cache
+every once in a while. This is a little complex, but not too bad, we just
+have to avoid removing documents that are currently open (locking required
+if we haven't put that in yet) or new. But, we also can't remove siblings
+of said locked or new documents either, or parents of them, because we'll
+lose the listing state of the parent. Actually, this requires us to lock
+them based on expanded nodes in the project manager as well.
+
+TODO: Eventually, rework the JSON persistence stuff to work like the attachments,
+with our own JSON objects. The setup is very similar to fpjson, except that the
+JSON objects and arrays, and possibly even the primitives, are "typed":
+- A given json object will have all of the mechanisms to retrieve data directly
+from it's hash as protected properties, so they aren't available publicly.
+- the object will not necessarily be TPersistent, it will at least be compiled
+with $M+ or whatever, to allow it to have published properties.
+- The public versions of these properties will work with RTTI. If you are attempting
+to assign a value, it will first check if it's a published property, and if it is
+it will try to assign the value to that property (if it's read-only, it will create
+an error, or maybe it will call an assign method, so maybe this is a TPersistent).
+-- These published properties can either 1) validate and assign using the internal
+protected mechanisms for assigning properties or 2) store the data in some other
+process.
+-- Even if a property isn't published, the object can still override the data
+by overriding a DoCreateMember which is given the property name and returns the
+actually constructed object that is needed. This is an alternative mechanism.
+- for the array, I'm not sure if published stuff will work, I'll have to look
+into that, but it might just be some virtual 'Add' or 'insert' methods that
+would get overridden.
+- The streamer will have methods like ReadObject(AObject: TJSONObject), ReadArray(AArray: TJSONArray), ReadString, etc.
+In which you provide the object to apply the data to. This streamer will do the
+following:
+-- if it has primitive data to assign to a property or index, it will attempt to assign directly.
+-- if it has an array or an object, it will assume the object is going to be read-only
+and that the objects will be assigned directly. In this case, it will retrieve the
+value from the parent object, then call ReadObject on itself.
+-- The one thing it will be restricted to: It only knows how to read JSON Objects,
+strings, numbers and booleans, not anything else like TPersistent, or TComponent
+or anything like that.
+
+- This way, all you'd have to do to create a JSON object that has typed properties
+as well as storing arbitrary data, is to create a subclass of this, and add in
+some published properties with your own backed private data (or even storing them
+in the hash itself), and you can control what kinds of values go into it.
+
 
 TODO: Test with an empty or new project again.
 
@@ -59,14 +102,6 @@ TODO: Also, I can use nested classes for some of the 'deferred tasks' things,
 also almost anywhere that I've got a class defined in implementation. This
 makes for clearer documentation.
 
-TODO: Working on rough up of interface.
-- start laying out some components on the DocumentInspector, based on the stuff below.
-(Now that I see what I've got, I have a lot more room, so maybe I don't need tabs on it,
-but design it with them in mind anyway).
-
-TODO: Then, push it up to Github for anyone who's interested to see what I'm doing.
-
-
 TODO: When storing and opening project-dependent GUI states (open files, expanded folders),
 these should go in the desktop's preferences directory for now. My reasoning is that
 if it stays in the directory of the project, not only do I have to have one more
@@ -79,6 +114,26 @@ no matter where they are, but I'm not really certain that's important right now
 - Anyway, the settings would best be stored in with the MRU data in the config
 file. That way, they get cleaned out after a bunch of projects, and I don't have
 to worry about trying to match up the filename with the path of the document.
+
+TODO: "Note Stew":
+- this would be an application very similar to Stew (which would become Story Stew).
+In fact, it's similar enough that it could just be a different project that shares
+a lot of the same UI, perhaps with just a few ifdefs, or perhaps an "application spec"
+file that sets some global variables.
+- The primary differences:
+  - metadata consists only of the primary document and properties. There are no
+    'notes', 'synopsis', etc. Because the primary document is the notes.
+  - some of the properties are removed because they're unnecessary (published is
+    out, but categories and statuses might still be available).
+  - the document editor is replaced with a note editor, most of whose body is a
+    RichTextEditor, or something like that (depending on how we store the notes,
+    in fact the body might differ based on the extension).
+    - It would also still have some properties, but these are less obtrusive, but
+      would include a user data editor.
+  - almost everything else should work just the same. So, it's a matter of:
+    - having a different "type" for the metadata
+    - having a different "type" for the main document interface.
+
 
 TODO: Some interface ideas:
 - Instead of the "filter" button, make it a combobox, plus add a "search" button next to it, and an "advanced" search button.
@@ -162,7 +217,7 @@ TODO: Divide the units into three parts:
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, Menus,
-  ExtCtrls, Buttons, ComCtrls, stewproject, fgl, stewconfig, contnrs, steweditorframe;
+  ExtCtrls, Buttons, ComCtrls, stewproject, fgl, stewconfig, contnrs, steweditorframe, stewtypes;
 
 type
 
@@ -184,6 +239,7 @@ type
                      mfaDocumentSynopsisSaving,
                      mfaDocumentSynopsisSaved,
                      mfaDocumentSynopsisSaveConflicted,
+                     mfaDocumentChanged,
                      mfaDocumentCreated);
   TMainFormObserverHandler = procedure(aAction: TMainFormAction; aDocument: TDocumentID) of object;
   TMainFormObserverList = specialize TFPGList<TMainFormObserverHandler>;
@@ -203,6 +259,11 @@ type
     ExitMenuItem: TMenuItem;
     OpenProjectDialog: TSelectDirectoryDialog;
     procedure AboutMenuItemClick(Sender: TObject);
+    procedure DoChooseNewAttachmentTemplate(Sender: TObject;
+      {%H-}Document: TDocumentID; AttachmentName: String; aChoices: TStringArray;
+      var Answer: String; out Accepted: Boolean);
+    procedure DoConfirmNewAttachment(Sender: TObject; {%H-}Document: TDocumentID;
+      AttachmentName: String; out Answer: Boolean);
     procedure DocumentAttachmentLoading(Sender: TObject; Document: TDocumentID;
       AttachmentName: String);
     procedure DocumentAttachmentSaveConflicted(Sender: TObject;
@@ -211,11 +272,14 @@ type
       AttachmentName: String);
     procedure DocumentAttachmentSaving(Sender: TObject; Document: TDocumentID;
       AttachmentName: String);
+    procedure DocumentChanged(Sender: TObject; Document: TDocumentID);
     procedure DocumentCreated(Sender: TObject; Document: TDocumentID);
     procedure DocumentListError(Sender: TObject; Document: TDocumentID;
       Error: String);
     procedure DocumentPropertiesLoading(Sender: TObject; Document: TDocumentID);
     procedure DocumentPropertiesSaving(Sender: TObject; Document: TDocumentID);
+    procedure DocumentRenameFailed(Sender: TObject; Document: TDocumentID;
+      Error: String);
     procedure DocumentsListed(Sender: TObject; Document: TDocumentID);
     procedure DocumentAttachmentLoaded(Sender: TObject; Document: TDocumentID;
       Attachment: String);
@@ -293,7 +357,7 @@ var
 implementation
 
 uses
-  stewprojectmanager, stewdocumenteditor, stewasync, stewpreferenceseditor, stewprojectsettingseditor, LCLProc, stewabout;
+  stewprojectmanager, stewdocumenteditor, stewasync, stewpreferenceseditor, stewprojectsettingseditor, LCLProc, stewabout, stewlistdialog;
 
 {$R *.lfm}
 
@@ -306,6 +370,22 @@ const ProjectSettingsDocumentID: TDocumentID = ':project settings';
 procedure TMainForm.AboutMenuItemClick(Sender: TObject);
 begin
   AboutForm.ShowModal;
+end;
+
+procedure TMainForm.DoChooseNewAttachmentTemplate(Sender: TObject;
+  Document: TDocumentID; AttachmentName: String; aChoices: TStringArray;
+  var Answer: String; out Accepted: Boolean);
+begin
+  Accepted := ChoiceQuery('There are multiple templates available for your new ' + AttachmentName + ' file.' + LineEnding +
+                          'Please specify which one you would like to use:', aChoices,Answer);
+end;
+
+procedure TMainForm.DoConfirmNewAttachment(Sender: TObject;
+  Document: TDocumentID; AttachmentName: String; out Answer: Boolean);
+begin
+  Answer :=
+    MessageDlg('The ' + AttachmentName + ' file for this document does not exist.' + LineEnding +
+               'Do you wish to create a new file?',mtConfirmation,mbYesNo,0) = mrYes;
 end;
 
 procedure TMainForm.DocumentAttachmentLoading(Sender: TObject;
@@ -340,6 +420,11 @@ begin
 
 end;
 
+procedure TMainForm.DocumentChanged(Sender: TObject; Document: TDocumentID);
+begin
+  NotifyObservers(mfaDocumentChanged,Document);
+end;
+
 procedure TMainForm.DocumentCreated(Sender: TObject; Document: TDocumentID);
 begin
   NotifyObservers(mfaDocumentCreated,Document);
@@ -367,6 +452,16 @@ procedure TMainForm.DocumentPropertiesSaving(Sender: TObject;
 begin
   NotifyObservers(mfaDocumentPropertiesSaving,Document);
 
+end;
+
+procedure TMainForm.DocumentRenameFailed(Sender: TObject;
+  Document: TDocumentID; Error: String);
+begin
+  ShowMessage('An error occurred while renaming a document properties.' + LineEnding +
+              'The rename may be incomplete.' + LineEnding +
+              'The document''s ID was ' + Document + '.' + LineEnding +
+              Error + LineEnding +
+              'You may want to restart the program, or wait and try your task again later');
 end;
 
 procedure TMainForm.DocumentsListed(Sender: TObject; Document: TDocumentID);
@@ -711,6 +806,10 @@ begin
   fProject.OnDocumentsListed:=@DocumentsListed;
   fProject.OnDocumentListError:=@DocumentListError;
   fProject.OnDocumentCreated:=@DocumentCreated;
+  fProject.OnDocumentChanged:=@DocumentChanged;
+  fProject.OnDocumentRenameFailed:=@DocumentRenameFailed;
+  fProject.OnConfirmNewAttachment:=@DoConfirmNewAttachment;
+  fProject.OnChooseTemplate:=@DoChooseNewAttachmentTemplate;
   fProject.OpenAtPath(@StartupIfProjectExists,@ProjectLoadFailed);
 
 end;

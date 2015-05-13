@@ -83,6 +83,7 @@ the file exists already. Or, we need to come up with a different way of doing th
     { public declarations }
     constructor Create(TheOwner: TComponent); override;
     destructor Destroy; override;
+    function CloseQuery: Boolean; override;
   end;
 
 implementation
@@ -188,7 +189,7 @@ begin
          ShowPropertiesToUser;
          SetupControls;
       end;
-    mfaDocumentPropertiesLoading, mfaDocumentPropertiesSaving:
+    mfaDocumentPropertiesLoading, mfaDocumentPropertiesSaving, mfaDocumentChanged:
       if aDocument = Document then
          SetupControls;
     mfaDocumentSynopsisLoaded, mfaDocumentSynopsisSaved:
@@ -206,7 +207,7 @@ begin
         if MessageDlg('The synopsis has changed on the disk since the last time it was loaded.' + LineEnding +
                   'Would you like to overwrite it''s contents?',mtWarning,mbYesNo,0) = mrYes then
         begin
-          MainForm.Project.GetDocument(Document).Synopsis.Save(SynopsisEdit.Lines.Text,true);
+          MainForm.Project.GetDocument(Document).Synopsis.Save(true);
         end;
       end;
     mfaProjectPropertiesLoaded, mfaProjectPropertiesLoading, mfaProjectPropertiesSaved, mfaProjectPropertiesSaving:
@@ -229,18 +230,28 @@ var
 begin
   if Document <> AValue then
   begin
-    inherited SetDocument(aValue);
-    DocumentIDLabel.Caption := AValue;
-    // TODO: Make use of 'title'?
-    aName := ExtractDocumentName(AValue);
-    if (Parent <> nil) and (Parent is TTabSheet) then
-    begin
-      Parent.Caption := aName;
-    end;
     if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
     begin
       with MainForm.Project.GetDocument(AValue) do
       begin
+        if IsLocked then
+        begin
+           ShowMessage('I can''t open that document. I''m busy doing something with it right now.');
+           exit;
+        end;
+
+        Lock(Self);
+
+        inherited SetDocument(aValue);
+        DocumentIDLabel.Caption := AValue;
+
+        // TODO: Make use of 'title'?
+        aName := GetName;
+        if (Parent <> nil) and (Parent is TTabSheet) then
+        begin
+          Parent.Caption := aName;
+        end;
+
         Properties.Load;
         Synopsis.Load;
       end;
@@ -294,8 +305,11 @@ begin
     end;
 
     props.Save;
-    doc.Synopsis.Save(SynopsisEdit.Lines.Text);
-
+    with doc.Synopsis do
+    begin
+      Contents := SynopsisEdit.Lines.Text;
+      Save;
+    end;
 
 
   end
@@ -310,7 +324,7 @@ begin
   begin
     aMeta := MainForm.Project.GetDocument(Document);
     if aMeta.Synopsis.FilingState in [fsLoaded] then
-      SynopsisEdit.Lines.Text := aMeta.Synopsis.GetContents;
+      SynopsisEdit.Lines.Text := aMeta.Synopsis.Contents;
   end;
 end;
 
@@ -352,6 +366,16 @@ destructor TDocumentEditor.Destroy;
 begin
   MainForm.Unobserve(@ObserveMainForm);
   inherited Destroy;
+end;
+
+function TDocumentEditor.CloseQuery: Boolean;
+begin
+  Result:=inherited CloseQuery;
+  if Result and
+     (MainForm.Project <> nil) and
+     (MainForm.Project.IsOpened) and
+     (Document <> '') then
+      MainForm.Project.GetDocument(Document).Unlock(Self);
 end;
 
 end.

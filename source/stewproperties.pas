@@ -16,6 +16,7 @@ type
   { TDocumentProperties }
 
   TDocumentProperties = class(TJSONAsyncFileStoreContainer, IJSONCustomSerializer)
+    procedure IndexChanged(Sender: TObject);
   private
     fCategory: String;
     fIndex: TStringList;
@@ -239,6 +240,11 @@ end;
 
 { TDocumentProperties }
 
+procedure TDocumentProperties.IndexChanged(Sender: TObject);
+begin
+  SetModified;
+end;
+
 procedure TDocumentProperties.SetUserProperties(AValue: TJSONData);
 begin
   // TODO: Instead of cloning... apply data in place so that we
@@ -304,6 +310,7 @@ begin
     path := ExcludeTrailingPathDelimiter(afileName) + '_properties.json';
   inherited Create(path,true);
   fIndex := TStringList.Create;
+  fIndex.OnChange:=@IndexChanged;
 end;
 
 destructor TDocumentProperties.Destroy;
