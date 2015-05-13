@@ -1,11 +1,11 @@
-unit stewproperties;
+unit stew_properties;
 
 {$mode objfpc}{$H+}
 
 interface
 
 uses
-  Classes, SysUtils, stewpersist, Graphics, fpjsonrtti, fpjson, stewtypes, contnrs;
+  Classes, SysUtils, stew_persist, Graphics, fpjsonrtti, fpjson, stew_types, contnrs;
 
 type
 

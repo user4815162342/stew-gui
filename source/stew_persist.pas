@@ -1,11 +1,11 @@
-unit stewpersist;
+unit stew_persist;
 
 {$mode objfpc}{$H+}
 
 interface
 
 uses
-  Classes, SysUtils, stewtypes, fpjson, fpjsonrtti;
+  Classes, SysUtils, stew_types, fpjson, fpjsonrtti;
 
 {
 TODO: I'd like to revisit the JSON serialization someday. What I want is
@@ -218,7 +218,7 @@ type
 implementation
 
 uses
-  stewfile, jsonparser, rttiutils, typinfo, LCLProc;
+  sys_file, jsonparser, rttiutils, typinfo, LCLProc;
 
 type
 

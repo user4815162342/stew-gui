@@ -1,4 +1,4 @@
-unit stewdocumenteditor;
+unit gui_documenteditor;
 
 {$mode objfpc}{$H+}
 
@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls,
-  stewproject, steweditorframe, stewjsoneditor, stewmainform;
+  stew_project, gui_editorframe, gui_jsoneditor, gui_mainform;
 
 type
 
@@ -89,7 +89,7 @@ the file exists already. Or, we need to come up with a different way of doing th
 implementation
 
 uses
-  Dialogs, stewproperties, stewtypes, fpjson;
+  Dialogs, stew_properties, stew_types, fpjson;
 
 {$R *.lfm}
 

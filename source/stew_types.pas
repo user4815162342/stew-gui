@@ -1,4 +1,4 @@
-unit stewtypes;
+unit stew_types;
 
 {$mode objfpc}{$H+}
 

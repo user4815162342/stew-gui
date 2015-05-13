@@ -1,11 +1,11 @@
-unit stewprojectmanager;
+unit gui_projectmanager;
 
 {$mode objfpc}{$H+}
 
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, ComCtrls, stewproject, stewfile, stewmainform, stewproperties, graphics;
+  Classes, SysUtils, FileUtil, Forms, Controls, ComCtrls, stew_project, sys_file, gui_mainform, stew_properties, graphics;
 
 type
 
@@ -84,7 +84,7 @@ type
 implementation
 
 uses
-  dialogs, stewtypes;
+  dialogs, stew_types;
 
 {$R *.lfm}
 

@@ -1,11 +1,11 @@
-unit stewpreferenceseditor;
+unit gui_preferenceseditor;
 
 {$mode objfpc}{$H+}
 
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, steweditorframe;
+  Classes, SysUtils, FileUtil, Forms, Controls, gui_editorframe;
 // TODO: Show application preferences (some of the stuff in the config
 // file, although not things like UI locations).
 // - Some things to show here:

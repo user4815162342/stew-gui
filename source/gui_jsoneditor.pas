@@ -1,4 +1,4 @@
-unit stewjsoneditor;
+unit gui_jsoneditor;
 
 {$mode objfpc}{$H+}
 
@@ -171,7 +171,7 @@ begin
   aText := Text;
   if IsProperty then
   begin
-    if stewjsoneditor.ExtractKeyAndValue(aText,aKey,aValue) then
+    if gui_jsoneditor.ExtractKeyAndValue(aText,aKey,aValue) then
       Exit;
   end;
   // if it's not a property, or if a ':' was not found, then
@@ -253,7 +253,7 @@ var
 begin
   if IsProperty then
   begin
-    if not stewjsoneditor.ExtractKeyAndValue(NewText,aKey,aValue) then
+    if not gui_jsoneditor.ExtractKeyAndValue(NewText,aKey,aValue) then
     begin
       // the user didn't assign a property name, so we're going to make
       // some assumptions here:

@@ -1,4 +1,4 @@
-unit stewjson;
+unit sys_json;
 
 {$mode objfpc}{$H+}
 
@@ -11,7 +11,7 @@ interface
 
 
 uses
-  Classes, SysUtils, fpjson, stewfile, stewtypes;
+  Classes, SysUtils, fpjson, sys_file, stew_types;
 
 type
 

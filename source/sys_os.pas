@@ -1,11 +1,11 @@
-unit stewshell;
+unit sys_os;
 
 {$mode objfpc}{$H+}
 
 interface
 
 uses
-  Classes, SysUtils, stewasync, stewfile;
+  Classes, SysUtils, sys_async, sys_file;
 
 type
 
@@ -34,7 +34,7 @@ type
 
   TTemplateArray = array of TTemplate;
 
-  TTemplateListCallback = specialize GDeferredCallback<TTemplateArray>;
+  TTemplateListCallback = procedure(Data: TTemplateArray) of object;
 
   { TTemplateLister }
 
@@ -139,7 +139,7 @@ procedure CreateFileFromTemplate(aTemplate: TTemplate; aFile: TFilename;
   aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
 begin
 {$IFDEF Linux}
-  stewfile.CopyFile(aTemplate.Path,aFile,aCallback,aErrorback)
+  sys_file.CopyFile(aTemplate.Path,aFile,aCallback,aErrorback)
 {$ELSE}
 {$ERROR Required code is not yet written for this platform.}
 {$ENDIF}

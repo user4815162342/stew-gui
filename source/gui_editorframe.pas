@@ -1,11 +1,11 @@
-unit steweditorframe;
+unit gui_editorframe;
 
 {$mode objfpc}{$H+}
 
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, ComCtrls, ExtCtrls, stewproject;
+  Classes, SysUtils, FileUtil, Forms, Controls, ComCtrls, ExtCtrls, stew_project;
 
 // TODO: This is where we set up the common look and feel for the documents,
 // preferences and project settings editors.
@@ -51,7 +51,7 @@ type
 implementation
 
 uses
-  stewmainform;
+  gui_mainform;
 
 {$R *.lfm}
 

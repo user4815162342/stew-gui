@@ -1,4 +1,4 @@
-unit stewprojectsettingseditor;
+unit gui_projectsettingseditor;
 
 {$mode objfpc}{$H+}
 
@@ -6,8 +6,8 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, ExtCtrls, ComCtrls, StdCtrls,
-  Grids, Dialogs, steweditorframe, stewproperties, stewmainform,
-  stewjsoneditor, stewproject, graphics, Menus;
+  Grids, Dialogs, gui_editorframe, stew_properties, gui_mainform,
+  gui_jsoneditor, stew_project, graphics, Menus;
 
 // TODO: I need to fix the stew cli to handle the statuses as a map instead of
 // an array of strings.
@@ -97,7 +97,7 @@ type
 implementation
 
 uses
-  fpjson, stewtypes;
+  fpjson, stew_types;
 
 type
   TDefColumnKind = (ckString, ckInteger, ckBoolean, ckRadio, ckColor);

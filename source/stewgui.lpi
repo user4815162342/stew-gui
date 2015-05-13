@@ -16,7 +16,7 @@
     <VersionInfo>
       <UseVersionInfo Value="True"/>
       <AutoIncrementBuild Value="True"/>
-      <BuildNr Value="17"/>
+      <BuildNr Value="30"/>
       <StringTable CompanyName="Town's Edge Technology, LLC" FileDescription="A Notekeeping and Manuscript management tool." LegalCopyright="Copyright © 2015 Neil M. Sheldon" ProductName="Stew" ProductVersion="0.1"/>
     </VersionInfo>
     <BuildModes Count="1">
@@ -42,120 +42,120 @@
         <UnitName Value="stewgui"/>
       </Unit0>
       <Unit1>
-        <Filename Value="stewmainform.pas"/>
+        <Filename Value="gui_mainform.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="MainForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <UnitName Value="stewmainform"/>
+        <UnitName Value="gui_mainform"/>
       </Unit1>
       <Unit2>
-        <Filename Value="stewproject.pas"/>
+        <Filename Value="stew_project.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="stewproject"/>
+        <UnitName Value="stew_project"/>
       </Unit2>
       <Unit3>
-        <Filename Value="stewfile.pas"/>
+        <Filename Value="sys_file.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="stewfile"/>
+        <UnitName Value="sys_file"/>
       </Unit3>
       <Unit4>
-        <Filename Value="stewasync.pas"/>
+        <Filename Value="sys_async.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="stewasync"/>
+        <UnitName Value="sys_async"/>
       </Unit4>
       <Unit5>
-        <Filename Value="stewprojectmanager.pas"/>
+        <Filename Value="gui_projectmanager.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="ProjectManager"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
-        <UnitName Value="stewprojectmanager"/>
+        <UnitName Value="gui_projectmanager"/>
       </Unit5>
       <Unit6>
-        <Filename Value="stewconfig.pas"/>
+        <Filename Value="gui_config.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="stewconfig"/>
+        <UnitName Value="gui_config"/>
       </Unit6>
       <Unit7>
-        <Filename Value="stewjson.pas"/>
+        <Filename Value="sys_json.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="stewjson"/>
+        <UnitName Value="sys_json"/>
       </Unit7>
       <Unit8>
-        <Filename Value="stewdocumenteditor.pas"/>
+        <Filename Value="gui_documenteditor.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="DocumentEditor"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
-        <UnitName Value="stewdocumenteditor"/>
+        <UnitName Value="gui_documenteditor"/>
       </Unit8>
       <Unit9>
-        <Filename Value="stewpreferenceseditor.pas"/>
+        <Filename Value="gui_preferenceseditor.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="ApplicationPreferencesEditor"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
-        <UnitName Value="stewpreferenceseditor"/>
+        <UnitName Value="gui_preferenceseditor"/>
       </Unit9>
       <Unit10>
-        <Filename Value="stewprojectsettingseditor.pas"/>
+        <Filename Value="gui_projectsettingseditor.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="ProjectSettingsEditor"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
-        <UnitName Value="stewprojectsettingseditor"/>
+        <UnitName Value="gui_projectsettingseditor"/>
       </Unit10>
       <Unit11>
-        <Filename Value="steweditorframe.pas"/>
+        <Filename Value="gui_editorframe.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="EditorFrame"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
-        <UnitName Value="steweditorframe"/>
+        <UnitName Value="gui_editorframe"/>
       </Unit11>
       <Unit12>
-        <Filename Value="stewabout.pas"/>
+        <Filename Value="gui_about.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="AboutForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <UnitName Value="stewabout"/>
+        <UnitName Value="gui_about"/>
       </Unit12>
       <Unit13>
-        <Filename Value="stewproperties.pas"/>
+        <Filename Value="stew_properties.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="stewproperties"/>
+        <UnitName Value="stew_properties"/>
       </Unit13>
       <Unit14>
-        <Filename Value="stewtypes.pas"/>
+        <Filename Value="stew_types.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="stewtypes"/>
+        <UnitName Value="stew_types"/>
       </Unit14>
       <Unit15>
-        <Filename Value="stewpersist.pas"/>
+        <Filename Value="stew_persist.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="stewpersist"/>
+        <UnitName Value="stew_persist"/>
       </Unit15>
       <Unit16>
-        <Filename Value="stewjsoneditor.pas"/>
+        <Filename Value="gui_jsoneditor.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="JSONEditor"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
-        <UnitName Value="stewjsoneditor"/>
+        <UnitName Value="gui_jsoneditor"/>
       </Unit16>
       <Unit17>
-        <Filename Value="stewshell.pas"/>
+        <Filename Value="sys_os.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="stewshell"/>
+        <UnitName Value="sys_os"/>
       </Unit17>
       <Unit18>
-        <Filename Value="stewlistdialog.pas"/>
+        <Filename Value="gui_listdialog.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="ListDialog"/>
         <ResourceBaseClass Value="Form"/>
-        <UnitName Value="stewlistdialog"/>
+        <UnitName Value="gui_listdialog"/>
       </Unit18>
     </Units>
   </ProjectOptions>
@@ -166,6 +166,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
+      <OtherUnitFiles Value="gui"/>
       <UnitOutputDirectory Value="../units/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Linking>

@@ -1,4 +1,4 @@
-unit stewmainform;
+unit gui_mainform;
 
 {$mode objfpc}{$H+}
 
@@ -217,7 +217,7 @@ TODO: Divide the units into three parts:
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, Menus,
-  ExtCtrls, Buttons, ComCtrls, stewproject, fgl, stewconfig, contnrs, steweditorframe, stewtypes;
+  ExtCtrls, Buttons, ComCtrls, stew_project, fgl, gui_config, contnrs, gui_editorframe, stew_types, sys_async;
 
 type
 
@@ -349,7 +349,18 @@ type
     procedure LayoutDocumentPane(aLocation: TAlign);
   end;
 
-  { HStewFrameHelper }
+  { TAsyncCallback }
+
+  TAsyncCallback = class
+    procedure Callback({%H-}Data: PtrInt);
+  private
+    fCallback: TDeferredCallback;
+  public
+    constructor Create(aCallback: TDeferredCallback);
+    procedure Enqueue;
+  end;
+
+  procedure QueueAsyncCall(aCallback: TDeferredCallback);
 
 var
   MainForm: TMainForm;
@@ -357,13 +368,40 @@ var
 implementation
 
 uses
-  stewprojectmanager, stewdocumenteditor, stewasync, stewpreferenceseditor, stewprojectsettingseditor, LCLProc, stewabout, stewlistdialog;
+  gui_projectmanager, gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor, LCLProc, gui_about, gui_listdialog;
 
 {$R *.lfm}
 
 // using ':' at the beginning because that should not be a valid filename.
 const PreferencesDocumentID: TDocumentID = ':preferences';
 const ProjectSettingsDocumentID: TDocumentID = ':project settings';
+
+procedure QueueAsyncCall(aCallback: TDeferredCallback);
+begin
+  TAsyncCallback.Create(aCallback).Enqueue;
+end;
+
+{ TAsyncCallback }
+
+procedure TAsyncCallback.Callback(Data: PtrInt);
+begin
+  fCallback;
+  Free;
+end;
+
+constructor TAsyncCallback.Create(aCallback: TDeferredCallback);
+begin
+  inherited Create;
+  fCallback := aCallback;
+end;
+
+procedure TAsyncCallback.Enqueue;
+begin
+  // Notice that I'm sending 0 as the data parameter to the Deferred call. Rather
+  // then dealing with pointers, I've already got a pointer to the object in the
+  // method, so I can store the data on there.
+  Application.QueueAsyncCall(@Callback,0);
+end;
 
 { TMainForm }
 
@@ -1046,6 +1084,8 @@ begin
 
 end;
 
+initialization
+  SetAsyncCallQueuer(@QueueAsyncCall);
 
 end.
 

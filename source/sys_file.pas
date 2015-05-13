@@ -1,11 +1,11 @@
-unit stewfile;
+unit sys_file;
 
 {$mode objfpc}{$H+}
 
 interface
 
 uses
-  Classes, SysUtils, stewasync, FileUtil;
+  Classes, SysUtils, sys_async, FileUtil;
 
 // TODO: Need to turn this whole system into something which will allow
 // me to work with other file systems.
@@ -42,7 +42,7 @@ type
 
   // TODO: Should be TFileArray
   TFileList = array of TFilename;
-  TDeferredFileListCallback = specialize GDeferredCallback<TFileList>;
+  TDeferredFileListCallback = procedure(Data: TFileList) of object;
   TReadFileCallback = procedure(aData: TStream; aFileAge: Longint) of object;
   TWriteFileCallback = procedure(aFileAge: Longint) of object;
 

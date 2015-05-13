@@ -1,4 +1,4 @@
-unit stewabout;
+unit gui_about;
 
 {$mode objfpc}{$H+}
 

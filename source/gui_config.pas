@@ -1,11 +1,11 @@
-unit stewconfig;
+unit gui_config;
 
 {$mode objfpc}{$H+}
 
 interface
 
 uses
-  Classes, SysUtils, stewpersist;
+  Classes, SysUtils, stew_persist;
 
 type
 

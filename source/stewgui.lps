@@ -10,203 +10,239 @@
         <UnitName Value="stewgui"/>
         <WindowIndex Value="0"/>
         <TopLine Value="1"/>
-        <CursorPos X="29" Y="18"/>
+        <CursorPos X="1" Y="1"/>
         <UsageCount Value="213"/>
       </Unit0>
       <Unit1>
-        <Filename Value="stewmainform.pas"/>
+        <Filename Value="gui_mainform.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="MainForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <UnitName Value="stewmainform"/>
+        <UnitName Value="gui_mainform"/>
+        <EditorIndex Value="18"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="7"/>
-        <CursorPos X="1" Y="10"/>
+        <TopLine Value="383"/>
+        <CursorPos X="1" Y="404"/>
         <UsageCount Value="213"/>
+        <Loaded Value="True"/>
       </Unit1>
       <Unit2>
-        <Filename Value="stewproject.pas"/>
+        <Filename Value="stew_project.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="stewproject"/>
+        <UnitName Value="stew_project"/>
+        <EditorIndex Value="1"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="23"/>
-        <CursorPos X="21" Y="40"/>
+        <TopLine Value="41"/>
+        <CursorPos X="38" Y="53"/>
         <UsageCount Value="213"/>
         <Bookmarks Count="1">
           <Item0 X="1" Y="847" ID="9"/>
         </Bookmarks>
+        <Loaded Value="True"/>
       </Unit2>
       <Unit3>
-        <Filename Value="stewfile.pas"/>
+        <Filename Value="sys_file.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="stewfile"/>
-        <IsVisibleTab Value="True"/>
+        <UnitName Value="sys_file"/>
         <EditorIndex Value="0"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="2"/>
-        <CursorPos X="47" Y="24"/>
+        <TopLine Value="34"/>
+        <CursorPos X="68" Y="45"/>
         <UsageCount Value="213"/>
         <Loaded Value="True"/>
       </Unit3>
       <Unit4>
-        <Filename Value="stewasync.pas"/>
+        <Filename Value="sys_async.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="stewasync"/>
+        <UnitName Value="sys_async"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="16"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="109"/>
-        <CursorPos X="1" Y="121"/>
+        <TopLine Value="5"/>
+        <CursorPos X="61" Y="23"/>
         <UsageCount Value="210"/>
+        <Loaded Value="True"/>
       </Unit4>
       <Unit5>
-        <Filename Value="stewprojectmanager.pas"/>
+        <Filename Value="gui_projectmanager.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="ProjectManager"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
-        <UnitName Value="stewprojectmanager"/>
+        <UnitName Value="gui_projectmanager"/>
+        <EditorIndex Value="6"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="305"/>
-        <CursorPos X="1" Y="315"/>
+        <TopLine Value="1"/>
+        <CursorPos X="73" Y="8"/>
         <UsageCount Value="211"/>
+        <Loaded Value="True"/>
       </Unit5>
       <Unit6>
-        <Filename Value="stewconfig.pas"/>
+        <Filename Value="gui_config.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="stewconfig"/>
+        <UnitName Value="gui_config"/>
+        <EditorIndex Value="7"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="98"/>
+        <TopLine Value="89"/>
         <CursorPos X="29" Y="102"/>
         <UsageCount Value="208"/>
+        <Loaded Value="True"/>
       </Unit6>
       <Unit7>
-        <Filename Value="stewjson.pas"/>
+        <Filename Value="sys_json.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="stewjson"/>
+        <UnitName Value="sys_json"/>
+        <EditorIndex Value="8"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="309"/>
-        <CursorPos X="130" Y="326"/>
+        <TopLine Value="2"/>
+        <CursorPos X="24" Y="14"/>
         <UsageCount Value="204"/>
+        <Loaded Value="True"/>
       </Unit7>
       <Unit8>
-        <Filename Value="stewdocumenteditor.pas"/>
+        <Filename Value="gui_documenteditor.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="DocumentEditor"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
-        <UnitName Value="stewdocumenteditor"/>
+        <UnitName Value="gui_documenteditor"/>
+        <EditorIndex Value="10"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="181"/>
-        <CursorPos X="82" Y="192"/>
+        <TopLine Value="1"/>
+        <CursorPos X="3" Y="9"/>
         <UsageCount Value="200"/>
+        <Loaded Value="True"/>
+        <LoadedDesigner Value="True"/>
       </Unit8>
       <Unit9>
-        <Filename Value="stewpreferenceseditor.pas"/>
+        <Filename Value="gui_preferenceseditor.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="ApplicationPreferencesEditor"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
-        <UnitName Value="stewpreferenceseditor"/>
+        <UnitName Value="gui_preferenceseditor"/>
+        <EditorIndex Value="11"/>
         <WindowIndex Value="0"/>
         <TopLine Value="4"/>
         <CursorPos X="72" Y="24"/>
         <UsageCount Value="201"/>
+        <Loaded Value="True"/>
+        <LoadedDesigner Value="True"/>
       </Unit9>
       <Unit10>
-        <Filename Value="stewprojectsettingseditor.pas"/>
+        <Filename Value="gui_projectsettingseditor.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="ProjectSettingsEditor"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
-        <UnitName Value="stewprojectsettingseditor"/>
+        <UnitName Value="gui_projectsettingseditor"/>
+        <EditorIndex Value="12"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="61"/>
-        <CursorPos X="15" Y="71"/>
+        <TopLine Value="1"/>
+        <CursorPos X="1" Y="1"/>
         <UsageCount Value="201"/>
+        <Loaded Value="True"/>
       </Unit10>
       <Unit11>
-        <Filename Value="steweditorframe.pas"/>
+        <Filename Value="gui_editorframe.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="EditorFrame"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
-        <UnitName Value="steweditorframe"/>
+        <UnitName Value="gui_editorframe"/>
+        <EditorIndex Value="13"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="62"/>
-        <CursorPos X="3" Y="80"/>
+        <TopLine Value="1"/>
+        <CursorPos X="23" Y="21"/>
         <UsageCount Value="213"/>
+        <Loaded Value="True"/>
+        <LoadedDesigner Value="True"/>
       </Unit11>
       <Unit12>
-        <Filename Value="stewabout.pas"/>
+        <Filename Value="gui_about.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="AboutForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <UnitName Value="stewabout"/>
+        <UnitName Value="gui_about"/>
+        <EditorIndex Value="14"/>
         <WindowIndex Value="0"/>
         <TopLine Value="36"/>
         <CursorPos X="51" Y="45"/>
         <UsageCount Value="208"/>
+        <Loaded Value="True"/>
       </Unit12>
       <Unit13>
-        <Filename Value="stewproperties.pas"/>
+        <Filename Value="stew_properties.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="stewproperties"/>
+        <UnitName Value="stew_properties"/>
+        <EditorIndex Value="15"/>
         <WindowIndex Value="0"/>
         <TopLine Value="245"/>
         <CursorPos X="1" Y="264"/>
         <UsageCount Value="208"/>
+        <Loaded Value="True"/>
       </Unit13>
       <Unit14>
-        <Filename Value="stewtypes.pas"/>
+        <Filename Value="stew_types.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="stewtypes"/>
+        <UnitName Value="stew_types"/>
+        <EditorIndex Value="2"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="105"/>
-        <CursorPos X="1" Y="118"/>
+        <TopLine Value="87"/>
+        <CursorPos X="1" Y="87"/>
         <UsageCount Value="205"/>
+        <Loaded Value="True"/>
       </Unit14>
       <Unit15>
-        <Filename Value="stewpersist.pas"/>
+        <Filename Value="stew_persist.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="stewpersist"/>
+        <UnitName Value="stew_persist"/>
+        <EditorIndex Value="4"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="596"/>
-        <CursorPos X="45" Y="605"/>
+        <TopLine Value="210"/>
+        <CursorPos X="3" Y="221"/>
         <UsageCount Value="202"/>
+        <Loaded Value="True"/>
       </Unit15>
       <Unit16>
-        <Filename Value="stewjsoneditor.pas"/>
+        <Filename Value="gui_jsoneditor.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="JSONEditor"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
-        <UnitName Value="stewjsoneditor"/>
+        <UnitName Value="gui_jsoneditor"/>
+        <EditorIndex Value="5"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="612"/>
-        <CursorPos X="31" Y="628"/>
+        <TopLine Value="245"/>
+        <CursorPos X="26" Y="256"/>
         <UsageCount Value="210"/>
+        <Loaded Value="True"/>
       </Unit16>
       <Unit17>
-        <Filename Value="stewshell.pas"/>
+        <Filename Value="sys_os.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="stewshell"/>
+        <UnitName Value="sys_os"/>
+        <EditorIndex Value="3"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="55"/>
-        <CursorPos X="102" Y="66"/>
+        <TopLine Value="26"/>
+        <CursorPos X="69" Y="37"/>
         <UsageCount Value="200"/>
+        <Loaded Value="True"/>
       </Unit17>
       <Unit18>
-        <Filename Value="stewlistdialog.pas"/>
+        <Filename Value="gui_listdialog.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="ListDialog"/>
-        <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <UnitName Value="stewlistdialog"/>
+        <UnitName Value="gui_listdialog"/>
+        <EditorIndex Value="19"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="42"/>
-        <CursorPos X="1" Y="53"/>
-        <UsageCount Value="140"/>
+        <TopLine Value="1"/>
+        <CursorPos X="78" Y="8"/>
+        <UsageCount Value="141"/>
+        <Loaded Value="True"/>
       </Unit18>
       <Unit19>
         <Filename Value="stewattachments.pas"/>
@@ -219,10 +255,12 @@
       <Unit20>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/forms.pp"/>
         <UnitName Value="Forms"/>
+        <EditorIndex Value="17"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="1293"/>
-        <CursorPos X="14" Y="1304"/>
+        <TopLine Value="1104"/>
+        <CursorPos X="51" Y="1115"/>
         <UsageCount Value="112"/>
+        <Loaded Value="True"/>
       </Unit20>
       <Unit21>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/comctrls.pp"/>
@@ -264,10 +302,12 @@
       <Unit26>
         <Filename Value="/usr/share/fpcsrc/2.6.4/packages/fcl-json/src/fpjson.pp"/>
         <UnitName Value="fpjson"/>
+        <EditorIndex Value="9"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="1713"/>
-        <CursorPos X="1" Y="1725"/>
+        <TopLine Value="470"/>
+        <CursorPos X="21" Y="481"/>
         <UsageCount Value="77"/>
+        <Loaded Value="True"/>
       </Unit26>
       <Unit27>
         <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/sysutils/sysstrh.inc"/>
@@ -695,11 +735,123 @@
     <General>
       <ActiveWindowIndexAtStart Value="0"/>
     </General>
-    <JumpHistory Count="1" HistoryIndex="0">
+    <JumpHistory Count="29" HistoryIndex="28">
       <Position1>
-        <Filename Value="stewfile.pas"/>
-        <Caret Line="284" Column="41" TopLine="273"/>
+        <Filename Value="gui_mainform.pas"/>
+        <Caret Line="1059" Column="1" TopLine="1039"/>
       </Position1>
+      <Position2>
+        <Filename Value="gui_mainform.pas"/>
+        <Caret Line="358" Column="17" TopLine="345"/>
+      </Position2>
+      <Position3>
+        <Filename Value="gui_mainform.pas"/>
+        <Caret Line="388" Column="41" TopLine="380"/>
+      </Position3>
+      <Position4>
+        <Filename Value="gui_mainform.pas"/>
+        <Caret Line="394" Column="39" TopLine="378"/>
+      </Position4>
+      <Position5>
+        <Filename Value="gui_mainform.pas"/>
+        <Caret Line="383" Column="12" TopLine="381"/>
+      </Position5>
+      <Position6>
+        <Filename Value="gui_mainform.pas"/>
+        <Caret Line="363" Column="13" TopLine="352"/>
+      </Position6>
+      <Position7>
+        <Filename Value="gui_mainform.pas"/>
+        <Caret Line="381" Column="41" TopLine="370"/>
+      </Position7>
+      <Position8>
+        <Filename Value="gui_mainform.pas"/>
+        <Caret Line="399" Column="33" TopLine="397"/>
+      </Position8>
+      <Position9>
+        <Filename Value="gui_mainform.pas"/>
+        <Caret Line="389" Column="8" TopLine="386"/>
+      </Position9>
+      <Position10>
+        <Filename Value="sys_async.pas"/>
+        <Caret Line="129" Column="31" TopLine="116"/>
+      </Position10>
+      <Position11>
+        <Filename Value="sys_async.pas"/>
+        <Caret Line="1" Column="1" TopLine="1"/>
+      </Position11>
+      <Position12>
+        <Filename Value="sys_async.pas"/>
+        <Caret Line="26" Column="10" TopLine="7"/>
+      </Position12>
+      <Position13>
+        <Filename Value="sys_async.pas"/>
+        <Caret Line="32" Column="20" TopLine="13"/>
+      </Position13>
+      <Position14>
+        <Filename Value="sys_async.pas"/>
+        <Caret Line="170" Column="1" TopLine="148"/>
+      </Position14>
+      <Position15>
+        <Filename Value="gui_mainform.pas"/>
+        <Caret Line="413" Column="34" TopLine="398"/>
+      </Position15>
+      <Position16>
+        <Filename Value="gui_mainform.pas"/>
+        <Caret Line="1088" Column="28" TopLine="1069"/>
+      </Position16>
+      <Position17>
+        <Filename Value="sys_async.pas"/>
+        <Caret Line="31" Column="38" TopLine="12"/>
+      </Position17>
+      <Position18>
+        <Filename Value="sys_async.pas"/>
+        <Caret Line="93" Column="1" TopLine="71"/>
+      </Position18>
+      <Position19>
+        <Filename Value="sys_async.pas"/>
+        <Caret Line="58" Column="3" TopLine="44"/>
+      </Position19>
+      <Position20>
+        <Filename Value="sys_file.pas"/>
+        <Caret Line="3" Column="15" TopLine="1"/>
+      </Position20>
+      <Position21>
+        <Filename Value="sys_os.pas"/>
+        <Caret Line="229" Column="57" TopLine="218"/>
+      </Position21>
+      <Position22>
+        <Filename Value="sys_file.pas"/>
+        <Caret Line="66" Column="40" TopLine="55"/>
+      </Position22>
+      <Position23>
+        <Filename Value="sys_os.pas"/>
+        <Caret Line="18" Column="39" TopLine="7"/>
+      </Position23>
+      <Position24>
+        <Filename Value="sys_async.pas"/>
+        <Caret Line="85" Column="3" TopLine="65"/>
+      </Position24>
+      <Position25>
+        <Filename Value="sys_async.pas"/>
+        <Caret Line="152" Column="23" TopLine="142"/>
+      </Position25>
+      <Position26>
+        <Filename Value="sys_async.pas"/>
+        <Caret Line="59" Column="1" TopLine="55"/>
+      </Position26>
+      <Position27>
+        <Filename Value="sys_async.pas"/>
+        <Caret Line="104" Column="1" TopLine="98"/>
+      </Position27>
+      <Position28>
+        <Filename Value="sys_async.pas"/>
+        <Caret Line="1" Column="1" TopLine="1"/>
+      </Position28>
+      <Position29>
+        <Filename Value="sys_async.pas"/>
+        <Caret Line="69" Column="1" TopLine="51"/>
+      </Position29>
     </JumpHistory>
   </ProjectSession>
   <Debugging>

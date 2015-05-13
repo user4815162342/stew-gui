@@ -1,11 +1,11 @@
-unit stewproject;
+unit stew_project;
 
 {$mode objfpc}{$H+}
 
 interface
 
 uses
-  Classes, SysUtils, stewfile, stewshell, stewasync, stewproperties, stewtypes, contnrs;
+  Classes, SysUtils, sys_file, sys_os, sys_async, stew_properties, stew_types, contnrs;
 
 // TODO: So that we can deal with attachments better, maybe move those off into
 // a separate object:
@@ -50,7 +50,7 @@ type
   TAttachmentConfirmationEvent = procedure(Sender: TObject; Document: TDocumentID; AttachmentName: String; out Answer: Boolean) of object;
   TAttachmentChoiceEvent = procedure(Sender: TObject; Document: TDocumentID; AttachmentName: String; aChoices: TStringArray; var Answer: String; out Accepted: Boolean) of object;
 
-  TOrderDocumentPosition = (odpBefore = -1,odpAfter = -2);
+  TOrderDocumentPosition = (odpBefore,odpAfter);
 
   TDocumentMetadata = class;
 
@@ -1559,7 +1559,7 @@ end;
 
 function TStewProject.GetDiskPath(const ADocument: TDocumentID): TFileName;
 begin
-  result := stewproject.GetDiskPath(fDisk,ADocument);
+  result := stew_project.GetDiskPath(fDisk,ADocument);
 end;
 
 type

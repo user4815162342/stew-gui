@@ -1,11 +1,11 @@
-unit stewlistdialog;
+unit gui_listdialog;
 
 {$mode objfpc}{$H+}
 
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls, stewtypes;
+  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls, stew_types;
 
 type
 
