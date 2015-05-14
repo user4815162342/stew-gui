@@ -10,7 +10,8 @@ uses
   Forms, gui_mainform, stew_project, sys_file, sys_async, gui_projectmanager,
   gui_config, sys_json, gui_documenteditor, gui_preferenceseditor,
   gui_projectsettingseditor, gui_editorframe, gui_about, stew_properties,
-  stew_types, stew_persist, gui_jsoneditor, sys_os, gui_listdialog;
+  stew_types, stew_persist, gui_jsoneditor, sys_os, gui_listdialog, 
+sys_localfile;
 
 {$R *.res}
 

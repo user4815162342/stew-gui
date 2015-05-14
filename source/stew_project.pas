@@ -5,7 +5,7 @@ unit stew_project;
 interface
 
 uses
-  Classes, SysUtils, sys_file, sys_os, sys_async, stew_properties, stew_types, contnrs;
+  Classes, SysUtils, sys_file, sys_localfile, sys_os, sys_async, stew_properties, stew_types, contnrs;
 
 // TODO: So that we can deal with attachments better, maybe move those off into
 // a separate object:
@@ -34,6 +34,7 @@ type
   // of the stew project (names always use '/' as separators, and must
   // start with a '/' if not a relative name. In the future I may
   // make use of more structured types.
+
   // TODO: If I make a more structure type, Free Pascal has extended records
   // which allow me to add procedures to a record, then I can make sure things
   // are controlled as I want them instead of relying on string and TFilename
@@ -139,7 +140,6 @@ type
   // are not being modified in a tab.
   TDocumentMetadata = class
   strict private type
-  type
   // this allows me access to the protected events on Document Properties,
   // but avoids making those events accessible from outside of the project,
   // which I don't want.
@@ -177,9 +177,9 @@ type
     procedure AttachmentSaveFailed(const aName: String; aError: String);
     procedure FileRenameFailed(Data: String);
     procedure FilesRenamed;
-    procedure FilesListed(Data: TFileList; aRecursive: Boolean);
-    procedure FilesListedNonrecursive(Data: TFileList);
-    procedure FilesListedRecursive(Data: TFileList);
+    procedure FilesListed(Data: TFile.TFileArray; aRecursive: Boolean);
+    procedure FilesListedNonrecursive(Data: TFile.TFileArray);
+    procedure FilesListedRecursive(Data: TFile.TFileArray);
     procedure FilesListError(Data: String);
     procedure StateChanged;
     function DoConfirmNewAttachment(aName: String): Boolean;
@@ -235,6 +235,35 @@ type
     // but avoids making those events accessible from outside of the project,
     // which I don't want.
     TProtectedProjectProperties = class(TProjectProperties)
+    end;
+
+    { TProjectExists }
+
+    TProjectExists = class
+    private
+      fProject: TStewProject;
+      fCallback: TDeferredBooleanCallback;
+      fErrorback: TDeferredExceptionCallback;
+      procedure FileExistsCallback(Data: Boolean);
+      procedure FileExistsFailed(Error: String);
+    public
+      constructor Create(aProject: TStewProject; aCallback: TDeferredBooleanCallback;
+        aErrorback: TDeferredExceptionCallback);
+      procedure Enqueue;
+    end;
+
+    { TSearchParentDirectories }
+
+    TSearchParentDirectories = class
+    private
+      fProject: TStewProject;
+      fPath: TFilename;
+      fCallback: TDeferredBooleanCallback;
+      fErrorback: TDeferredExceptionCallback;
+      procedure FileExistsCallback(Data: Boolean);
+    public
+      constructor Create(aProject: TStewProject; aPath: TFilename; aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
+      procedure Enqueue;
     end;
 
   private
@@ -550,7 +579,7 @@ var
 begin
   if Length(Data) = 0 then
   // create a simple, basic, blank file.
-     WriteFile(GetDefaultFilename,'',@EditableFileWritten,@FileLoadFailed)
+     TLocalFileSystem.GetFile(GetDefaultFilename).Write('',@EditableFileWritten,@FileLoadFailed)
   else
   begin
     if Length(Data) > 1 then
@@ -571,7 +600,7 @@ begin
       // we're creating a blank file anyway, but in this case,
       // we know that we don't know what extension it is, so set
       // the extension to '.txt'.
-       WriteFile(ChangeFileExt(GetDefaultFilename,'.txt'),'',@EditableFileWritten,@FileLoadFailed)
+       TLocalFileSystem.GetFile(ChangeFileExt(GetDefaultFilename,'.txt')).Write('',@EditableFileWritten,@FileLoadFailed)
     else
        CreateFileFromTemplate(aTemplate,GetDefaultFilename,@EditableFileReady,@FileLoadFailed);
   end;
@@ -626,7 +655,7 @@ begin
       begin
         fFilingState := fsLoading;
         fDocument.AttachmentLoading(GetName);
-        ReadFile(aCandidates[0],@FileLoaded,@FileLoadFailed);
+        TLocalFileSystem.GetFile(aCandidates[0]).Read(@FileLoaded,@FileLoadFailed);
       end
     else
 
@@ -665,7 +694,7 @@ begin
 
       fFilingState := fsSaving;
       fDocument.AttachmentSaving(GetName);
-      WriteFile(aCandidates[0],false,not aForce,fFileAge,fContents,@FileSaved,@FileSaveConflicted,@FileSaveFailed);
+      TLocalFileSystem.GetFile(aCandidates[0]).Write(false,not aForce,fFileAge,fContents,@FileSaved,@FileSaveConflicted,@FileSaveFailed);
     end
     else if fFilingState = fsNotLoaded then
       raise Exception.Create('Can''t save attachment data when it has not yet been loaded')
@@ -735,7 +764,7 @@ begin
     fProject.FOnDocumentPropertiesError(fProject,fID,aError);
 end;
 
-procedure TDocumentMetadata.FilesListed(Data: TFileList; aRecursive: Boolean);
+procedure TDocumentMetadata.FilesListed(Data: TFile.TFileArray; aRecursive: Boolean);
 var
   aPacket: TFilename;
   i: Integer;
@@ -751,16 +780,16 @@ begin
   ClearFiles;
   for i := 0 to Length(Data) - 1 do
   begin
-    if (Data[i][1] <> '_') then
+    if (Data[i].BaseName[1] <> '_') then
     begin
-      aPacket := ExtractPacketName(Data[i]);
+      aPacket := Data[i].PacketName;
       aChild := PutDocument(aPacket);
-      aChild.AddFile(Data[i]);
+      aChild.AddFile(Data[i].Name);
     end
     else
     // the file is actually 'attached' to this one. This becomes important
     // in the root metadata.
-      AddFile(IncludeTrailingPathDelimiter(ExtractFileName(fDisk)) + Data[i]);
+      AddFile(IncludeTrailingPathDelimiter(ExtractFileName(fDisk)) + Data[i].Name);
   end;
 
   if aRecursive then
@@ -779,7 +808,7 @@ begin
      fProject.fOnDocumentsListed(fProject,fID);
 end;
 
-procedure TDocumentMetadata.FilesListedNonrecursive(Data: TFileList);
+procedure TDocumentMetadata.FilesListedNonrecursive(Data: TFile.TFileArray);
 begin
   FilesListed(Data,false);
 end;
@@ -967,7 +996,7 @@ begin
 
 end;
 
-procedure TDocumentMetadata.FilesListedRecursive(Data: TFileList);
+procedure TDocumentMetadata.FilesListedRecursive(Data: TFile.TFileArray);
 begin
   FilesListed(Data,true);
 end;
@@ -1099,9 +1128,9 @@ begin
   begin
     fListingState := lsListing;
     if Recursive then
-       ListFiles(fDisk,@FilesListedRecursive,@FilesListError)
+       TLocalFileSystem.GetFile(fDisk).List(@FilesListedRecursive,@FilesListError)
     else
-       ListFiles(fDisk,@FilesListedNonrecursive,@FilesListError);
+       TLocalFileSystem.GetFile(fDisk).List(@FilesListedNonrecursive,@FilesListError);
   end;
 
 end;
@@ -1234,8 +1263,8 @@ var
   i: Integer;
   aOld: TDocumentMetadata;
   aFile: String;
-  source: TStringArray;
-  target: TStringArray;
+  source: TFile.TFileArray;
+  target: TFile.TFileArray;
 begin
   if ListingState <> lsListed then
     raise Exception.Create('Please make sure the document is listed before attempting to rename');
@@ -1254,10 +1283,10 @@ begin
   for i := 0 to aOld.fFiles.Count - 1 do
   begin
     aFile := aOld.fFiles[i];
-    source[i] := IncludeTrailingPathDelimiter(fDisk) + aFile;
+    source[i] := TLocalFileSystem.GetFile(IncludeTrailingPathDelimiter(fDisk) + aFile);
     // only change the name if it's actually supposed to be associated with it...
     if Pos(aOldName,aFile) = 1 then
-       target[i] := IncludeTrailingPathDelimiter(fDisk) + aNewName + Copy(aFile,Length(aOldName) + 1,Length(aFile))
+       target[i] := TLocalFileSystem.GetFile(IncludeTrailingPathDelimiter(fDisk) + aNewName + Copy(aFile,Length(aOldName) + 1,Length(aFile)))
     else
        target[i] := source[i];
   end;
@@ -1265,15 +1294,15 @@ begin
   // finally, remove the old one, it will get relisted later.
   fContents.Remove(aOld);
 
-  RenameFiles(source,target,@FilesRenamed,@FileRenameFailed);
+  TFileSystem.RenameFiles(source,target,@FilesRenamed,@FileRenameFailed);
 end;
 
 procedure TDocumentMetadata.MoveDocToHere(aOldChild: TDocumentMetadata);
 var
   i: Integer;
   aOldParent: TDocumentMetadata;
-  fSource: TStringArray;
-  fTarget: TStringArray;
+  lSource: TFile.TFileArray;
+  lTarget: TFile.TFileArray;
 begin
   aOldParent := aOldChild.GetParent;
   if (aOldParent.ListingState <> lsListed) or
@@ -1284,12 +1313,12 @@ begin
 
   aOldChild.Lock(Self);
 
-  SetLength(fSource,aOldChild.fFiles.Count);
-  SetLength(fTarget,aOldChild.fFiles.Count);
+  SetLength(lSource,aOldChild.fFiles.Count);
+  SetLength(lTarget,aOldChild.fFiles.Count);
   for i := 0 to aOldChild.fFiles.Count - 1 do
   begin
-    fSource[i] := IncludeTrailingPathDelimiter(aOldParent.fDisk) + aOldChild.fFiles[i];
-    fTarget[i] := IncludeTrailingPathDelimiter(fDisk) + aOldChild.fFiles[i];
+    lSource[i] := TLocalFileSystem.GetFile(IncludeTrailingPathDelimiter(aOldParent.fDisk) + aOldChild.fFiles[i]);
+    lTarget[i] := TLocalFileSystem.GetFile(IncludeTrailingPathDelimiter(fDisk) + aOldChild.fFiles[i]);
   end;
 
   // finally, remove the old one, it will get relisted later.
@@ -1297,12 +1326,7 @@ begin
   // report a change in state so the listings get refreshed where wanted.
   aOldParent.StateChanged;
 
-  // TODO: Similar to RenameFiles, except this gets the original parent
-  // directory and the new parent directory.
-  // TODO: I could fix rename files to use the whole path in both cases,
-  // instead of just being given the path and a set of targets off of that
-  // path, and then I could just use the same function for both.
-  RenameFiles(fSource,fTarget,@FilesRenamed,@FileRenameFailed);
+  TFileSystem.RenameFiles(lSource,lTarget,@FilesRenamed,@FileRenameFailed);
 end;
 
 procedure TDocumentMetadata.OrderDocument(aDoc: TDocumentMetadata;
@@ -1562,35 +1586,34 @@ begin
   result := stew_project.GetDiskPath(fDisk,ADocument);
 end;
 
-type
-
-  { TProjectExists }
-
-  TProjectExists = class(TFileExists)
-  private
-    fProject: TStewProject;
-    fCallback: TDeferredBooleanCallback;
-    procedure FileExistsCallback(Data: Boolean);
-  public
-    constructor Create(aProject: TStewProject; aCallback: TDeferredBooleanCallback;
-      aErrorback: TDeferredExceptionCallback);
-  end;
-
 { TProjectExists }
 
-procedure TProjectExists.FileExistsCallback(Data: Boolean);
+procedure TStewProject.TProjectExists.FileExistsCallback(Data: Boolean);
 begin
   if (data) then
     fProject.DoOpened;
   fCallback(Data);
+  Free;
 end;
 
-constructor TProjectExists.Create(aProject: TStewProject;
+procedure TStewProject.TProjectExists.FileExistsFailed(Error: String);
+begin
+  fErrorback(Error);
+  Free;
+end;
+
+constructor TStewProject.TProjectExists.Create(aProject: TStewProject;
   aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
 begin
-  inherited Create(TProjectProperties.GetPath(aProject.fDisk),@FileExistsCallback,aErrorback);
+  inherited Create;
   fProject := aProject;
   fCallback := aCallback;
+  fErrorback := aErrorBack;
+end;
+
+procedure TStewProject.TProjectExists.Enqueue;
+begin
+  TLocalFileSystem.GetFile(TProjectProperties.GetPath(fProject.fDisk)).CheckExistence(@FileExistsCallback,@FileExistsFailed);
 end;
 
 procedure TStewProject.OpenAtPath(aCallback: TDeferredBooleanCallback;
@@ -1599,25 +1622,9 @@ begin
   TProjectExists.Create(Self,aCallback,aErrorback).Enqueue;
 end;
 
-type
-
-  { TSearchParentDirectories }
-
-  TSearchParentDirectories = class
-  private
-    fProject: TStewProject;
-    fPath: TFilename;
-    fCallback: TDeferredBooleanCallback;
-    fErrorback: TDeferredExceptionCallback;
-    procedure FileExistsCallback(Data: Boolean);
-  public
-    constructor Create(aProject: TStewProject; aPath: TFilename; aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
-    procedure Enqueue;
-  end;
-
 { TSearchParentDirectories }
 
-procedure TSearchParentDirectories.FileExistsCallback(Data: Boolean);
+procedure TStewProject.TSearchParentDirectories.FileExistsCallback(Data: Boolean);
 var
   aPath: TFilename;
 begin
@@ -1637,12 +1644,12 @@ begin
     else
     begin
       fPath := aPath;
-      CheckFileExistence(TProjectProperties.GetPath(fPath),@FileExistsCallback,fErrorback);
+      TLocalFileSystem.GetFile(fPath).CheckExistence(@FileExistsCallback,fErrorback);
     end;
   end;
 end;
 
-constructor TSearchParentDirectories.Create(aProject: TStewProject;
+constructor TStewProject.TSearchParentDirectories.Create(aProject: TStewProject;
   aPath: TFilename; aCallback: TDeferredBooleanCallback;
   aErrorback: TDeferredExceptionCallback);
 begin
@@ -1653,9 +1660,9 @@ begin
   fErrorback := aErrorback;
 end;
 
-procedure TSearchParentDirectories.Enqueue;
+procedure TStewProject.TSearchParentDirectories.Enqueue;
 begin
-  CheckFileExistence(TProjectProperties.GetPath(fPath),@FileExistsCallback,fErrorback);
+  TLocalFileSystem.GetFile(TProjectProperties.GetPath(fPath)).CheckExistence(@FileExistsCallback,fErrorback);
 end;
 
 

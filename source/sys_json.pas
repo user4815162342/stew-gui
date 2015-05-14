@@ -11,7 +11,7 @@ interface
 
 
 uses
-  Classes, SysUtils, fpjson, sys_file, stew_types;
+  Classes, SysUtils, fpjson, sys_localfile, stew_types;
 
 type
 
@@ -307,7 +307,7 @@ end;
 procedure TAsyncFileBackedJSONObject.Load;
 begin
   if fFilingState = jfsInactive then
-     ReadFile(fFilename,@FileLoaded,@FileLoadFailed)
+     TLocalFileSystem.GetFile(fFilename).Read(@FileLoaded,@FileLoadFailed)
   else if fFilingState = jfsSaving then
      raise Exception.Create('Can''t load JSON data while saving.');
   // otherwise, already loading, so ignore.
@@ -323,7 +323,7 @@ begin
     begin
       fFilingState := jfsSaving;
       text := UTF8String(fData.FormatJSON());
-      WriteFile(fFilename,fCreateDir and (fFileAge = -1),not aForce,fFileAge,text,@FileSaved,@FileSaveConflicted,@FileSaveFailed);
+      TLocalFileSystem.GetFile(fFilename).Write(fCreateDir and (fFileAge = -1),not aForce,fFileAge,text,@FileSaved,@FileSaveConflicted,@FileSaveFailed);
 
     end
     else if fFilingState = jfsLoading then

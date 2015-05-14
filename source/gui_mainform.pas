@@ -45,6 +45,17 @@ project manager. The document ID would be something like :query?category=Chapter
 TODO: At some point, I need to go through and convert all string-based and
 file-based functions to UTF8 equivalents.
 
+TODO: Put into some sort of coding guidelines the following rules:
+- Code should only be made protected or private if it would cause the object
+to go into an unknown state if it was called with incorrect parameters.
+- Similarly, all functions and types should be in the interface unless calling
+them with incorrect parameters would put the application into an unknown state.
+
+These two rules allow for easier code re-use, since you're not restricting functions
+that might actually be useful elsewhere (such as a filename processing function
+or something). I don't guarantee I've followed this everywhere, because I've
+come up with this rule after a lot of the development was done.
+
 TODO: At some point in the future, I might feel the need to "clear" the cache
 every once in a while. This is a little complex, but not too bad, we just
 have to avoid removing documents that are currently open (locking required

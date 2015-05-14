@@ -47,6 +47,7 @@ type
   TDeferredCallback = procedure of object;
   TDeferredStringCallback = procedure(Data: String) of object;
   TDeferredBooleanCallback = procedure(Data: Boolean) of object;
+  TDeferredStringArrayCallback = procedure(Data: array of String) of object;
   // Exceptions are freed after being caught, so deferring them to pass them onward
   // doesn't work. We need to pass the message instead. Someday, I may need
   // to pass more structured data.

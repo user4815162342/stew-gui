@@ -52,7 +52,7 @@ type
     procedure Failed(Data: String);
   {$IFDEF Linux}
     procedure XdgUserDirDone(Data: String);
-    procedure TemplateFilesListed(Data: TFileList);
+    procedure TemplateFilesListed(Data: TFile.TFileArray);
   {$ENDIF}
   public
     constructor Create(aExt: String; aCallback: TTemplateListCallback; aErrorBack: TDeferredExceptionCallback);
@@ -68,7 +68,7 @@ procedure CreateFileFromTemplate(aTemplate: TTemplate; aFile: TFilename; aCallba
 implementation
 
 uses
-  lclintf, FileUtil, process, UTF8Process;
+  lclintf, FileUtil, process, UTF8Process, sys_localfile;
 
 
 
@@ -139,7 +139,7 @@ procedure CreateFileFromTemplate(aTemplate: TTemplate; aFile: TFilename;
   aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
 begin
 {$IFDEF Linux}
-  sys_file.CopyFile(aTemplate.Path,aFile,aCallback,aErrorback)
+  TLocalFileSystem.GetFile(aTemplate.Path).CopyTo(TLocalFileSystem.GetFile(aFile),aCallback,aErrorback)
 {$ELSE}
 {$ERROR Required code is not yet written for this platform.}
 {$ENDIF}
@@ -189,7 +189,7 @@ end;
 
 {$IFDEF Linux}
 
-procedure TListTemplates.TemplateFilesListed(Data: TFileList);
+procedure TListTemplates.TemplateFilesListed(Data: TFile.TFileArray);
 var
   aAnswer: TTemplateArray;
   l: Integer;
@@ -201,11 +201,11 @@ begin
     j := 0;
     for i := 0 to l - 1 do
     begin
-      if (fExt = '') or (ExtractFileExt(Data[i]) = fExt) then
+      if (fExt = '') or (Data[i].Extension = fExt) then
       begin
         SetLength(aAnswer,j + 1);
-        aAnswer[j].Name := ExtractFileNameWithoutExt(Data[i]);
-        aAnswer[j].Path := fTemplatePath + Data[i];
+        aAnswer[j].Name := Data[i].BaseName;
+        aAnswer[j].Path := Data[i].ID;
         j := j + 1;
       end;
     end;
@@ -226,7 +226,7 @@ procedure TListTemplates.XdgUserDirDone(Data: String);
 begin
   try
     fTemplatePath := IncludeTrailingPathDelimiter(Trim(Data));
-    ListFiles(fTemplatePath,@TemplateFilesListed,@Failed);
+    TLocalFileSystem.GetFile(fTemplatePath).List(@TemplateFilesListed,@Failed);
   except
     on E: Exception do
       Failed(E.Message);
@@ -248,7 +248,7 @@ begin
   inherited Create;
   fErrorback := aErrorBack;
   fCallback := aCallback;
-  fExt := aExt;
+  fExt := ExcludeExtensionDelimiter(aExt);
 end;
 
 procedure TListTemplates.Enqueue;

@@ -218,7 +218,7 @@ type
 implementation
 
 uses
-  sys_file, jsonparser, rttiutils, typinfo, LCLProc;
+  sys_localfile, jsonparser, rttiutils, typinfo, LCLProc;
 
 type
 
@@ -573,7 +573,7 @@ begin
     fFilingState := fsLoading;
     if fOnFileLoading <> nil then
       fOnFileLoading(Self);
-    ReadFile(fFilename,@FileLoaded,@FileLoadFailed);
+    TLocalFileSystem.GetFile(fFilename).Read(@FileLoaded,@FileLoadFailed);
   end
   else if fFilingState = fsSaving then
      raise Exception.Create('Can''t load JSON data while saving.');
@@ -592,7 +592,7 @@ begin
       if fOnFileSaving <> nil then
         fOnFileSaving(Self);
       text := GetJSONString(Self);
-      WriteFile(fFilename,fCreateDir and (fFileAge = -1),not aForce,fFileAge,text,@FileSaved,@FileSaveConflicted,@FileSaveFailed);
+      TLocalFileSystem.GetFile(fFilename).Write(fCreateDir and (fFileAge = -1),not aForce,fFileAge,text,@FileSaved,@FileSaveConflicted,@FileSaveFailed);
 
     end
     else if fFilingState = fsNotLoaded then

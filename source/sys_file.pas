@@ -1,554 +1,392 @@
 unit sys_file;
 
 {$mode objfpc}{$H+}
+{$ModeSwitch advancedrecords}
 
 interface
 
 uses
   Classes, SysUtils, sys_async, FileUtil;
 
-// TODO: Need to turn this whole system into something which will allow
-// me to work with other file systems.
-// - Instead of string-based file paths, create a record that has an enum
-//   value indicating what type of file system it is, and a string-based id.
-// - The main functions would accept these file paths, and would look
-//   at that enum value to figure out what object will be used to
-//   do the job. This object will be retrieved from a class factory,
-//   and the functionality will be called on that object.
-// - Alternatively, instead of enum, use a "Class of TFileSystemHandler"
-//   or something like that. If I can do virtual static functions, than
-//   that's all I need. Otherwise, can use a static constructor to establish
-//   an incremental ID of some sort, if we were to keep it in an array,
-//   and retrieve itself that way.
-// - Actually, can use extended records to add procedures and the like,
-//   and we have an almost real *TFile* class.
-
 const NewFileAge: Longint = -1;
-function ExtractPacketName(const aPath: String): String;
-function ExtractFileDescriptor(const Filename: TFilename): string;
-function IncludeExtensionDelimiter(const aExt: String): String;
 
 
 type
-  TFileSystemKind = (fskLocalFile);
-  // FUTURE: The following systems might be available some day.
-  // - ioskHTTP: read-only system that reads stuff off of a web server
-  // - ioskWebDAV: writable http system
-  // - ioskSSHFS: secure networked file system
-  // - ioskGoogleDrive: access Google drive
-  // - ioskDropBox: access Dropbox.
-  // The biggest problem with most of these is actually the directory browser
-  // to choose the location.
+  TFileSystem = class;
 
-  // TODO: Should be TFileArray
-  TFileList = array of TFilename;
-  TDeferredFileListCallback = procedure(Data: TFileList) of object;
-  TReadFileCallback = procedure(aData: TStream; aFileAge: Longint) of object;
-  TWriteFileCallback = procedure(aFileAge: Longint) of object;
+  TFileSystemClass = class of TFileSystem;
 
-  { TListFiles }
-
-  TListFiles = class(TDeferredTask)
+  { TFile }
+  // allows encapsulation of a file object. It's built as a record
+  // to allow quick allocation on the stack, and remove the need for
+  // freeing objects later.
+  TFile = record
   private
-    fPath: TFilename;
-    fCallback: TDeferredFileListCallback;
-  protected
-    procedure DoTask; override;
+    fSystem: TFileSystemClass;
+    fID: UTF8String;
+    function GetBaseName: UTF8String;
+    function GetDescriptor: UTF8String;
+    function GetDirectory: TFile;
+    function GetExtension: UTF8String;
+    function GetName: UTF8String;
+    function GetPacketName: UTF8String;
+  public type
+    // NOTE: In order to do this API, I need to be able to forward declare
+    // The TFile record, because at least one of it's methods (ListFiles)
+    // requires a type for an argument that references TFile (TDeferredFileListCallback).
+    // (Among other issues)
+    //
+    // Options to resolve this situation that come up on the web:
+    // - change to class, which can forward declare. This isn't applicable, because
+    //   I want the "dynamic" memory allocation of the TFile.
+    // - forward reference a pointer. This doesn't make sense, because the referencing
+    //   type shouldn't have to use a pointer, and therefore dynamic memory allocation,
+    //   it should be able to use a static variable.
+    // - make use of a record helper to define the functions. This would actually
+    //   work, but it has the unfortunate side effect of not providing code
+    //   completion for the helper methods in Lazarus.
+    // - Inner types are probably the best way to do this, even though it looks funny,
+    //   it has the effect that I want.
+    TFileArray = array of TFile;
+    TDeferredFileListCallback = procedure(Data: TFileArray) of object;
+    TReadFileCallback = procedure(aData: TStream; aFileAge: Longint) of object;
+    TWriteFileCallback = procedure(aFileAge: Longint) of object;
   public
-    constructor Create(const aPath: TFilename; aCallback: TDeferredFileListCallback; aErrorBack: TDeferredExceptionCallback);
-  end;
-
-  { TFileExists }
-
-  TFileExists = class(TDeferredTask)
-  private
-    fPath: TFilename;
-    fCallback: TDeferredBooleanCallback;
-  protected
-    procedure DoTask; override;
-  public
-    constructor Create(const aPath: TFilename; aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
-  end;
-
-  { TReadFile }
-
-  TReadFile = class(TDeferredTask)
-  private
-    fPath: TFilename;
-    fCallback: TReadFileCallback;
-  protected
-    procedure DoTask; override;
-  public
-    constructor Create(const aPath: TFilename; aCallback: TReadFileCallback; aErrorback: TDeferredExceptionCallback);
-  end;
-
-
-  { TWriteFile }
-
-  TWriteFile = class(TDeferredTask)
-  private
-    fPath: TFilename;
-    fFileAge: Longint;
-    fCheckFileAge: Boolean;
-    fCreateDir: Boolean;
-    fData: UTF8String;
-    fCallback: TWriteFileCallback;
-    fConflictBack: TWriteFileCallback;
-  protected
-    procedure DoTask; override;
-  public
-    // NOTE: for FileAge, pass the mtime retrieved by the TReadFile.
-    // If the file was new, pass NewFileAge(-1).
-    constructor Create(const aPath: TFilename; aCreateDir: Boolean; aCheckFileAge: Boolean; aFileAge: Longint;
-      const aData: UTF8String; aCallback: TWriteFileCallback; aConflictBack: TWriteFileCallback;
-  aErrorback: TDeferredExceptionCallback);
-  end;
-
-  { TCopyFile }
-
-  TCopyFile = class(TDeferredTask)
-  private
-    fSource: TFilename;
-    fTarget: TFilename;
-    fOptions: TCopyFileFlags;
-    fCallback: TDeferredCallback;
-  protected
-    procedure DoTask; override;
-  public
-    constructor Create(aSource: TFileName; aTarget: TFileName; aFlags: TCopyFileFlags; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
-  end;
-
-  { TRenameFiles }
-
-  TRenameFiles = class(TDeferredTask)
-  private
-    fSources: array of string;
-    fTargets: array of string;
-    fCallback: TDeferredCallback;
-  protected
-    procedure DoTask; override;
-  public
-    constructor Create(aSources: array of string; aTargets: array of string; aCallback: TDeferredCallback; aErrorBack: TDeferredExceptionCallback);
-  end;
-
-
-
-  { TIOSystem }
-
-  TFileSystem = class
-  private
-    class var fList: array[TFileSystemKind] of TFileSystem;
-  public
-    procedure ListFiles(const aPath: TFilename; aCallback: TDeferredFileListCallback; aErrorBack: TDeferredExceptionCallback); virtual; abstract;
-    procedure CheckFileExistence(const aPath: TFilename; aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback); virtual; abstract;
-    procedure ReadFile(const aPath: TFilename; aCallback: TReadFileCallback; aErrorback: TDeferredExceptionCallback); virtual; abstract;
-    procedure WriteFile(const aPath: TFilename;
-                        const aData: UTF8String;
-                        aCallback: TWriteFileCallback;
-                        aErrorback: TDeferredExceptionCallback); overload; virtual; abstract;
-    procedure WriteFile(const aPath: TFilename;
-                        aCreateDir: Boolean;
-                        aCheckFileAge: Boolean;
-                        aFileAge: Longint;
-                        const aData: UTF8String;
-                        aCallback: TWriteFileCallback;
-                        aConflictBack: TWriteFileCallback;
-                        aErrorback: TDeferredExceptionCallback); overload; virtual; abstract;
-    procedure CopyFile(aSource: TFileName; aTarget: TFileName; aFlags: TCopyFileFlags; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback); overload; virtual; abstract;
-    procedure CopyFile(aSource: TFileName; aTarget: TFileName; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback); overload; virtual; abstract;
-    procedure RenameFiles(aPath: TFilename; aSourceFiles: array of string; aTargetFiles: array of string; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback); virtual; abstract;
-    class function Get(aKind: TFileSystemKind): TFileSystem;
-    class constructor Create;
-    class destructor Destroy;
-  end;
-
-  TLocalFileIOSystem = class(TFileSystem)
-    // TODO: Move the below "global" procedures into here.
-    // TODO: Also, create a class system for each kind of asynchronous
-    // thing, so that the actual task is implemented by another system.
-  end;
-
-procedure ListFiles(const aPath: TFilename; aCallback: TDeferredFileListCallback; aErrorBack: TDeferredExceptionCallback);
-procedure CheckFileExistence(const aPath: TFilename; aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
-procedure ReadFile(const aPath: TFilename; aCallback: TReadFileCallback; aErrorback: TDeferredExceptionCallback);
-procedure WriteFile(const aPath: TFilename;
-                    const aData: UTF8String;
-                    aCallback: TWriteFileCallback;
-                    aErrorback: TDeferredExceptionCallback); overload;
-procedure WriteFile(const aPath: TFilename;
-                    aCreateDir: Boolean;
+    property System: TFileSystemClass read fSystem;
+    property ID: UTF8String read fID;
+    procedure List(aCallback: TDeferredFileListCallback; aErrorBack: TDeferredExceptionCallback);
+    procedure CheckExistence(aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
+    procedure Read(aCallback: TReadFileCallback; aErrorback: TDeferredExceptionCallback);
+    procedure Write(const aData: UTF8String; aCallback: TWriteFileCallback; aErrorback: TDeferredExceptionCallback); overload;
+    procedure Write(aCreateDir: Boolean;
                     aCheckFileAge: Boolean;
                     aFileAge: Longint;
                     const aData: UTF8String;
                     aCallback: TWriteFileCallback;
                     aConflictBack: TWriteFileCallback;
                     aErrorback: TDeferredExceptionCallback); overload;
-procedure CopyFile(aSource: TFileName; aTarget: TFileName; aFlags: TCopyFileFlags; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback); overload;
-procedure CopyFile(aSource: TFileName; aTarget: TFileName; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback); overload;
-procedure RenameFiles(aSourceFiles: array of string; aTargetFiles: array of string; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback); overload;
+    procedure CopyTo(aTarget: TFile; aFlags: TCopyFileFlags; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback); overload;
+    procedure CopyTo(aTarget: TFile; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback); overload;
+    procedure Rename(aTarget: TFile; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
+    property BaseName: UTF8String read GetBaseName;
+    property PacketName: UTF8String read GetPacketName;
+    property Name: UTF8String read GetName;
+    property Directory: TFile read GetDirectory;
+    property Extension: UTF8String read GetExtension;
+    property Descriptor: UTF8String read GetDescriptor;
+    function GetContainedFile(aPacketName: UTF8String;
+      aDescriptor: UTF8String; aExtension: UTF8String; dotAndDashify: Boolean): TFile;
+    function GetContainedFile(aName: UTF8String): TFile;
+  end;
+
+  { TFileSystem }
+  // This is a generic interface for accessing file systems asynchronously.
+  // It can be extended to support various back-end systems. Right now, only
+  // the local file system will be available, but I'd like to someday support
+  // more:
+  // FUTURE: The following systems could be supported
+  // - THTTPFileSystem: read-only system that reads stuff off of a remote web server
+  // - TWebDAVFileSystem: writable http system
+  // - TSSHFileSystem: secure networked file system, although this might be better
+  //                   to just use a driver in the local operating system.
+  // - TGoogleDriveFileSystem: access Google drive
+  // - TDropBoxFileSystem: access Dropbox.
+  // The biggest problem with most of these is actually the directory browser
+  // to choose the location.
+
+  TFileSystem = class
+  protected
+    // Almost functions are protected, because they should really only be
+    // called from TFileSystem.
+
+    class procedure ListFiles(aFile: TFile; aCallback: TFile.TDeferredFileListCallback; aErrorBack: TDeferredExceptionCallback); virtual; abstract;
+    class procedure CheckFileExistence(aFile: TFile; aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback); virtual; abstract;
+    class procedure ReadFile(aFile: TFile; aCallback: TFile.TReadFileCallback; aErrorback: TDeferredExceptionCallback); virtual; abstract;
+    class procedure WriteFile(aFile: TFile;
+                        aCreateDir: Boolean;
+                        aCheckFileAge: Boolean;
+                        aFileAge: Longint;
+                        const aData: UTF8String;
+                        aCallback: TFile.TWriteFileCallback;
+                        aConflictBack: TFile.TWriteFileCallback;
+                        aErrorback: TDeferredExceptionCallback); virtual; abstract;
+    class procedure CopyFile(aSource: TFile; aTarget: TFile; aFlags: TCopyFileFlags; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback); virtual; abstract;
+    class procedure RenameFile(aSource: TFile; aTarget: TFile; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback); virtual;
+    class function GetDirectory(aFile: TFile): TFile; virtual; abstract;
+    class function GetName(aFile: TFile): UTF8String; virtual; abstract;
+    class function GetContainedFile(aFile: TFile; aName: UTF8String): TFile; virtual; abstract;
+    class function GetFileSystemClass: TFileSystemClass; virtual; abstract;
+    class procedure DoRenameFiles(aSource: TFile.TFileArray; aTarget: TFile.TFileArray; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback); virtual; abstract;
+  public
+    class function GetFile(ID: String): TFile;
+    // allows batch renames of multiple files.
+    class procedure RenameFiles(aSource: TFile.TFileArray; aTarget: TFile.TFileArray; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
+  end;
+
+  const
+    ExtensionDelimiter: Char = '.';
+    DescriptorDelimiter: Char = '_';
+
+  operator = (a: TFile; b: TFile): Boolean;
+
+
+
+  function BuildFileName(aPacketName: UTF8String;
+      aDescriptor: UTF8String; aExtension: UTF8String; dotAndDashify: Boolean): UTF8String;
+  // some path functions
+  function ExtractFileNameWithoutDescriptor(const Filename: UTF8String): UTF8String;
+  function ExtractFileDescriptor(const Filename: UTF8String): UTF8String;
+  function IncludeExtensionDelimiter(const aExt: UTF8String): UTF8String;
+  function ExcludeExtensionDelimiter(const aExt: UTF8String): UTF8String;
+  function IncludeDescriptorDelimiter(const aExt: UTF8String): UTF8String;
+  function ExcludeDescriptorDelimiter(const aExt: UTF8String): UTF8String;
+
 
 implementation
 
 uses
   strutils;
 
-function ExtractPacketName(const aPath: String): String;
+{ TFileSystem }
+
+class procedure TFileSystem.RenameFile(aSource: TFile; aTarget: TFile;
+  aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
+var
+  aSourceArr: TFile.TFileArray;
+  aTargetArr: TFile.TFileArray;
+begin
+  SetLength(aSourceArr,1);
+  aSourceArr[0] := aSource;
+  SetLength(aTargetArr,1);
+  aTargetArr[0] := aTarget;
+  RenameFiles(aSourceArr,aTargetArr,aCallback,aErrorback);
+end;
+
+class procedure TFileSystem.RenameFiles(aSource: TFile.TFileArray;
+  aTarget: TFile.TFileArray; aCallback: TDeferredCallback;
+  aErrorback: TDeferredExceptionCallback);
+var
+  l: Integer;
+  i: Integer;
+  aSystem: TFileSystemClass;
+begin
+  aSystem := nil;
+  l := Length(aSource);
+  if l <> Length(aTarget) then
+    raise Exception.Create('Batch file rename requires the same number of files in source and target.');
+  if l = 0 then
+    Exit;
+  for i := 0 to l - 1 do
+  begin
+    if aSystem = nil then
+      aSystem := aSource[i].System
+    else if ((aSystem <> aSource[i].System) or
+             (aSystem <> aTarget[i].System)) then
+      raise Exception.Create('Can''t batch rename across file systems');
+  end;
+  aSystem.DoRenameFiles(aSource,aTarget,aCallback,aErrorback);
+end;
+
+class function TFileSystem.GetFile(ID: String): TFile;
+begin
+  result.fSystem := GetFileSystemClass;
+  result.fID := ID;
+end;
+
+{ TFile }
+
+function TFile.GetBaseName: UTF8String;
+begin
+  result := ExtractFileNameOnly(Name);
+end;
+
+function TFile.GetDescriptor: UTF8String;
+begin
+  result := ExcludeDescriptorDelimiter(ExtractFileDescriptor(Name));
+end;
+
+function TFile.GetDirectory: TFile;
+begin
+  result := fSystem.GetDirectory(Self);
+end;
+
+function TFile.GetExtension: UTF8String;
+begin
+  result := ExcludeExtensionDelimiter(ExtractFileExt(Name));
+end;
+
+function TFile.GetName: UTF8String;
+begin
+  result := fSystem.GetName(Self);
+end;
+
+function TFile.GetPacketName: UTF8String;
+begin
+  result := ExtractFileNameWithoutDescriptor(Name);
+end;
+
+procedure TFile.List(aCallback: TDeferredFileListCallback;
+  aErrorBack: TDeferredExceptionCallback);
+begin
+  fSystem.ListFiles(Self,aCallback,aErrorback);
+end;
+
+procedure TFile.CheckExistence(aCallback: TDeferredBooleanCallback;
+  aErrorback: TDeferredExceptionCallback);
+begin
+  fSystem.CheckFileExistence(Self,aCallback,aErrorback);
+
+end;
+
+procedure TFile.Read(aCallback: TReadFileCallback;
+  aErrorback: TDeferredExceptionCallback);
+begin
+  fSystem.ReadFile(Self,aCallback,aErrorback);
+end;
+
+procedure TFile.Write(const aData: UTF8String; aCallback: TWriteFileCallback;
+  aErrorback: TDeferredExceptionCallback);
+begin
+  Write(false,false,NewFileAge,aData,aCallback,Nil,aErrorback);
+
+end;
+
+procedure TFile.Write(aCreateDir: Boolean; aCheckFileAge: Boolean;
+  aFileAge: Longint; const aData: UTF8String; aCallback: TWriteFileCallback;
+  aConflictBack: TWriteFileCallback; aErrorback: TDeferredExceptionCallback);
+begin
+  fSystem.WriteFile(Self,aCreateDir,aCheckFileAge,aFileAge,aData,aCallback,aConflictBack,aErrorback);
+end;
+
+procedure TFile.CopyTo(aTarget: TFile; aFlags: TCopyFileFlags;
+  aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
+begin
+  if aTarget.System <> fSystem then
+     raise Exception.Create('Can''t copy files across file systems');
+  fSystem.CopyFile(Self,aTarget,aFlags,aCallback,aErrorback);
+end;
+
+procedure TFile.CopyTo(aTarget: TFile; aCallback: TDeferredCallback;
+  aErrorback: TDeferredExceptionCallback);
+begin
+  CopyTo(aTarget,[],aCallback,aErrorback);
+end;
+
+procedure TFile.Rename(aTarget: TFile; aCallback: TDeferredCallback;
+  aErrorback: TDeferredExceptionCallback);
+begin
+  if aTarget.System <> fSystem then
+     raise Exception.Create('Can''t move files across file systems');
+  fSystem.RenameFile(Self,aTarget,aCallback,aErrorback);
+end;
+
+function TFile.GetContainedFile(aPacketName: UTF8String;
+  aDescriptor: UTF8String; aExtension: UTF8String; dotAndDashify: Boolean
+  ): TFile;
+begin
+  result := fSystem.GetContainedFile(Self,BuildFileName(aPacketName,aDescriptor,aExtension,dotAndDashify));
+end;
+
+function TFile.GetContainedFile(aName: UTF8String): TFile;
+begin
+  result := fSystem.GetContainedFile(Self,aName);
+end;
+
+operator=(a: TFile; b: TFile): Boolean;
+begin
+  result := (a.System = b.System) and (a.ID = b.ID);
+end;
+
+function BuildFileName(aPacketName: UTF8String; aDescriptor: UTF8String;
+  aExtension: UTF8String; dotAndDashify: Boolean): UTF8String;
+begin
+  if aExtension <> '' then
+    aExtension := IncludeExtensionDelimiter(aExtension);
+  if aDescriptor <> '' then
+    aDescriptor := IncludeDescriptorDelimiter(aDescriptor);
+  if dotAndDashify and (aExtension = '') and (Pos(ExtensionDelimiter,aPacketName) > 0) then
+    aExtension := ExtensionDelimiter;
+  if dotAndDashify and (aDescriptor = DescriptorDelimiter) and (Pos(DescriptorDelimiter,aPacketName) > 0) then
+    aDescriptor := DescriptorDelimiter;
+  result := aPacketName + aDescriptor + aExtension;
+
+end;
+
+function ExtractFileNameWithoutDescriptor(const Filename: UTF8String): UTF8String;
 var
   _p: Integer;
 begin
-  result := ChangeFileExt(ExtractFileName(aPath),'');
-  _p := RPos('_',Result);
+  result := ExtractFileNameWithoutExt(Filename);
+  _p := RPos(DescriptorDelimiter,Result);
   if _p <> 0 then
   begin
      result := Copy(Result,0,_p - 1);
   end;
 end;
 
-function ExtractFileDescriptor(const Filename: TFilename): string;
+function ExtractFileDescriptor(const Filename: UTF8String): UTF8String;
 var
   i : longint;
   EndSep : Set of Char;
 begin
   I := Length(FileName);
-  EndSep:=AllowDirectorySeparators+AllowDriveSeparators+['_'];
+  EndSep:=AllowDirectorySeparators+AllowDriveSeparators+[DescriptorDelimiter];
   while (I > 0) and not (FileName[I] in EndSep) do
     Dec(I);
-  if (I > 0) and (FileName[I] = '_') then
+  if (I > 0) and (FileName[I] = DescriptorDelimiter) then
   begin
     Result := Copy(FileName, I, MaxInt);
-    Result := ChangeFileExt(Result,'');
+    Result := ExtractFileNameWithoutExt(Result);
   end
   else
     Result := '';
 end;
 
-function IncludeExtensionDelimiter(const aExt: String): String;
+function IncludeExtensionDelimiter(const aExt: UTF8String): UTF8String;
 begin
   result := aExt;
   if (Length(result) > 0) then
   begin
-    if result[1] <> '.' then
-      result := '.' + result;
+    if result[1] <> ExtensionDelimiter then
+      result := ExtensionDelimiter + result;
+  end;
+end;
+
+function ExcludeExtensionDelimiter(const aExt: UTF8String): UTF8String;
+begin
+  result := aExt;
+  if (Length(result) > 0) then
+  begin
+    if result[1] = ExtensionDelimiter then
+      result := Copy(result,2,Length(result));
+  end;
+end;
+
+function IncludeDescriptorDelimiter(const aExt: UTF8String): UTF8String;
+begin
+  result := aExt;
+  if (Length(result) > 0) then
+  begin
+    if result[1] <> DescriptorDelimiter then
+      result := DescriptorDelimiter + result;
   end
   else
-    result := '.';
+    result := '';
 end;
 
-procedure ListFiles(const aPath: TFilename;
-  aCallback: TDeferredFileListCallback; aErrorBack: TDeferredExceptionCallback);
+function ExcludeDescriptorDelimiter(const aExt: UTF8String): UTF8String;
 begin
-  TListFiles.Create(aPath,aCallback,aErrorBack).Enqueue;
-end;
-
-procedure CheckFileExistence(const aPath: TFilename;
-  aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
-begin
-  TFileExists.Create(aPath,aCallback,aErrorback).Enqueue;
-end;
-
-procedure ReadFile(const aPath: TFilename; aCallback: TReadFileCallback;
-  aErrorback: TDeferredExceptionCallback);
-begin
-  TReadFile.Create(aPath,aCallback,aErrorback).Enqueue;
-end;
-
-procedure WriteFile(const aPath: TFilename; const aData: UTF8String;
-  aCallback: TWriteFileCallback; aErrorback: TDeferredExceptionCallback);
-begin
-  WriteFile(aPath,false,false,NewFileAge,aData,aCallback,nil,aErrorback);
-end;
-
-procedure WriteFile(const aPath: TFilename; aCreateDir: Boolean;
-  aCheckFileAge: Boolean; aFileAge: Longint; const aData: UTF8String;
-  aCallback: TWriteFileCallback; aConflictBack: TWriteFileCallback;
-  aErrorback: TDeferredExceptionCallback);
-begin
-  TWriteFile.Create(aPath,aCreateDir,aCheckFileAge,aFileAge,aData,aCallback,aConflictBack,aErrorback).Enqueue;
-end;
-
-procedure CopyFile(aSource: TFileName; aTarget: TFileName;
-  aFlags: TCopyFileFlags; aCallback: TDeferredCallback;
-  aErrorback: TDeferredExceptionCallback);
-begin
-  TCopyFile.Create(aSource,aTarget,aFlags,aCallback,aErrorback).Enqueue;
-end;
-
-procedure CopyFile(aSource: TFileName; aTarget: TFileName;
-  aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
-begin
-  CopyFile(aSource,aTarget,[],aCallback,aErrorback);
-end;
-
-procedure RenameFiles(aSourceFiles: array of string;
-  aTargetFiles: array of string; aCallback: TDeferredCallback;
-  aErrorback: TDeferredExceptionCallback);
-begin
-  TRenameFiles.Create(aSourceFiles,aTargetFiles,aCallback,aErrorback).Enqueue;
-end;
-
-
-const
-  // formats in something like ISO8601, but I also need to quote the
-  // hyphens, because otherwise they will be replaced with locale
-  // date separators.
-  TimestampFormat: String = 'yyyy"-"mm"-"dd"T"hh"-"mm"-"ss';
-
-{ TIOSystem }
-
-class function TFileSystem.Get(aKind: TFileSystemKind): TFileSystem;
-begin
-  if fList[aKind] = nil then
+  result := aExt;
+  if (Length(result) > 0) then
   begin
-    case aKind of
-      fskLocalFile:
-        fList[aKind] := TLocalFileIOSystem.Create;
-    end;
-  end;
-  result := fList[aKind];
-end;
-
-class constructor TFileSystem.Create;
-var
-  i: TFileSystemKind;
-begin
-  for i := Low(TFileSystemKind) to High(TFileSystemKind) do
-    fList[i] := nil;
-end;
-
-class destructor TFileSystem.Destroy;
-var
-  i: TFileSystemKind;
-begin
-  for i := Low(TFileSystemKind) to High(TFileSystemKind) do
-    FreeAndNil(fList[i]);
-end;
-
-{ TRenameFiles }
-
-procedure TRenameFiles.DoTask;
-var
-  i: Integer;
-begin
-  for i := 0 to Length(fSources) - 1 do
-  begin
-    if fSources[i] <> fTargets[i] then
-      if not RenameFile(fSources[i],fTargets[i]) then
-         raise Exception.Create('An error occurred while renaming ' + fSources[i] + ' to ' + fTargets[i]);
-  end;
-  fCallback;
-end;
-
-constructor TRenameFiles.Create(aSources: array of string;
-  aTargets: array of string; aCallback: TDeferredCallback;
-  aErrorBack: TDeferredExceptionCallback);
-var
-  i: Integer;
-  l: Integer;
-begin
-  inherited Create(aErrorBack);
-  l := Length(aSources);
-  if l <> Length(aTargets) then
-     raise Exception.Create('Number of targets does not match number of sources.');
-  SetLength(fSources,l);
-  SetLength(fTargets,l);
-  for i := 0 to l - 1 do
-  begin
-    fSources[i] := aSources[i];
-    fTargets[i] := aTargets[i];
-  end;
-  fCallback:= aCallback;
-end;
-
-{ TCopyFile }
-
-procedure TCopyFile.DoTask;
-begin
-  // have to raise our own exceptions here, since CopyFile doesn't do that
-  // if it's not in the options.
-  if not (cffOverwriteFile in fOptions) and
-     FileExists(fTarget) then
-     raise Exception.Create('File ' + fTarget + ' already exists.');
-
-  if not (cffCreateDestDirectory in fOptions) and
-     not DirectoryExists(ExtractFilePath(fTarget)) then
-     raise Exception.Create('Directory for file ' + fTarget + ' does not exist');
-
-  if not CopyFile(fSource,fTarget,fOptions) then
-     raise Exception.Create('Copy file failed. Source: ' + fSource + '; Target: ' + fTarget);
-  fCallback;
-end;
-
-constructor TCopyFile.Create(aSource: TFileName; aTarget: TFileName;
-  aFlags: TCopyFileFlags; aCallback: TDeferredCallback;
-  aErrorback: TDeferredExceptionCallback);
-begin
-  inherited Create(aErrorback);
-  fSource := aSource;
-  fTarget := aTarget;
-  fOptions := aFlags;
-  fCallback := aCallback;
-end;
-
-{ TListFiles }
-
-procedure TListFiles.DoTask;
-var
-  SR: TSearchRec;
-  Answer: TFileList;
-  L: Integer;
-begin
-  L := 0;
-  if DirectoryExists(fPath) then
-  begin
-       if FindFirst(IncludeTrailingPathDelimiter(fPath) + '*',faDirectory,SR) = 0 then
-       begin
-          try
-            repeat
-              if (SR.Name <> '.') and (SR.Name <> '..') then
-              begin
-                 L := L + 1;
-                 SetLength(Answer,L);
-                 Answer[L-1] := SR.Name;
-              end;
-            until FindNext(SR) <> 0;
-          finally
-            FindClose(SR);
-          end;
-       end;
-  end;
-  fCallback(Answer);
-end;
-
-constructor TListFiles.Create(const aPath: TFilename;
-  aCallback: TDeferredFileListCallback; aErrorBack: TDeferredExceptionCallback);
-begin
-  inherited Create(aErrorback);
-  fPath := aPath;
-  fCallback := aCallback;
-end;
-
-{ TWriteFile }
-
-// TODO: At some point, I need to 'test' the save conflicts.
-procedure TWriteFile.DoTask;
-var
-  stream: TFileStream;
-  aCurrentAge: Longint;
-begin
-  // FUTURE: There is a potential race condition here. The file could
-  // be modified between this file age check and the actual write.
-  // However, by the time we get done with TFileStream.Create, there's
-  // no way to check the previous creation time. So... we'll just have
-  // to hope things aren't going too fast. I could possibly fix this by locking
-  // the file, checking the mtime, then opening it, but I've never done that
-  // before so I'd have to do some research that I don't have time for right now.
-  if fCheckFileAge then
-  begin
-    aCurrentAge := FileAge(fPath);
-    // if the file does not exist yet, it should return -1. If the file
-    // did not exist before, the caller should have passed -1 to indicate a
-    // new file. These are the possible conditions I see:
-    // fFileAge  fCurrentAge   means
-    // -1        -1            file did not exist before, file does not exist now, no conflict, write as normal.
-    // -1        > -1          file did not exist before, file does exist now, conflict, so report and don't write.
-    // > -1      = fFileAge    file existed before, file has same mtime as before, no conflict, write as normal.
-    // > -1      <> fFileAgge  file existed before, file has different mtime now, conflict, so report and don't write.
-    if aCurrentAge <> fFileAge then
-    begin
-      if fConflictBack <> nil then
-        fConflictBack(aCurrentAge)
-      else
-        raise Exception.Create('File has been changed since last read. Can''t write.');
-    end;
-  end;
-
-  if not DirectoryExists(ExtractFileDir(fPath)) and fCreateDir then
-  begin
-     ForceDirectories(ExtractFileDir(fPath));
-  end;
-  // otherwise, an error might occur, but that should be handled and reported by the base class here.
-
-  // TODO: Once I'm sure that saving is being done right, get rid
-  // of this.
-  if FileExists(fPath) then
-    CopyFile(fPath,fPath + FormatDateTime(TimestampFormat, Now));
-  stream := TFileStream.Create(fPath,fmCreate or fmShareDenyWrite);
-  try
-    aCurrentAge := FileAge(fPath);
-    stream.Write(fData[1],Length(fData));
-  finally
-    stream.Free;
-  end;
-  fCallback(aCurrentAge);
-
-end;
-
-constructor TWriteFile.Create(const aPath: TFilename; aCreateDir: Boolean;
-  aCheckFileAge: Boolean; aFileAge: Longint; const aData: UTF8String;
-  aCallback: TWriteFileCallback; aConflictBack: TWriteFileCallback;
-  aErrorback: TDeferredExceptionCallback);
-begin
-  inherited Create(aErrorback);
-  fPath := aPath;
-  fFileAge := aFileAge;
-  fCheckFileAge := aCheckFileAge;
-  fCreateDir := aCreateDir;
-  fData := aData;
-  fCallback := aCallback;
-  fConflictBack := aConflictBack;
-
-end;
-
-
-{ TReadFile }
-
-procedure TReadFile.DoTask;
-var
-  stream: TFileStream;
-  age: Longint;
-begin
-  if FileExists(fPath) then
-  begin
-     stream := TFileStream.Create(fPath,fmOpenRead or fmShareDenyWrite);
-     try
-       // get the age of the file now, while it's locked, to prevent certain
-       // race conditions
-       age := FileAge(fPath);
-       fCallback(stream,age);
-     finally
-       stream.Free;
-     end;
-  end
-  else
-  begin
-    fCallback(nil,NewFileAge);
+    if result[1] = DescriptorDelimiter then
+      result := Copy(result,2,Length(result));
   end;
 
 end;
 
-constructor TReadFile.Create(const aPath: TFilename;
-  aCallback: TReadFileCallback; aErrorback: TDeferredExceptionCallback);
-begin
-  inherited Create(aErrorback);
-  fCallback := aCallback;
-  fPath := aPath;
-end;
 
-{ TFileExists }
 
-procedure TFileExists.DoTask;
-begin
-  fCallback(FileExists(fPath));
-
-end;
-
-constructor TFileExists.Create(const aPath: TFilename;
-  aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
-begin
-  inherited Create(aErrorback);
-  fPath := aPath;
-  fCallback  := aCallback;
-end;
 
 end.
 
