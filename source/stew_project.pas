@@ -5,7 +5,7 @@ unit stew_project;
 interface
 
 uses
-  Classes, SysUtils, sys_file, sys_localfile, sys_os, sys_async, stew_properties, stew_types, contnrs;
+  Classes, SysUtils, sys_file, sys_async, stew_properties, stew_types, contnrs;
 
 // TODO: So that we can deal with attachments better, maybe move those off into
 // a separate object:
@@ -566,7 +566,7 @@ begin
   end;
 end;
 
-const EmptyFileTemplate: TTemplate = ( Name: 'Empty File'; Path: ());
+const EmptyFileTemplate: TTemplate = ( Name: 'Empty File'; ID: '');
 
 procedure TAttachmentMetadata.EditorTemplatesListed(Data: TTemplateArray);
 var
@@ -597,7 +597,7 @@ begin
       // the extension to '.txt'.
        GetDefaultFile.WithDifferentExtension('txt').Write('',@EditableFileWritten,@FileLoadFailed)
     else
-       CreateFileFromTemplate(aTemplate,GetDefaultFile,@EditableFileReady,@FileLoadFailed);
+       GetDefaultFile.CreateFromTemplate(aTemplate,@EditableFileReady,@FileLoadFailed);
   end;
 
 end;
@@ -613,7 +613,7 @@ var
 begin
   aFile := GetDefaultFile;
   fDocument.AddFile(aFile);
-  EditFile(aFile);
+  aFile.OpenInEditor;
 end;
 
 
@@ -711,10 +711,10 @@ begin
     if fDocument.DoConfirmNewAttachment(GetName) then
     begin
       // TODO: This should actually be deferred, shouldn't it?
-      GetTemplatesForExt(GetDefaultExtension,@EditorTemplatesListed,@FileLoadFailed);
+      GetDefaultFile.ListTemplatesFor(@EditorTemplatesListed,@FileLoadFailed);
     end;
     1:
-      EditFile(aCandidates[0]);
+      aCandidates[0].OpenInEditor;
   else
       // TODO: Should ask user which one to edit instead. This requires
       // an event.
@@ -847,7 +847,7 @@ begin
     aName := '';
     fProject.fOnChooseTemplate(fProject,fID,aAttachmentName,aNames,aName,Result);
     aTemplate.Name:='';
-    aTemplate.Path := LocalFile('');
+    aTemplate.ID := '';
     if result then
     begin
       for i := 0 to l - 1 do

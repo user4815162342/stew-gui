@@ -218,7 +218,7 @@ type
 implementation
 
 uses
-  sys_localfile, jsonparser, rttiutils, typinfo, LCLProc;
+  jsonparser, rttiutils, typinfo, LCLProc;
 
 type
 

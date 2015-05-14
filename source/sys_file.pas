@@ -12,6 +12,17 @@ const NewFileAge: Longint = -1;
 
 
 type
+
+  // Used when creating new files. The ID is system-specific.
+  TTemplate = record
+    Name: String;
+    ID: String;
+  end;
+
+  TTemplateArray = array of TTemplate;
+
+  TTemplateListCallback = procedure(Data: TTemplateArray) of object;
+
   TFileSystem = class;
 
   TFileSystemClass = class of TFileSystem;
@@ -80,6 +91,10 @@ type
     function WithDifferentExtension(aExt: UTF8String): TFile;
     function WithDifferentDescriptorAndExtension(aDesc: UTF8String; aExt: UTF8String): TFile;
     function WithDifferentPacketName(aName: UTF8String): TFile;
+
+    procedure OpenInEditor;
+    procedure ListTemplatesFor(aCallback: TTemplateListCallback; aErrorback: TDeferredExceptionCallback);
+    procedure CreateFromTemplate(aTemplate: TTemplate; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
   end;
 
   { TFileSystem }
@@ -118,6 +133,10 @@ type
     class function GetDirectory(aFile: TFile): TFile; virtual; abstract;
     class function GetName(aFile: TFile): UTF8String; virtual; abstract;
     class function GetContainedFile(aFile: TFile; aName: UTF8String): TFile; virtual; abstract;
+    class procedure OpenInEditor(aFile: TFile); virtual; abstract;
+    class procedure GetTemplatesFor(aFile: TFile; aCallback: TTemplateListCallback; aErrorback: TDeferredExceptionCallback); virtual; abstract;
+    class procedure CreateFileFromTemplate(aFile: TFile; aTemplate: TTemplate; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback); virtual; abstract;
+
     class function GetFileSystemClass: TFileSystemClass; virtual; abstract;
     class procedure DoRenameFiles(aSource: TFile.TFileArray; aTarget: TFile.TFileArray; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback); virtual; abstract;
     class function GetFile(ID: String): TFile;
@@ -370,6 +389,23 @@ end;
 function TFile.WithDifferentPacketName(aName: UTF8String): TFile;
 begin
   result := Directory.GetContainedFile(aName,Descriptor,Extension,true);
+end;
+
+procedure TFile.OpenInEditor;
+begin
+  fSystem.OpenInEditor(Self);
+end;
+
+procedure TFile.ListTemplatesFor(aCallback: TTemplateListCallback;
+  aErrorback: TDeferredExceptionCallback);
+begin
+  fSystem.GetTemplatesFor(Self,aCallback,aErrorback);
+end;
+
+procedure TFile.CreateFromTemplate(aTemplate: TTemplate;
+  aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
+begin
+  fSystem.CreateFileFromTemplate(Self,aTemplate,aCallback,aErrorback);
 end;
 
 operator=(a: TFile; b: TFile): Boolean;

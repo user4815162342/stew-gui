@@ -24,18 +24,6 @@ type
 
   end;
 
-
-  TTemplate = record
-    Name: String;
-    {$IFDEF Linux}
-    Path: TFile;
-    {$ENDIF}
-  end;
-
-  TTemplateArray = array of TTemplate;
-
-  TTemplateListCallback = procedure(Data: TTemplateArray) of object;
-
   { TTemplateLister }
 
   { TListTemplates }
@@ -141,7 +129,7 @@ procedure CreateFileFromTemplate(aTemplate: TTemplate; aFile: TFile;
   aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
 begin
 {$IFDEF Linux}
-  aTemplate.Path.CopyTo(aFile,aCallback,aErrorback)
+  LocalFile(aTemplate.ID).CopyTo(aFile,aCallback,aErrorback)
 {$ELSE}
 {$ERROR Required code is not yet written for this platform.}
 {$ENDIF}
@@ -207,7 +195,7 @@ begin
       begin
         SetLength(aAnswer,j + 1);
         aAnswer[j].Name := Data[i].BaseName;
-        aAnswer[j].Path := Data[i];
+        aAnswer[j].ID := Data[i].ID;
         j := j + 1;
       end;
     end;

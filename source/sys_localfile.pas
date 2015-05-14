@@ -105,14 +105,21 @@ type
     class procedure CopyFile(aSource: TFile; aTarget: TFile;
       aFlags: TCopyFileFlags; aCallback: TDeferredCallback;
       aErrorback: TDeferredExceptionCallback); override;
+    class procedure CreateFileFromTemplate(aFile: TFile; aTemplate: TTemplate;
+      aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
+      override;
     class function GetContainedFile(aDir: TFile; aFileName: UTF8String
       ): TFile; override;
     class function GetDirectory(aFile: TFile): TFile; override;
     class function GetFileSystemClass: TFileSystemClass; override;
     class function GetName(aFile: TFile): UTF8String; override;
+    class procedure GetTemplatesFor(aFile: TFile;
+      aCallback: TTemplateListCallback; aErrorback: TDeferredExceptionCallback
+      ); override;
     class procedure ListFiles(aFile: TFile;
       aCallback: TFile.TDeferredFileListCallback;
       aErrorBack: TDeferredExceptionCallback); override;
+    class procedure OpenInEditor(aFile: TFile); override;
     class procedure ReadFile(aFile: TFile; aCallback: TFile.TReadFileCallback;
       aErrorback: TDeferredExceptionCallback); override;
     class procedure DoRenameFiles(aSource: TFile.TFileArray;
@@ -135,6 +142,9 @@ const
 
 implementation
 
+uses
+  sys_os;
+
 function LocalFile(aPath: TFilename): TFile;
 begin
   result := TLocalFileSystem.GetFile(aPath);
@@ -153,6 +163,13 @@ class procedure TLocalFileSystem.CopyFile(aSource: TFile; aTarget: TFile;
   aErrorback: TDeferredExceptionCallback);
 begin
   TCopyFile.Create(aSource,aTarget,aFlags,aCallback,aErrorback).Enqueue;
+end;
+
+class procedure TLocalFileSystem.CreateFileFromTemplate(aFile: TFile;
+  aTemplate: TTemplate; aCallback: TDeferredCallback;
+  aErrorback: TDeferredExceptionCallback);
+begin
+  sys_os.CreateFileFromTemplate(aTemplate,aFile,aCallback,aErrorback);
 end;
 
 class function TLocalFileSystem.GetContainedFile(aDir: TFile;
@@ -178,10 +195,21 @@ begin
   result := ExtractFileName(aFile.ID);
 end;
 
+class procedure TLocalFileSystem.GetTemplatesFor(aFile: TFile;
+  aCallback: TTemplateListCallback; aErrorback: TDeferredExceptionCallback);
+begin
+  GetTemplatesForExt(aFile.Extension,aCallback,aErrorback);
+end;
+
 class procedure TLocalFileSystem.ListFiles(aFile: TFile;
   aCallback: TFile.TDeferredFileListCallback; aErrorBack: TDeferredExceptionCallback);
 begin
   TListFiles.Create(aFile,aCallback,aErrorBack).Enqueue;
+end;
+
+class procedure TLocalFileSystem.OpenInEditor(aFile: TFile);
+begin
+  EditFile(aFile);
 end;
 
 class procedure TLocalFileSystem.ReadFile(aFile: TFile;
