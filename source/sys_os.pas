@@ -28,7 +28,7 @@ type
   TTemplate = record
     Name: String;
     {$IFDEF Linux}
-    Path: String;
+    Path: TFile;
     {$ENDIF}
   end;
 
@@ -59,11 +59,11 @@ type
     procedure Enqueue;
   end platform;
 
-procedure EditFile(aFile: TFilename);
+procedure EditFile(aFile: TFile);
 procedure RunSimpleCommand(aCmd: String; const aArgs: array of string;
       aOutput: TDeferredStringCallback; aErrorBack: TDeferredExceptionCallback);
 procedure GetTemplatesForExt(const aExt: String; aCallback: TTemplateListCallback; aErrorback: TDeferredExceptionCallback);
-procedure CreateFileFromTemplate(aTemplate: TTemplate; aFile: TFilename; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
+procedure CreateFileFromTemplate(aTemplate: TTemplate; aFile: TFile; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
 
 implementation
 
@@ -72,10 +72,11 @@ uses
 
 
 
-procedure EditFile(aFile: TFilename);
+procedure EditFile(aFile: TFile);
 {$IFDEF Linux}
 var
   lApp: string;
+  lArg: String;
 {$ENDIF}
 begin
 {$IFDEF Linux}
@@ -96,13 +97,13 @@ begin
     // Android uses this
     if Assigned(OpenDocumentWidgetsetImplementation) then
     begin
-      if not OpenDocumentWidgetsetImplementation(aFile) then
-        raise Exception.Create('Can''t open file: ' + aFile);
+      if not OpenDocumentWidgetsetImplementation(aFile.ID) then
+        raise Exception.Create('Can''t open file: ' + aFile.ID);
       exit;
     end;
 
-    if not FileExistsUTF8(aFile) then
-       raise Exception.Create('File does not exist: ' + aFile);
+    if not FileExistsUTF8(aFile.ID) then
+       raise Exception.Create('File does not exist: ' + aFile.ID);
 
     lApp:=FindFilenameOfCmd('xdg-open'); // Portland OSDL/FreeDesktop standard on Linux
     if lApp='' then
@@ -112,9 +113,10 @@ begin
     if lApp='' then
       raise Exception.Create('No known opening command is available for your desktop environment');
 
-    if (aFile<>'') and (aFile[1]<>'"') then
-      aFile:=AnsiQuotedStr(aFile,'"');
-    RunCmdFromPath(lApp,aFile);
+    lArg := aFile.ID;
+    if (lArg <> '') and (lArg[1] <>'"') then
+      lArg:=AnsiQuotedStr(lArg,'"');
+    RunCmdFromPath(lApp,lArg);
 
 {$ELSE}
   if not OpenDocument(aFile) then
@@ -135,11 +137,11 @@ begin
   TListTemplates.Create(aExt,aCallback,aErrorback).Enqueue;
 end;
 
-procedure CreateFileFromTemplate(aTemplate: TTemplate; aFile: TFilename;
+procedure CreateFileFromTemplate(aTemplate: TTemplate; aFile: TFile;
   aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
 begin
 {$IFDEF Linux}
-  TLocalFileSystem.GetFile(aTemplate.Path).CopyTo(TLocalFileSystem.GetFile(aFile),aCallback,aErrorback)
+  aTemplate.Path.CopyTo(aFile,aCallback,aErrorback)
 {$ELSE}
 {$ERROR Required code is not yet written for this platform.}
 {$ENDIF}
@@ -205,7 +207,7 @@ begin
       begin
         SetLength(aAnswer,j + 1);
         aAnswer[j].Name := Data[i].BaseName;
-        aAnswer[j].Path := Data[i].ID;
+        aAnswer[j].Path := Data[i];
         j := j + 1;
       end;
     end;
@@ -226,7 +228,7 @@ procedure TListTemplates.XdgUserDirDone(Data: String);
 begin
   try
     fTemplatePath := IncludeTrailingPathDelimiter(Trim(Data));
-    TLocalFileSystem.GetFile(fTemplatePath).List(@TemplateFilesListed,@Failed);
+    LocalFile(fTemplatePath).List(@TemplateFilesListed,@Failed);
   except
     on E: Exception do
       Failed(E.Message);

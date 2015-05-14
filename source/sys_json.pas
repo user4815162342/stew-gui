@@ -307,7 +307,7 @@ end;
 procedure TAsyncFileBackedJSONObject.Load;
 begin
   if fFilingState = jfsInactive then
-     TLocalFileSystem.GetFile(fFilename).Read(@FileLoaded,@FileLoadFailed)
+     LocalFile(fFilename).Read(@FileLoaded,@FileLoadFailed)
   else if fFilingState = jfsSaving then
      raise Exception.Create('Can''t load JSON data while saving.');
   // otherwise, already loading, so ignore.
@@ -323,7 +323,7 @@ begin
     begin
       fFilingState := jfsSaving;
       text := UTF8String(fData.FormatJSON());
-      TLocalFileSystem.GetFile(fFilename).Write(fCreateDir and (fFileAge = -1),not aForce,fFileAge,text,@FileSaved,@FileSaveConflicted,@FileSaveFailed);
+      LocalFile(fFilename).Write(fCreateDir and (fFileAge = -1),not aForce,fFileAge,text,@FileSaved,@FileSaveConflicted,@FileSaveFailed);
 
     end
     else if fFilingState = jfsLoading then

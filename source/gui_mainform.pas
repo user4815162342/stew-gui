@@ -379,7 +379,7 @@ var
 implementation
 
 uses
-  gui_projectmanager, gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor, LCLProc, gui_about, gui_listdialog;
+  gui_projectmanager, gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor, LCLProc, gui_about, gui_listdialog, sys_localfile;
 
 {$R *.lfm}
 
@@ -689,7 +689,7 @@ begin
 
   if stewFolder <> '' then
   begin
-    fProject := TProtectedStewProject.Create(stewFolder);
+    fProject := TProtectedStewProject.Create(LocalFile(stewFolder));
   end;
   Application.QueueAsyncCall(@StartupCheckProject,0);
 end;
@@ -726,7 +726,7 @@ begin
     // change the directory instead). If not found, then ask if the user
     // wants to create a new one (again, use a method on the project).
     if MessageDlg('No stew project could be found.' + LineEnding +
-               'Would you like to create one at: ' + fProject.DiskPath + '?',mtConfirmation,mbOKCancel,0) =
+               'Would you like to create one at: ' + fProject.DiskPath.ID + '?',mtConfirmation,mbOKCancel,0) =
        mrOK then
     begin;
       fProject.OpenNewAtPath;
@@ -737,7 +737,7 @@ begin
   end
   else
   begin
-    ShowMessage('Found a project at: ' + fProject.DiskPath);
+    ShowMessage('Found a project at: ' + fProject.DiskPath.ID);
 
   end;
 
@@ -769,7 +769,8 @@ end;
 
 procedure TMainForm.ProjectOpened(Sender: TObject);
 begin
-  fConfig.MRUProject := fProject.DiskPath;
+  // FUTURE: Someday, will have to store the system type as well.
+  fConfig.MRUProject := fProject.DiskPath.ID;
   Self.Caption := Application.Title + ' - ' + fProject.GetProjectName;
   Enabled := true;
   with fProject.GetDocument(RootDocument) do
@@ -823,7 +824,7 @@ begin
     if OpenProjectDialog.Execute then
     begin
 
-      fProject := TProtectedStewProject.Create(OpenProjectDialog.FileName);
+      fProject := TProtectedStewProject.Create(LocalFile(OpenProjectDialog.FileName));
 
     end
     else
@@ -870,7 +871,7 @@ begin
     // TODO: Search the parents (use a method on the project, so *it* can
     // change the directory instead). If not found, then ask if the user
     // wants to create a new one (again, use a method on the project).
-    if MessageDlg('There is no stew project at: ' + fProject.DiskPath + LineEnding +
+    if MessageDlg('There is no stew project at: ' + fProject.DiskPath.ID + LineEnding +
                'Would you like to search for one in parent directories?',mtConfirmation,mbOKCancel,0) =
        mrOK then
     begin;

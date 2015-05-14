@@ -42,7 +42,6 @@ type
   TDocumentID = String;
 
   TDocumentList = array of TDocumentID;
-  TDeferredDocumentListCallback = procedure(Path: TFilename; Data: TDocumentList; aTarget: TObject) of object deprecated;
 
   TDocumentNotifyEvent = procedure(Sender: TObject; Document: TDocumentID) of object;
   TDocumentExceptionEvent = procedure(Sender: TObject; Document: TDocumentID; Error: String) of object;
@@ -65,10 +64,10 @@ type
     fContents: String;
     fModified: Boolean;
   protected
-    function GetCandidateFiles: TStringArray; virtual;
+    function GetCandidateFiles: TFile.TFileArray; virtual;
     function GetDescriptor: String; virtual; abstract;
     function GetDefaultExtension: String; virtual; abstract;
-    function GetDefaultFilename: String; virtual;
+    function GetDefaultFile: TFile; virtual;
     function GetName: String; virtual; abstract;
     procedure FileLoaded(aData: TStream; aFileAge: Longint);
     procedure FileLoadFailed(Data: String);
@@ -121,7 +120,7 @@ type
 
   TSynopsisMetadata = class(TAttachmentMetadata)
   protected
-    function GetCandidateFiles: TStringArray; override;
+    function GetCandidateFiles: TFile.TFileArray; override;
     function GetDescriptor: String; override;
     function GetName: String; override;
     function GetDefaultExtension: String; override;
@@ -150,9 +149,11 @@ type
     fIsNew: Boolean;
     fLock: TObject;
     fProject: TStewProject;
-    fDisk: TFilename;
+    // NOTE: This is a 'virtual' TFile, since the actual data is split
+    // across multiple files.
+    fDisk: TFile;
     fID: TDocumentID;
-    fFiles: TStringList;
+    fFiles: TFileList;
     fContents: TFPHashObjectList;
     fProperties: TDocumentProperties;
     fSynopsis: TSynopsisMetadata;
@@ -186,18 +187,18 @@ type
     function DoChooseTemplate(aAttachmentName: String;
       const aTemplates: TTemplateArray; out aTemplate: TTemplate): Boolean;
     procedure ClearFiles;
-    procedure AddFile(const aFile: TFilename);
+    procedure AddFile(const aFile: TFile);
     function SortDocuments(List: TStringList; Index1, Index2: Integer): Integer;
     function PutPath(const aPath: String): TDocumentMetadata;
     function PutDocument(aKey: String): TDocumentMetadata;
     function GetDocument(aKey: String): TDocumentMetadata;
-    function GetAttachments(const aDescriptor: String; const aExtension: String): TStringArray;
-    function GetNewAttachmentName(const aDescriptor: String; const aExtension: String): String;
+    function GetAttachmentFiles(aDescriptor: String; aExtension: String): TFile.TFileArray;
+    function GetUncreatedAttachmentFile(const aDescriptor: String; const aExtension: String): TFile;
     function GetSynopsis: TSynopsisMetadata;
     property Project: TStewProject read fProject;
     procedure DirectoryCreated;
   public
-    constructor Create(aProject: TStewProject; aDiskPath: TFilename;
+    constructor Create(aProject: TStewProject; aDiskPath: TFile;
       aID: TDocumentID; aIsRoot: Boolean);
     destructor Destroy; override;
     property Properties: TDocumentProperties read fProperties;
@@ -257,17 +258,17 @@ type
     TSearchParentDirectories = class
     private
       fProject: TStewProject;
-      fPath: TFilename;
+      fPath: TFile;
       fCallback: TDeferredBooleanCallback;
       fErrorback: TDeferredExceptionCallback;
       procedure FileExistsCallback(Data: Boolean);
     public
-      constructor Create(aProject: TStewProject; aPath: TFilename; aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
+      constructor Create(aProject: TStewProject; aPath: TFile; aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
       procedure Enqueue;
     end;
 
   private
-    fDisk: TFilename;
+    fDisk: TFile;
     fMetadataCache: TDocumentMetadata;
     FOnChooseTemplate: TAttachmentChoiceEvent;
     FOnConfirmNewAttachment: TAttachmentConfirmationEvent;
@@ -341,9 +342,9 @@ type
     property OnConfirmNewAttachment: TAttachmentConfirmationEvent read FOnConfirmNewAttachment write FOnConfirmNewAttachment;
     property OnChooseTemplate: TAttachmentChoiceEvent read FOnChooseTemplate write FOnChooseTemplate;
   public
-    constructor Create(const Path: TFilename);
+    constructor Create(const Path: TFile);
     destructor Destroy; override;
-    property DiskPath: TFilename read fDisk;
+    property DiskPath: TFile read fDisk;
     // TODO: Figure out filtering...
     // TODO: More importantly, need to 'sort' by directory index.
     function GetDocument(const aDocumentID: TDocumentID): TDocumentMetadata;
@@ -352,7 +353,6 @@ type
     // TODO: function Add(Name: TPacketBaseName): T;
     // TODO: function Get(Name: TPacketName): T;
     // TODO: procedure MoveHere(NewChild: T);
-    function GetDiskPath(const ADocument: TDocumentID): TFileName;
     procedure OpenAtPath(aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
     procedure OpenInParentDirectory(aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
     procedure OpenNewAtPath;
@@ -445,16 +445,11 @@ begin
     Delete(Result,1,1);
 end;
 
-function GetDiskPath(const DiskPath: TFileName; const ADocument: TDocumentID): TFilename;
-begin
-  result := DiskPath + ADocument;
-end;
-
 { TSynopsisMetadata }
 
-function TSynopsisMetadata.GetCandidateFiles: TStringArray;
+function TSynopsisMetadata.GetCandidateFiles: TFile.TFileArray;
 begin
-  Result:=fDocument.GetAttachments(GetDescriptor,GetDefaultExtension);
+  Result:=fDocument.GetAttachmentFiles(GetDescriptor,GetDefaultExtension);
 end;
 
 function TSynopsisMetadata.GetDescriptor: String;
@@ -571,7 +566,7 @@ begin
   end;
 end;
 
-const EmptyFileTemplate: TTemplate = ( Name: 'Empty File'; Path: '');
+const EmptyFileTemplate: TTemplate = ( Name: 'Empty File'; Path: ());
 
 procedure TAttachmentMetadata.EditorTemplatesListed(Data: TTemplateArray);
 var
@@ -579,7 +574,7 @@ var
 begin
   if Length(Data) = 0 then
   // create a simple, basic, blank file.
-     TLocalFileSystem.GetFile(GetDefaultFilename).Write('',@EditableFileWritten,@FileLoadFailed)
+     GetDefaultFile.Write('',@EditableFileWritten,@FileLoadFailed)
   else
   begin
     if Length(Data) > 1 then
@@ -600,9 +595,9 @@ begin
       // we're creating a blank file anyway, but in this case,
       // we know that we don't know what extension it is, so set
       // the extension to '.txt'.
-       TLocalFileSystem.GetFile(ChangeFileExt(GetDefaultFilename,'.txt')).Write('',@EditableFileWritten,@FileLoadFailed)
+       GetDefaultFile.WithDifferentExtension('txt').Write('',@EditableFileWritten,@FileLoadFailed)
     else
-       CreateFileFromTemplate(aTemplate,GetDefaultFilename,@EditableFileReady,@FileLoadFailed);
+       CreateFileFromTemplate(aTemplate,GetDefaultFile,@EditableFileReady,@FileLoadFailed);
   end;
 
 end;
@@ -614,22 +609,22 @@ end;
 
 procedure TAttachmentMetadata.EditableFileReady;
 var
-  aName: String;
+  aFile: TFile;
 begin
-  aName := GetDefaultFilename;
-  fDocument.AddFile(ExtractFileName(aName));
-  EditFile(aName);
+  aFile := GetDefaultFile;
+  fDocument.AddFile(aFile);
+  EditFile(aFile);
 end;
 
 
-function TAttachmentMetadata.GetCandidateFiles: TStringArray;
+function TAttachmentMetadata.GetCandidateFiles: TFile.TFileArray;
 begin
-  result := fDocument.GetAttachments(GetDescriptor,'');
+  result := fDocument.GetAttachmentFiles(GetDescriptor,'');
 end;
 
-function TAttachmentMetadata.GetDefaultFilename: String;
+function TAttachmentMetadata.GetDefaultFile: TFile;
 begin
-  result := fDocument.GetNewAttachmentName(GetDescriptor,GetDefaultExtension);
+  result := fDocument.GetUncreatedAttachmentFile(GetDescriptor,GetDefaultExtension);
 end;
 
 constructor TAttachmentMetadata.Create(aDocument: TDocumentMetadata);
@@ -642,7 +637,7 @@ end;
 
 procedure TAttachmentMetadata.Load;
 var
-  aCandidates: TStringArray;
+  aCandidates: TFile.TFileArray;
 begin
   if fFilingState in [fsNotLoaded,fsLoaded,fsError,fsConflict] then
   begin
@@ -655,7 +650,7 @@ begin
       begin
         fFilingState := fsLoading;
         fDocument.AttachmentLoading(GetName);
-        TLocalFileSystem.GetFile(aCandidates[0]).Read(@FileLoaded,@FileLoadFailed);
+        aCandidates[0].Read(@FileLoaded,@FileLoadFailed);
       end
     else
 
@@ -671,7 +666,7 @@ end;
 
 procedure TAttachmentMetadata.Save(aForce: Boolean);
 var
-  aCandidates: TStringArray;
+  aCandidates: TFile.TFileArray;
 begin
   if Modified then
   begin
@@ -683,7 +678,7 @@ begin
         // not ready yet, so create a new name.
         begin
           SetLength(aCandidates,1);
-          aCandidates[0] := GetDefaultFilename;
+          aCandidates[0] := GetDefaultFile;
         end;
         1: // do nothing, we save in a minute.
       else
@@ -694,7 +689,7 @@ begin
 
       fFilingState := fsSaving;
       fDocument.AttachmentSaving(GetName);
-      TLocalFileSystem.GetFile(aCandidates[0]).Write(false,not aForce,fFileAge,fContents,@FileSaved,@FileSaveConflicted,@FileSaveFailed);
+      aCandidates[0].Write(false,not aForce,fFileAge,fContents,@FileSaved,@FileSaveConflicted,@FileSaveFailed);
     end
     else if fFilingState = fsNotLoaded then
       raise Exception.Create('Can''t save attachment data when it has not yet been loaded')
@@ -708,7 +703,7 @@ end;
 
 procedure TAttachmentMetadata.OpenInEditor;
 var
-  aCandidates: TStringArray;
+  aCandidates: TFile.TFileArray;
 begin
   aCandidates := GetCandidateFiles;
   case Length(aCandidates) of
@@ -784,12 +779,12 @@ begin
     begin
       aPacket := Data[i].PacketName;
       aChild := PutDocument(aPacket);
-      aChild.AddFile(Data[i].Name);
+      aChild.AddFile(Data[i]);
     end
     else
     // the file is actually 'attached' to this one. This becomes important
     // in the root metadata.
-      AddFile(IncludeTrailingPathDelimiter(ExtractFileName(fDisk)) + Data[i].Name);
+      AddFile(Data[i]);
   end;
 
   if aRecursive then
@@ -851,8 +846,8 @@ begin
     end;
     aName := '';
     fProject.fOnChooseTemplate(fProject,fID,aAttachmentName,aNames,aName,Result);
-    aTemplate.Name := '';
-    aTemplate.Path := '';
+    aTemplate.Name:='';
+    aTemplate.Path := LocalFile('');
     if result then
     begin
       for i := 0 to l - 1 do
@@ -881,7 +876,7 @@ var
 begin
   for i := fFiles.Count - 1 downto 0 do
   begin
-    if (Length(fFiles[i]) = 0) or (fFiles[i][1] = '_') then
+    if (fFiles[i].Name[1] = '_') then
        fFiles.Delete(i);
   end;
   for i := 0 to fContents.Count - 1 do
@@ -889,15 +884,16 @@ begin
     aChild := fContents[i] as TDocumentMetadata;
     for j := aChild.fFiles.Count - 1 downto 0 do
     begin
-      if (Length(aChild.fFiles[j]) = 0) or (aChild.fFiles[j][1] <> '_') then
+      if (aChild.fFiles[j].Name[1] <> '_') then
          aChild.fFiles.Delete(j);
     end;
   end;
 end;
 
-procedure TDocumentMetadata.AddFile(const aFile: TFilename);
+procedure TDocumentMetadata.AddFile(const aFile: TFile);
 begin
-  fFiles.Add(aFile);
+  if fFiles.IndexOf(aFile) = -1 then
+     fFiles.Add(aFile);
   if fIsNew then
     // we now know that it has disk stuff available, so the document
     // is definitely not "new";
@@ -1034,19 +1030,18 @@ begin
 end;
 
 constructor TDocumentMetadata.Create(aProject: TStewProject;
-  aDiskPath: TFilename; aID: TDocumentID; aIsRoot: Boolean);
+  aDiskPath: TFile; aID: TDocumentID; aIsRoot: Boolean);
 var
   aCached: TProtectedDocumentProperties;
 begin
   inherited Create;
   fProject := aProject;
-  fDisk := ExcludeTrailingPathDelimiter(aDiskPath);
+  fDisk := aDiskPath;
   fID := aID;
   fIsNew := false;
   fLock := nil;
   fListingState := lsNotListed;
-  fFiles := TStringList.Create;
-  fFiles.Duplicates := dupIgnore;
+  fFiles := TFileList.Create(fDisk.System);
   if aIsRoot then
   begin
     fSynopsis := nil;
@@ -1098,7 +1093,7 @@ begin
   result := GetDocument(aKey);
   if result = nil then
   begin
-    result := TDocumentMetadata.Create(fProject,IncludeTrailingPathDelimiter(fDisk) + aKey,IncludeTrailingSlash(fID) + aKey,false);
+    result := TDocumentMetadata.Create(fProject,fDisk.GetContainedFile(aKey),IncludeTrailingSlash(fID) + aKey,false);
     fContents.Add(LowerCase(aKey),result);
   end;
 end;
@@ -1128,9 +1123,9 @@ begin
   begin
     fListingState := lsListing;
     if Recursive then
-       TLocalFileSystem.GetFile(fDisk).List(@FilesListedRecursive,@FilesListError)
+       fDisk.List(@FilesListedRecursive,@FilesListError)
     else
-       TLocalFileSystem.GetFile(fDisk).List(@FilesListedNonrecursive,@FilesListError);
+       fDisk.List(@FilesListedNonrecursive,@FilesListError);
   end;
 
 end;
@@ -1262,7 +1257,6 @@ procedure TDocumentMetadata.Rename(aOldName: String; aNewName: String);
 var
   i: Integer;
   aOld: TDocumentMetadata;
-  aFile: String;
   source: TFile.TFileArray;
   target: TFile.TFileArray;
 begin
@@ -1282,11 +1276,10 @@ begin
   SetLength(target,aOld.fFiles.Count);
   for i := 0 to aOld.fFiles.Count - 1 do
   begin
-    aFile := aOld.fFiles[i];
-    source[i] := TLocalFileSystem.GetFile(IncludeTrailingPathDelimiter(fDisk) + aFile);
+    source[i] := aOld.fFiles[i];
     // only change the name if it's actually supposed to be associated with it...
-    if Pos(aOldName,aFile) = 1 then
-       target[i] := TLocalFileSystem.GetFile(IncludeTrailingPathDelimiter(fDisk) + aNewName + Copy(aFile,Length(aOldName) + 1,Length(aFile)))
+    if source[i].PacketName = aOldName then
+       target[i] := aOld.fFiles[i].WithDifferentPacketName(aNewName)
     else
        target[i] := source[i];
   end;
@@ -1317,8 +1310,9 @@ begin
   SetLength(lTarget,aOldChild.fFiles.Count);
   for i := 0 to aOldChild.fFiles.Count - 1 do
   begin
-    lSource[i] := TLocalFileSystem.GetFile(IncludeTrailingPathDelimiter(aOldParent.fDisk) + aOldChild.fFiles[i]);
-    lTarget[i] := TLocalFileSystem.GetFile(IncludeTrailingPathDelimiter(fDisk) + aOldChild.fFiles[i]);
+    // TODO: Make sure this is working.
+    lSource[i] := aOldChild.fFiles[i];
+    lTarget[i] := fDisk.GetContainedFile(aOldChild.fFiles[i].Name);
   end;
 
   // finally, remove the old one, it will get relisted later.
@@ -1394,8 +1388,8 @@ begin
 
 end;
 
-function TDocumentMetadata.GetAttachments(const aDescriptor: String;
-  const aExtension: String): TStringArray;
+function TDocumentMetadata.GetAttachmentFiles(aDescriptor: String;
+  aExtension: String): TFile.TFileArray;
 var
   aItemDesc: String;
   aExt: String;
@@ -1408,29 +1402,31 @@ begin
   // <document name>_<extension> or <document name><extension>
   // Also, "attachments" must have an extension. If a document does not
   // have an extension, it is a directory.
+  aExtension := ExcludeExtensionDelimiter(aExtension);
+  aDescriptor := ExcludeDescriptorDelimiter(aDescriptor);
   SetLength(result,0);
   if fFiles <> nil then
     for i := 0 to fFiles.Count - 1 do
     begin
-      aExt := ExtractFileExt(fFiles[i]);
+      aExt := fFiles[i].Extension;
       if (aExt <> '') and ((aExtension = '') or (aExt = aExtension)) then
       begin
-        aItemDesc := ExtractFileDescriptor(fFiles[i]);
-        if (aItemDesc = aDescriptor) or ((aDescriptor = '') and (aItemDesc = '_')) then
+        aItemDesc := fFiles[i].Descriptor;
+        if (aItemDesc = aDescriptor) then
         begin
           l := Length(Result);
           SetLength(Result,l + 1);
-          Result[l] := IncludeTrailingPathDelimiter(ExtractFileDir(fDisk)) + fFiles[i];
+          Result[l] := fFiles[i];
         end;
       end;
     end;
 
 end;
 
-function TDocumentMetadata.GetNewAttachmentName(const aDescriptor: String;
-  const aExtension: String): String;
+function TDocumentMetadata.GetUncreatedAttachmentFile(const aDescriptor: String;
+  const aExtension: String): TFile;
 begin
-  result := fDisk + aDescriptor + IncludeExtensionDelimiter(aExtension);
+  result := fDisk.WithDifferentDescriptorAndExtension(aDescriptor,aExtension);
 end;
 
 function TDocumentMetadata.GetSynopsis: TSynopsisMetadata;
@@ -1449,7 +1445,7 @@ begin
   if not (fID = RootDocument) then
   begin
     // Add the 'directory' name to the files.
-    AddFile(ExtractFileName(fDisk));
+    AddFile(fDisk);
     aParent := fProject.GetDocument(ExtractParentDocument(fID));
     if aParent.IsNew and not (aParent.fID = RootDocument) then
       aParent.DirectoryCreated;
@@ -1552,12 +1548,9 @@ begin
     FOnOpened(Self);
 end;
 
-constructor TStewProject.Create(const Path: TFilename);
+constructor TStewProject.Create(const Path: TFile);
 begin
-  // TODO: Should I be including, or excluding? Documents have it
-  // excluded (for good reason, since it's easier to find attachments and
-  // they're not always directories).
-  fDisk := IncludeTrailingPathDelimiter(Path);
+  fDisk := Path;
   fMetadataCache := nil; // created on open.
   fProperties := nil;
 end;
@@ -1579,11 +1572,6 @@ begin
     result := fMetadataCache
   else
      result := fMetadataCache.PutPath(aDocumentID);
-end;
-
-function TStewProject.GetDiskPath(const ADocument: TDocumentID): TFileName;
-begin
-  result := stew_project.GetDiskPath(fDisk,ADocument);
 end;
 
 { TProjectExists }
@@ -1613,7 +1601,7 @@ end;
 
 procedure TStewProject.TProjectExists.Enqueue;
 begin
-  TLocalFileSystem.GetFile(TProjectProperties.GetPath(fProject.fDisk)).CheckExistence(@FileExistsCallback,@FileExistsFailed);
+  TProjectProperties.GetPath(fProject.fDisk).CheckExistence(@FileExistsCallback,@FileExistsFailed);
 end;
 
 procedure TStewProject.OpenAtPath(aCallback: TDeferredBooleanCallback;
@@ -1626,17 +1614,17 @@ end;
 
 procedure TStewProject.TSearchParentDirectories.FileExistsCallback(Data: Boolean);
 var
-  aPath: TFilename;
+  aPath: TFile;
 begin
   if (Data) then
   begin
-    fProject.fDisk := IncludeTrailingPathDelimiter(fPath);
+    fProject.fDisk := fPath;
     fProject.DoOpened;
     fCallback(true);
   end
   else
   begin
-    aPath := ExtractFileDir(ExcludeTrailingPathDelimiter(fPath));
+    aPath := fPath.Directory;
     if aPath = fPath then
     begin
       fCallback(false);
@@ -1644,13 +1632,13 @@ begin
     else
     begin
       fPath := aPath;
-      TLocalFileSystem.GetFile(fPath).CheckExistence(@FileExistsCallback,fErrorback);
+      fPath.CheckExistence(@FileExistsCallback,fErrorback);
     end;
   end;
 end;
 
 constructor TStewProject.TSearchParentDirectories.Create(aProject: TStewProject;
-  aPath: TFilename; aCallback: TDeferredBooleanCallback;
+  aPath: TFile; aCallback: TDeferredBooleanCallback;
   aErrorback: TDeferredExceptionCallback);
 begin
   inherited Create;
@@ -1662,7 +1650,7 @@ end;
 
 procedure TStewProject.TSearchParentDirectories.Enqueue;
 begin
-  TLocalFileSystem.GetFile(TProjectProperties.GetPath(fPath)).CheckExistence(@FileExistsCallback,fErrorback);
+  TProjectProperties.GetPath(fPath).CheckExistence(@FileExistsCallback,fErrorback);
 end;
 
 
@@ -1679,7 +1667,7 @@ end;
 
 function TStewProject.GetProjectName: String;
 begin
-  result := ExtractFileName(ExcludeTrailingPathDelimiter(fDisk));
+  result := fDisk.PacketName;
 end;
 
 end.

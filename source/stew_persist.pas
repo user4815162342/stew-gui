@@ -5,7 +5,7 @@ unit stew_persist;
 interface
 
 uses
-  Classes, SysUtils, stew_types, fpjson, fpjsonrtti;
+  Classes, SysUtils, stew_types, fpjson, fpjsonrtti, sys_file;
 
 {
 TODO: I'd like to revisit the JSON serialization someday. What I want is
@@ -132,7 +132,7 @@ type
 
   TJSONAsyncFileStoreContainer = class(TJSONStoreContainer)
   private
-    fFilename: TFilename;
+    fFile: TFile;
     fFileAge: Longint;
     fCreateDir: Boolean;
     fOnFileLoaded: TNotifyEvent;
@@ -165,7 +165,7 @@ type
     property OnFileLoading: TNotifyEvent read fOnFileLoading write fOnFileLoading;
     property OnFileSaving: TNotifyEvent read fOnFileSaving write fOnFileSaving;
   public
-    constructor Create(afileName: TFilename; aCreateDir: Boolean = false);
+    constructor Create(aFile: TFile; aCreateDir: Boolean);
     destructor Destroy; override;
     procedure Load;
     // set force to true to ignore conflicts. This is usually done after
@@ -552,11 +552,11 @@ begin
     fOnFileSaveFailed(Self,'File could not be saved because it was changed on disk since the last save');
 end;
 
-constructor TJSONAsyncFileStoreContainer.Create(afileName: TFilename;
+constructor TJSONAsyncFileStoreContainer.Create(aFile: TFile;
   aCreateDir: Boolean);
 begin
   inherited Create;
-  fFilename := afileName;
+  fFile := aFile;
   fCreateDir := aCreateDir;
   fFileAge := -1; // indicates that this might be a new file.
 end;
@@ -573,7 +573,7 @@ begin
     fFilingState := fsLoading;
     if fOnFileLoading <> nil then
       fOnFileLoading(Self);
-    TLocalFileSystem.GetFile(fFilename).Read(@FileLoaded,@FileLoadFailed);
+    fFile.Read(@FileLoaded,@FileLoadFailed);
   end
   else if fFilingState = fsSaving then
      raise Exception.Create('Can''t load JSON data while saving.');
@@ -592,7 +592,7 @@ begin
       if fOnFileSaving <> nil then
         fOnFileSaving(Self);
       text := GetJSONString(Self);
-      TLocalFileSystem.GetFile(fFilename).Write(fCreateDir and (fFileAge = -1),not aForce,fFileAge,text,@FileSaved,@FileSaveConflicted,@FileSaveFailed);
+      fFile.Write(fCreateDir and (fFileAge = -1),not aForce,fFileAge,text,@FileSaved,@FileSaveConflicted,@FileSaveFailed);
 
     end
     else if fFilingState = fsNotLoaded then

@@ -124,7 +124,7 @@ type
       aErrorback: TDeferredExceptionCallback); override;
   end;
 
-
+  function LocalFile(aPath: TFilename): TFile;
 
 const
   // formats in something like ISO8601, but I also need to quote the
@@ -134,6 +134,11 @@ const
 
 
 implementation
+
+function LocalFile(aPath: TFilename): TFile;
+begin
+  result := TLocalFileSystem.GetFile(aPath);
+end;
 
 { TLocalFileSystem }
 
@@ -219,7 +224,6 @@ constructor TRenameFiles.Create(aSources: TFile.TFileArray;
   aTargets: TFile.TFileArray; aCallback: TDeferredCallback;
   aErrorBack: TDeferredExceptionCallback);
 var
-  i: Integer;
   l: Integer;
 begin
   inherited Create(aErrorBack);
@@ -268,7 +272,6 @@ var
   SR: TSearchRec;
   Answer: TFile.TFileArray;
   L: Integer;
-  i: Integer;
 begin
   L := 0;
   if DirectoryExists(fPath.ID) then

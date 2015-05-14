@@ -5,7 +5,7 @@ unit stew_properties;
 interface
 
 uses
-  Classes, SysUtils, stew_persist, Graphics, fpjsonrtti, fpjson, stew_types, contnrs;
+  Classes, SysUtils, stew_persist, Graphics, fpjsonrtti, fpjson, stew_types, contnrs, sys_file;
 
 type
 
@@ -31,7 +31,7 @@ type
     procedure AfterSerialize({%H-}aSaver: TJSONStreamer; aTarget: TJSONObject);
     procedure BeforeDeserialize({%H-}aLoader: TJSONDeStreamer; aData: TJSONObject);
   public
-    constructor Create(afileName: TFilename; aIsRoot: Boolean);
+    constructor Create(afile: TFile; aIsRoot: Boolean);
     destructor Destroy; override;
     property user: TJSONData read fUserProperties write SetUserProperties;
   published
@@ -116,9 +116,9 @@ type
     procedure AfterSerialize({%H-}aSaver: TJSONStreamer; {%H-}aTarget: TJSONObject);
     procedure BeforeDeserialize({%H-}aLoader: TJSONDeStreamer; aData: TJSONObject);
   public
-    constructor Create(aProjectPath: TFilename);
+    constructor Create(aProjectFile: TFile);
     destructor Destroy; override;
-    class function GetPath(aFolderPath: TFilename): TFilename;
+    class function GetPath(aFolderPath: TFile): TFile;
     // not published because I need to override the streaming of this.
     property user: TJSONData read fUserProperties write SetUserProperties;
   published
@@ -300,14 +300,14 @@ begin
   end;
 end;
 
-constructor TDocumentProperties.Create(afileName: TFilename; aIsRoot: Boolean);
+constructor TDocumentProperties.Create(afile: TFile; aIsRoot: Boolean);
 var
-  path: String;
+  path: TFile;
 begin
   if aIsRoot then
-    path := IncludeTrailingPathDelimiter(afileName) + '_properties.json'
+    path := afile.GetContainedFile('','properties','json',false)
   else
-    path := ExcludeTrailingPathDelimiter(afileName) + '_properties.json';
+    path := afile.WithDifferentDescriptorAndExtension('properties','json');
   inherited Create(path,true);
   fIndex := TStringList.Create;
   fIndex.OnChange:=@IndexChanged;
@@ -779,9 +779,9 @@ begin
   end;
 end;
 
-constructor TProjectProperties.Create(aProjectPath: TFilename);
+constructor TProjectProperties.Create(aProjectFile: TFile);
 begin
-  inherited Create(GetPath(aProjectPath),false);
+  inherited Create(GetPath(aProjectFile),false);
   Fcategories := TCategoryDefinitions.Create;
   Fcategories.FPOAttachObserver(Self);
   fStatuses := TStatusDefinitions.Create;
@@ -799,9 +799,10 @@ begin
   inherited Destroy;
 end;
 
-class function TProjectProperties.GetPath(aFolderPath: TFilename): TFilename;
+class function TProjectProperties.GetPath(aFolderPath: TFile): TFile;
 begin
-  result := IncludeTrailingPathDelimiter(aFolderPath) + '_stew.json';
+  // TODO: Verify that this works.
+  result := aFolderPath.GetContainedFile('','stew','json',false);
 end;
 
 end.

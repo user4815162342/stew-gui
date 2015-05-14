@@ -77,6 +77,9 @@ type
     function GetContainedFile(aPacketName: UTF8String;
       aDescriptor: UTF8String; aExtension: UTF8String; dotAndDashify: Boolean): TFile;
     function GetContainedFile(aName: UTF8String): TFile;
+    function WithDifferentExtension(aExt: UTF8String): TFile;
+    function WithDifferentDescriptorAndExtension(aDesc: UTF8String; aExt: UTF8String): TFile;
+    function WithDifferentPacketName(aName: UTF8String): TFile;
   end;
 
   { TFileSystem }
@@ -117,10 +120,29 @@ type
     class function GetContainedFile(aFile: TFile; aName: UTF8String): TFile; virtual; abstract;
     class function GetFileSystemClass: TFileSystemClass; virtual; abstract;
     class procedure DoRenameFiles(aSource: TFile.TFileArray; aTarget: TFile.TFileArray; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback); virtual; abstract;
-  public
     class function GetFile(ID: String): TFile;
+  public
     // allows batch renames of multiple files.
     class procedure RenameFiles(aSource: TFile.TFileArray; aTarget: TFile.TFileArray; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
+  end;
+
+  { TFileList }
+
+  TFileList = class
+  private
+    fSystem: TFileSystemClass;
+    // This is kind of a hack, I may change this someday to use a TList or something,
+    // but this works for now.
+    fList: TStringList;
+    function GetItem(Index: Integer): TFile;
+  public
+    constructor Create(aSystem: TFileSystemClass);
+    destructor Destroy; override;
+    procedure Add(aFile: TFile);
+    procedure Delete(Index: Integer);
+    function Count: Integer;
+    function IndexOf(aFile: TFile): Integer;
+    property Item[Index: Integer]: TFile read GetItem; default;
   end;
 
   const
@@ -146,6 +168,48 @@ implementation
 
 uses
   strutils;
+
+{ TFileList }
+
+function TFileList.GetItem(Index: Integer): TFile;
+begin
+  result := fSystem.GetFile(fList[Index]);
+end;
+
+constructor TFileList.Create(aSystem: TFileSystemClass);
+begin
+  inherited Create;
+  fSystem := aSystem;
+  fList := TStringList.Create;
+end;
+
+destructor TFileList.Destroy;
+begin
+  FreeAndNil(fList);
+  inherited Destroy;
+end;
+
+procedure TFileList.Add(aFile: TFile);
+begin
+  fList.Add(aFile.ID);
+end;
+
+procedure TFileList.Delete(Index: Integer);
+begin
+  fList.Delete(Index);
+end;
+
+function TFileList.Count: Integer;
+begin
+  result := fList.Count;
+end;
+
+function TFileList.IndexOf(aFile: TFile): Integer;
+begin
+  result := -1;
+  if aFile.System = fSystem then
+     result := fList.IndexOf(aFile.ID);
+end;
 
 { TFileSystem }
 
@@ -290,6 +354,22 @@ end;
 function TFile.GetContainedFile(aName: UTF8String): TFile;
 begin
   result := fSystem.GetContainedFile(Self,aName);
+end;
+
+function TFile.WithDifferentExtension(aExt: UTF8String): TFile;
+begin
+  result := Directory.GetContainedFile(PacketName,Descriptor,aExt,true);
+end;
+
+function TFile.WithDifferentDescriptorAndExtension(aDesc: UTF8String;
+  aExt: UTF8String): TFile;
+begin
+  result := Directory.GetContainedFile(PacketName,aDesc,aExt,true);
+end;
+
+function TFile.WithDifferentPacketName(aName: UTF8String): TFile;
+begin
+  result := Directory.GetContainedFile(aName,Descriptor,Extension,true);
 end;
 
 operator=(a: TFile; b: TFile): Boolean;
