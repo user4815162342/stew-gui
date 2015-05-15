@@ -253,7 +253,7 @@ begin
    c. Look for a XDG_TEMPLATES_DIR and read in the value
    d. Expand environment variables in the value, such as $HOME
    e. And now we have our directory. Or,
-2. Run xdg-user-dirs "TEMPLATES" and the directory will be in the output.
+2. Run xdg-user-dir "TEMPLATES" and the directory will be in the output.
 
 I think I know which way *I* want to do it, at least until we find out that it
 doesn't work. }

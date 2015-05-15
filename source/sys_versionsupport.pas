@@ -1,4 +1,4 @@
-Unit VersionSupport;
+Unit sys_versionsupport;
 // From http://forum.lazarus.freepascal.org/index.php/topic,13957.msg73542.html#msg73542
 // With modifications marked by NMS.
 
@@ -189,9 +189,16 @@ begin
   end;
 end;
 
-Function ProductVersionToString(PV: TFileProductVersion): String;
+Function FileVersionToString(PV: TFileProductVersion): String;
 Begin
   Result := Format('%d.%d.%d.%d', [PV[0], PV[1], PV[2], PV[3]]);
+End;
+
+// NMS: Separated Product Version, for which I only have a major and minor,
+// from file version, for which I have release and patch.
+Function ProductVersionToString(PV: TFileProductVersion): String;
+Begin
+  Result := Format('%d.%d', [PV[0], PV[1]]);
 End;
 
 Function GetProductVersion: String;
@@ -209,7 +216,7 @@ Begin
   CreateInfo;
 
   If FInfo.BuildInfoAvailable Then
-    Result := ProductVersionToString(FInfo.FixedInfo.FileVersion)
+    Result := FileVersionToString(FInfo.FixedInfo.FileVersion)
   Else
     Result := 'No build information available';
 End;

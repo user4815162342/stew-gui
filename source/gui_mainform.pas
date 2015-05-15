@@ -6,10 +6,20 @@ interface
 
 {
 
+TODO: Starting from a blank project on a testing VM, I already see a few bugs:
+- Instead of creating the project at the location I specified, it creates the project one directory up.
+- When the status and category definitions are blank, the header row does not display. I need to add
+to get it there, and it appears to actually create a new category/status. I'm wondering if I'm getting
+the same issues here, I just didn't notice it because I didn't realize the category was
+missing.
+
 TODO: To get this actually usable and publish it on Github, at least.
 - Update the CLI version to work with the new schema for status, so I can still
 use that for more complex tasks.
 - Need a .DEB package (and a place to put the DEB package)
+  - working on a simple linux mint cinnamon install virtual machine in order
+    to test deb packages.
+  - installing packaging-tutorial to get the information on how to do this.
 
 At that point, I can slowly start moving from the command line to the GUI.
 The command line will probably never be completely deprecated, because the
@@ -32,6 +42,9 @@ TODO: All MessageDlg's should use MainForm.Title as the caption.
 TODO: At this point, I think I can consider it "done for now". Just clean up
 todo's and collect them all into a single file for use later. Then, check into
 github, and fix the versioning and look into creating a deb file.
+
+TODO: Some sort of GUI testing framework would be nice, so I can do regression
+testing to make sure that bugs don't reappear.
 
 TODO: Need to test this with documents containing '_'. I might have to "fix"
 certain names before applying them.
@@ -379,7 +392,7 @@ var
 implementation
 
 uses
-  gui_projectmanager, gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor, LCLProc, gui_about, gui_listdialog, sys_localfile;
+  gui_projectmanager, gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor, LCLProc, gui_about, gui_listdialog, sys_localfile, sys_versionsupport;
 
 {$R *.lfm}
 
@@ -1097,6 +1110,7 @@ begin
 end;
 
 initialization
+
   SetAsyncCallQueuer(@QueueAsyncCall);
 
 end.

@@ -21,20 +21,10 @@ object AboutForm: TAboutForm
     Caption = 'TitleLabel'
     ParentColor = False
   end
-  object VersionLabel: TLabel
-    Left = 0
-    Height = 16
-    Top = 16
-    Width = 320
-    Align = alTop
-    Alignment = taCenter
-    Caption = 'VersionLabel'
-    ParentColor = False
-  end
   object BuildInfoLabel: TLabel
     Left = 0
     Height = 16
-    Top = 64
+    Top = 48
     Width = 320
     Align = alTop
     Alignment = taCenter
@@ -44,7 +34,7 @@ object AboutForm: TAboutForm
   object DescriptionLabel: TLabel
     Left = 0
     Height = 16
-    Top = 48
+    Top = 32
     Width = 320
     Align = alTop
     Alignment = taCenter
@@ -54,7 +44,7 @@ object AboutForm: TAboutForm
   object CopyrightLabel: TLabel
     Left = 0
     Height = 16
-    Top = 32
+    Top = 16
     Width = 320
     Align = alTop
     Alignment = taCenter
@@ -70,8 +60,8 @@ object AboutForm: TAboutForm
     AnchorSideBottom.Control = Owner
     AnchorSideBottom.Side = asrBottom
     Left = 100
-    Height = 23
-    Top = 80
+    Height = 39
+    Top = 64
     Width = 120
     Anchors = [akTop, akLeft, akRight, akBottom]
     AutoSize = True

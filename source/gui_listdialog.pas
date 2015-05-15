@@ -34,9 +34,6 @@ type
 
   function ChoiceQuery(aCaption: String; aChoices: TStringArray; var aChoice: String): Boolean;
 
-var
-  ListDialog: TListDialog;
-
 implementation
 
 function ChoiceQuery(aCaption: String; aChoices: TStringArray;

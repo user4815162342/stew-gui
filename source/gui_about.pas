@@ -15,7 +15,6 @@ type
   TAboutForm = class(TForm)
     CloseButton: TButton;
     TitleLabel: TLabel;
-    VersionLabel: TLabel;
     BuildInfoLabel: TLabel;
     DescriptionLabel: TLabel;
     CopyrightLabel: TLabel;
@@ -34,7 +33,7 @@ var
 implementation
 
 uses
-  VersionSupport;
+  sys_versionsupport;
 
 {$R *.lfm}
 
@@ -46,17 +45,16 @@ begin
   // What I don't want to happen, though, is for it to end up using a different
   // font than the desktop theme expects. So, if I change the size, will that
   // change everything?
-  TitleLabel.Caption := VersionSupport.GetResourceString('ProductName');
-  VersionLabel.Caption := 'version ' + VersionSupport.GetProductVersion;
-  DescriptionLabel.Caption := VersionSupport.GetResourceString('FileDescription');
-  CopyrightLabel.Caption := VersionSupport.GetResourceString('LegalCopyright');
-  BuildInfoLabel.Caption := Application.Title + ' v ' + VersionSupport.GetFileVersion + LineEnding +
-                            'Compiled On: ' + VersionSupport.GetCompiledDate + LineEnding +
-                            'Compiler: ' + VersionSupport.GetCompilerInfo + LineEnding +
-                            'Target: ' + VersionSupport.GetTargetInfo + LineEnding +
-                            'OS: ' + VersionSupport.GetOS + LineEnding +
-                            'LCL: ' + VersionSupport.GetLCLVersion + LineEnding +
-                            'WidgetSet: ' + VersionSupport.GetWidgetSet;
+  TitleLabel.Caption := Application.Title  + ' v ' + sys_versionsupport.GetProductVersion;
+  DescriptionLabel.Caption := sys_versionsupport.GetResourceString('FileDescription');
+  CopyrightLabel.Caption := sys_versionsupport.GetResourceString('LegalCopyright');
+  BuildInfoLabel.Caption := 'Executable: ' + ExtractFileNameOnly(Application.ExeName) + ' v ' + sys_versionsupport.GetFileVersion + LineEnding +
+                            'Compiled On: ' + sys_versionsupport.GetCompiledDate + LineEnding +
+                            'Compiler: ' + sys_versionsupport.GetCompilerInfo + LineEnding +
+                            'Target: ' + sys_versionsupport.GetTargetInfo + LineEnding +
+                            'OS: ' + sys_versionsupport.GetOS + LineEnding +
+                            'LCL: ' + sys_versionsupport.GetLCLVersion + LineEnding +
+                            'WidgetSet: ' + sys_versionsupport.GetWidgetSet;
 end;
 
 procedure TAboutForm.CloseButtonClick(Sender: TObject);
