@@ -2,3 +2,5 @@ executable/
 units/
 source/backup/
 distributable
+install/x86_64-linux/packaging-tutorial.en.pdf
+install/x86_64-linux/backup/

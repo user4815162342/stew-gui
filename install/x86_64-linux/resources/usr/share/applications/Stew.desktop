@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Name=Stew Manuscript Manager
+Categories=Office;
+Exec=stew-gui
+Hidden=false
+Terminal=false
+Type=Application
+X-Desktop-File-Install-Version=0.20

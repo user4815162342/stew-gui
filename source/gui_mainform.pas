@@ -8,6 +8,7 @@ interface
 
 TODO: Starting from a blank project on a testing VM, I already see a few bugs:
 - Instead of creating the project at the location I specified, it creates the project one directory up.
+- If I tell it to not search, it doesn't ask to create a new project, it just "finds" a project one directory up.
 - When the status and category definitions are blank, the header row does not display. I need to add
 to get it there, and it appears to actually create a new category/status. I'm wondering if I'm getting
 the same issues here, I just didn't notice it because I didn't realize the category was
@@ -36,6 +37,11 @@ I had on the stew-cli that can still be transferred over.
 TODO: I just realized that the temporary back up files are going to appear as attachments,
 which could really make the whole data structure for the cache huge given enough
 time.
+
+TODO: Need to come up with a more dynamic, active layout system for Documents.
+The layout should depend on the aspect ratio of the screen as well as the size,
+somewhat like the way it's done with Bootstrap: - if there's enough width to
+have controls next to each other, do it. Otherwise set them up vertically.
 
 TODO: All MessageDlg's should use MainForm.Title as the caption.
 
