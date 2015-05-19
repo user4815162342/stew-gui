@@ -17,7 +17,7 @@
       <UseVersionInfo Value="True"/>
       <AutoIncrementBuild Value="True"/>
       <MinorVersionNr Value="1"/>
-      <BuildNr Value="39"/>
+      <BuildNr Value="41"/>
       <StringTable CompanyName="Town's Edge Technology, LLC" FileDescription="A manuscript management and notekeeping tool." LegalCopyright="Copyright © 2015 Neil M. Sheldon" ProductName="Stew" ProductVersion="0.1"/>
     </VersionInfo>
     <BuildModes Count="1">
@@ -36,7 +36,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="22">
+    <Units Count="21">
       <Unit0>
         <Filename Value="stewgui.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -168,21 +168,17 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_localfile"/>
       </Unit20>
-      <Unit21>
-        <Filename Value="../install/x86_64-linux/makedeb.js"/>
-        <IsPartOfProject Value="True"/>
-      </Unit21>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="../executable/$(TargetCPU)-$(TargetOS)/stew-gui"/>
+      <Filename Value="../executable/stew-gui"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
       <OtherUnitFiles Value="gui"/>
-      <UnitOutputDirectory Value="../units/$(TargetCPU)-$(TargetOS)"/>
+      <UnitOutputDirectory Value="../units"/>
     </SearchPaths>
     <Linking>
       <Options>
