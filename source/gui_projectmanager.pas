@@ -592,11 +592,69 @@ begin
 end;
 
 procedure TProjectManager.UpdateCategoryGlyphs;
+const
+  shadowOffset: Integer = 2;
+  dogEarWidthMultiple: Integer = 3;
+  pageWidthAspect: Double = (8.5/11);
 var
-  circleOffset: Integer;
   iconWidth: Integer;
   props: TProjectProperties;
   i: Integer;
+  iconA: TPoint;
+  iconB: TPoint;
+  iconC: TPoint;
+  iconD: TPoint;
+  iconE: TPoint;
+  iconF: TPoint;
+  shadowA: TPoint;
+  shadowB: TPoint;
+  shadowC: TPoint;
+  shadowE: TPoint;
+  shadowF: TPoint;
+
+  procedure CalculateGlyphPoints;
+  var
+    pageWidth: Integer;
+    pageHeight: Integer;
+    margin: Integer;
+    dogEarWidth: Integer;
+  begin
+    {
+       . . A X X X X X X X X X X B . .
+       . . X - - - - - - - - - - X . .
+       . . X - - - - - - - - - - X . .
+       . . X - - - - - - - - - - X . .
+       . . X - - - - - - - - - - X . .
+       . . X - - - - - - - - - - X . .
+       . . X - - - - - - - - - - X . .
+       . . X - - - - - - - - - - X . .
+       . . X - - - - - - - - - - X . .
+       . . X - - - - - - - - - - X . .
+       . . X - - - - - - - - - - X . .
+       . . X - - - - - - D X X X C . .
+       . . X - - - - - - X X X X . . .
+       . . X - - - - - - X X X . . . .
+       . . X - - - - - - X X . . . . .
+       . . F X X X X X X E . . . z . .
+    }
+    pageHeight := (iconWidth - 1) - shadowOffset;
+    pageWidth := trunc(pageHeight  * pageWidthAspect);
+    margin := trunc((iconWidth - pageWidth) / 2);
+    dogEarWidth := trunc(pageWidth / dogEarWidthMultiple);
+    iconA := Point(margin,0);
+    iconB := Point(pageWidth + margin,0);
+    iconF := Point(margin,pageHeight);
+    iconE := Point((pageWidth + margin) - dogEarWidth,pageHeight);
+    iconC := Point(pageWidth + margin,pageHeight - dogEarWidth);
+    iconD := Point(iconE.X,iconC.Y);
+    shadowA := Point(iconA.X + shadowOffset,iconA.Y + shadowOffset);
+    shadowB := Point(iconB.X + shadowOffset,iconB.Y + shadowOffset);
+    shadowC := Point(iconC.X + shadowOffset,iconC.Y + shadowOffset);
+    shadowE := Point(iconE.X + shadowOffset,iconE.Y + shadowOffset);
+    shadowF := Point(iconF.X + shadowOffset,iconF.Y + shadowOffset);
+
+  end;
+
 
   function AddBitmapForColor(aColor: TColor): Integer;
   var
@@ -614,10 +672,22 @@ var
         Brush.Color := clWindow;
         Pen.Color := clWindow;
         FillRect(0,0,iconWidth,iconWidth);
+        // now, start drawing the glyph
+        Pen.Width := 1;
+
+        // the shadow
+        Brush.Color := clBtnShadow;
+        Pen.Color := clBtnShadow;
+        Polygon([shadowA,shadowB,shadowC,shadowE,shadowF,shadowA]);
+
+        // the actual page
         Brush.Color := aColor;
         Pen.Color := clWindowText;
-        Pen.Width := 2;
-        Ellipse(circleOffset,circleOffset,iconWidth - circleOffset,iconWidth - circleOffset);
+        Polygon([iconA,iconB,iconC,iconD,iconE,iconF,iconA]);
+        // and the little triangle
+        Brush.Color := clWindowText;
+        Polygon([iconD,iconC,iconE,iconD]);
+        //Ellipse(circleOffset,circleOffset,iconWidth - circleOffset,iconWidth - circleOffset);
       end;
       result := DocumentGlyphs.AddMasked(bm,clDefault);
     finally
@@ -634,7 +704,7 @@ begin
     try
       DocumentGlyphs.Clear;
       iconWidth := DocumentGlyphs.Width;
-      circleOffset := 2;
+      CalculateGlyphPoints;
       // add the basic, default glyph.
       AddBitmapForColor(clDefault);
       for i := 0 to props.categories.NameCount - 1 do
