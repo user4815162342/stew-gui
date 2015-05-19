@@ -1,0 +1,6 @@
+#!/bin/sh
+dpkg-buildpackage -us -uc
+echo "Moving distributables to where they should be..."
+mv ../stew-gui-linux_0.1_*.* ../distributable/
+mv ../stew-gui-linux_0.1.* ../distributable/
+lintian ../distributable/stew-gui-linux_0.1_*.deb
