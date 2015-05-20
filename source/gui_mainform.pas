@@ -6,14 +6,6 @@ interface
 
 {
 
-TODO: Starting from a blank project on a testing VM, I already see a few bugs:
-- Instead of creating the project at the location I specified, it creates the project one directory up.
-- If I tell it to not search, it doesn't ask to create a new project, it just "finds" a project one directory up.
-- When the status and category definitions are blank, the header row does not display. I need to add
-to get it there, and it appears to actually create a new category/status. I'm wondering if I'm getting
-the same issues here, I just didn't notice it because I didn't realize the category was
-missing.
-
 TODO: To get this actually usable and publish it on Github, at least.
 - Update the CLI version to work with the new schema for status, so I can still
 use that for more complex tasks.
@@ -26,7 +18,7 @@ At that point, I can slowly start moving from the command line to the GUI.
 The command line will probably never be completely deprecated, because the
 scripting capabilities there are still quite useful.
 
-TODO: We also need to make use of the 'closeQuery' on the editors, check if values
+TODO: We also need to make use of thfe 'closeQuery' on the editors, check if values
 are modified prior to saving.
 -- Actually, *this* is where we want to check modified, not the property objects themselves,
 because we've been saving them immediately after writing out the data.
@@ -741,12 +733,9 @@ procedure TMainForm.StartupIfProjectParentDirectoryExists(aValue: Boolean);
 begin
   if not aValue then
   begin
-    // TODO: Search the parents (use a method on the project, so *it* can
-    // change the directory instead). If not found, then ask if the user
-    // wants to create a new one (again, use a method on the project).
     if MessageDlg('No stew project could be found.' + LineEnding +
-               'Would you like to create one at: ' + fProject.DiskPath.ID + '?',mtConfirmation,mbOKCancel,0) =
-       mrOK then
+               'Would you like to create one at: ' + fProject.DiskPath.ID + '?',mtConfirmation,mbYesNo,0) =
+       mrYes then
     begin;
       fProject.OpenNewAtPath;
 
@@ -887,18 +876,16 @@ procedure TMainForm.StartupIfProjectExists(aValue: Boolean);
 begin
   if not aValue then
   begin
-    // TODO: Search the parents (use a method on the project, so *it* can
-    // change the directory instead). If not found, then ask if the user
-    // wants to create a new one (again, use a method on the project).
     if MessageDlg('There is no stew project at: ' + fProject.DiskPath.ID + LineEnding +
-               'Would you like to search for one in parent directories?',mtConfirmation,mbOKCancel,0) =
-       mrOK then
+               'Would you like to search for one in parent directories?' + LineEnding +
+               'You can create a new one if none are found.',mtConfirmation,mbYesNo,0) =
+       mrYes then
     begin;
       fProject.OpenInParentDirectory(@StartupIfProjectParentDirectoryExists,@ProjectLoadFailed);
 
     end
     else
-      StartupIfProjectParentDirectoryExists(false);
+      Close;
   end
 
 end;

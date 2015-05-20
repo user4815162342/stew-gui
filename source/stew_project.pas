@@ -256,6 +256,7 @@ type
     { TSearchParentDirectories }
 
     TSearchParentDirectories = class
+      procedure FileExistsFailed(Data: String);
     private
       fProject: TStewProject;
       fPath: TFile;
@@ -1612,6 +1613,12 @@ end;
 
 { TSearchParentDirectories }
 
+procedure TStewProject.TSearchParentDirectories.FileExistsFailed(Data: String);
+begin
+  fErrorback(Data);
+  Free;
+end;
+
 procedure TStewProject.TSearchParentDirectories.FileExistsCallback(Data: Boolean);
 var
   aPath: TFile;
@@ -1631,10 +1638,12 @@ begin
     end
     else
     begin
-      fPath := aPath;
-      fPath.CheckExistence(@FileExistsCallback,fErrorback);
+      TSearchParentDirectories.Create(fProject,aPath,fCallback,fErrorback).Enqueue;
+//      fPath := aPath;
+//      fPath.CheckExistence(@FileExistsCallback,fErrorback);
     end;
   end;
+  Free;
 end;
 
 constructor TStewProject.TSearchParentDirectories.Create(aProject: TStewProject;
@@ -1650,7 +1659,7 @@ end;
 
 procedure TStewProject.TSearchParentDirectories.Enqueue;
 begin
-  TProjectProperties.GetPath(fPath).CheckExistence(@FileExistsCallback,fErrorback);
+  TProjectProperties.GetPath(fPath).CheckExistence(@FileExistsCallback,@FileExistsFailed);
 end;
 
 

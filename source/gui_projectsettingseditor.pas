@@ -80,8 +80,6 @@ type
     procedure SaveButtonClick(Sender: TObject);
   private
     procedure SetupControls;
-    function ColorFromCell(aGrid: TStringGrid; aCol: Integer; aRow: Integer): TColor;
-    procedure ColorToCell(aGrid: TStringGrid; aCol: Integer; aRow: Integer; aColor: TColor);
     procedure SetupColorMenu;
   private
     { private declarations }
@@ -93,6 +91,12 @@ type
     constructor Create(TheOwner: TComponent); override;
     destructor Destroy; override;
   end;
+
+  function StrToColor(const aValue: String): TColor;
+  function ColorToStr(const aValue: TColor): String;
+
+
+
 
 implementation
 
@@ -119,6 +123,22 @@ const
 
   TrueValue: String = 'Yes';
   FalseValue: String = 'No';
+
+function StrToColor(const aValue: String): TColor;
+var
+  x: Integer;
+begin
+  if TryStrToInt('$' + aValue,x) then
+     result := TColor(x)
+  else
+    result := clDefault;
+end;
+
+function ColorToStr(const aValue: TColor): String;
+begin
+  result := IntToHex(aValue,8);
+
+end;
 
 {$R *.lfm}
 
@@ -164,18 +184,6 @@ begin
   UserPropertiesLabel.Enabled := canEdit;
   fUserPropertiesEditor.Enabled := canEdit;
 
-end;
-
-function TProjectSettingsEditor.ColorFromCell(aGrid: TStringGrid;
-  aCol: Integer; aRow: Integer): TColor;
-begin
-  result := TColor(StrToInt('$' + aGrid.Cells[aCol,aRow]));
-end;
-
-procedure TProjectSettingsEditor.ColorToCell(aGrid: TStringGrid; aCol: Integer;
-  aRow: Integer; aColor: TColor);
-begin
-  aGrid.Cells[aCol,aRow] := IntToHex(aColor,8);
 end;
 
 procedure TProjectSettingsEditor.SetupColorMenu;
@@ -241,8 +249,8 @@ begin
   begin
     i := RowCount;
     RowCount := RowCount + 1;
-    Cells[CatNameCol,i] := 'Category ' + IntToStr(i + 1);
-    ColorToCell(CategoryDefinitionsGrid,CatColorCol,i,clDefault);
+    Cells[CatNameCol,i] := 'Category ' + IntToStr(i);
+    Cells[CatColorCol,i] := ColorToStr(clDefault);
     Cells[CatDefaultCol,i] := FalseValue;
     CategoryDefinitionsGrid.Row := i;
   end;
@@ -256,8 +264,8 @@ begin
   begin
     i := RowCount;
     RowCount := RowCount + 1;
-    Cells[StatNameCol,i] := 'Status ' + IntToStr(i + 1);
-    ColorToCell(StatusDefinitionsGrid,StatColorCol,i,clDefault);
+    Cells[StatNameCol,i] := 'Status ' + IntToStr(i);
+    Cells[StatColorCol,i] := ColorToStr(clDefault);
     Cells[StatDefaultCol,i] := FalseValue;
     StatusDefinitionsGrid.Row := i;
   end;
@@ -268,8 +276,11 @@ procedure TProjectSettingsEditor.CategoryDefinitionsGridButtonClick(
 var
   pt: TPoint;
 begin
-  if (Sender as TStringGrid).Columns[aCol].Tag = ord(ckColor) then
+  if ((Sender as TStringGrid).Columns[aCol].Tag = ord(ckColor)) and
+     (not (Sender as TStringGrid).EditorMode) then
   begin
+    (Sender as TStringGrid).Col := aCol;
+    (Sender as TStringGrid).Row := aRow;
     SetupColorMenu;
     ColorMenu.PopupComponent := Sender as TStringGrid;
     with (Sender as TStringGrid).CellRect(aCol,aRow) do
@@ -316,7 +327,7 @@ begin
   begin
     with (Sender as TStringGrid) do
     begin
-      aColor := ColorFromCell(Sender as TStringGrid,aCol,aRow);
+      aColor := StrToColor((Sender as TStringGrid).Cells[aCol,aRow]);
       if aColor = clDefault then
          aColor := clWindow;
       Canvas.Brush.Color := aColor;
@@ -352,9 +363,9 @@ var
   grid: TStringGrid;
 begin
   grid := ColorMenu.PopupComponent as TStringGrid;
-  CategoryColorChooser.Color := ColorFromCell(grid,grid.Col,grid.Row);
+  CategoryColorChooser.Color := StrToColor(grid.Cells[grid.Col,grid.Row]);
   if CategoryColorChooser.Execute then
-    ColorToCell(grid,grid.Col,grid.Row,CategoryColorChooser.Color);
+    grid.Cells[grid.Col,grid.Row] := ColorToStr(CategoryColorChooser.Color);
 end;
 
 procedure TProjectSettingsEditor.ColorMenuClick(Sender: TObject);
@@ -364,25 +375,31 @@ var
 begin
   menuColor := (Sender as TMenuItem).Tag;
   grid := ColorMenu.PopupComponent as TStringGrid;
-  ColorToCell(grid,grid.Col,grid.Row,menuColor);
+  grid.Cells[grid.Col,grid.Row] := ColorToStr(menuColor);
 end;
 
 procedure TProjectSettingsEditor.DeleteCategoryButtonClick(Sender: TObject);
 var
   category: String;
 begin
-  category := CategoryDefinitionsGrid.Cells[CatNameCol,CategoryDefinitionsGrid.Row];
-  if MessageDlg('Are you sure you want to delete the category "' + category + '"?',mtConfirmation,mbYesNo,0) = mrYes then
-     CategoryDefinitionsGrid.DeleteRow(CategoryDefinitionsGrid.Row);
+  if CategoryDefinitionsGrid.Row > 0 then
+  begin
+    category := CategoryDefinitionsGrid.Cells[CatNameCol,CategoryDefinitionsGrid.Row];
+    if MessageDlg('Are you sure you want to delete the category "' + category + '"?',mtConfirmation,mbYesNo,0) = mrYes then
+       CategoryDefinitionsGrid.DeleteRow(CategoryDefinitionsGrid.Row);
+  end;
 end;
 
 procedure TProjectSettingsEditor.DeleteStatusButtonClick(Sender: TObject);
 var
   status: String;
 begin
-  status := StatusDefinitionsGrid.Cells[StatNameCol,StatusDefinitionsGrid.Row];
-  if MessageDlg('Are you sure you want to delete the status "' + status + '"?',mtConfirmation,mbYesNo,0) = mrYes then
-     StatusDefinitionsGrid.DeleteRow(StatusDefinitionsGrid.Row);
+  if StatusDefinitionsGrid.Row > 0 then
+  begin
+    status := StatusDefinitionsGrid.Cells[StatNameCol,StatusDefinitionsGrid.Row];
+    if MessageDlg('Are you sure you want to delete the status "' + status + '"?',mtConfirmation,mbYesNo,0) = mrYes then
+       StatusDefinitionsGrid.DeleteRow(StatusDefinitionsGrid.Row);
+  end;
 end;
 
 procedure TProjectSettingsEditor.ShowDataToUser;
@@ -391,6 +408,7 @@ var
   aCat: TCategoryDefinition;
   i: Integer;
   aName: String;
+  j: Integer;
 begin
   props := nil;
   if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) and (MainForm.Project.Properties.FilingState in [fsLoaded]) then
@@ -403,20 +421,23 @@ begin
     with CategoryDefinitionsGrid do
     begin
       Clear;
+      // add one in for the fixed column header.
+      RowCount := 1;
       for i := 0 to props.categories.NameCount - 1 do
       begin
+        j := RowCount;
         aName := props.categories.Names[i];
         aCat := props.categories[aName] as TCategoryDefinition;
         RowCount := RowCount + 1;
-        Cells[CatNameCol,i] := aName;
-        ColorToCell(CategoryDefinitionsGrid,CatColorCol,i,aCat.color);
-        Cells[CatDefaultCol,i] := BoolToStr(props.defaultCategory = aName,TrueValue,FalseValue);
-        Cells[CatPTitleCol,i] := BoolToStr(aCat.publishTitle,TrueValue,FalseValue);
-        Cells[CatPTitleLevelCol,i] := IntToStr(aCat.publishTitleLevel);
-        Cells[CatPTitlePrefixCol,i] := aCat.publishTitlePrefix;
-        Cells[CatPMarkerBeforeCol,i] := BoolToStr(aCat.publishMarkerBefore,TrueValue,FalseValue);
-        Cells[CatPMarkerAfterCol,i] := BoolToStr(aCat.publishMarkerAfter,TrueValue,FalseValue);
-        Cells[CatPMarkerBetweenCol,i] := BoolToStr(aCat.publishMarkerBetween,TrueValue,FalseValue);
+        Cells[CatNameCol,j] := aName;
+        Cells[CatColorCol,j] := ColorToStr(aCat.color);
+        Cells[CatDefaultCol,j] := BoolToStr(props.defaultCategory = aName,TrueValue,FalseValue);
+        Cells[CatPTitleCol,j] := BoolToStr(aCat.publishTitle,TrueValue,FalseValue);
+        Cells[CatPTitleLevelCol,j] := IntToStr(aCat.publishTitleLevel);
+        Cells[CatPTitlePrefixCol,j] := aCat.publishTitlePrefix;
+        Cells[CatPMarkerBeforeCol,j] := BoolToStr(aCat.publishMarkerBefore,TrueValue,FalseValue);
+        Cells[CatPMarkerAfterCol,j] := BoolToStr(aCat.publishMarkerAfter,TrueValue,FalseValue);
+        Cells[CatPMarkerBetweenCol,j] := BoolToStr(aCat.publishMarkerBetween,TrueValue,FalseValue);
 
       end;
       AutoSizeColumns;
@@ -425,13 +446,16 @@ begin
     with StatusDefinitionsGrid do
     begin
       Clear;
+      // add one in for the fixed column header.
+      RowCount := 1;
       for i := 0 to props.statuses.NameCount - 1 do
       begin
         aName := props.statuses.Names[i];
+        j := RowCount;
         RowCount := RowCount + 1;
-        Cells[StatNameCol,i] := aName;
-        ColorToCell(StatusDefinitionsGrid,StatColorCol,i,(props.statuses[aName] as TStatusDefintion).color);
-        Cells[StatDefaultCol,i] := BoolToStr(props.defaultStatus = aName,TrueValue,FalseValue);
+        Cells[StatNameCol,j] := aName;
+        Cells[StatColorCol,j] := ColorToStr((props.statuses[aName] as TStatusDefintion).color);
+        Cells[StatDefaultCol,j] := BoolToStr(props.defaultStatus = aName,TrueValue,FalseValue);
       end;
       AutoSizeColumns;
     end;
@@ -467,12 +491,13 @@ begin
     with CategoryDefinitionsGrid do
     begin
       // changes and new items
-      for i := 0 to RowCount - 1 do
+      // we're skipping the first row, which is the header row.
+      for i := 1 to RowCount - 1 do
       begin
         aCat := props.categories.Find(Cells[CatNameCol,i]) as TCategoryDefinition;
         if aCat = nil then
           aCat := props.categories.Add(Cells[CatNameCol,i]) as TCategoryDefinition;
-        aCat.color := ColorFromCell(CategoryDefinitionsGrid,CatColorCol,i);
+        aCat.color := StrToColor(Cells[CatColorCol,i]);
         aCat.publishTitle:=Cells[CatPTitleCol,i] = TrueValue;
         if TryStrToInt(Cells[CatPTitleLevelCol,i],aLevel) then
            aCat.publishTitleLevel := aLevel;
@@ -508,12 +533,13 @@ begin
     with StatusDefinitionsGrid do
     begin
       // changes and new items
-      for i := 0 to RowCount - 1 do
+      // we're skipping the first row, which is the header row.
+      for i := 1 to RowCount - 1 do
       begin
         aStat := props.statuses.Find(Cells[StatNameCol,i]) as TStatusDefintion;
         if aStat = nil then
           aStat := props.statuses.Add(Cells[StatNameCol,i]) as TStatusDefintion;
-        aStat.color := ColorFromCell(StatusDefinitionsGrid,StatColorCol,i);
+        aStat.color := StrToColor(Cells[StatColorCol,i]);
         if Cells[StatDefaultCol,i] = TrueValue then
           props.defaultStatus:=Cells[StatNameCol,i];
       end;
