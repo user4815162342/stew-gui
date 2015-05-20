@@ -57,7 +57,7 @@ procedure RunDetachedProcess(const aExecutable: String; aArgs: array of String);
 implementation
 
 uses
-  lclintf, FileUtil, process, UTF8Process, sys_localfile, dialogs;
+  lclintf, FileUtil, process, UTF8Process, sys_localfile;
 
 
 
@@ -141,10 +141,14 @@ var
   Process: TProcess;
   i: Integer;
 begin
+  // FROM:
+  // http://wiki.lazarus.freepascal.org/Executing_External_Programs#Run_detached_program
+
   // NOTE: Trust me, this works. Just not when debugging the application, in that
   // case, something is killing off all of the orphaned processes created this
   // way -- I wonder if the debugger process becomes the parent when this is
-  // detached, the way a shell becomes a parent if I detach from there.
+  // detached, the way a shell becomes a parent if I detach from there. However,
+  // when not debugging, the process remains alive after I kill the first.
   Process := TProcess.Create(nil);
   try
     Process.InheritHandles := False;
@@ -152,8 +156,10 @@ begin
     Process.ShowWindow := swoShow;
 
     // Copy default environment variables including DISPLAY variable for GUI application to work
-    for I := 0 to GetEnvironmentVariableCount - 1 do
+    for I := 1 to GetEnvironmentVariableCount do
+    begin
       Process.Environment.Add(GetEnvironmentString(I));
+    end;
 
     Process.Executable := aExecutable;
 

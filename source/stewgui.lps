@@ -8,10 +8,11 @@
         <Filename Value="stewgui.lpr"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="stewgui"/>
+        <IsVisibleTab Value="True"/>
         <EditorIndex Value="26"/>
         <WindowIndex Value="0"/>
         <TopLine Value="11"/>
-        <CursorPos X="35" Y="22"/>
+        <CursorPos X="44" Y="33"/>
         <UsageCount Value="213"/>
         <Loaded Value="True"/>
       </Unit0>
@@ -24,8 +25,8 @@
         <UnitName Value="gui_mainform"/>
         <EditorIndex Value="8"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="433"/>
-        <CursorPos X="23" Y="443"/>
+        <TopLine Value="1"/>
+        <CursorPos X="21" Y="21"/>
         <UsageCount Value="213"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -218,11 +219,10 @@
         <Filename Value="sys_os.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_os"/>
-        <IsVisibleTab Value="True"/>
         <EditorIndex Value="28"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="146"/>
-        <CursorPos X="35" Y="150"/>
+        <TopLine Value="68"/>
+        <CursorPos X="31" Y="79"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
       </Unit17>
@@ -298,7 +298,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="4343"/>
         <CursorPos X="1" Y="4355"/>
-        <UsageCount Value="70"/>
+        <UsageCount Value="72"/>
         <Loaded Value="True"/>
       </Unit25>
       <Unit26>
@@ -307,7 +307,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="1659"/>
         <CursorPos X="1" Y="1677"/>
-        <UsageCount Value="11"/>
+        <UsageCount Value="12"/>
         <Loaded Value="True"/>
       </Unit26>
       <Unit27>
@@ -364,7 +364,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="67"/>
         <CursorPos X="15" Y="86"/>
-        <UsageCount Value="92"/>
+        <UsageCount Value="94"/>
         <Loaded Value="True"/>
       </Unit33>
       <Unit34>
@@ -404,7 +404,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="300"/>
         <CursorPos X="3" Y="321"/>
-        <UsageCount Value="93"/>
+        <UsageCount Value="95"/>
         <Loaded Value="True"/>
       </Unit38>
       <Unit39>
@@ -414,7 +414,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="23"/>
         <CursorPos X="9" Y="41"/>
-        <UsageCount Value="75"/>
+        <UsageCount Value="77"/>
         <Loaded Value="True"/>
       </Unit39>
       <Unit40>
@@ -446,7 +446,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="60"/>
         <CursorPos X="1" Y="73"/>
-        <UsageCount Value="11"/>
+        <UsageCount Value="12"/>
         <Loaded Value="True"/>
       </Unit43>
       <Unit44>
@@ -465,7 +465,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="9977"/>
         <CursorPos X="1" Y="9988"/>
-        <UsageCount Value="97"/>
+        <UsageCount Value="98"/>
         <Loaded Value="True"/>
       </Unit45>
       <Unit46>
@@ -530,7 +530,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="7225"/>
         <CursorPos X="1" Y="7238"/>
-        <UsageCount Value="69"/>
+        <UsageCount Value="71"/>
         <Loaded Value="True"/>
       </Unit53>
       <Unit54>
@@ -589,7 +589,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="2379"/>
         <CursorPos X="1" Y="2391"/>
-        <UsageCount Value="67"/>
+        <UsageCount Value="69"/>
         <Loaded Value="True"/>
       </Unit61>
       <Unit62>
@@ -615,7 +615,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="217"/>
         <CursorPos X="15" Y="227"/>
-        <UsageCount Value="85"/>
+        <UsageCount Value="86"/>
         <Loaded Value="True"/>
       </Unit64>
       <Unit65>
@@ -646,7 +646,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="20"/>
         <CursorPos X="10" Y="31"/>
-        <UsageCount Value="80"/>
+        <UsageCount Value="82"/>
         <Loaded Value="True"/>
       </Unit68>
       <Unit69>
@@ -663,7 +663,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="14"/>
         <CursorPos X="11" Y="24"/>
-        <UsageCount Value="74"/>
+        <UsageCount Value="76"/>
         <Loaded Value="True"/>
       </Unit70>
       <Unit71>
@@ -753,7 +753,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="382"/>
         <CursorPos X="1" Y="403"/>
-        <UsageCount Value="16"/>
+        <UsageCount Value="17"/>
         <Loaded Value="True"/>
       </Unit81>
       <Unit82>
@@ -762,7 +762,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="1"/>
         <CursorPos X="1" Y="1"/>
-        <UsageCount Value="14"/>
+        <UsageCount Value="15"/>
         <Loaded Value="True"/>
       </Unit82>
       <Unit83>
@@ -771,7 +771,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="228"/>
         <CursorPos X="1" Y="230"/>
-        <UsageCount Value="14"/>
+        <UsageCount Value="15"/>
         <Loaded Value="True"/>
       </Unit83>
       <Unit84>
@@ -780,7 +780,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="609"/>
         <CursorPos X="1" Y="621"/>
-        <UsageCount Value="11"/>
+        <UsageCount Value="12"/>
         <Loaded Value="True"/>
       </Unit84>
       <Unit85>
@@ -789,7 +789,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="484"/>
         <CursorPos X="3" Y="495"/>
-        <UsageCount Value="10"/>
+        <UsageCount Value="12"/>
         <Loaded Value="True"/>
       </Unit85>
     </Units>
@@ -799,103 +799,103 @@
     <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
         <Filename Value="gui_mainform.pas"/>
-        <Caret Line="900" Column="1" TopLine="882"/>
+        <Caret Line="905" Column="1" TopLine="895"/>
       </Position1>
       <Position2>
         <Filename Value="gui_mainform.pas"/>
-        <Caret Line="892" Column="1" TopLine="882"/>
+        <Caret Line="464" Column="1" TopLine="452"/>
       </Position2>
       <Position3>
-        <Filename Value="gui_mainform.pas"/>
-        <Caret Line="903" Column="1" TopLine="885"/>
+        <Filename Value="sys_localfile.pas"/>
+        <Caret Line="414" Column="1" TopLine="403"/>
       </Position3>
       <Position4>
         <Filename Value="gui_mainform.pas"/>
-        <Caret Line="905" Column="1" TopLine="887"/>
+        <Caret Line="464" Column="1" TopLine="452"/>
       </Position4>
       <Position5>
-        <Filename Value="stew_project.pas"/>
-        <Caret Line="1550" Column="1" TopLine="1536"/>
+        <Filename Value="sys_localfile.pas"/>
+        <Caret Line="414" Column="1" TopLine="403"/>
       </Position5>
       <Position6>
-        <Filename Value="stew_project.pas"/>
-        <Caret Line="1587" Column="1" TopLine="1576"/>
+        <Filename Value="gui_mainform.pas"/>
+        <Caret Line="464" Column="1" TopLine="452"/>
       </Position6>
       <Position7>
-        <Filename Value="gui_mainform.pas"/>
-        <Caret Line="993" Column="1" TopLine="981"/>
+        <Filename Value="stew_project.pas"/>
+        <Caret Line="1596" Column="1" TopLine="1577"/>
       </Position7>
       <Position8>
         <Filename Value="gui_mainform.pas"/>
-        <Caret Line="1009" Column="1" TopLine="999"/>
+        <Caret Line="878" Column="1" TopLine="867"/>
       </Position8>
       <Position9>
-        <Filename Value="stew_project.pas"/>
-        <Caret Line="1588" Column="1" TopLine="1576"/>
+        <Filename Value="gui_mainform.pas"/>
+        <Caret Line="905" Column="1" TopLine="895"/>
       </Position9>
       <Position10>
-        <Filename Value="stew_project.pas"/>
-        <Caret Line="1584" Column="1" TopLine="1574"/>
+        <Filename Value="gui_mainform.pas"/>
+        <Caret Line="816" Column="10" TopLine="811"/>
       </Position10>
       <Position11>
-        <Filename Value="stew_project.pas"/>
-        <Caret Line="1596" Column="1" TopLine="1577"/>
+        <Filename Value="gui_mainform.pas"/>
+        <Caret Line="440" Column="15" TopLine="433"/>
       </Position11>
       <Position12>
-        <Filename Value="gui_mainform.pas"/>
-        <Caret Line="464" Column="1" TopLine="452"/>
+        <Filename Value="sys_os.pas"/>
+        <Caret Line="162" Column="5" TopLine="144"/>
       </Position12>
       <Position13>
-        <Filename Value="gui_mainform.pas"/>
-        <Caret Line="878" Column="1" TopLine="867"/>
+        <Filename Value="sys_os.pas"/>
+        <Caret Line="1" Column="1" TopLine="1"/>
       </Position13>
       <Position14>
-        <Filename Value="gui_mainform.pas"/>
-        <Caret Line="905" Column="1" TopLine="895"/>
+        <Filename Value="sys_os.pas"/>
+        <Caret Line="7" Column="5" TopLine="1"/>
       </Position14>
       <Position15>
-        <Filename Value="gui_mainform.pas"/>
-        <Caret Line="464" Column="1" TopLine="452"/>
+        <Filename Value="sys_os.pas"/>
+        <Caret Line="162" Column="18" TopLine="149"/>
       </Position15>
       <Position16>
-        <Filename Value="sys_localfile.pas"/>
-        <Caret Line="414" Column="1" TopLine="403"/>
+        <Filename Value="sys_os.pas"/>
+        <Caret Line="150" Column="12" TopLine="139"/>
       </Position16>
       <Position17>
-        <Filename Value="gui_mainform.pas"/>
-        <Caret Line="464" Column="1" TopLine="452"/>
+        <Filename Value="sys_os.pas"/>
+        <Caret Line="151" Column="32" TopLine="139"/>
       </Position17>
       <Position18>
-        <Filename Value="sys_localfile.pas"/>
-        <Caret Line="414" Column="1" TopLine="403"/>
+        <Filename Value="sys_os.pas"/>
+        <Caret Line="157" Column="1" TopLine="146"/>
       </Position18>
       <Position19>
-        <Filename Value="gui_mainform.pas"/>
-        <Caret Line="464" Column="1" TopLine="452"/>
+        <Filename Value="sys_os.pas"/>
+        <Caret Line="1" Column="1" TopLine="1"/>
       </Position19>
       <Position20>
-        <Filename Value="stew_project.pas"/>
-        <Caret Line="1596" Column="1" TopLine="1577"/>
+        <Filename Value="gui_mainform.pas"/>
+        <Caret Line="440" Column="41" TopLine="433"/>
       </Position20>
       <Position21>
-        <Filename Value="gui_mainform.pas"/>
-        <Caret Line="878" Column="1" TopLine="867"/>
+        <Filename Value="stewgui.lpr"/>
+        <Caret Line="22" Column="37" TopLine="11"/>
       </Position21>
       <Position22>
-        <Filename Value="gui_mainform.pas"/>
-        <Caret Line="905" Column="1" TopLine="895"/>
+        <Filename Value="stewgui.lpr"/>
+        <Caret Line="19" Column="14" TopLine="9"/>
       </Position22>
       <Position23>
         <Filename Value="gui_mainform.pas"/>
-        <Caret Line="816" Column="10" TopLine="811"/>
+        <Caret Line="17" Column="52" TopLine="1"/>
       </Position23>
       <Position24>
-        <Filename Value="gui_mainform.pas"/>
-        <Caret Line="440" Column="15" TopLine="433"/>
+        <Filename Value="sys_os.pas"/>
+        <Caret Line="158" Column="51" TopLine="139"/>
       </Position24>
       <Position25>
         <Filename Value="sys_os.pas"/>
-        <Caret Line="162" Column="5" TopLine="144"/>
+        <Caret Line="308" Column="5" TopLine="289"/>
       </Position25>
       <Position26>
         <Filename Value="sys_os.pas"/>
@@ -907,15 +907,15 @@
       </Position27>
       <Position28>
         <Filename Value="sys_os.pas"/>
-        <Caret Line="162" Column="18" TopLine="149"/>
+        <Caret Line="59" Column="5" TopLine="40"/>
       </Position28>
       <Position29>
-        <Filename Value="sys_os.pas"/>
-        <Caret Line="150" Column="12" TopLine="139"/>
+        <Filename Value="gui_mainform.pas"/>
+        <Caret Line="1244" Column="1" TopLine="1224"/>
       </Position29>
       <Position30>
-        <Filename Value="sys_os.pas"/>
-        <Caret Line="151" Column="32" TopLine="139"/>
+        <Filename Value="gui_mainform.pas"/>
+        <Caret Line="1243" Column="3" TopLine="1221"/>
       </Position30>
     </JumpHistory>
   </ProjectSession>
