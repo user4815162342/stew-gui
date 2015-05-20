@@ -436,12 +436,23 @@ end;
 
 procedure RunNewStewInstance(const aProjectPath: TFile);
 begin
-  RunDetachedProcess(Application.ExeName,[aProjectPath.ID]);
+  try
+    RunDetachedProcess(Application.ExeName,[aProjectPath.ID]);
+
+  except
+    on E: Exception do
+      ShowMessage(E.Message);
+  end;
 end;
 
 procedure RunNewStewInstanceWithPrompt;
 begin
-  RunDetachedProcess(Application.ExeName,[PromptForProjectArgument]);
+  try
+     RunDetachedProcess(Application.ExeName,[PromptForProjectArgument]);
+  except
+    on E: Exception do
+      ShowMessage(E.Message);
+  end;
 end;
 
 { TMRUMenuItem }

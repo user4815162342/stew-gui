@@ -57,7 +57,7 @@ procedure RunDetachedProcess(const aExecutable: String; aArgs: array of String);
 implementation
 
 uses
-  lclintf, FileUtil, process, UTF8Process, sys_localfile;
+  lclintf, FileUtil, process, UTF8Process, sys_localfile, dialogs;
 
 
 

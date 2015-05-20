@@ -1,3 +1,9 @@
+stew-gui-linux (0.1.0.43) precise; urgency=low
+
+  * Fixed some bugs for initial release
+
+ -- Neil M. Sheldon <neilmsheldon@townsedgetechnology.com>  Wed, 20 May 2015 13:44:54 -0500
+
 stew-gui-linux (0.1.0.42) precise; urgency=low
 
   * Testing package versioning.
