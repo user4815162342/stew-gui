@@ -19,7 +19,7 @@ begin
   {$IFNDEF Windows}
   // Windows won't have a console to work with, so I'll just get
   // an error here.
-  if ParamStr(1) = '-version' then
+  if ParamStr(1) = VersionArgument then
   begin
     WriteLn(sys_versionsupport.GetFileVersion);
     Exit;

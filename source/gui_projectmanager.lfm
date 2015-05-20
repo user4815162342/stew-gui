@@ -40,6 +40,7 @@ object ProjectManager: TProjectManager
       Left = 35
       Top = 2
       Caption = 'Child+'
+      ImageIndex = 1
       OnClick = NewChildDocumentButtonClick
     end
     object RenameDocumentButton: TToolButton
@@ -58,6 +59,7 @@ object ProjectManager: TProjectManager
       Left = 1
       Top = 2
       Caption = 'Sib+'
+      ImageIndex = 0
       OnClick = NewSiblingDocumentButtonClick
     end
     object MoveDocumentUpButton: TToolButton
@@ -74,7 +76,7 @@ object ProjectManager: TProjectManager
     end
   end
   object DocumentGlyphs: TImageList
-    left = 34
-    top = 35
+    left = 64
+    top = 40
   end
 end

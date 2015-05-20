@@ -6,6 +6,7 @@ object MainForm: TMainForm
   Caption = 'Stew'
   Menu = MainMenu
   OnClose = FormClose
+  OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnShow = FormShow
@@ -16,6 +17,21 @@ object MainForm: TMainForm
     top = 56
     object FileMenuItem: TMenuItem
       Caption = 'File'
+      object NewProjectMenuItem: TMenuItem
+        Caption = 'New Project'
+        OnClick = NewProjectMenuItemClick
+      end
+      object OpenProjectMenuItem: TMenuItem
+        Caption = 'Open Project...'
+        OnClick = OpenProjectMenuItemClick
+      end
+      object RecentProjectsMenuItem: TMenuItem
+        Caption = 'Recent Projects'
+        Enabled = False
+      end
+      object Separator2: TMenuItem
+        Caption = '-'
+      end
       object PreferencesMenuItem: TMenuItem
         Caption = 'Preferences'
         OnClick = PreferencesMenuItemClick

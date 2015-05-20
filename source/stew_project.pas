@@ -256,13 +256,13 @@ type
     { TSearchParentDirectories }
 
     TSearchParentDirectories = class
-      procedure FileExistsFailed(Data: String);
     private
       fProject: TStewProject;
       fPath: TFile;
       fCallback: TDeferredBooleanCallback;
       fErrorback: TDeferredExceptionCallback;
       procedure FileExistsCallback(Data: Boolean);
+      procedure FileExistsFailed(Data: String);
     public
       constructor Create(aProject: TStewProject; aPath: TFile; aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
       procedure Enqueue;
@@ -1580,7 +1580,10 @@ end;
 procedure TStewProject.TProjectExists.FileExistsCallback(Data: Boolean);
 begin
   if (data) then
+  begin
+    TProjectProperties.GetPath(fProject.fDisk).CheckExistence(@FileExistsCallback,@FileExistsFailed);
     fProject.DoOpened;
+  end;
   fCallback(Data);
   Free;
 end;

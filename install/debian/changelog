@@ -1,3 +1,15 @@
+stew-gui-linux (0.1.0.42) precise; urgency=low
+
+  * Testing package versioning.
+
+ -- Neil M. Sheldon <neilmsheldon@townsedgetechnology.com>  Wed, 20 May 2015 13:00:19 -0500
+
+stew-gui-linux (0.1.0.41) precise; urgency=low
+
+  * Making use of the full version scheme
+
+ -- Neil M. Sheldon <neilmsheldon@townsedgetechnology.com>  Wed, 20 May 2015 12:47:49 -0500
+
 stew-gui-linux (0.1) unstable; urgency=low
 
   * Initial Release.

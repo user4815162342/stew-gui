@@ -52,6 +52,7 @@ procedure RunSimpleCommand(aCmd: String; const aArgs: array of string;
       aOutput: TDeferredStringCallback; aErrorBack: TDeferredExceptionCallback);
 procedure GetTemplatesForExt(const aExt: String; aCallback: TTemplateListCallback; aErrorback: TDeferredExceptionCallback);
 procedure CreateFileFromTemplate(aTemplate: TTemplate; aFile: TFile; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
+procedure RunDetachedProcess(const aExecutable: String; aArgs: array of String);
 
 implementation
 
@@ -133,6 +134,35 @@ begin
 {$ELSE}
 {$ERROR Required code is not yet written for this platform.}
 {$ENDIF}
+end;
+
+procedure RunDetachedProcess(const aExecutable: String; aArgs: array of String);
+var
+  Process: TProcess;
+  i: Integer;
+begin
+  // NOTE: Trust me, this works. Just not when debugging the application, in that
+  // case, something is killing off all of the orphaned processes created this
+  // way -- I wonder if the debugger process becomes the parent when this is
+  // detached, the way a shell becomes a parent if I detach from there.
+  Process := TProcess.Create(nil);
+  try
+    Process.InheritHandles := False;
+    Process.Options := [];
+    Process.ShowWindow := swoShow;
+
+    // Copy default environment variables including DISPLAY variable for GUI application to work
+    for I := 0 to GetEnvironmentVariableCount - 1 do
+      Process.Environment.Add(GetEnvironmentString(I));
+
+    Process.Executable := aExecutable;
+
+    for i := 0 to Length(aArgs) - 1 do
+      Process.Parameters.Add(aArgs[i]);
+    Process.Execute;
+  finally
+    Process.Free;
+  end;
 end;
 
 { TRunSimpleCommand }

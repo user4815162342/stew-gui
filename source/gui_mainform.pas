@@ -9,26 +9,36 @@ interface
 TODO: To get this actually usable and publish it on Github, at least.
 - Update the CLI version to work with the new schema for status, so I can still
 use that for more complex tasks.
-- Need a .DEB package (and a place to put the DEB package)
-  - working on a simple linux mint cinnamon install virtual machine in order
-    to test deb packages.
-  - installing packaging-tutorial to get the information on how to do this.
 
 At that point, I can slowly start moving from the command line to the GUI.
 The command line will probably never be completely deprecated, because the
 scripting capabilities there are still quite useful.
 
-TODO: We also need to make use of thfe 'closeQuery' on the editors, check if values
+TODO: At this point, I think I can consider it "done for now". Just clean up
+todo's and collect them all into a single file for use later. Then, check into
+github.
+
+TODO: I don't really want to create a single instance application, or a single instance
+per project application -- I would rather be able to have multiple people connect
+to the same project if necessary (although this is going to take some testing if I
+ever get it connected to the internet). However, it might be nice to have a warning
+if the local project file is already open on the same machine. I could use an IPC
+server to do this, lazarus has TSimpleIPCServer/Client, I just have to figure out
+the system to figure this out.
+
+TODO: We also need to make use of the 'closeQuery' on the editors, check if values
 are modified prior to saving.
 -- Actually, *this* is where we want to check modified, not the property objects themselves,
-because we've been saving them immediately after writing out the data.
+because we've been saving them immediately after writing out the data. So, we
+can pretty much get rid of the "SetModified" and "ClearModified" on that.
 
 TODO: Don't forget to revisit the "Tasks" Idea, and all of the other thoughts
 I had on the stew-cli that can still be transferred over.
 
 TODO: I just realized that the temporary back up files are going to appear as attachments,
 which could really make the whole data structure for the cache huge given enough
-time.
+time. But then, I also need to revisit those backups once I'm certain they're
+working.
 
 TODO: Need to come up with a more dynamic, active layout system for Documents.
 The layout should depend on the aspect ratio of the screen as well as the size,
@@ -36,10 +46,6 @@ somewhat like the way it's done with Bootstrap: - if there's enough width to
 have controls next to each other, do it. Otherwise set them up vertically.
 
 TODO: All MessageDlg's should use MainForm.Title as the caption.
-
-TODO: At this point, I think I can consider it "done for now". Just clean up
-todo's and collect them all into a single file for use later. Then, check into
-github, and fix the versioning and look into creating a deb file.
 
 TODO: Some sort of GUI testing framework would be nice, so I can do regression
 testing to make sure that bugs don't reappear.
@@ -239,7 +245,8 @@ TODO: Divide the units into three parts:
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, Menus,
-  ExtCtrls, Buttons, ComCtrls, stew_project, fgl, gui_config, contnrs, gui_editorframe, stew_types, sys_async;
+  ExtCtrls, Buttons, ComCtrls, stew_project, fgl, gui_config, contnrs,
+  simpleipc, gui_editorframe, stew_types, sys_async, sys_file, sys_os;
 
 type
 
@@ -273,6 +280,10 @@ type
     FileMenuItem: TMenuItem;
     HelpMenuItem: TMenuItem;
     AboutMenuItem: TMenuItem;
+    RecentProjectsMenuItem: TMenuItem;
+    OpenProjectMenuItem: TMenuItem;
+    NewProjectMenuItem: TMenuItem;
+    Separator2: TMenuItem;
     Separator1: TMenuItem;
     PreferencesMenuItem: TMenuItem;
     ProjectSettingsMenuItem: TMenuItem;
@@ -310,9 +321,12 @@ type
     procedure DocumentTabCloseRequested(Sender: TObject);
     procedure ExitMenuItemClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var {%H-}CloseAction: TCloseAction);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure NewProjectMenuItemClick(Sender: TObject);
+    procedure OpenProjectMenuItemClick(Sender: TObject);
     procedure PreferencesMenuItemClick(Sender: TObject);
     procedure ProjectPropertiesLoading(Sender: TObject);
     procedure ProjectPropertiesSaving(Sender: TObject);
@@ -371,6 +385,17 @@ type
     procedure LayoutDocumentPane(aLocation: TAlign);
   end;
 
+  { TMRUMenuItem }
+
+  TMRUMenuItem = class(TMenuItem)
+    procedure MRUProjectClicked(Sender: TObject);
+  private
+    fProjectPath: TFile;
+  public
+    constructor Create(TheOwner: TComponent); override;
+    property ProjectPath: TFile read fProjectPath write fProjectPath;
+  end;
+
   { TAsyncCallback }
 
   TAsyncCallback = class
@@ -383,14 +408,20 @@ type
   end;
 
   procedure QueueAsyncCall(aCallback: TDeferredCallback);
+  procedure RunNewStewInstance(const aProjectPath: TFile);
+  procedure RunNewStewInstanceWithPrompt;
 
 var
   MainForm: TMainForm;
 
+const
+  PromptForProjectArgument = '--prompt-for-project';
+  VersionArgument = '--version';
+
 implementation
 
 uses
-  gui_projectmanager, gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor, LCLProc, gui_about, gui_listdialog, sys_localfile, sys_versionsupport;
+  gui_projectmanager, gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor, LCLProc, gui_about, gui_listdialog, sys_localfile;
 
 {$R *.lfm}
 
@@ -401,6 +432,29 @@ const ProjectSettingsDocumentID: TDocumentID = ':project settings';
 procedure QueueAsyncCall(aCallback: TDeferredCallback);
 begin
   TAsyncCallback.Create(aCallback).Enqueue;
+end;
+
+procedure RunNewStewInstance(const aProjectPath: TFile);
+begin
+  RunDetachedProcess(Application.ExeName,[aProjectPath.ID]);
+end;
+
+procedure RunNewStewInstanceWithPrompt;
+begin
+  RunDetachedProcess(Application.ExeName,[PromptForProjectArgument]);
+end;
+
+{ TMRUMenuItem }
+
+procedure TMRUMenuItem.MRUProjectClicked(Sender: TObject);
+begin
+  RunNewStewInstance(ProjectPath);
+end;
+
+constructor TMRUMenuItem.Create(TheOwner: TComponent);
+begin
+  inherited Create(TheOwner);
+  OnClick:=@MRUProjectClicked;
 end;
 
 { TAsyncCallback }
@@ -654,6 +708,10 @@ end;
 
 procedure TMainForm.FormClose(Sender: TObject; var CloseAction: TCloseAction);
 begin
+  // load the configuration first, so we don't overwrite the stuff I'm not
+  // interested in overwriting (such as MRU Projects) which were added by
+  // another instance.
+  fConfig.Load;
   WriteUISettings;
   try
     fConfig.Save;
@@ -661,8 +719,30 @@ begin
     // TODO:
     // Error occurred while saving settings, how to alert the user?
     // at this point, if I show a message, it messes with the destruction
-    // of the form. I can't output to the console because of
+    // of the form. I can't output to the console because of Windows.
   end;
+end;
+
+procedure TMainForm.FormCloseQuery(Sender: TObject; var CanClose: boolean);
+var
+  Frame: TEditorFrame;
+  i: Integer;
+begin
+  for i := 0 to fOpenDocuments.Count - 1 do
+  begin
+    Frame := fOpenDocuments[i] as TEditorFrame;
+    if Frame <> nil then
+    begin
+      // TODO: We actually have to have the frames *use* this method now.
+      if not Frame.CloseQuery then
+      begin
+        Frame.SetFocus;
+        CanClose := false;
+        break;
+      end;
+    end;
+  end;
+
 end;
 
 procedure TMainForm.FormCreate(Sender: TObject);
@@ -698,7 +778,7 @@ begin
     stewFolder := fConfig.MRUProject;
   end;
 
-  if stewFolder <> '' then
+  if (stewFolder <> '') and (stewFolder <> PromptForProjectArgument) then
   begin
     fProject := TProtectedStewProject.Create(LocalFile(stewFolder));
   end;
@@ -724,6 +804,19 @@ begin
 
 end;
 
+procedure TMainForm.NewProjectMenuItemClick(Sender: TObject);
+begin
+  RunNewStewInstanceWithPrompt;
+end;
+
+procedure TMainForm.OpenProjectMenuItemClick(Sender: TObject);
+begin
+  if OpenProjectDialog.Execute then
+  begin
+    RunNewStewInstance(LocalFile(OpenProjectDialog.FileName));
+  end;
+end;
+
 function TMainForm.GetProject: TStewProject;
 begin
   result := fProject;
@@ -745,8 +838,8 @@ begin
   end
   else
   begin
-    ShowMessage('Found a project at: ' + fProject.DiskPath.ID);
 
+    ShowMessage('Found a project at: ' + fProject.DiskPath.ID);
   end;
 
 end;
@@ -776,9 +869,16 @@ begin
 end;
 
 procedure TMainForm.ProjectOpened(Sender: TObject);
+var
+  i: Integer;
+  item: TMRUMenuItem;
+  mru: TFile;
 begin
   // FUTURE: Someday, will have to store the system type as well.
   fConfig.MRUProject := fProject.DiskPath.ID;
+  // save the configuration, so that the MRU Project becomes available
+  // if we open up another project in the midst of this.
+  fConfig.Save;
   Self.Caption := Application.Title + ' - ' + fProject.GetProjectName;
   Enabled := true;
   with fProject.GetDocument(RootDocument) do
@@ -786,6 +886,22 @@ begin
     Properties.Load;
     ListDocuments(false);
   end;
+
+  // put the recent projects in the MRU menu, but not this current one...
+  RecentProjectsMenuItem.Clear;
+  for i := 0 to fConfig.mruProjects.Count - 1 do
+  begin
+    mru := LocalFile(fConfig.mruProjects[i]);
+    if mru <> fProject.DiskPath then
+    begin
+      item := TMRUMenuItem.Create(RecentProjectsMenuItem);
+      item.ProjectPath := LocalFile(fConfig.mruProjects[i]);
+      item.Caption := item.ProjectPath.PacketName;
+      RecentProjectsMenuItem.Add(item);
+    end;
+  end;
+  RecentProjectsMenuItem.Enabled := (RecentProjectsMenuItem.Count > 0);
+
 end;
 
 procedure TMainForm.ProjectPropertiesError(Sender: TObject; aError: String);
@@ -876,16 +992,18 @@ procedure TMainForm.StartupIfProjectExists(aValue: Boolean);
 begin
   if not aValue then
   begin
-    if MessageDlg('There is no stew project at: ' + fProject.DiskPath.ID + LineEnding +
-               'Would you like to search for one in parent directories?' + LineEnding +
-               'You can create a new one if none are found.',mtConfirmation,mbYesNo,0) =
-       mrYes then
-    begin;
+    // NMS: I decided that this should be done automatically, but I'll leave this
+    //      stuff here in case someone convinces me otherwise.
+    //if MessageDlg('There is no stew project at: ' + fProject.DiskPath.ID + LineEnding +
+    //           'Would you like to search for one in parent directories?' + LineEnding +
+    //           'You can create a new one if none are found.',mtConfirmation,mbYesNo,0) =
+    //   mrYes then
+    //begin;
       fProject.OpenInParentDirectory(@StartupIfProjectParentDirectoryExists,@ProjectLoadFailed);
 
-    end
-    else
-      Close;
+    //end
+    //else
+    //  Close;
   end
 
 end;
@@ -924,6 +1042,10 @@ end;
 
 procedure TMainForm.WriteUISettings;
 begin
+  // TODO: Perhaps I should "load" the current settings, so I don't
+  // override stuff which I didn't touch. For example: If another
+  // instance opens while this one is open, it's going to mess with
+  // the MRUProjects, and these will be lost.
   if WindowState = wsMaximized then
   begin
     fConfig.MainWindow.Maximized := true;
