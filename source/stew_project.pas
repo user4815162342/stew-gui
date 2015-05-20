@@ -1580,10 +1580,7 @@ end;
 procedure TStewProject.TProjectExists.FileExistsCallback(Data: Boolean);
 begin
   if (data) then
-  begin
-    TProjectProperties.GetPath(fProject.fDisk).CheckExistence(@FileExistsCallback,@FileExistsFailed);
     fProject.DoOpened;
-  end;
   fCallback(Data);
   Free;
 end;
