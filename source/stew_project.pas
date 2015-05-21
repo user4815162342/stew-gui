@@ -1,6 +1,7 @@
 unit stew_project;
 
 {$mode objfpc}{$H+}
+{$ModeSwitch advancedrecords}
 
 interface
 
@@ -39,7 +40,29 @@ type
   // which allow me to add procedures to a record, then I can make sure things
   // are controlled as I want them instead of relying on string and TFilename
   // functionality).
-  TDocumentID = String;
+
+  { TDocumentID }
+
+  TDocumentID = record
+  strict private
+    fID: UTF8String;
+    function GetContainer: TDocumentID;
+    function GetIsNull: Boolean;
+    function GetIsSystem: Boolean;
+    function GetName: UTF8String;
+  public
+    property IsNull: Boolean read GetIsNull;
+    property IsSystem: Boolean read GetIsSystem;
+    property ID: String read fID;
+    property Name: UTF8String read GetName;
+    property Container: TDocumentID read GetContainer;
+    function GetContainedDocument(aName: UTF8String): TDocumentID;
+    function Contains(aChild: TDocumentID): Boolean;
+    class function FromString(const aPath: UTF8String): TDocumentID; static;
+    const Root: TDocumentID = ( fID: '/');
+    const Null: TDocumentID = ( fID: '');
+    class function GetSystemDocument(aName: UTF8String): TDocumentID; static;
+  end;
 
   TDocumentList = array of TDocumentID;
 
@@ -362,23 +385,22 @@ type
     property Properties: TProjectProperties read GetProperties;
   end;
 
-  function ExcludeLeadingSlash(Const Path: TDocumentID): string;
-  function IncludeLeadingSlash(Const Path : TDocumentID) : String;
-  function IncludeTrailingSlash(Const Path : TDocumentID) : String;
-  function ExcludeTrailingSlash(Const Path: TDocumentID): string;
-  function IsParentDocument(aParent: TDocumentID; aChild: TDocumentID): Boolean;
-  function ExtractDocumentName(const Path: TDocumentID): string;
-  function ExtractParentDocument(const Path: TDocumentID): string;
+
+  function ExcludeLeadingSlash(Const Path: UTF8String): UTF8String;
+  function IncludeLeadingSlash(Const Path : UTF8String) : UTF8String;
+  function IncludeTrailingSlash(Const Path : UTF8String) : UTF8String;
+  function ExcludeTrailingSlash(Const Path: UTF8String): UTF8String;
+
+  operator = (a: TDocumentID; b: TDocumentID): Boolean;
 
   const
-    RootDocument: TDocumentID = '/';
     AlwaysForbiddenNameCharacters: set of char = [#0..#$1F,#$7F,'<','>',':','"','/','\','|','?','*','%','[',']','~','{','}',';'];
     WhitespaceCharacters: set of char = [' ',#$A0];//,#$1680,#$180e,#$2000..#$200A,#$2028,#$2029,#$202F,#$3000]
 
 
 implementation
 
-function IncludeLeadingSlash(const Path: String): String;
+function IncludeLeadingSlash(const Path: UTF8String): UTF8String;
 Var
   L : Integer;
 begin
@@ -389,7 +411,7 @@ begin
 end;
 
 // document paths are always '/' whether that's the OS path delimiter or not.
-function IncludeTrailingSlash(const Path: String): String;
+function IncludeTrailingSlash(const Path: UTF8String): UTF8String;
 Var
   l : Integer;
 begin
@@ -399,7 +421,7 @@ begin
     Result:=Result+'/';
 end;
 
-function ExcludeTrailingSlash(const Path: string): string;
+function ExcludeTrailingSlash(const Path: UTF8String): UTF8String;
 Var
   L : Integer;
 begin
@@ -409,34 +431,7 @@ begin
     Delete(Result,L,1);
 end;
 
-function IsParentDocument(aParent: TDocumentID; aChild: TDocumentID): Boolean;
-begin
-  result := (Pos(IncludeTrailingSlash(aParent),aChild) = 1)
-end;
-
-function ExtractDocumentName(const Path: TDocumentID): string;
-var
-  i : longint;
-begin
-  I := Length(Path);
-  while (I > 0) and not (Path[I] = '/') do
-    Dec(I);
-  Result := Copy(Path, I + 1, MaxInt);
-end;
-
-function ExtractParentDocument(const Path: TDocumentID): string;
-var
-  i : longint;
-begin
-  I := Length(Path);
-  while (I > 0) and not (Path[I] = '/') do
-    Dec(I);
-  Result := Copy(Path, 1, I - 1);
-  if Result = '' then
-    Result := RootDocument;
-end;
-
-function ExcludeLeadingSlash(const Path: string): string;
+function ExcludeLeadingSlash(const Path: UTF8String): UTF8String;
 Var
   L : Integer;
 begin
@@ -444,6 +439,79 @@ begin
   L:=Length(Result);
   If (L>0) and (Result[1] = '/') then
     Delete(Result,1,1);
+end;
+
+operator=(a: TDocumentID; b: TDocumentID): Boolean;
+begin
+  result := CompareText(a.ID,b.ID) = 0;
+end;
+
+{ TDocumentID }
+
+function TDocumentID.GetContainer: TDocumentID;
+var
+  i : longint;
+begin
+  // the root is always it's own container... mind blown, dude!
+  if fID <> '/' then
+  begin
+    I := Length(fID);
+    while (I > 0) and not (fID[I] = '/') do
+      Dec(I);
+    if i > 1 then
+       result.fID := Copy(fID, 1, I - 1)
+    else
+       result.fID := '/';
+  end
+  else
+    result.fID := '/';
+end;
+
+function TDocumentID.GetIsNull: Boolean;
+begin
+  result := fID = '';
+end;
+
+function TDocumentID.GetIsSystem: Boolean;
+begin
+  if Length(fID) > 0 then
+    result := fID[1] = ':';
+end;
+
+function TDocumentID.GetName: UTF8String;
+var
+  i : longint;
+begin
+  I := Length(fID);
+  while (I > 0) and not (fID[I] = '/') do
+    Dec(I);
+  Result := Copy(fID, I + 1, MaxInt);
+end;
+
+function TDocumentID.GetContainedDocument(aName: UTF8String): TDocumentID;
+begin
+  // TODO: Should I be checking if the name is troublesome?
+  result.fID := IncludeTrailingSlash(fID) + aName;
+end;
+
+function TDocumentID.Contains(aChild: TDocumentID): Boolean;
+var
+  aChildContainer: TDocumentID;
+begin
+  aChildContainer := aChild.Container;
+  result := (aChildContainer = Self) or // child's parent is this guy
+            ((aChildContainer <> TDocumentID.Root) and // child's parent is not root
+            Contains(aChildContainer)); // this guy is a parent of the child's parent
+end;
+
+class function TDocumentID.FromString(const aPath: UTF8String): TDocumentID;
+begin
+  result.fID := IncludeLeadingSlash(ExcludeTrailingSlash(aPath));
+end;
+
+class function TDocumentID.GetSystemDocument(aName: UTF8String): TDocumentID;
+begin
+  result.fID := ':' + aName;
 end;
 
 { TSynopsisMetadata }
@@ -826,7 +894,7 @@ begin
   if fProject.fOnConfirmNewAttachment <> nil then
      fProject.fOnConfirmNewAttachment(fProject,fID,aName,Result)
   else
-     raise Exception.Create('Can''t confirm a new ' + aName + ' file for ' + fID);
+     raise Exception.Create('Can''t confirm a new ' + aName + ' file for ' + fID.ID);
 end;
 
 function TDocumentMetadata.DoChooseTemplate(aAttachmentName: String; const aTemplates: TTemplateArray;
@@ -866,7 +934,7 @@ begin
 
   end
   else
-     raise Exception.Create('Too many possible templates are available for the new ' + aName + ' file for ' + fID);
+     raise Exception.Create('Too many possible templates are available for the new ' + aName + ' file for ' + fID.ID);
 end;
 
 procedure TDocumentMetadata.ClearFiles;
@@ -919,8 +987,8 @@ var
   i2: integer;
   index: TStrings;
 begin
-  s1 := ExtractDocumentName(List[Index1]);
-  s2 := ExtractDocumentName(List[Index2]);
+  s1 := TDocumentID.FromString(List[Index1]).Name;
+  s2 := TDocumentID.FromString(List[Index2]).Name;
   index := Properties.index;
   i1 := SimpleIndexOf(index,s1);
   i2 := SimpleIndexOf(index,s2);
@@ -1094,7 +1162,7 @@ begin
   result := GetDocument(aKey);
   if result = nil then
   begin
-    result := TDocumentMetadata.Create(fProject,fDisk.GetContainedFile(aKey),IncludeTrailingSlash(fID) + aKey,false);
+    result := TDocumentMetadata.Create(fProject,fDisk.GetContainedFile(aKey),fID.GetContainedDocument(aKey),false);
     fContents.Add(LowerCase(aKey),result);
   end;
 end;
@@ -1148,14 +1216,14 @@ begin
       // want to display them as available if they aren't.
       aChild := fContents[i] as TDocumentMetadata;
       if (aChild.fFiles.Count > 0) or (aChild.fIsNew) then
-         list.Add(aChild.fID);
+         list.Add(aChild.fID.ID);
     end;
     // sort by property index.
     list.EZSort;
     SetLength(result,list.Count);
     for i := 0 to list.Count - 1 do
     begin
-      result[i] := list[i];
+      result[i] := TDocumentID.FromString(list[i]);
     end;
   finally
     list.Free;
@@ -1164,7 +1232,7 @@ end;
 
 function TDocumentMetadata.AreAttachmentsListed: Boolean;
 begin
-  result := fProject.GetDocument(ExtractParentDocument(fID)).ListingState = lsListed;
+  result := fProject.GetDocument(fID.Container).ListingState = lsListed;
 end;
 
 procedure TDocumentMetadata.Lock(aLockingObject: TObject);
@@ -1172,7 +1240,7 @@ begin
   if fLock <> aLockingObject then
   begin;
     if IsLocked then
-      raise Exception.Create('Document ' + fID + ' is already locked');
+      raise Exception.Create('Document ' + fID.ID + ' is already locked');
     fLock := aLockingObject;
     StateChanged;
   end;
@@ -1181,9 +1249,9 @@ end;
 procedure TDocumentMetadata.Unlock(aLockingObject: TObject);
 begin
   if not IsLocked then
-    raise Exception.Create('Document ' + fID + ' is not locked');
+    raise Exception.Create('Document ' + fID.ID + ' is not locked');
   if fLock <> aLockingObject then
-    raise Exception.Create('Document ' + fID + ' was locked with a different object');
+    raise Exception.Create('Document ' + fID.ID + ' was locked with a different object');
   fLock := nil;
   StateChanged;
 end;
@@ -1243,15 +1311,15 @@ end;
 
 function TDocumentMetadata.GetParent: TDocumentMetadata;
 begin
-  if fID <> RootDocument then
-    result := fProject.GetDocument(ExtractParentDocument(fID))
+  if fID <> TDocumentID.Root then
+    result := fProject.GetDocument(fID.Container)
   else
     result := nil;
 end;
 
 function TDocumentMetadata.GetName: String;
 begin
-  result := ExtractDocumentName(fID);
+  result := fID.Name;
 end;
 
 procedure TDocumentMetadata.Rename(aOldName: String; aNewName: String);
@@ -1355,7 +1423,7 @@ begin
           if aList[i] = aRelative.fID then
           begin
             if aPosition = odpAfter then
-              Properties.index.Add(ExtractDocumentName(aList[i]));
+              Properties.index.Add(aList[i].Name);
             Properties.index.Add(aDoc.GetName);
             // don't actually put the relative in if it's 'before',
             // because we'll still retain the same effect without adding
@@ -1364,7 +1432,7 @@ begin
 
           end
           else
-            Properties.index.Add(ExtractDocumentName(aList[i]));
+            Properties.index.Add(aList[i].Name);
         end;
       end;
 
@@ -1443,12 +1511,12 @@ var
   aParent: TDocumentMetadata;
 begin
   fIsNew := false;
-  if not (fID = RootDocument) then
+  if not (fID = TDocumentID.Root) then
   begin
     // Add the 'directory' name to the files.
     AddFile(fDisk);
-    aParent := fProject.GetDocument(ExtractParentDocument(fID));
-    if aParent.IsNew and not (aParent.fID = RootDocument) then
+    aParent := fProject.GetDocument(fID.Container);
+    if aParent.IsNew and not (aParent.fID = TDocumentID.Root) then
       aParent.DirectoryCreated;
   end;
   StateChanged;
@@ -1512,7 +1580,7 @@ begin
   end;
   if fMetadataCache = nil then
   begin
-    fMetadataCache := TDocumentMetadata.Create(Self,fDisk,RootDocument,true);
+    fMetadataCache := TDocumentMetadata.Create(Self,fDisk,TDocumentID.Root,true);
   end;
 end;
 
@@ -1569,10 +1637,12 @@ function TStewProject.GetDocument(const aDocumentID: TDocumentID
 begin
   if fMetadataCache = nil then
      raise Exception.Create('Please open project first');
-  if aDocumentID = RootDocument then
+  if aDocumentID.IsNull then
+     raise Exception.Create('Can''t retrieve a null document');
+  if aDocumentID = TDocumentID.Root then
     result := fMetadataCache
   else
-     result := fMetadataCache.PutPath(aDocumentID);
+     result := fMetadataCache.PutPath(aDocumentID.ID);
 end;
 
 { TProjectExists }

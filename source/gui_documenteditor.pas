@@ -131,7 +131,7 @@ begin
     begin
       aTabCaption := aData.Properties.title;
       if aTabCaption = '' then
-         aTabCaption := ExtractDocumentName(Document);
+         aTabCaption := Document.Name;
       Parent.Caption := aTabCaption;
     end;
   end;
@@ -228,7 +228,9 @@ procedure TDocumentEditor.SetDocument(AValue: TDocumentID);
 var
   aName: String;
 begin
-  if Document <> AValue then
+  // FUTURE: Should really consider what to do if we're assigning a null
+  // document.
+  if (Document <> AValue) then
   begin
     if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
     begin
@@ -243,7 +245,7 @@ begin
         Lock(Self);
 
         inherited SetDocument(aValue);
-        DocumentIDLabel.Caption := AValue;
+        DocumentIDLabel.Caption := AValue.ID;
 
         // TODO: Make use of 'title'?
         aName := GetName;
@@ -374,7 +376,7 @@ begin
   if Result and
      (MainForm.Project <> nil) and
      (MainForm.Project.IsOpened) and
-     (Document <> '') then
+     (not Document.IsNull) then
       MainForm.Project.GetDocument(Document).Unlock(Self);
 end;
 

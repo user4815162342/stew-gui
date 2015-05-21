@@ -6,7 +6,6 @@ interface
 
 {
 
-TODO: Fix the DocumentID type.
 TODO: Get the CLI stuff done and updated.
 TOOD: Look for a place to keep the deb file.
 
@@ -368,7 +367,7 @@ type
     procedure StartupCheckProject({%H-}Data: PtrInt);
     procedure StartupIfProjectExists(aValue: Boolean);
     procedure StartupIfProjectParentDirectoryExists(aValue: Boolean);
-    procedure NotifyObservers(aAction: TMainFormAction; aDocument: TDocumentID = '');
+    procedure NotifyObservers(aAction: TMainFormAction; aDocument: TDocumentID);
     procedure ReadUISettings;
     procedure WriteUISettings;
     procedure LayoutFrames;
@@ -430,8 +429,8 @@ uses
 {$R *.lfm}
 
 // using ':' at the beginning because that should not be a valid filename.
-const PreferencesDocumentID: TDocumentID = ':preferences';
-const ProjectSettingsDocumentID: TDocumentID = ':project settings';
+const PreferencesDocumentID: UTF8String = 'preferences';
+const ProjectSettingsDocumentID: UTF8String = 'project settings';
 
 procedure QueueAsyncCall(aCallback: TDeferredCallback);
 begin
@@ -521,7 +520,9 @@ procedure TMainForm.DocumentAttachmentLoading(Sender: TObject;
   Document: TDocumentID; AttachmentName: String);
 begin
   if AttachmentName = 'Synopsis' then
+  begin
     NotifyObservers(mfaDocumentSynopsisLoading,Document);
+  end;
 
 end;
 
@@ -529,7 +530,9 @@ procedure TMainForm.DocumentAttachmentSaveConflicted(Sender: TObject;
   Document: TDocumentID; AttachmentName: String);
 begin
   if AttachmentName = 'Synopsis' then
+  begin
     NotifyObservers(mfaDocumentSynopsisSaveConflicted,Document);
+  end;
 
 end;
 
@@ -537,7 +540,9 @@ procedure TMainForm.DocumentAttachmentSaved(Sender: TObject;
   Document: TDocumentID; AttachmentName: String);
 begin
   if AttachmentName = 'Synopsis' then
+  begin
     NotifyObservers(mfaDocumentSynopsisSaved,Document);
+  end;
 
 end;
 
@@ -545,7 +550,9 @@ procedure TMainForm.DocumentAttachmentSaving(Sender: TObject;
   Document: TDocumentID; AttachmentName: String);
 begin
   if AttachmentName = 'Synopsis' then
+  begin
     NotifyObservers(mfaDocumentSynopsisSaving,Document);
+  end;
 
 end;
 
@@ -564,7 +571,7 @@ procedure TMainForm.DocumentListError(Sender: TObject; Document: TDocumentID;
   Error: String);
 begin
   ShowMessage('An error occurred while listing documents.' + LineEnding +
-              'The parent document''s ID was "' + Document + '".' + LineEnding +
+              'The parent document''s ID was "' + Document.ID + '".' + LineEnding +
               Error + LineEnding +
               'You may want to restart the program, or wait and try your task again later');
 
@@ -588,7 +595,7 @@ procedure TMainForm.DocumentRenameFailed(Sender: TObject;
 begin
   ShowMessage('An error occurred while renaming a document properties.' + LineEnding +
               'The rename may be incomplete.' + LineEnding +
-              'The document''s ID was ' + Document + '.' + LineEnding +
+              'The document''s ID was ' + Document.ID + '.' + LineEnding +
               Error + LineEnding +
               'You may want to restart the program, or wait and try your task again later');
 end;
@@ -602,7 +609,9 @@ procedure TMainForm.DocumentAttachmentLoaded(Sender: TObject;
   Document: TDocumentID; Attachment: String);
 begin
   if Attachment = 'Synopsis' then
+  begin
      NotifyObservers(mfaDocumentSynopsisLoaded,Document);
+  end;
   // TODO: What other attachments;
 end;
 
@@ -610,7 +619,7 @@ procedure TMainForm.DocumentAttachmentError(Sender: TObject;
   Document: TDocumentID; Attachment: String; Error: String);
 begin
   ShowMessage('An error occurred while saving or loading an attachment.' + LineEnding +
-              'The document''s ID was ' + Document + '.' + LineEnding +
+              'The document''s ID was ' + Document.ID + '.' + LineEnding +
               'The attachment type was ' + Attachment + '.' + LineEnding +
               Error + LineEnding +
               'You may want to restart the program, or wait and try your task again later');
@@ -620,7 +629,7 @@ procedure TMainForm.DocumentPropertiesError(Sender: TObject;
   Document: TDocumentID; Error: String);
 begin
   ShowMessage('An error occurred while saving or loading the document properties.' + LineEnding +
-              'The document''s ID was ' + Document + '.' + LineEnding +
+              'The document''s ID was ' + Document.ID + '.' + LineEnding +
               Error + LineEnding +
               'You may want to restart the program, or wait and try your task again later');
 end;
@@ -635,7 +644,7 @@ procedure TMainForm.DocumentPropertiesSaveConflicted(Sender: TObject;
   Document: TDocumentID);
 begin
    if MessageDlg('The document properties file has changed on the disk since the last time it was loaded.' + LineEnding +
-             'Document ID: ' + Document + LineEnding +
+             'Document ID: ' + Document.ID + LineEnding +
              'Would you like to overwrite it''s contents?',mtWarning,mbYesNo,0) = mrYes then
    begin
      fProject.GetDocument(Document).Properties.Save(true);
@@ -866,12 +875,12 @@ end;
 
 procedure TMainForm.ProjectPropertiesLoading(Sender: TObject);
 begin
-  NotifyObservers(mfaProjectPropertiesLoading);
+  NotifyObservers(mfaProjectPropertiesLoading,TDocumentID.Null);
 end;
 
 procedure TMainForm.ProjectPropertiesSaving(Sender: TObject);
 begin
-  NotifyObservers(mfaProjectPropertiesSaving);
+  NotifyObservers(mfaProjectPropertiesSaving,TDocumentID.Null);
 
 end;
 
@@ -896,7 +905,7 @@ begin
   fConfig.Save;
   Self.Caption := Application.Title + ' - ' + fProject.GetProjectName;
   Enabled := true;
-  with fProject.GetDocument(RootDocument) do
+  with fProject.GetDocument(TDocumentID.Root) do
   begin
     Properties.Load;
     ListDocuments(false);
@@ -929,7 +938,7 @@ end;
 procedure TMainForm.ProjectPropertiesLoaded(Sender: TObject);
 begin
   Enabled := true;
-  NotifyObservers(mfaProjectPropertiesLoaded);
+  NotifyObservers(mfaProjectPropertiesLoaded,TDocumentID.Null);
 end;
 
 procedure TMainForm.ProjectPropertiesSaveConflicted(Sender: TObject);
@@ -943,7 +952,7 @@ end;
 
 procedure TMainForm.ProjectPropertiesSaved(Sender: TObject);
 begin
-  NotifyObservers(mfaProjectPropertiesSaved);
+  NotifyObservers(mfaProjectPropertiesSaved,TDocumentID.Null);
 end;
 
 procedure TMainForm.ProjectSettingsMenuItemClick(Sender: TObject);
@@ -953,7 +962,7 @@ end;
 
 procedure TMainForm.RefreshProjectMenuItemClick(Sender: TObject);
 begin
-  Project.GetDocument(RootDocument).ListDocuments(true);
+  Project.GetDocument(TDocumentID.Root).ListDocuments(true);
 end;
 
 procedure TMainForm.StartupCheckProject(Data: PtrInt);
@@ -1023,7 +1032,7 @@ begin
 
 end;
 
-procedure TMainForm.NotifyObservers(aAction: TMainFormAction; aDocument: TDocumentID = '');
+procedure TMainForm.NotifyObservers(aAction: TMainFormAction; aDocument: TDocumentID);
 var
   i: Integer;
 begin
@@ -1125,9 +1134,9 @@ begin
     // When I use a case statement here, it says Constant and CASE types do not match,
     // even though these *are* constants.
     // FUTURE: Some sort of 'class registry' might be useful here.
-    if aDocument = PreferencesDocumentID then
+    if aDocument = TDocumentID.GetSystemDocument(PreferencesDocumentID) then
       EditorClass := TApplicationPreferencesEditor
-    else if aDocument = ProjectSettingsDocumentID then
+    else if aDocument = TDocumentID.GetSystemDocument(ProjectSettingsDocumentID) then
       EditorClass := TProjectSettingsEditor
     else
        EditorClass := TDocumentEditor;
@@ -1140,12 +1149,12 @@ end;
 
 procedure TMainForm.OpenPreferences;
 begin
-  OpenDocument(PreferencesDocumentID);
+  OpenDocument(TDocumentID.GetSystemDocument(PreferencesDocumentID));
 end;
 
 procedure TMainForm.OpenProjectSettings;
 begin
-  OpenDocument(ProjectSettingsDocumentID);
+  OpenDocument(TDocumentID.GetSystemDocument(ProjectSettingsDocumentID));
 end;
 
 procedure TMainForm.Observe(aObserver: TMainFormObserverHandler);

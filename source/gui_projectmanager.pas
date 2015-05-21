@@ -95,7 +95,7 @@ begin
   if FDocumentID <> AValue then
   begin
     FDocumentID := AValue;
-    Text := ExtractDocumentName(AValue);
+    Text := AValue.Name;
   end;
 end;
 
@@ -383,7 +383,7 @@ begin
       if aTargetNode <> nil then
         aTargetDocID := aTargetNode.DocumentID
       else
-        aTargetDocID := RootDocument;
+        aTargetDocID := TDocumentID.Root;
       aTargetDoc := MainForm.Project.GetDocument(aTargetDocID);
       aDraggingDoc:= MainForm.Project.GetDocument(aDraggingDocID);
       if aTargetDoc.ListingState <> lsListed then
@@ -421,7 +421,7 @@ begin
         aTargetDoc := MainForm.Project.GetDocument(aTargetNode.DocumentID)
       end
       else
-        aTargetDoc := MainForm.Project.GetDocument(RootDocument);
+        aTargetDoc := MainForm.Project.GetDocument(TDocumentID.Root);
 
       if aTargetDoc.ListingState = lsNotListed then
         // list documents so we can retry very soon.
@@ -440,7 +440,7 @@ procedure TProjectManager.ReloadNodeForDocument(aDocument: TDocumentID);
 var
   aNode: TProjectInspectorNode;
 begin
-  if aDocument <> RootDocument then
+  if aDocument <> TDocumentID.Root then
   begin
      aNode := GetTreeNodeForDocument(aDocument);
      ReloadNode(aNode,nil);
@@ -476,7 +476,7 @@ begin
     end
     else
     begin
-      aDoc := MainForm.Project.GetDocument(RootDocument);
+      aDoc := MainForm.Project.GetDocument(TDocumentID.Root);
       aChild := ProjectExplorer.Items.GetFirstNode as TProjectInspectorNode;
     end;
 
@@ -562,7 +562,7 @@ begin
   begin
     if result.DocumentID = aDocument then
        Exit;
-    if IsParentDocument(result.DocumentID,aDocument) then
+    if result.DocumentID.Contains(aDocument) then
        result := result.GetFirstChild as TProjectInspectorNode
     else
        result := result.GetNextSibling as TProjectInspectorNode;
@@ -773,7 +773,7 @@ begin
     begin
       if not aChild then
         raise Exception.Create('Can''t add a sibling document without a selected node');
-      aDocument := RootDocument
+      aDocument := TDocumentID.Root;
     end
     else
       aDocument := aNode.DocumentID;

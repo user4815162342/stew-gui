@@ -236,7 +236,7 @@ procedure TProjectSettingsEditor.EditNotesButtonClick(Sender: TObject);
 begin
   if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
   begin
-       MainForm.Project.GetDocument(RootDocument).Notes.OpenInEditor;
+       MainForm.Project.GetDocument(TDocumentID.Root).Notes.OpenInEditor;
   end;
 
 end;

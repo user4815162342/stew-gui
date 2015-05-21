@@ -1,6 +1,7 @@
 unit stew_types;
 
 {$mode objfpc}{$H+}
+{$ModeSwitch advancedrecords}
 
 interface
 
@@ -15,6 +16,20 @@ type
   TExceptionMessageEvent = procedure(Sender: TObject; aError: String) of object;
 
   TStringArray = array of string;
+
+  { TNullable }
+
+  generic TNullable<ValueType> = record
+  private
+    fValue: ValueType;
+    fIsNull: Boolean;
+    function GetValue: ValueType;
+    procedure SetNull(AValue: Boolean);
+    procedure SetValue(AValue: ValueType);
+  public
+    property IsNull: Boolean read fIsNull write SetNull;
+    property Value: ValueType read GetValue write SetValue;
+  end;
 
   { TEZSortStringList }
 
@@ -92,6 +107,28 @@ type
 
 
 implementation
+
+{ TNullable }
+
+function TNullable.GetValue: ValueType;
+begin
+  result := fValue;
+end;
+
+procedure TNullable.SetNull(AValue: Boolean);
+begin
+  if fIsNull=AValue then Exit;
+  fIsNull:=AValue;
+end;
+
+procedure TNullable.SetValue(AValue: ValueType);
+begin
+  IsNull := false;
+  // FUTURE: The following doesn't compile with TDocumentID, despite overloading
+  // the equals sign. Remove this in some future version of FPC.
+  //if fValue = AValue then Exit;
+  fValue := AValue;
+end;
 
 { TEZSortStringList }
 

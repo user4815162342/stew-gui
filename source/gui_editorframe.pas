@@ -73,6 +73,7 @@ end;
 constructor TEditorFrame.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
+  fDocument := TDocumentID.Null;
 end;
 
 function TEditorFrame.CloseQuery: Boolean;
