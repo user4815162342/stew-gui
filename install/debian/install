@@ -1,2 +1,11 @@
 ../executable/stew-gui usr/bin
-resources/Stew.desktop usr/share/applications
+../resources/icons/16x16/stew-gui.png /usr/share/icons/hicolor/16x16/apps
+../resources/icons/24x24/stew-gui.png /usr/share/icons/hicolor/24x24/apps
+../resources/icons/32x32/stew-gui.png /usr/share/icons/hicolor/32x32/apps
+../resources/icons/48x48/stew-gui.png /usr/share/icons/hicolor/48x48/apps
+../resources/icons/64x64/stew-gui.png /usr/share/icons/hicolor/64x64/apps
+../resources/icons/128x128/stew-gui.png /usr/share/icons/hicolor/128x128/apps
+../resources/icons/256x256/stew-gui.png /usr/share/icons/hicolor/256x256/apps
+../resources/icons/512x512/stew-gui.png /usr/share/icons/hicolor/512x512/apps
+../resources/icons/128x128/stew-gui.png /usr/share/pixmaps
+../resources/shortcuts/Stew.desktop usr/share/applications

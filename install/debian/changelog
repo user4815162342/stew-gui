@@ -2,7 +2,7 @@ stew-gui-linux (0.1.0.44) precise; urgency=low
 
   * Fixed a bug with opening other projects
 
- -- Neil Sheldon <neil@laurentia>  Wed, 20 May 2015 15:47:23 -0500
+ -- Neil M. Sheldon <neilmsheldon@townsedgetechnology.com>  Wed, 20 May 2015 15:47:23 -0500
 
 stew-gui-linux (0.1.0.43) precise; urgency=low
 

@@ -1,6 +1,8 @@
 [Desktop Entry]
 Version=1.0
-Name=Stew Manuscript Manager
+Name=Stew
+Comment=Stew Manuscript Manager
+Icon=stew-gui.png
 Categories=Office;
 Exec=stew-gui
 Hidden=false

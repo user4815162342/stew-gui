@@ -6,6 +6,10 @@ interface
 
 {
 
+TODO: Fix the DocumentID type.
+TODO: Get the CLI stuff done and updated.
+TOOD: Look for a place to keep the deb file.
+
 TODO: To get this actually usable and publish it on Github, at least.
 - Update the CLI version to work with the new schema for status, so I can still
 use that for more complex tasks.
