@@ -6,20 +6,12 @@ interface
 
 {
 
-TODO: Get the CLI stuff done and updated.
-TOOD: Look for a place to keep the deb file.
-
-TODO: To get this actually usable and publish it on Github, at least.
-- Update the CLI version to work with the new schema for status, so I can still
-use that for more complex tasks.
-
-At that point, I can slowly start moving from the command line to the GUI.
-The command line will probably never be completely deprecated, because the
-scripting capabilities there are still quite useful.
-
 TODO: At this point, I think I can consider it "done for now". Just clean up
-todo's and collect them all into a single file for use later. Then, check into
-github.
+todo's and collect them all into the issues on Github. Also look at TODO's in
+the CLI version which would indicate features that need to be added. Make sure
+the CLI and the GUI issues on github match: if some feature is applicable to
+both, make an issue in both, although the one in the CLI can just be a
+'see GUI' type thing.
 
 TODO: I don't really want to create a single instance application, or a single instance
 per project application -- I would rather be able to have multiple people connect
