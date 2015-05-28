@@ -6,12 +6,83 @@ interface
 
 {
 
-TODO: At this point, I think I can consider it "done for now". Just clean up
-todo's and collect them all into the issues on Github. Also look at TODO's in
-the CLI version which would indicate features that need to be added. Make sure
-the CLI and the GUI issues on github match: if some feature is applicable to
-both, make an issue in both, although the one in the CLI can just be a
-'see GUI' type thing.
+TODO: Moving TODO's over to Github.
+
+TODO: Make sure everything works well with document names that have periods and
+underscores. Examples: "I. The Call", "A scene...", "The _End_ of Eternity"
+
+TODO: Need to be able to 'pack' the index data that stores document order, removing
+references to documents which no longer exist or have been renamed.
+
+TODO: Still need a mechanism for bulk queries of documents, especially recursive
+data. This is already available in the CLI.
+
+TODO: Still need a mechanism for bulk updates of properties and some other things.
+This does not just mean "set all statuses to First Draft", I might want to do something
+like "set user.originalTitle to filename".
+
+TODO: A rename doesn't keep order. I'm fairly certain it should.
+
+TODO: The original CLI had the unfinished concept of "references", allowing you
+to link documents together. I'm not completely certain this is necessary at
+this point, the primary issue is maintaining references when documents are
+renamed or moved.
+
+TODO: The original CLI had the unfinished concept of "tags", which were a way
+to flag the data with certain attributes. Some of the things it allowed: specifying
+a color to display the document as, specifying certain structural elements of
+the document, specifying additional properties for items with a specific tag,
+etc. The tag information would be stored in a separate hierarchy in the project.
+Much of this functionality can be handled more simply using the custom
+properties, especially since I have arrays (use a set of string values and it
+essentially is a tag), but I'm not completely ready to get rid of it yet.
+
+TODO: Need to handle User Tasks.
+
+Basically, my first instinct is that these are stored in an attachment labeled
+_tasks.txt, probably using something like a todo.txt format. That way, tasks
+can be applied to specific documents, rather than be in a separate section and
+have to reference those docs (although global tasks would be available too).
+
+There would then be a "task" pane on the right side editor which lists tasks
+for the current document, as well as global tasks, sorted according to priority
+and due date.
+
+Tasks would have a priority, a start date, a due date, a description and a repetition.
+
+Priority, start and due dates and description are clear from other task systems.
+
+Repetition would cause a "finished" task to wake up again and become unfinished
+at certain intervals, resetting it's due and start dates. These kinds of tasks
+can be marked as cumulative as well, which means that if the task is already active,
+when the repetition date comes around, it will create a *new* task which has
+to be completed.
+
+Eventually, there might be a "current" task as well, which makes a task currently
+active. This might even be possibly related to a workplace setup -- which documents
+are open, etc. A status might appear in the UI to keep reminding you that this
+is what you're supposed to be doing.
+
+The task thing could actually be part of a workflow system, nudging you to keep going.
+1) A task can be associated with documents, that are opened up as soon as you start working on the task.
+2) When you start up stew, the current task will immediately pop up and ask to be worked on (this should be optional,
+in case you started up stew to open up a different project temporarily).
+3) When you close up stew for the day, it will ask you if you are done with the task or if you need to keep working on it.
+4) Tasks can be associated with "production" goals, such as word-count, file counts,
+files at a given status, etc. This is a bit more complex, since you need to give it
+a filter to watch, and it has to be able to handle document types. These goals can
+be "verified" to have the current values recalculated and determine if they've been
+reached, recorded for historical reference, compared with previous values, and come
+up with ETA's.
+5) There might also be reminders, scheduled to pop up occasionally, such as on
+start up or shut down. These could be used to help get your mind back on track,
+or to remember to write in your journal at the end of the day, etc.
+
+TODO: Need to eventually have some test programs that, run regression tests against
+code in the sys_* and stew_* namespaces. This can be done most simply by just
+having a form with a TMemo that has test results output to the memo -- at least
+until I have a CLI version that implements the AsyncQueue stuff, at which point
+I can make it a console app.
 
 TODO: I don't really want to create a single instance application, or a single instance
 per project application -- I would rather be able to have multiple people connect
@@ -34,6 +105,14 @@ TODO: I just realized that the temporary back up files are going to appear as at
 which could really make the whole data structure for the cache huge given enough
 time. But then, I also need to revisit those backups once I'm certain they're
 working.
+
+TODO: Need a wiki article on coding philosophy:
+- only use private scopes for things that can mess with the program state if
+not called appropriately. Everything else should be public, or at least protected,
+to allow the functionality to be used in novel ways.
+- avoid third-party libraries unless they are very well maintained.
+- Keep to the default user interface appearance of the desktop.
+
 
 TODO: Need to come up with a more dynamic, active layout system for Documents.
 The layout should depend on the aspect ratio of the screen as well as the size,
@@ -1089,8 +1168,6 @@ end;
 procedure TMainForm.LayoutFrames;
 begin
   // Layout and docking stuff...
-  // TODO: This is where we set up the basic layout for the application.
-  // Any changes to where things are laid out should occur here.
   LayoutFrame(TProjectManager,alLeft);
   // lay out the document pane
   LayoutDocumentPane(alClient);
