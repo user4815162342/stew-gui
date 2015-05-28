@@ -8,4 +8,7 @@ install/debian/stew-gui-linux
 install/debian/stew-gui-linux.debhelper.log
 install/debian/stew-gui-linux.substvars
 source/stewgui.lps
+<<<<<<< HEAD
 source/stewgui.res
+=======
+>>>>>>> 87d0dc8c275c0af20abbd32aa0162f3d6f1123c5

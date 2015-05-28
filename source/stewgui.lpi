@@ -17,7 +17,11 @@
       <UseVersionInfo Value="True"/>
       <AutoIncrementBuild Value="True"/>
       <MinorVersionNr Value="1"/>
+<<<<<<< HEAD
       <BuildNr Value="47"/>
+=======
+      <BuildNr Value="46"/>
+>>>>>>> 87d0dc8c275c0af20abbd32aa0162f3d6f1123c5
       <StringTable CompanyName="Town's Edge Technology, LLC" FileDescription="A manuscript management and notekeeping tool." LegalCopyright="Copyright © 2015 Neil M. Sheldon" ProductName="Stew" ProductVersion="0.1"/>
     </VersionInfo>
     <BuildModes Count="1">

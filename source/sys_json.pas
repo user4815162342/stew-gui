@@ -5,6 +5,7 @@ unit sys_json;
 interface
 
 uses
+<<<<<<< HEAD
   Classes, SysUtils, stew_types, contnrs, jsonscanner;
 
 type
@@ -1650,5 +1651,11 @@ begin
 
 end;
 
+=======
+  Classes, SysUtils;
+
+implementation
+
+>>>>>>> 87d0dc8c275c0af20abbd32aa0162f3d6f1123c5
 end.
 
