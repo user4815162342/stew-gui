@@ -4,1027 +4,1650 @@ unit sys_json;
 
 interface
 
-
-// FUTURE: This unit is basically deprecated, and really not even used anywhere.
-// I'm just keeping it around in case the stewpersist unit doesn't work out as
-// well as I think it's going to, and I want to go back to this.
-
-
 uses
-  Classes, SysUtils, fpjson, sys_localfile, stew_types;
+  Classes, SysUtils, stew_types, contnrs, jsonscanner;
 
 type
+  // TODO: Convert the stew_persist over to using this hierarchy instead of what
+  // is being done. Actually, it might just be stew_properties, as I want the
+  // properties to behave more like the attachments (see synopsis), where the
+  // data is separated from the loading/saving capability.
 
-  { TManagedJSONObject }
+  // This is a somewhat more flexible replacement for the fpjson and jsonparser units.
+  // Features available that weren't provided by the others:
+  // - More controlled creation of member-values, allowing for context-specific
+  //   custom javascript objects. Fpjson has re-assignable 'create json' functions,
+  //   but these are global, so if you want a different object to be created based
+  //   on its location in its parent, for example, it would take a lot of work.
+  // - More controlled and obvious lifetime of objects. With fpjson, assignments
+  //   of values (at least in most cases) were copied into a new object. This
+  //   meant you would suddenly have two objects where you might have been expecting
+  //   only one. In this unit, there is no way to assign non-primitive objects,
+  //   so copying is the only way, and it's clearer who manages the lifetime of
+  //   the objects.
+  // - More similarity to the way JavaScript objects work.
+  //   - in Fpjson, the default index properties of the objects were all 'integers',
+  //   while this unit and JavaScript defaults to strings.
+  //   - values are more 'dynamic'. They all support the same object map interface,
+  //   even if they aren't capable of storing properties. This allows you to
+  //   essentially create your own, completely different custom object that's not
+  //   even a descendant of TJSObject, but still is capable of handling the same
+  //   functionality.
+  // - It is possible to create 'custom objects' with native pascal properties and
+  //   functions, and have them create the appropriate values beneath them based
+  //   on property name, without having to worry about overriding the streaming
+  //   of fpjsonrtti.
 
-  TManagedJSONObject = class
+  // FUTURE: This has inspired me to recreate the entire EcmaScript standard
+  // functionality in some sort of engine. YOU MUST RESIST THIS. The primary issue with
+  // that is coming up with a garbage collection service, the rest, except
+  // things like 'eval' that require parsing language, would be simple to do.
+  // But, the intention of this unit is to represent JSON objects in pascal,
+  // not be a javascript engine.
+
+
+  TJSType = (jstUndefined, jstBoolean, jstNumber, jstString, jstObject, jstNull);
+  TJSValueClass = class of TJSValue;
+
+  { TJSValue }
+
+  TJSUndefined = class;
+  TJSNull = class;
+
+  TJSValue = class
   private
-    function GetArray(const AName: String): TJSONArray;
-    function GetBoolean(const AName: String): Boolean;
-    function GetFloat(const AName: String): TJSONFloat;
-    function GetInt64(const AName: String): Int64;
-    function GetInteger(const AName: String): Integer;
-    function GetIsNull(const AName: String): Boolean;
-    function GetItem(const aName: String; const aClass: TJSONDataClass): TJSONData; overload;
-    function GetObject(const AName: String): TJSONObject;
-    function GetString(const AName: String): TJSONStringType;
-    function GetType(const AName: String): TJSONType;
-    procedure SetArray(const AName: String; AValue: TJSONArray);
-    procedure SetBoolean(const AName: String; AValue: Boolean);
-    procedure SetFloat(const AName: String; AValue: TJSONFloat);
-    procedure SetInt64(const AName: String; AValue: Int64);
-    procedure SetInteger(const AName: String; AValue: Integer);
-    procedure SetIsNull(const AName: String; AValue: Boolean);
-    procedure SetObject(const AName: String; AValue: TJSONObject);
-    procedure SetString(const AName: String; AValue: TJSONStringType);
-    procedure SetManagedValue(const aName: String; aValue: TJSONData); overload;
+    class var fUndefined: TJSUndefined;
+    class var fNull: TJSNull;
+  private
   protected
-    function IsManaged({%H-}aPropertyName: String): boolean; virtual;
-    function GetItem(const aName: String): TJSONData; overload; virtual;
-    procedure SetItem(const aName: String; AValue: TJSONData); virtual;
-    function NeedData(aCreate: Boolean): TJSONObject; virtual; abstract;
-    procedure SetModified; virtual; abstract;
-    function FindOrDefault(const aName: String; const aDefault: TJSONFloat): TJSONFloat; overload;
-    function FindOrDefault(const aName: String; const aDefault: Integer): Integer; overload;
-    function FindOrDefault(const aName: String; const aDefault: Int64): Int64; overload;
-    function FindOrDefault(const aName: String; const aDefault: TJSONStringType): TJSONStringType; overload;
-    function FindOrDefault(const aName: String; const aDefault: Boolean): Boolean; overload;
-    function Find(const aName: String; const aType: TJSONtype): TJSONData;
-    procedure SetManagedValue(const aName: String; const aValue: TJSONFloat); overload;
-    procedure SetManagedValue(const aName: String; const aValue: Integer); overload;
-    procedure SetManagedValue(const aName: String; const aValue: Int64); overload;
-    procedure SetManagedValue(const aName: String; const aValue: TJSONStringType); overload;
-    procedure SetManagedValue(const aName: String; const aValue: Boolean); overload;
-    procedure SetManagedValueNull(const aName: String); overload;
-    procedure DeleteManagedValue(const aName: String); overload;
-    function CreateManagedObject(const aName: String): TJSONObject; overload;
-    function CreateManagedArray(const aName: String): TJSONArray; overload;
+    // override this to behave the way Javascript '"" + x' might behave
+    // for your given value.
+    function GetAsString: UTF8String; virtual; abstract;
+    // override this to behave the way Javascript 'Number(x)' might behave
+    // for your given value.
+    function GetAsNumber: Double; virtual; abstract;
+    // override this to behave the way Javascript '!!x' might behave
+    // for your given value.
+    function GetAsBoolean: Boolean; virtual; abstract;
+    // override these to handle conversion of native primitive properties values
+    // to the object when read from a stream or other source.
+    procedure SetAsBoolean(AValue: Boolean); virtual; abstract;
+    procedure SetAsNumber(AValue: Double); virtual; abstract;
+    procedure SetAsString(AValue: UTF8String); virtual; abstract;
+    // override this to behave the way Javascript 'x["key"] = y' might behave for your value of x
+    // and any value of y of the specified type. You are allowed to not create a
+    // new instance (perhaps returning the value that's already there), and return
+    // a completely different type than what is requested. Other functionality will
+    // expect it to behave like the requested type, however, so if you do this,
+    // your type should be able to accept that behavior without error. If you plan
+    // to do this, you can look at the GetTypeOf function on the requested type
+    // to find the behavior expected.
+    function CreateValue({%H-}aKey: UTF8String; {%H-}aRequestType: TJSValueClass): TJSValue; virtual; overload;
+    function CreateValue(aKey: Integer; aRequestType: TJSValueClass): TJSValue; overload;
+    // override this to handle assigning a value to the specified key. This
+    // value *should* have been created using CreateValue, so there shouldn't be
+    // any reason to expect the wrong type here.
+    function Put({%H-}aKey: UTF8String; {%H-}aValue: TJSValue): TJSValue; virtual; overload;
+    function Put(aKey: Integer; aValue: TJSValue): TJSValue; overload;
   public
-    property Item[const aName: String]: TJSONData read GetItem write SetItem; default;
-    Property JSONType[const AName: String] : TJSONType Read GetType;
-    Property Null[const AName: String] : Boolean Read GetIsNull Write SetIsNull;
-    Property Float[const AName: String] : TJSONFloat Read GetFloat Write SetFloat;
-    Property Integer[const AName: String] : Integer Read GetInteger Write SetInteger;
-    Property Int64[const AName: String] : Int64 Read GetInt64 Write SetInt64;
-    Property JSONString[const AName: String] : TJSONStringType Read GetString Write SetString;
-    Property Boolean[const AName: String] : Boolean Read GetBoolean Write SetBoolean;
-    Property JSONArray[const AName: String] : TJSONArray Read GetArray Write SetArray;
-    Property JSONObject[const AName: String] : TJSONObject Read GetObject Write SetObject;
+    constructor Create; virtual;
+    class constructor Initialize;
+    class destructor Finalize;
+    class property Undefined: TJSUndefined read fUndefined;
+    class property Null: TJSNull read fNull;
+    // override this to behave the way Javascript 'x.toString' might behave
+    // for your given value.
+    procedure Assign(aValue: TJSValue); virtual;
+    function Clone: TJSValue; virtual;
+    // override this only if you have a "custom" value, not descended from
+    // the primitives or TJSObject, and you want it to be able to be cloned
+    // to another JSObject.
+    procedure AssignTo({%H-}aTarget: TJSValue); virtual;
+    // NOTE: These are read-only because otherwise we would have to
+    // put in event handlers to catch the change when the parent object
+    // wants to know when a value has changed.
+    property AsString: UTF8String read GetAsString;
+    property AsNumber: Double read GetAsNumber;
+    property AsBoolean: Boolean read GetAsBoolean;
+    // override this to return an appropriate enumeration value from above
+    // Note that this is a 'class' function, which means that you can access
+    // it from the type definition in your overridden 'CreateValue' function.
+    class function GetTypeOf: TJSType;  virtual; abstract;
+    property TypeOf: TJSType read GetTypeOf;
+    // override this to behave the way Javascript 'Object.keys(x)' might behave
+    // for your given value.
+    function keys: TStringArray; virtual;
+    // override this to behave the way Javascript 'x.hasOwnProperty' might behave
+    // for your given value.
+    function hasOwnProperty({%H-}aKey: UTF8String): Boolean; virtual; overload;
+    function hasOwnProperty(aKey: Integer): Boolean; overload;
+    // override this to behave the way Javascript 'x["key"]' might behave for your value of x.
+    // If the call would normally return undefined, it should return nil
+    function Get({%H-}aKey: UTF8String): TJSValue; virtual; overload;
+    // override this the same way as GetValue if your object can handle integer indexes
+    function Get(aKey: Integer): TJSValue; overload;
+    // override this to behave the way Javascript 'delete x["key"]' might behave
+    // for your given value.
+    procedure delete({%H-}aKey: UTF8String); virtual; overload;
+    // override this the same way as delete if your object can handle integer
+    // keys.
+    procedure delete(aKey: Integer); overload;
+    procedure Put(aKey: UTF8String; aValue: UTF8String); virtual; overload;
+    procedure Put(aKey: Integer; aValue: UTF8String); overload;
+    procedure Put(aKey: UTF8String; aValue: Double); virtual; overload;
+    procedure Put(aKey: Integer; aValue: Double); overload;
+    procedure Put(aKey: UTF8String; aValue: Boolean); virtual; overload;
+    procedure Put(aKey: Integer; aValue: Boolean); overload;
+    // non-primitive 'puts' don't need to be virtual because their behavior
+    // can be overridden in CreateValue and PutValue. The primitive ones
+    // might need to be overridden in a way that doesn't deal with TJSValue.
+    procedure PutNull(aKey: UTF8String); overload;
+    procedure PutNull(aKey: Integer); overload;
+    procedure PutUndefined(aKey: UTF8String); overload;
+    procedure PutUndefined(aKey: Integer); overload;
+    function PutNewObject(aKey: UTF8String): TJSValue; overload;
+    function PutNewObject(aKey: Integer): TJSValue; overload;
+    function PutNewArray(aKey: UTF8String): TJSValue; overload;
+    function PutNewArray(aKey: Integer): TJSValue; overload;
   end;
 
-  { TParentedJSONObject }
+  { TJSString }
 
-  TParentedJSONObject = class(TManagedJSONObject)
+  TJSString = class(TJSValue)
   private
-    fParent: TManagedJSONObject;
-    fParentKey: String;
+    fValue: UTF8String;
   protected
-    function NeedData(aCreate: Boolean): TJSONObject; override;
-    procedure SetModified; override;
+    function GetAsBoolean: Boolean; override;
+    function GetAsNumber: Double; override;
+    function GetAsString: UTF8String; override;
+    procedure SetAsBoolean(AValue: Boolean); override;
+    procedure SetAsNumber(AValue: Double); override;
+    procedure SetAsString(AValue: UTF8String); override;
   public
-    constructor Create(aParent: TManagedJSONObject; aParentProperty: String);
+    class function GetTypeOf: TJSType; override;
+    property Value: UTF8String read fValue write fValue;
+    procedure Assign(aValue: TJSValue); override;
   end;
 
-  { TFileBackedJSONObject }
+  { TJSNumber }
 
-  TFileBackedJSONObject = class(TManagedJSONObject)
+  TJSNumber = class(TJSValue)
   private
-    fData: TJSONObject;
-    fFilename: TFilename;
-    fModified: boolean;
+    fValue: Double;
   protected
-    procedure SetModified; override;
-    function NeedData({%H-}aCreate: Boolean): TJSONObject; override;
+    function GetAsBoolean: Boolean; override;
+    function GetAsNumber: Double; override;
+    function GetAsString: UTF8String; override;
+    procedure SetAsBoolean(AValue: Boolean); override;
+    procedure SetAsNumber(AValue: Double); override;
+    procedure SetAsString(AValue: UTF8String); override;
   public
-    constructor Create(afileName: TFilename);
-    destructor Destroy; override;
-    procedure Load;
-    procedure Save;
-    property Modified: boolean read fModified;
+    class function GetTypeOf: TJSType; override;
+    property Value: Double read fValue write fValue;
+    procedure Assign(aValue: TJSValue); override;
   end;
 
-  TJSONFilingState = (jfsInactive, jfsLoading, jfsSaving);
+  { TJSBoolean }
 
-  { TAsyncFileBackedJSONObject }
-
-  TAsyncFileBackedJSONObject = class(TManagedJSONObject)
+  TJSBoolean = class(TJSValue)
   private
-    fData: TJSONObject;
-    fFilename: TFilename;
-    fFileAge: Longint;
-    fCreateDir: Boolean;
-    fModified: boolean;
-    fOnFileLoaded: TNotifyEvent;
-    fOnFileLoadFailed: TExceptionMessageEvent;
-    fOnFileSaved: TNotifyEvent;
-    fOnFileSaveFailed: TExceptionMessageEvent;
-    fOnFileSaveConflicted: TNotifyEvent;
-    fFilingState: TJSONFilingState;
+    fValue: Boolean;
   protected
-    procedure SetModified; override;
-    function NeedData({%H-}aCreate: Boolean): TJSONObject; override;
-    procedure FileLoaded(aData: TStream; aFileAge: Longint);
-    procedure FileSaved(aFileAge: Longint);
-    procedure FileLoadFailed(aError: String);
-    procedure FileSaveFailed(aError: String);
-    // File age is only passed for informational purposes, and I don't
-    // need that information here.
-    procedure FileSaveConflicted({%H-}aFileAge: Longint);
+    function GetAsBoolean: Boolean; override;
+    function GetAsNumber: Double; override;
+    function GetAsString: UTF8String; override;
+    procedure SetAsBoolean(AValue: Boolean); override;
+    procedure SetAsNumber(AValue: Double); override;
+    procedure SetAsString(AValue: UTF8String); override;
   public
-    constructor Create(afileName: TFilename; aCreateDir: Boolean = false);
-    destructor Destroy; override;
-    procedure Load;
-    // set force to true to ignore conflicts. This is usually done after
-    // an attempt to save fails due to a file time conflict and the user chooses
-    // to save anyway.
-    procedure Save(aForce: Boolean = false);
-    property Modified: boolean read fModified;
-    property OnFileLoaded: TNotifyEvent read fOnFileLoaded write fOnFileLoaded;
-    property OnFileLoadFailed: TExceptionMessageEvent read fOnFileLoadFailed write fOnFileLoadFailed;
-    property OnFileSaved: TNotifyEvent read fOnFileSaved write fOnFileSaved;
-    property OnFileSaveFailed: TExceptionMessageEvent read fOnFileSaveFailed write fOnFileSaveFailed;
-    property OnFileSaveConflicted: TNotifyEvent read fOnFileSaveConflicted write fOnFileSaveConflicted;
+    class function GetTypeOf: TJSType; override;
+    property Value: Boolean read fValue write fValue;
+    procedure Assign(aValue: TJSValue); override;
   end;
 
-  { TManagedJSONArray }
-  // This is a very basic thing. It does not provide 'unmanaged' access like
-  // the JSONObject above, because it is expected that all elements in an array
-  // be completely managed. However, the managed access is highly type-specific,
-  // so can't even be skeletoned out as an abstract (too context-specific even for
-  // generics).
+  { TJSUndefined }
+
+  // NOTE: Undefined is a singletone type. It is represented by 'nil'
+  // in the data itself, and is never actually stored.
+  TJSUndefined = class(TJSValue)
+  protected
+    function GetAsNumber: Double; override;
+    function GetAsString: UTF8String; override;
+    function GetAsBoolean: Boolean; override;
+    procedure SetAsBoolean({%H-}AValue: Boolean); override;
+    procedure SetAsNumber({%H-}AValue: Double); override;
+    procedure SetAsString({%H-}AValue: UTF8String); override;
+  public
+    constructor Create; override;
+    procedure Assign({%H-}aValue: TJSValue); override;
+    class function GetTypeOf: TJSType; override;
+  end;
+
+  { TJSNull }
+
+  TJSNull = class(TJSValue)
+  protected
+    function GetAsNumber: Double; override;
+    function GetAsString: UTF8String; override;
+    function GetAsBoolean: Boolean; override;
+    procedure SetAsBoolean({%H-}AValue: Boolean); override;
+    procedure SetAsNumber({%H-}AValue: Double); override;
+    procedure SetAsString({%H-}AValue: UTF8String); override;
+  public
+    constructor Create; override;
+    procedure Assign({%H-}aValue: TJSValue); override;
+    class function GetTypeOf: TJSType; override;
+  end;
+
+  { TJSObject }
+  // You can make "custom" objects fairly easily. Just:
+  // - create a native property that translates between Get(aKey...) and Put(aKey..)
+  // - override Put(aKey, TJSValue) to control what happens when a value is set.
+  // - override CreateValue(aKey, RequestType) to control what happens when a new value
+  //   is created.
   //
-  // I could have some sort of generic TManagedJSONData which can either take
-  // an array or an object as the data source, but the number of combinations
-  // was too complex.
-  TManagedJSONArray = class
-  private
-    procedure SetManagedValue(const aIndex: Integer; aValue: TJSONData); overload;
-  protected
-    function NeedData(aCreate: Boolean): TJSONArray; virtual; abstract;
-    procedure SetModified; virtual; abstract;
-    function FindOrDefault(const aIndex: Integer; const aDefault: TJSONFloat): TJSONFloat; overload;
-    function FindOrDefault(const aIndex: Integer; const aDefault: Integer): Integer; overload;
-    function FindOrDefault(const aIndex: Integer; const aDefault: Int64): Int64; overload;
-    function FindOrDefault(const aIndex: Integer; const aDefault: TJSONStringType): TJSONStringType; overload;
-    function FindOrDefault(const aIndex: Integer; const aDefault: Boolean): Boolean; overload;
-    function Find(const aIndex: Integer; const aType: TJSONtype): TJSONData;
-    procedure SetManagedValue(const aIndex: Integer; const aValue: TJSONFloat); overload;
-    procedure SetManagedValue(const aIndex: Integer; const aValue: Integer); overload;
-    procedure SetManagedValue(const aIndex: Integer; const aValue: Int64); overload;
-    procedure SetManagedValue(const aIndex: Integer; const aValue: TJSONStringType); overload;
-    procedure SetManagedValue(const aIndex: Integer; const aValue: Boolean); overload;
-    procedure SetManagedValueNull(const aIndex: Integer); overload;
-    procedure DeleteManagedValue(const aIndex: Integer); overload;
-    function CreateManagedObject(const aIndex: Integer): TJSONObject; overload;
-    function CreateManagedArray(const aIndex: Integer): TJSONArray; overload;
-  end;
+  // I considered making a "persistent" JSObject which automatically managed
+  // published properties in the manner above, but complications arose when I
+  // tried to abstract TJSValues as delphi native primitive types.
 
-  { TParentedJSONArray }
-
-  TParentedJSONArray = class(TManagedJSONArray)
+  TJSObject = class(TJSValue)
   private
-    fParent: TManagedJSONObject;
-    fParentKey: String;
+    fList: TFPHashObjectList;
   protected
-    function NeedData(aCreate: Boolean): TJSONArray; override;
-    procedure SetModified; override;
+    function Put(aKey: UTF8String; aValue: TJSValue): TJSValue; override;
+    function GetAsBoolean: Boolean; override;
+    function GetAsNumber: Double; override;
+    function GetAsString: UTF8String; override;
+    procedure SetAsBoolean({%H-}AValue: Boolean); override;
+    procedure SetAsNumber({%H-}AValue: Double); override;
+    procedure SetAsString({%H-}AValue: UTF8String); override;
+    function CreateValue({%H-}aKey: UTF8String; aType: TJSValueClass): TJSValue;
+       override; overload;
   public
-    constructor Create(aParent: TManagedJSONObject; aParentProperty: String);
+    constructor Create; override;
+    destructor Destroy; override;
+    class function GetTypeOf: TJSType; override;
+    procedure Assign(aValue: TJSValue); override;
+    // override this to behave the way Javascript 'Object.keys(x)' might behave
+    // for your given value.
+    function keys: TStringArray; override;
+    // override this to behave the way Javascript 'x.hasOwnProperty' might behave
+    // for your given value.
+    function hasOwnProperty(aKey: UTF8String): Boolean; override; overload;
+    // override this to behave the way Javascript 'delete x["key"]' might behave
+    // for your given value.
+    procedure delete(aKey: UTF8String); override; overload;
+    // override this to behave the way Javascript 'x["key"]' might behave for your value of x.
+    // If the call would normally return undefined, it should return nil
+    function Get(aKey: UTF8String): TJSValue; override; overload;
+    function Move(aKey: UTF8String; aNewOwner: TJSObject; aNewKey: UTF8String
+      ): TJSValue; overload;
   end;
 
+  { TJSArray }
+  TJSArray = class(TJSObject)
+  private
+  protected
+    function Put(aKey: UTF8String; aValue: TJSValue): TJSValue; override; overload;
+    procedure SetLength(AValue: Integer);
+    function GetLength: Integer;
+    function GetAsNumber: Double; override;
+    function GetAsString: UTF8String; override;
+    function GetAsBoolean: Boolean; override;
+  public
+    const LengthKey: UTF8String = 'length';
+    constructor Create; override;
+    destructor Destroy; override;
+    property Length: Integer read GetLength write SetLength;
+    function Join(sep: UTF8String = ','): UTF8String;
+  end;
 
+  { TJSONParser }
+
+  TJSONParser = class
+  private
+    fScanner: TJSONScanner;
+  public type
+    TCreateJSValueFunction = function(aKey: UTF8String; aRequestType: TJSValueClass): TJSValue of object;
+  protected
+    procedure SkipWhitespace;
+    function DefaultCreator({%H-}aKey: UTF8String; aRequestType: TJSValueClass): TJSValue;
+  public
+    constructor Create(aStream: TStream);
+    destructor Destroy; override;
+    function Parse: TJSValue;
+    function Parse(aCreationName: UTF8String; aCreator: TCreateJSValueFunction
+      ): TJSValue;
+    procedure Parse(aTarget: TJSValue);
+    procedure ParseString(aTarget: TJSValue);
+    procedure ParseNumber(aTarget: TJSValue);
+    procedure ParseBoolean(aTarget: TJSValue);
+    procedure ParseNull;
+    procedure ParseObject(aTarget: TJSValue);
+    procedure ParseArray(aTarget: TJSValue);
+  end;
+
+  function JSStringToNumber(aValue: UTF8String): Double;
+  function JSStringToBoolean(aValue: UTF8String): Boolean;
+  function JSNumberToString(aValue: Double): UTF8String;
+  function JSNumbertoBoolean(aValue: Double): Boolean;
+  function JSBooleanToString(aValue: Boolean): UTF8String;
+  function JSBooleanToNumber(aValue: Boolean): Double;
+
+  // writes the data from a value to a stream.
+  procedure ToJSON(aObject: TJSValue; aStream: TStream; aSpace: UTF8String = '');
+  function ToJSON(aObject: TJSValue; aSpace: UTF8String = ''): UTF8String;
+  function FromJSON(aClass: TJSValueClass; aStream: TStream): TJSValue;
+  procedure FromJSON(aObject: TJSValue; aStream: TStream);
+  function FromJSON(aClass: TJSValueClass; aData: UTF8String): TJSValue;
+  procedure FromJSON(AObject: TJSVAlue; aData: UTF8String);
+  function FromJSON(aData: UTF8String): TJSValue;
+  function FromJSON(aStream: TStream): TJSValue;
+
+  const NullText: UTF8String = 'null';
+  const TrueText: UTF8String = 'true';
+  const FalseText: UTF8String = 'false';
 
 implementation
 
 uses
-  jsonparser, math;
+  math;
 
-{ TAsyncFileBackedJSONObject }
-
-procedure TAsyncFileBackedJSONObject.FileLoaded(aData: TStream; aFileAge: Longint);
-var
-  parser : TJSONParser;
-  fileContents : TJSONData;
+function JSStringToNumber(aValue: UTF8String): Double;
 begin
-  if (aData = nil) then
-  begin
-    // the file does not exist yet, so create a blank data object.
-    fData := TJSONObject.Create;
-    fFileAge := aFileAge;
-    // set it modified so that when it saves it creates an empty file.
-    SetModified;
-  end
+  if Trim(aValue) = '' then
+     result := 0
+  else if not TryStrToFloat(aValue,result) then
+     result := math.NaN;
+end;
+
+function JSStringToBoolean(aValue: UTF8String): Boolean;
+begin
+  result := aValue <> '';
+end;
+
+function JSNumberToString(aValue: Double): UTF8String;
+begin
+  result := FloatToStr(aValue);
+end;
+
+function JSNumbertoBoolean(aValue: Double): Boolean;
+begin
+  result := aValue <> 0;
+end;
+
+function JSBooleanToString(aValue: Boolean): UTF8String;
+begin
+  if aValue then
+     result := TrueText
   else
+     result := FalseText;
+end;
+
+function JSBooleanToNumber(aValue: Boolean): Double;
+begin
+  result := ord(aValue);
+end;
+
+procedure ToJSON(aObject: TJSValue; aStream: TStream; aSpace: UTF8String = '');
+var
+  lStack: TList;
+  lIndent: UTF8String;
+  lGap: UTF8String;
+
+  procedure Write(aValue: UTF8String);
   begin
-    parser := TJSONParser.Create(aData);
-    try
-      fileContents := parser.Parse;
-      if fileContents is TJSONObject then
-      begin
-        FreeAndNil(fData);
-        fData := fileContents as TJSONObject;
-        fFileAge := aFileAge;
-        fModified := false;
-      end
-      else
-      begin
-        FreeAndNil(fileContents);
-        raise Exception.Create('Application config did not contain a valid JSON object.');
+    aStream.Write(aValue[1],Length(aValue));
+  end;
+
+  procedure WriteValue(aValue: TJSValue); forward;
+
+  procedure WriteQuote(aValue: UTF8String);
+  var
+    lText: UTF8String;
+    i: Integer;
+    c: Char;
+  begin
+    lText := '"';
+    for i := 1 to Length(aValue) do
+    begin
+      c := aValue[i];
+      case c of
+        '"','\':
+          lText := lText + '\' + c;
+        #$08,#$0C,#$0A,#$0D,#$09:
+        begin
+          lText := lText + '\';
+          case c of
+            #$08:
+              lText := lText + 'b';
+            #$0C:
+              lText := lText + 'f';
+            #$0A:
+              lText := lText + 'n';
+            #$0D:
+              lText := lText + 'r';
+            #$09:
+              lText := lText + 't';
+          end;
+        end;
+        else if c < ' ' then
+        begin
+          lText := lText +  '\' + 'u' + hexStr(ord(c),4);
+        end
+        else
+          lText := lText + c;
+
       end;
-    finally
-      parser.Free;
     end;
+    lText := lText + '"';
+    Write(lText);
   end;
-  if fOnFileLoaded <> nil then
-    fOnFileLoaded(Self);
-  fFilingState := jfsInactive;
-end;
 
-procedure TAsyncFileBackedJSONObject.FileSaved(aFileAge: Longint);
-begin
-  fModified := false;
-  fFileAge := aFileAge;
-  if fOnFileSaved <> nil then
-    fOnFileSaved(Self);
-  fFilingState := jfsInactive;
-end;
-
-procedure TAsyncFileBackedJSONObject.FileLoadFailed(aError: String);
-begin
-  if fOnFileLoadFailed <> nil then
-    fOnFileLoadFailed(Self,aError);
-  fFilingState := jfsInactive;
-end;
-
-procedure TAsyncFileBackedJSONObject.FileSaveFailed(aError: String);
-begin
-  if fOnFileSaveFailed <> nil then
-    fOnFileSaveFailed(Self,aError);
-  fFilingState := jfsInactive;
-end;
-
-procedure TAsyncFileBackedJSONObject.FileSaveConflicted(aFileAge: Longint);
-begin
-  if fOnFileSaveConflicted <> nil then
-    fOnFileSaveConflicted(Self)
-  else if fOnFileSaveFailed <> nil then
-    fOnFileSaveFailed(Self,'File could not be saved because it was changed on disk since the last save');
-  fFilingState := jfsInactive;
-end;
-
-procedure TAsyncFileBackedJSONObject.SetModified;
-begin
-  if not fModified then
+  procedure WriteObject(aValue: TJSObject);
+  var
+    lStepback: UTF8String;
+    lKeys: TStringArray;
+    lPropsWritten: Boolean;
+    lHeader: UTF8String;
+    lSeparator: UTF8String;
+    lFooter: UTF8String;
+    lKey: UTF8String;
+    i: Integer;
+    lItem: TJSValue;
   begin
-    fModified := true;
-  end;
-end;
+    if lStack.IndexOf(aValue) > -1 then
+       raise Exception.Create('Cyclical JSON is not allowed');
+    lStack.Add(aValue);
+    lStepback := lIndent;
+    lIndent := lIndent + lGap;
+    lKeys := aValue.keys;
+    lPropsWritten := false;
 
-function TAsyncFileBackedJSONObject.NeedData(aCreate: Boolean): TJSONObject;
-begin
-  if (fData = nil)  then
-    raise Exception.Create('JSON file must be loaded before it can be accessed');
-  result := fData;
-end;
-
-constructor TAsyncFileBackedJSONObject.Create(afileName: TFilename;
-  aCreateDir: Boolean);
-begin
-  inherited Create;
-  fData := nil; // starts off blank until loaded.
-  fModified := false;
-  fFilename := afileName;
-  fCreateDir := aCreateDir;
-  fFileAge := -1; // indicates that this might be a new file.
-end;
-
-destructor TAsyncFileBackedJSONObject.Destroy;
-begin
-  if fData <> nil then
-    FreeAndNil(fData);
-end;
-
-procedure TAsyncFileBackedJSONObject.Load;
-begin
-  if fFilingState = jfsInactive then
-     LocalFile(fFilename).Read(@FileLoaded,@FileLoadFailed)
-  else if fFilingState = jfsSaving then
-     raise Exception.Create('Can''t load JSON data while saving.');
-  // otherwise, already loading, so ignore.
-end;
-
-procedure TAsyncFileBackedJSONObject.Save(aForce: Boolean = false);
-var
-  text: UTF8String;
-begin
-  if Modified then
-  begin
-    if fFilingState = jfsInactive then
+    if lGap = '' then
     begin
-      fFilingState := jfsSaving;
-      text := UTF8String(fData.FormatJSON());
-      LocalFile(fFilename).Write(fCreateDir and (fFileAge = -1),not aForce,fFileAge,text,@FileSaved,@FileSaveConflicted,@FileSaveFailed);
-
+      lHeader := '';
+      lSeparator := ',';
+      lFooter := '';
     end
-    else if fFilingState = jfsLoading then
-      raise Exception.Create('Can''t save JSON data while still loading.');
-    // otherwise, already saving, so don't worry about it.
-  end;
-end;
-
-{ TParentedJSONArray }
-
-function TParentedJSONArray.NeedData(aCreate: Boolean): TJSONArray;
-begin
-  if fparent <> nil then
-  begin
-    result := fparent.Find(fParentKey,jtArray) as TJSONArray;
-    if (result = nil) and aCreate then
+    else
     begin
-      result := fParent.CreateManagedArray(fParentKey);
+      lHeader := #10 + lIndent;
+      lSeparator := ',' + #10 + lIndent;
+      lFooter := #10 + lStepback;
     end;
-  end
-  else
-  begin
-    raise Exception.Create('Can''t create data. Parent JSON manager isn''t set.');
-  end;
-end;
 
-procedure TParentedJSONArray.SetModified;
-begin
-  if fparent <> nil then
-  begin
-    fparent.SetModified;
-  end;
-end;
+    Write('{');
 
-constructor TParentedJSONArray.Create(aParent: TManagedJSONObject;
-  aParentProperty: String);
-begin
-  inherited Create;
-  fparent := aParent;
-  fParentKey := aParentProperty;
-end;
-
-{ TManagedJSONArray }
-
-procedure TManagedJSONArray.SetManagedValue(const aIndex: Integer;
-  aValue: TJSONData);
-var
-  aData: TJSONArray;
-begin
-  aData := NeedData(true);
-  if AValue <> nil then
-  begin
-    adata[aIndex] := AValue;
-  end
-  else
-  begin
-    adata.Delete(aIndex);
-  end;
-  SetModified;
-end;
-
-function TManagedJSONArray.FindOrDefault(const aIndex: Integer;
-  const aDefault: TJSONFloat): TJSONFloat;
-var
-  answer: TJSONData;
-begin
-  answer := Find(aIndex,jtNumber);
-  if (answer <> nil) then
-  begin
-    result := answer.AsFloat;
-  end
-  else
-  begin
-    result := aDefault;
-  end;
-end;
-
-function TManagedJSONArray.FindOrDefault(const aIndex: Integer;
-  const aDefault: Integer): Integer;
-var
-  answer: TJSONData;
-begin
-  answer := Find(aIndex,jtNumber);
-  if (answer <> nil) then
-  begin
-    result := answer.AsInteger;
-  end
-  else
-  begin
-    result := aDefault;
-  end;
-end;
-
-function TManagedJSONArray.FindOrDefault(const aIndex: Integer;
-  const aDefault: Int64): Int64;
-var
-  answer: TJSONData;
-begin
-  answer := Find(aIndex,jtNumber);
-  if (answer <> nil) then
-  begin
-    result := answer.AsInt64;
-  end
-  else
-  begin
-    result := aDefault;
-  end;
-end;
-
-function TManagedJSONArray.FindOrDefault(const aIndex: Integer;
-  const aDefault: TJSONStringType): TJSONStringType;
-var
-  answer: TJSONData;
-begin
-  answer := Find(aIndex,jtString);
-  if (answer <> nil) then
-  begin
-    result := answer.AsString;
-  end
-  else
-  begin
-    result := aDefault;
-  end;
-end;
-
-function TManagedJSONArray.FindOrDefault(const aIndex: Integer;
-  const aDefault: Boolean): Boolean;
-var
-  answer: TJSONData;
-begin
-  answer := Find(aIndex,jtBoolean);
-  if (answer <> nil) then
-  begin
-    result := answer.AsBoolean;
-  end
-  else
-  begin
-    result := aDefault;
-  end;
-end;
-
-function TManagedJSONArray.Find(const aIndex: Integer; const aType: TJSONtype
-  ): TJSONData;
-var
-  aData: TJSONArray;
-begin
-  result := nil;
-  aData := NeedData(false);
-  if (aData <> nil) and (aIndex >= 0) and (aIndex < aData.Count) then
-  begin
-    result := aData[aIndex];
-    if result.JSONType <> aType then
+    for i := 0 to Length(lKeys) - 1 do
     begin
-      result := nil;
+      lKey := lKeys[i];
+      lItem := aValue.Get(lKey);
+      if lItem <> TJSValue.Undefined then
+      begin
+        if i = 0 then
+          Write(lHeader)
+        else
+          Write(lSeparator);
+        WriteQuote(lKey);
+        if lGap <> '' then
+          Write(': ')
+        else
+          Write(':');
+        WriteValue(lItem);
+        lPropsWritten := true;
+      end;
     end;
+
+
+    if lPropsWritten then
+       Write(lFooter);
+    Write('}');
+
+
+    lStack.Delete(lStack.Count - 1);
+    lIndent := lStepback;
+  end;
+
+  procedure WriteArray(aValue: TJSArray);
+  var
+    lStepback: UTF8String;
+    lItemsWritten: Boolean;
+    lHeader: UTF8String;
+    lSeparator: UTF8String;
+    lFooter: UTF8String;
+    lArrLen: Integer;
+    i: Integer;
+    lItem: TJSValue;
+  begin
+    if lStack.IndexOf(aValue) > -1 then
+       raise Exception.Create('Cyclical JSON is not allowed');
+    lStack.Add(aValue);
+    lStepback := lIndent;
+    lIndent := lIndent + lGap;
+    lItemsWritten := false;
+
+    if lGap = '' then
+    begin
+      lHeader := '';
+      lSeparator := ',';
+      lFooter := '';
+    end
+    else
+    begin
+      lHeader := #10 + lIndent;
+      lSeparator := ',' + #10 + lIndent;
+      lFooter := #10 + lStepback;
+    end;
+
+    Write('[');
+
+    lArrLen := aValue.Length;
+    for i := 0 to lArrLen - 1 do
+    begin
+      if i = 0 then
+        Write(lHeader)
+      else
+        Write(lSeparator);
+      lItem := aValue.Get(i);
+      if lItem = TJSValue.Undefined then
+        Write(NullText)
+      else
+        WriteValue(lItem);
+      lItemsWritten := true;
+    end;
+
+    if lItemsWritten then
+       Write(lFooter);
+    Write(']');
+
+    lStack.Delete(lStack.Count - 1);
+    lIndent := lStepback;
+
+  end;
+
+  procedure WriteValue(aValue: TJSValue);
+  begin
+    case aValue.TypeOf of
+      jstUndefined:;
+      jstNull:
+        Write(NullText);
+      jstBoolean:
+      begin
+        if aValue.AsBoolean then
+          Write(TrueText)
+        else
+          Write(FalseText);
+      end;
+      jstString:
+        WriteQuote(aValue.AsString);
+      jstNumber:
+      begin
+        if (aValue.AsNumber = math.NaN) or (aValue.AsNumber = math.Infinity) then
+          Write(NullText)
+        else
+          Write(aValue.AsString);
+      end;
+      jstObject:
+      if aValue is TJSArray then
+        WriteArray(aValue as TJSArray)
+      else if aValue is TJSObject then
+        WriteObject(aValue as TJSObject);
+
+    end;
+
+  end;
+
+begin
+  lStack := TList.Create;
+  try
+    lIndent := '';
+    // Per EcmaScript specs, the longest indent is 10 characters.
+    // I'm doing a sanity filter by also making sure the string is only
+    // spaces, and not something else.
+    lGap := StringOfChar(' ',math.Min(Length(aSpace),10));
+    WriteValue(aObject);
+  finally
+    lStack.Free;
   end;
 end;
 
-procedure TManagedJSONArray.SetManagedValue(const aIndex: Integer;
-  const aValue: TJSONFloat);
+function ToJSON(aObject: TJSValue; aSpace: UTF8String): UTF8String;
+var
+  lOutput: TStringStream;
 begin
-  SetManagedValue(aIndex,TJSONFloatNumber.Create(aValue));
+  lOutput := TStringStream.Create('');
+  try
+    ToJSON(aObject,lOutput,aSpace);
+    Result := lOutput.DataString;
+  finally
+    lOutput.Free;
+  end;
 
 end;
 
-procedure TManagedJSONArray.SetManagedValue(const aIndex: Integer;
-  const aValue: Integer);
+function FromJSON(aClass: TJSValueClass; aStream: TStream): TJSValue;
 begin
-  SetManagedValue(aIndex,TJSONIntegerNumber.Create(aValue));
+  result := aClass.Create;
+  FromJSON(result,aStream);
 end;
 
-procedure TManagedJSONArray.SetManagedValue(const aIndex: Integer;
-  const aValue: Int64);
+procedure FromJSON(aObject: TJSValue; aStream: TStream);
+var
+  lParser: TJSONParser;
 begin
-  SetManagedValue(aIndex,TJSONInt64Number.Create(aValue));
+  lParser := TJSONParser.Create(aStream);
+  try
+    lParser.Parse(aObject);
+  finally
+    lParser.Free;
+  end;
 end;
 
-procedure TManagedJSONArray.SetManagedValue(const aIndex: Integer;
-  const aValue: TJSONStringType);
+function FromJSON(aClass: TJSValueClass; aData: UTF8String): TJSValue;
+var
+  lInput: TStringStream;
 begin
-  SetManagedValue(aIndex,TJSONString.Create(aValue));
+  lInput := TStringStream.Create(aData);
+  try
+    result := FromJSON(aClass,lInput);
+  finally
+    lInput.Free;
+  end;
+
 end;
 
-procedure TManagedJSONArray.SetManagedValue(const aIndex: Integer;
-  const aValue: Boolean);
+procedure FromJSON(AObject: TJSVAlue; aData: UTF8String);
+var
+  lInput: TStringStream;
 begin
-  SetManagedValue(aIndex,TJSONBoolean.Create(aValue));
+  lInput := TStringStream.Create(aData);
+  try
+    FromJSON(aObject,lInput);
+  finally
+    lInput.Free;
+  end;
+
 end;
 
-procedure TManagedJSONArray.SetManagedValueNull(const aIndex: Integer);
+function FromJSON(aData: UTF8String): TJSValue;
+var
+  lInput: TStringStream;
 begin
-  SetManagedValue(aIndex,TJSONNull.Create);
+  lInput := TStringStream.Create(aData);
+  try
+    result := FromJSON(lInput);
+  finally
+    lInput.Free;
+  end;
+
 end;
 
-procedure TManagedJSONArray.DeleteManagedValue(const aIndex: Integer);
+function FromJSON(aStream: TStream): TJSValue;
+var
+  lParser: TJSONParser;
 begin
-  SetManagedValue(aIndex,nil);
+  lParser := TJSONParser.Create(aStream);
+  try
+    result := lParser.Parse;
+  finally
+    lParser.Free;
+  end;
 end;
 
-function TManagedJSONArray.CreateManagedObject(const aIndex: Integer): TJSONObject;
+{ TJSONParser }
+
+procedure TJSONParser.SkipWhitespace;
 begin
-  result := TJSONObject.Create;
-  SetManagedValue(aIndex,Result);
+  while fScanner.CurToken = tkWhitespace do
+    fScanner.FetchToken;
 end;
 
-function TManagedJSONArray.CreateManagedArray(const aIndex: Integer): TJSONArray;
+procedure TJSONParser.ParseString(aTarget: TJSValue);
 begin
-  result := TJSONArray.Create;
-  SetManagedValue(aIndex,Result);
-end;
-
-{ TParentedJSONObject }
-
-function TParentedJSONObject.NeedData(aCreate: Boolean): TJSONObject;
-begin
-  if fparent <> nil then
+  SkipWhitespace;
+  if fScanner.CurToken = tkString then
   begin
-    result := fparent.Find(fParentKey,jtObject) as TJSONObject;
-    if (result = nil) and aCreate then
-    begin
-      result := fParent.CreateManagedObject(fParentKey);
-    end;
+    aTarget.SetAsString(fScanner.CurTokenString);
+    fScanner.FetchToken;
   end
   else
+    raise Exception.Create('Expected string');
+end;
+
+procedure TJSONParser.ParseNumber(aTarget: TJSValue);
+begin
+  SkipWhitespace;
+  if fScanner.CurToken = tkNumber then
   begin
-    raise Exception.Create('Can''t create data. Parent JSON manager isn''t set.');
-  end;
+    aTarget.SetAsString(fScanner.CurTokenString);
+    fScanner.FetchToken;
+  end
+  else
+    raise Exception.Create('Expected number');
+
 end;
 
-procedure TParentedJSONObject.SetModified;
+procedure TJSONParser.ParseBoolean(aTarget: TJSValue);
 begin
-  if fparent <> nil then
+  SkipWhitespace;
+  if fScanner.CurToken in [tkTrue,tkFalse] then
   begin
-    fparent.SetModified;
-  end;
+    aTarget.SetAsBoolean(fScanner.CurToken = tkTrue);
+    fScanner.FetchToken;
+  end
+  else
+    raise Exception.Create('Expected boolean');
+
 end;
 
-constructor TParentedJSONObject.Create(aParent: TManagedJSONObject;
-  aParentProperty: String);
+procedure TJSONParser.ParseNull;
 begin
-  inherited Create;
-  fparent := aParent;
-  fParentKey := aParentProperty;
+  SkipWhitespace;
+  if fScanner.CurToken = tkNull then
+    fScanner.FetchToken
+  else
+    raise Exception.Create('Expected null');
+
 end;
 
-{ TFileBackedJSONObject }
-
-procedure TFileBackedJSONObject.SetModified;
+procedure TJSONParser.ParseObject(aTarget: TJSValue);
+var
+  lKey: UTF8String;
+  lValue: TJSValue;
 begin
-  if not fModified then
+  SkipWhitespace;
+  if fScanner.CurToken <> tkCurlyBraceOpen then
+    raise Exception.Create('Expected object open');
+  fScanner.FetchToken;
+  SkipWhitespace;
+  // look for a property
+  while not (fScanner.CurToken in [tkCurlyBraceClose,tkEOF]) do
   begin
-    fModified := true;
+    if fScanner.CurToken <> tkString then
+      raise Exception.Create('Expected property name');
+    lKey := fScanner.CurTokenString;
+    fScanner.FetchToken;
+    SkipWhitespace;
+    if fScanner.CurToken <> tkColon then
+      raise Exception.Create('Expected colon');
+    fScanner.FetchToken;
+    lValue := Parse(lKey,@aTarget.CreateValue);
+    aTarget.Put(lKey,lValue);
+    SkipWhitespace;
+    if fScanner.CurToken = tkComma then
+      SkipWhitespace
+    else if fScanner.CurToken <> tkCurlyBraceClose then
+      raise Exception.Create('Expected comma');
   end;
+  if fScanner.CurToken <> tkCurlyBraceClose then
+    raise Exception.Create('Expected object close');
+  fScanner.FetchToken;
+
 end;
 
-function TFileBackedJSONObject.NeedData(aCreate: Boolean): TJSONObject;
+procedure TJSONParser.ParseArray(aTarget: TJSValue);
+var
+  lKey: Integer;
+  lValue: TJSValue;
 begin
-  if (fData = nil)  then
-    raise Exception.Create('JSON file must be loaded before it can be accessed');
-  result := fData;
+  SkipWhitespace;
+  if fScanner.CurToken <> tkSquaredBraceOpen then
+    raise Exception.Create('Expected array open');
+  fScanner.FetchToken;
+  // look for a item
+  lKey := 0;
+  while not (fScanner.CurToken in [tkSquaredBraceClose,tkEOF]) do
+  begin
+    lValue := Parse(IntToStr(lKey),@aTarget.CreateValue);
+    aTarget.Put(lKey,lValue);
+    SkipWhitespace;
+    if fScanner.CurToken = tkComma then
+    begin
+      fScanner.FetchToken;
+      lKey := lKey + 1;
+    end
+    else if fScanner.CurToken <> tkSquaredBraceClose then
+      raise Exception.Create('Expected comma');
+  end;
+  if fScanner.CurToken <> tkSquaredBraceClose then
+    raise Exception.Create('Expected array close');
+  fScanner.FetchToken;
+
 end;
 
-constructor TFileBackedJSONObject.Create(afileName: TFilename);
+function TJSONParser.DefaultCreator(aKey: UTF8String;
+  aRequestType: TJSValueClass): TJSValue;
 begin
-  inherited Create;
-  fFilename := afileName;
-  fData := nil;
+  result := aRequestType.Create;
 end;
 
-destructor TFileBackedJSONObject.Destroy;
+constructor TJSONParser.Create(aStream: TStream);
 begin
-  if fData <> nil then
-    FreeAndNil(fData);
+  fScanner := TJSONScanner.Create(aStream,true);
+  fScanner.Strict := true;
+end;
+
+destructor TJSONParser.Destroy;
+begin
+  FreeAndNil(fScanner);
   inherited Destroy;
 end;
 
-procedure TFileBackedJSONObject.Load;
-var
-  parser : TJSONParser;
-  fileContents : TJSONData;
-  stream : TFileStream;
+function TJSONParser.Parse: TJSValue;
 begin
-  If Not FileExists(fFileName) then
+  result := Parse('',@DefaultCreator);
+end;
+
+function TJSONParser.Parse(aCreationName: UTF8String; aCreator: TCreateJSValueFunction): TJSValue;
+begin
+  Skipwhitespace;
+  case fScanner.CurToken of
+    tkEOF:
+      raise Exception.Create('Unexpected end of file');
+    //tkWhitespace,
+    tkString:
+    begin
+      result := aCreator(aCreationName,TJSString);
+      ParseString(result);
+    end;
+    tkNumber:
+    begin
+      result := aCreator(aCreationName,TJSNumber);
+      ParseNumber(result);
+    end;
+    tkTrue, tkFalse:
+    begin
+      result := aCreator(aCreationName,TJSBoolean);
+      ParseBoolean(result);
+    end;
+    tkNull:
+    begin
+      result := aCreator(aCreationName,TJSNull);
+      ParseNull;
+    end;
+    // Simple (one-character) tokens
+    tkComma:
+      raise Exception.Create('Unexpected comma in file');
+    tkColon:
+      raise Exception.Create('Unexpected colon in file');
+    tkCurlyBraceOpen:
+    begin
+      result := aCreator(aCreationName,TJSObject);
+      ParseObject(result as TJSObject);
+    end;
+    tkCurlyBraceClose:
+      raise Exception.Create('Unexpected end of object in file');
+    tkSquaredBraceOpen:
+    begin
+      result := aCreator(aCreationName,TJSArray);
+      ParseArray(result as TJSObject);
+    end;
+    tkSquaredBraceClose:
+      raise Exception.Create('Unexpected end of array in file');
+    tkIdentifier:
+      raise Exception.Create('Unexpected identifier in file (only strict JSON is allowed)');
+    tkUnknown:
+      raise Exception.Create('Unknown token in file');
+  end;
+end;
+
+procedure TJSONParser.Parse(aTarget: TJSValue);
+begin
+  SkipWhitespace;
+  case aTarget.TypeOf of
+    jstUndefined:;
+    jstNull:
+      ParseNull;
+    jstBoolean:
+      ParseBoolean(aTarget);
+    jstNumber:
+      ParseNumber(aTarget);
+    jstString:
+      ParseString(aTarget);
+    jstObject:
+      if aTarget is TJSArray then
+         ParseArray(aTarget as TJSObject)
+      else
+         ParseObject(aTarget as TJSObject);
+  end;
+
+end;
+
+{ TJSArray }
+
+function TJSArray.Put(aKey: UTF8String; aValue: TJSValue): TJSValue;
+var
+  lOldLength: Integer;
+  lNewLength: Integer;
+  lIndex: Integer;
+begin
+  lOldLength := Length;
+  if aKey = LengthKey then
   begin
-    fData := TJSONObject.Create;
-    // set it modified so that save will create the new file.
-    SetModified;
-  end
-  else
-  begin
-    stream := TFileStream.Create(fFilename,fmOpenRead or fmShareDenyWrite);
-    try
-      parser := TJSONParser.Create(stream);
+    lNewLength := Trunc(aValue.AsNumber);
+    if lNewLength <> aValue.AsNumber then
+       raise Exception.Create('Length value is out of range');
+    aValue.SetAsNumber(lNewLength);
+    while lNewLength < lOldLength do
+    begin
+      lOldLength := lOldLength - 1;
       try
-        fileContents := parser.Parse;
-        if fileContents is TJSONObject then
-        begin
-          FreeAndNil(fData);
-          fData := fileContents as TJSONObject;
-          fModified := false;
-        end
-        else
-        begin
-          FreeAndNil(fileContents);
-          raise Exception.Create('Application config did not contain a valid JSON object.');
-        end;
-      finally
-        parser.Free;
+         delete(lOldLength);
+      except
+        aValue.SetAsNumber(lOldLength + 1);
+        result := inherited Put(aKey,aValue);
+        raise;
       end;
 
-    finally
-      stream.Free;
     end;
-  end;
-
-end;
-
-procedure TFileBackedJSONObject.Save;
-var
-  stream: TFileStream;
-  text: UTF8String;
-begin
-  if Modified then
+    result := inherited Put(aKey,aValue);
+  end
+  else if TryStrToInt(aKey,lIndex) then
   begin
-    if not DirectoryExists(ExtractFileDir(fFilename)) then
-    begin
-      ForceDirectories(ExtractFileDir(fFilename));
-    end;
-    stream := TFileStream.Create(fFilename,fmCreate);
-    try
-      text := UTF8String(fData.FormatJSON());
-      stream.Write(text[1],Length(text));
-      fModified := False;
-    finally
-      stream.Free;
-    end;
+    result := inherited Put(aKey,aValue);
+    if lIndex > lOldLength then
+       Put(LengthKey,lIndex + 1);
 
-  end;
-
-end;
-
-{ TManagedJSONObject }
-
-function TManagedJSONObject.GetArray(const AName: String): TJSONArray;
-begin
-  result := GetItem(aName,TJSONArray) as TJSONArray;
-
-end;
-
-function TManagedJSONObject.GetBoolean(const AName: String): Boolean;
-var
-  answer: TJSONBoolean;
-begin
-  answer := GetItem(AName,TJSONBoolean) as TJSONBoolean;
-  result := (answer <> nil) and (answer.AsBoolean);
-end;
-
-function TManagedJSONObject.GetFloat(const AName: String): TJSONFloat;
-var
-  answer: TJSONNumber;
-begin
-  answer := GetItem(AName,TJSONNumber) as TJSONNumber;
-  if (answer <> nil) then
-  begin
-     result := (answer.AsFloat)
   end
   else
-  begin
-    result := NaN;
-  end;
+    result := inherited Put(aKey,aValue);
 
 end;
 
-function TManagedJSONObject.GetInt64(const AName: String): Int64;
-var
-  answer: TJSONNumber;
+procedure TJSArray.SetLength(AValue: Integer);
 begin
-  answer := GetItem(AName,TJSONNumber) as TJSONNumber;
-  if (answer <> nil) then
+  Put(LengthKey,AValue);
+end;
+
+function TJSArray.GetLength: Integer;
+begin
+  result := Trunc(Get(LengthKey).AsNumber);
+end;
+
+constructor TJSArray.Create;
+begin
+  inherited Create;
+  SetLength(0);
+end;
+
+destructor TJSArray.Destroy;
+begin
+  inherited Destroy;
+end;
+
+function TJSArray.GetAsNumber: Double;
+begin
+  // yes, this is the way the EcmaScript spec says it happens.
+  result := JSStringToNumber(GetAsString);
+end;
+
+function TJSArray.GetAsString: UTF8String;
+begin
+  result := Join;
+end;
+
+function TJSArray.GetAsBoolean: Boolean;
+begin
+  result := true;
+end;
+
+function TJSArray.Join(sep: UTF8String): UTF8String;
+var
+  len: Integer;
+  element0: TJSValue;
+  element: TJSValue;
+  k: Integer;
+  R: UTF8String;
+  S: UTF8String;
+  next: UTF8String;
+begin
+  // Taken from Ecmascript standard for correctness...
+  len := Trunc(Length);
+  if len = 0 then
   begin
-     result := (answer.AsInt64)
-  end
+     result := '';
+     exit;
+  end;
+  element0 := Get('0');
+  if element0.TypeOf in [jstUndefined,jstNull] then
+     R := ''
   else
+     R := element0.AsString;
+  k := 1;
+  while k < len do
   begin
-    result := 0;
+    S := R + sep;
+    element := Get(IntToStr(k));
+    if element.TypeOf in [jstUndefined,jstNull] then
+       next := ''
+    else
+       next := element.AsString;
+    R := S + next;
+    k := k + 1;
   end;
-
+  result := R;
 end;
 
-function TManagedJSONObject.GetInteger(const AName: String): Integer;
-var
-  answer: TJSONNumber;
-begin
-  answer := GetItem(AName,TJSONNumber) as TJSONNumber;
-  if (answer <> nil) then
-  begin
-     result := (answer.AsInteger)
-  end
-  else
-  begin
-    result := 0;
-  end;
+{ TJSUndefined }
 
+function TJSUndefined.GetAsNumber: Double;
+begin
+  result := math.NaN;
 end;
 
-function TManagedJSONObject.GetIsNull(const AName: String): Boolean;
-var
-  answer: TJSONData;
+function TJSUndefined.GetAsString: UTF8String;
 begin
-  answer := GetItem(AName);
-  result := (answer = nil) or (answer is TJSONNull);
+  result := 'undefined';
 end;
 
-function TManagedJSONObject.GetItem(const aName: String): TJSONData;
-var
-  aData: TJSONObject;
+function TJSUndefined.GetAsBoolean: Boolean;
 begin
-  result := nil;
-  if not IsManaged(aName) then
-  begin
-    aData := NeedData(false);
-    if (adata <> nil) then
-    begin
-      result := adata.Find(aName);
-    end
-  end;
-
-end;
-
-function TManagedJSONObject.GetItem(const aName: String;
-  const aClass: TJSONDataClass): TJSONData;
-begin
-  result := GetItem(aName);
-  if not (result is aClass) then
-  begin
-    result := nil;
-  end;
-end;
-
-function TManagedJSONObject.GetObject(const AName: String): TJSONObject;
-begin
-  result := GetItem(aName,TJSONObject) as TJSONObject;
-
-end;
-
-function TManagedJSONObject.GetString(const AName: String): TJSONStringType;
-var
-  answer: TJSONString;
-begin
-  answer := GetItem(AName,TJSONString) as TJSONString;
-  if (answer <> nil) then
-  begin
-     result := (answer.AsString)
-  end
-  else
-  begin
-    result := '';
-  end;
-end;
-
-function TManagedJSONObject.GetType(const AName: String): TJSONType;
-var
-  answer: TJSONData;
-begin
-  answer := GetItem(AName);
-  if (answer <> nil) then
-  begin
-     result := answer.JSONType;
-  end
-  else
-  begin
-    result := jtUnknown;
-  end;
-end;
-
-procedure TManagedJSONObject.SetArray(const AName: String; AValue: TJSONArray);
-begin
-  SetItem(aName,AValue);
-
-end;
-
-procedure TManagedJSONObject.SetBoolean(const AName: String; AValue: Boolean);
-begin
-  SetItem(AName,TJSONBoolean.Create(AValue));
-end;
-
-procedure TManagedJSONObject.SetFloat(const AName: String; AValue: TJSONFloat);
-begin
-  SetItem(AName,TJSONFloatNumber.Create(AValue));
-end;
-
-procedure TManagedJSONObject.SetInt64(const AName: String; AValue: Int64);
-begin
-  SetItem(AName,TJSONInt64Number.Create(AValue));
-end;
-
-procedure TManagedJSONObject.SetInteger(const AName: String; AValue: Integer);
-begin
-  SetItem(AName,TJSONIntegerNumber.Create(AValue));
-end;
-
-procedure TManagedJSONObject.SetIsNull(const AName: String; AValue: Boolean);
-begin
-  if AValue then
-  begin
-    SetItem(AName,TJSONNull.Create);
-  end;
-end;
-
-procedure TManagedJSONObject.SetItem(const aName: String; AValue: TJSONData);
-begin
-  if not IsManaged(aName) then
-  begin
-    SetManagedValue(aName,AValue);
-  end
-  else
-  begin
-    raise Exception.Create('Property "' + aName + '" is managed, and can''t be set arbitrarily');
-  end;
-
-end;
-
-procedure TManagedJSONObject.SetObject(const AName: String; AValue: TJSONObject);
-begin
-  SetItem(AName,AValue);
-end;
-
-procedure TManagedJSONObject.SetString(const AName: String; AValue: TJSONStringType
-  );
-begin
-  SetItem(AName,TJSONString.Create(AValue));
-end;
-
-procedure TManagedJSONObject.SetManagedValue(const aName: String;
-  aValue: TJSONData);
-var
-  aData: TJSONObject;
-begin
-  aData := NeedData(true);
-  if AValue <> nil then
-  begin
-    adata[aName] := AValue;
-  end
-  else
-  begin
-    adata.Delete(aName);
-  end;
-  SetModified;
-end;
-
-function TManagedJSONObject.IsManaged(aPropertyName: String): boolean;
-begin
-// override in descendants to prevent 'special' properties from being set.
   result := false;
 end;
 
-function TManagedJSONObject.FindOrDefault(const aName: String;
-  const aDefault: TJSONFloat): TJSONFloat;
-var
-  answer: TJSONData;
+class function TJSUndefined.GetTypeOf: TJSType;
 begin
-  answer := Find(aName,jtNumber);
-  if (answer <> nil) then
-  begin
-    result := answer.AsFloat;
+  result := jstUndefined;
+end;
+
+procedure TJSUndefined.SetAsBoolean(AValue: Boolean);
+begin
+  raise Exception.Create('Can''t set value of undefined');
+end;
+
+procedure TJSUndefined.SetAsNumber(AValue: Double);
+begin
+  raise Exception.Create('Can''t set value of undefined');
+
+end;
+
+procedure TJSUndefined.SetAsString(AValue: UTF8String);
+begin
+  raise Exception.Create('Can''t set value of undefined');
+
+end;
+
+constructor TJSUndefined.Create;
+begin
+  if fUndefined <> nil then
+     raise Exception.Create('Don''t create an instance of undefined. Just use the global TJSUndefined.Undefined');
+  inherited Create;
+
+end;
+
+procedure TJSUndefined.Assign(aValue: TJSValue);
+begin
+  raise Exception.Create('Can''t set assign to undefined');
+end;
+
+{ TJSValue }
+
+function TJSValue.{%H-}CreateValue(aKey: UTF8String; aRequestType: TJSValueClass): TJSValue;
+begin
+  raise Exception.Create('Object type does not support contained objects.');
+end;
+
+function TJSValue.CreateValue(aKey: Integer; aRequestType: TJSValueClass
+  ): TJSValue;
+begin
+  result := CreateValue(IntToStr(aKey),aRequestType);
+end;
+
+function TJSValue.{%H-}Put(aKey: UTF8String; aValue: TJSValue): TJSValue;
+begin
+
+  raise Exception.Create('Object type does not support properties');
+end;
+
+function TJSValue.Put(aKey: Integer; aValue: TJSValue): TJSValue;
+begin
+  result := Put(IntToStr(aKey),aValue);
+end;
+
+constructor TJSValue.Create;
+begin
+end;
+
+class constructor TJSValue.Initialize;
+begin
+  fUndefined := TJSUndefined.Create;
+  fNull := TJSNull.Create;
+end;
+
+class destructor TJSValue.Finalize;
+begin
+  FreeAndNil(fNull);
+  FreeAndNil(fUndefined);
+end;
+
+procedure TJSValue.Assign(aValue: TJSValue);
+begin
+   aValue.AssignTo(Self);
+end;
+
+function TJSValue.Clone: TJSValue;
+begin
+  result := TJSValueClass(ClassType).Create;
+  result.Assign(Self);
+end;
+
+procedure TJSValue.AssignTo(aTarget: TJSValue);
+begin
+  raise Exception.Create('I don''t know how to assign this custom js object to another object.');
+end;
+
+function TJSValue.keys: TStringArray;
+begin
+  SetLength(Result,0);
+
+end;
+
+function TJSValue.hasOwnProperty(aKey: UTF8String): Boolean;
+begin
+  result := false;
+
+end;
+
+function TJSValue.hasOwnProperty(aKey: Integer): Boolean;
+begin
+  result := hasOwnProperty(IntToStr(aKey));
+end;
+
+function TJSValue.{%H-}Get(aKey: UTF8String): TJSValue;
+begin
+  raise Exception.Create('Object type does not support properties');
+end;
+
+function TJSValue.Get(aKey: Integer): TJSValue;
+begin
+  result := Get(IntToStr(aKey));
+end;
+
+procedure TJSValue.delete(aKey: UTF8String);
+begin
+  raise Exception.Create('Object type does not support properties');
+end;
+
+procedure TJSValue.delete(aKey: Integer);
+begin
+  delete(IntToStr(aKey));
+
+end;
+
+procedure TJSValue.Put(aKey: UTF8String; aValue: UTF8String);
+begin
+  Put(aKey,CreateValue(aKey,TJSString)).SetAsString(aValue);
+end;
+
+procedure TJSValue.Put(aKey: Integer; aValue: UTF8String);
+begin
+  Put(IntToStr(aKey),aValue);
+end;
+
+procedure TJSValue.Put(aKey: UTF8String; aValue: Double);
+begin
+  Put(aKey,CreateValue(aKey,TJSNumber)).SetAsNumber(aValue);
+
+end;
+
+procedure TJSValue.Put(aKey: Integer; aValue: Double);
+begin
+  Put(IntToStr(aKey),aValue);
+
+end;
+
+procedure TJSValue.Put(aKey: UTF8String; aValue: Boolean);
+begin
+  Put(aKey,CreateValue(aKey,TJSBoolean)).SetAsBoolean(aValue);
+
+end;
+
+procedure TJSValue.Put(aKey: Integer; aValue: Boolean);
+begin
+  Put(IntToStr(aKey),aValue);
+end;
+
+procedure TJSValue.PutNull(aKey: UTF8String);
+begin
+  Put(aKey,CreateValue(aKey,TJSNull));
+end;
+
+procedure TJSValue.PutNull(aKey: Integer);
+begin
+  PutNull(IntToStr(aKey));
+end;
+
+procedure TJSValue.PutUndefined(aKey: UTF8String);
+begin
+  Put(aKey,CreateValue(aKey,TJSUndefined));
+end;
+
+procedure TJSValue.PutUndefined(aKey: Integer);
+begin
+  PutUndefined(IntToStr(aKey));
+end;
+
+function TJSValue.PutNewObject(aKey: UTF8String): TJSValue;
+begin
+  result := Put(aKey,CreateValue(aKey,TJSObject));
+
+end;
+
+function TJSValue.PutNewObject(aKey: Integer): TJSValue;
+begin
+  result := PutNewObject(IntToStr(aKey));
+
+end;
+
+function TJSValue.PutNewArray(aKey: UTF8String): TJSValue;
+begin
+  result := Put(aKey,CreateValue(aKey,TJSArray));
+
+end;
+
+function TJSValue.PutNewArray(aKey: Integer): TJSValue;
+begin
+  result := PutNewArray(IntToStr(aKey));
+
+end;
+
+{ TJSNull }
+
+function TJSNull.GetAsBoolean: Boolean;
+begin
+  result := false;
+end;
+
+function TJSNull.GetAsNumber: Double;
+begin
+  result := 0;
+end;
+
+function TJSNull.GetAsString: UTF8String;
+begin
+  result := NullText;
+end;
+
+class function TJSNull.GetTypeOf: TJSType;
+begin
+  result := jstNull;
+end;
+
+procedure TJSNull.SetAsBoolean(AValue: Boolean);
+begin
+  raise Exception.Create('Can''t set value of null');
+
+end;
+
+procedure TJSNull.SetAsNumber(AValue: Double);
+begin
+  raise Exception.Create('Can''t set value of null');
+
+end;
+
+procedure TJSNull.SetAsString(AValue: UTF8String);
+begin
+  raise Exception.Create('Can''t set value of null');
+
+end;
+
+constructor TJSNull.Create;
+begin
+  if fNull <> nil then
+     raise Exception.Create('Don''t create an instance of null. Just use the global TJSNull.Null.');
+  inherited Create;
+end;
+
+procedure TJSNull.Assign(aValue: TJSValue);
+begin
+  raise Exception.Create('Can''t assign to null');
+end;
+
+{ TJSBoolean }
+
+class function TJSBoolean.GetTypeOf: TJSType;
+begin
+  result := jstBoolean;
+end;
+
+function TJSBoolean.GetAsBoolean: Boolean;
+begin
+  result := fValue;
+end;
+
+function TJSBoolean.GetAsNumber: Double;
+begin
+  result := JSBooleanToNumber(fValue);
+
+end;
+
+function TJSBoolean.GetAsString: UTF8String;
+begin
+  result := JSBooleanToString(fValue);
+end;
+
+procedure TJSBoolean.SetAsBoolean(AValue: Boolean);
+begin
+  fValue := AValue;
+end;
+
+procedure TJSBoolean.SetAsNumber(AValue: Double);
+begin
+  fValue := JSNumbertoBoolean(AValue);
+end;
+
+procedure TJSBoolean.SetAsString(AValue: UTF8String);
+begin
+  fValue := JSStringToBoolean(AValue);
+end;
+
+procedure TJSBoolean.Assign(aValue: TJSValue);
+begin
+  if (aValue is TJSString) or
+     (aValue is TJSBoolean) or
+     (aValue is TJSNumber) or
+     (aValue is TJSNull) or
+     (aValue is TJSUndefined) then
+    fValue := aValue.AsBoolean
+  else
+    inherited Assign(aValue);
+end;
+
+{ TJSNumber }
+
+function TJSNumber.GetAsBoolean: Boolean;
+begin
+  result := JSNumbertoBoolean(fValue);
+end;
+
+function TJSNumber.GetAsNumber: Double;
+begin
+  result := fValue;
+end;
+
+function TJSNumber.GetAsString: UTF8String;
+begin
+  result := JSNumberToString(fValue);
+end;
+
+procedure TJSNumber.SetAsBoolean(AValue: Boolean);
+begin
+  fValue := JSBooleanToNumber(AValue);
+end;
+
+procedure TJSNumber.SetAsNumber(AValue: Double);
+begin
+  fValue := AValue;
+end;
+
+procedure TJSNumber.SetAsString(AValue: UTF8String);
+begin
+  fValue := JSStringToNumber(AValue);
+end;
+
+procedure TJSNumber.Assign(aValue: TJSValue);
+begin
+  if (aValue is TJSString) or
+     (aValue is TJSBoolean) or
+     (aValue is TJSNumber) or
+     (aValue is TJSNull) or
+     (aValue is TJSUndefined) then
+    fValue := aValue.AsNumber
+  else
+    inherited Assign(aValue);
+end;
+
+class function TJSNumber.GetTypeOf: TJSType;
+begin
+  result := jstNumber;
+end;
+
+{ TJSString }
+
+class function TJSString.GetTypeOf: TJSType;
+begin
+  result := jstString;
+end;
+
+function TJSString.GetAsBoolean: Boolean;
+begin
+  result := JSStringToBoolean(fValue);
+end;
+
+function TJSString.GetAsNumber: Double;
+begin
+  result := JSStringToNumber(fValue);
+end;
+
+function TJSString.GetAsString: UTF8String;
+begin
+  result := fValue;
+end;
+
+procedure TJSString.SetAsBoolean(AValue: Boolean);
+begin
+  fValue := JSBooleanToString(AValue);
+end;
+
+procedure TJSString.SetAsNumber(AValue: Double);
+begin
+  fValue := JSNumberToString(AValue);
+end;
+
+procedure TJSString.SetAsString(AValue: UTF8String);
+begin
+  fValue := AValue;
+end;
+
+procedure TJSString.Assign(aValue: TJSValue);
+begin
+  if (aValue is TJSString) or
+     (aValue is TJSBoolean) or
+     (aValue is TJSNumber) or
+     (aValue is TJSNull) or
+     (aValue is TJSUndefined) then
+    fValue := aValue.AsString
+  else
+    inherited Assign(aValue);
+end;
+
+{ TJSObject }
+
+function TJSObject.GetAsBoolean: Boolean;
+begin
+  result := true;
+end;
+
+function TJSObject.GetAsNumber: Double;
+begin
+  result := math.NaN;
+end;
+
+function TJSObject.GetAsString: UTF8String;
+begin
+  result := '[object Object]';
+end;
+
+procedure TJSObject.SetAsBoolean(AValue: Boolean);
+begin
+  raise Exception.Create('Can''t set primitive value on object');
+end;
+
+procedure TJSObject.SetAsNumber(AValue: Double);
+begin
+  raise Exception.Create('Can''t set primitive value on object');
+end;
+
+procedure TJSObject.SetAsString(AValue: UTF8String);
+begin
+  raise Exception.Create('Can''t set primitive value on object');
+end;
+
+function TJSObject.CreateValue(aKey: UTF8String; aType: TJSValueClass
+  ): TJSValue;
+begin
+  if aType <> nil then
+  begin;
+     if aType = TJSUndefined then
+       result := TJSUndefined.Undefined
+     else if aType = TJSNull then
+       result := TJSNull.Null
+     else
+       result := aType.Create
   end
   else
+     result := TJSUndefined.Undefined;
+end;
+
+function TJSObject.Put(aKey: UTF8String; aValue: TJSValue): TJSValue;
+var
+  idx: Integer;
+  value: TJSValue;
+begin
+  // if the value is already there, then delete it, unless it's the same value
+  // object. This allows us to notify the object after changing the value data.
+  idx := fList.FindIndexOf(aKey);
+  if idx > -1 then
   begin
-    result := aDefault;
+     value := fList[idx] as TJSValue;
+     if value <> aValue then
+     begin
+       fList.Delete(idx);
+       if not ((value is TJSNull) or (value is TJSUndefined)) then
+          FreeAndNil(value)
+       else
+          value := nil;
+
+     end
+     else
+       Exit;
+  end;
+  fList.Add(aKey,aValue);
+  result := aValue;
+end;
+
+procedure TJSObject.delete(aKey: UTF8String);
+var
+  idx: Integer;
+  value: TJSValue;
+begin
+  idx := fList.FindIndexOf(aKey);
+  if idx > -1 then
+  begin
+     value := fList[idx] as TJSValue;
+     fList.Delete(idx);
+     if not ((value is TJSNull) or (value is TJSUndefined)) then
+        FreeAndNil(value)
+     else
+        value := nil;
+     fList.Delete(idx);
   end;
 end;
 
-function TManagedJSONObject.FindOrDefault(const aName: String;
-  const aDefault: Integer): Integer;
-var
-  answer: TJSONData;
+function TJSObject.Get(aKey: UTF8String): TJSValue;
 begin
-  answer := Find(aName,jtNumber);
-  if (answer <> nil) then
+  result := fList.Find(aKey) as TJSValue;
+  if result = nil then
+     result := TJSUndefined.Undefined;
+end;
+
+constructor TJSObject.Create;
+begin
+  inherited Create;
+  fList := TFPHashObjectList.Create(false);
+end;
+
+destructor TJSObject.Destroy;
+var
+  i: Integer;
+  value: TJSValue;
+begin
+  // clear the list
+  for i := 0 to fList.Count do
   begin
-    result := answer.AsInteger;
+    value := fList[i] as TJSValue;
+    if not ((value is TJSNull) or (value is TJSUndefined)) then
+      value.Free;
+  end;
+  FreeAndNil(fList);
+  inherited Destroy;
+end;
+
+procedure TJSObject.Assign(aValue: TJSValue);
+var
+  lKeys: TStringArray;
+  i: Integer;
+  lValue: TJSValue;
+begin
+  if aValue is TJSObject then
+  begin
+    lKeys := (aValue as TJSObject).keys;
+    for i := 0 to Length(lKeys) - 1 do
+    begin
+      lValue := (aValue as TJSObject).Get(lKeys[i]);
+      if lValue is TJSArray then
+        PutNewArray(lKeys[i]).Assign(lValue)
+      else if lValue is TJSObject then
+        PutNewObject(lKeys[i]).Assign(lValue)
+      else if lValue is TJSNull then
+        PutNull(lKeys[i])
+      else if lValue is TJSUndefined then
+        PutUndefined(lKeys[i])
+      else if lValue is TJSString then
+        Put(lKeys[i],lValue.AsString)
+      else if lValue is TJSBoolean then
+        Put(lKeys[i],lValue.AsBoolean)
+      else if lValue is TJSNumber then
+        Put(lKeys[i],lValue.AsNumber)
+      else
+      begin
+        CreateValue(lKeys[i],TJSValueClass(lValue.ClassType)).Assign(lValue);
+      end;
+    end;
   end
   else
+    inherited Assign(aValue);
+end;
+
+function TJSObject.hasOwnProperty(aKey: UTF8String): Boolean;
+begin
+  result := fList.FindIndexOf(aKey) > -1;
+end;
+
+class function TJSObject.GetTypeOf: TJSType;
+begin
+  result := jstObject;
+end;
+
+function TJSObject.keys: TStringArray;
+var
+  i: Integer;
+begin
+  SetLength(result,fList.Count);
+  for i := 0 to fList.Count - 1 do
   begin
-    result := aDefault;
+    result[i] := fList.NameOfIndex(i);
   end;
 end;
 
-function TManagedJSONObject.FindOrDefault(const aName: String;
-  const aDefault: Int64): Int64;
+function TJSObject.Move(aKey: UTF8String; aNewOwner: TJSObject;
+  aNewKey: UTF8String): TJSValue;
 var
-  answer: TJSONData;
+  index: Integer;
 begin
-  answer := Find(aName,jtNumber);
-  if (answer <> nil) then
+  index := fList.FindIndexOf(aKey);
+  if index > -1 then
   begin
-    result := answer.AsInt64;
+     result := fList[index] as TJSValue;
+     fList.Delete(index);
   end
   else
-  begin
-    result := aDefault;
-  end;
-end;
+      result := TJSValue.Undefined;
 
-function TManagedJSONObject.FindOrDefault(const aName: String;
-  const aDefault: TJSONStringType): TJSONStringType;
-var
-  answer: TJSONData;
-begin
-  answer := Find(aName,jtString);
-  if (answer <> nil) then
-  begin
-    result := answer.AsString;
-  end
-  else
-  begin
-    result := aDefault;
-  end;
-end;
+  if aNewOwner <> nil then
+     aNewOwner.Put(aNewKey,result);
 
-function TManagedJSONObject.FindOrDefault(const aName: String;
-  const aDefault: Boolean): Boolean;
-var
-  answer: TJSONData;
-begin
-  answer := Find(aName,jtBoolean);
-  if (answer <> nil) then
-  begin
-    result := answer.AsBoolean;
-  end
-  else
-  begin
-    result := aDefault;
-  end;
-end;
-
-function TManagedJSONObject.Find(const aName: String; const aType: TJSONtype
-  ): TJSONData;
-var
-  aData: TJSONObject;
-begin
-  result := nil;
-  aData := NeedData(false);
-  if aData <> nil then
-  begin
-    result := adata.Find(aName,aType);
-  end;
-end;
-
-procedure TManagedJSONObject.SetManagedValue(const aName: String;
-  const aValue: TJSONFloat);
-begin
-  SetManagedValue(aName,TJSONFloatNumber.Create(aValue));
-
-end;
-
-procedure TManagedJSONObject.SetManagedValue(const aName: String;
-  const aValue: Integer);
-begin
-  SetManagedValue(aName,TJSONIntegerNumber.Create(aValue));
-end;
-
-procedure TManagedJSONObject.SetManagedValue(const aName: String;
-  const aValue: Int64);
-begin
-  SetManagedValue(aName,TJSONInt64Number.Create(aValue));
-end;
-
-procedure TManagedJSONObject.SetManagedValue(const aName: String;
-  const aValue: TJSONStringType);
-begin
-  SetManagedValue(aName,TJSONString.Create(aValue));
-end;
-
-procedure TManagedJSONObject.SetManagedValue(const aName: String;
-  const aValue: Boolean);
-begin
-  SetManagedValue(aName,TJSONBoolean.Create(aValue));
-end;
-
-procedure TManagedJSONObject.SetManagedValueNull(const aName: String);
-begin
-  SetManagedValue(aName,TJSONNull.Create);
-end;
-
-procedure TManagedJSONObject.DeleteManagedValue(const aName: String);
-begin
-  SetManagedValue(aName,nil);
-end;
-
-function TManagedJSONObject.CreateManagedObject(const aName: String
-  ): TJSONObject;
-begin
-  result := TJSONObject.Create;
-  SetManagedValue(aName,Result);
-end;
-
-function TManagedJSONObject.CreateManagedArray(const aName: String): TJSONArray;
-begin
-  result := TJSONArray.Create;
-  SetManagedValue(aName,Result);
 end;
 
 end.
