@@ -68,6 +68,15 @@ type
   // - I'm also considering a TCustomPromise which does a bunch of stuff here, then
   //   a TNoInputPromise<OutputType> and a TNoOutputPromise<InputType>, both
   //   of which are useful.
+  // TODO: Consider adding:
+  // - a 'Cancel' command which sets a flag on the promise for long chains,
+  // and can be checked before calling DoTask.
+  // - a ProgressCallback option which can be used to watch for progress.
+  // - In order to allow the promise to stick around for a while, and possibly
+  //   be cancelled if necessary, use a static TList or maybe a hashlist and
+  //   some sort of unique instance identifier guaranteed to be 0 if the object
+  //   is not created, on create, add it to the list, on destroy, remove it. And,
+  //   if the object is not present in the list, then it is destroyed.
   generic TPromise<InputType,OutputType> = class
   private type
   public type
