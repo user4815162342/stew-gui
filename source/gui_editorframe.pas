@@ -7,9 +7,6 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, ComCtrls, ExtCtrls, stew_project;
 
-// TODO: This is where we set up the common look and feel for the documents,
-// preferences and project settings editors.
-
 // NOTE: At one point I considered setting up a layout mechanism, like I do on
 // the main form, and separating everything out into frames. I have abandoned that:
 // - doing it the old fashioned way gives me a better preview of
@@ -22,7 +19,6 @@ uses
 // least in the short run, and in the long run, I can add 'hooks' where I want
 // to make things customizable.
 
-// TODO: Need a set of standard glyphs for the toolbuttons?
 
 type
 

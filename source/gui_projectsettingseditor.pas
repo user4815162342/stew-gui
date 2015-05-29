@@ -9,10 +9,7 @@ uses
   Grids, Dialogs, gui_editorframe, stew_properties, gui_mainform,
   gui_jsoneditor, stew_project, graphics, Menus;
 
-// TODO: I need to fix the stew cli to handle the statuses as a map instead of
-// an array of strings.
-
-// TODO: More properties that need to be handled.
+// FUTURE: More properties that need to be handled.
 //    - editors for certain file extensions (See Preferences Menu).
 //    - defaultPublishExtension
 //    - "Type" of project:
@@ -146,7 +143,6 @@ end;
 
 procedure TProjectSettingsEditor.RefreshButtonClick(Sender: TObject);
 begin
-  // TODO: Test this.
   if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
   begin
        MainForm.Project.Properties.Load;
@@ -210,8 +206,7 @@ begin
     AddMenuItem('Purple',clPurple);
     AddMenuItem('Grey',clGray);
     // clDkGray constant is assigned as a synonym of clGray. I'm fairly certain this
-    // is a bug.
-    // TODO: Report bug.
+    // is a bug, but this goes back to Delphi, so it won't ever be fixed.
     AddMenuItem('Dark Grey',TColor($404040));
     AddMenuItem('Maroon',clMaroon);
     AddMenuItem('Lime',clLime);

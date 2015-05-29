@@ -8,35 +8,31 @@ uses
   Classes, SysUtils, stew_types, contnrs, jsonscanner;
 
 type
-  // TODO: Convert the stew_persist over to using this hierarchy instead of what
-  // is being done. Actually, it might just be stew_properties, as I want the
-  // properties to behave more like the attachments (see synopsis), where the
-  // data is separated from the loading/saving capability.
 
-  // This is a somewhat more flexible replacement for the fpjson and jsonparser units.
-  // Features available that weren't provided by the others:
-  // - More controlled creation of member-values, allowing for context-specific
-  //   custom javascript objects. Fpjson has re-assignable 'create json' functions,
-  //   but these are global, so if you want a different object to be created based
-  //   on its location in its parent, for example, it would take a lot of work.
-  // - More controlled and obvious lifetime of objects. With fpjson, assignments
-  //   of values (at least in most cases) were copied into a new object. This
-  //   meant you would suddenly have two objects where you might have been expecting
-  //   only one. In this unit, there is no way to assign non-primitive objects,
-  //   so copying is the only way, and it's clearer who manages the lifetime of
-  //   the objects.
-  // - More similarity to the way JavaScript objects work.
-  //   - in Fpjson, the default index properties of the objects were all 'integers',
-  //   while this unit and JavaScript defaults to strings.
-  //   - values are more 'dynamic'. They all support the same object map interface,
-  //   even if they aren't capable of storing properties. This allows you to
-  //   essentially create your own, completely different custom object that's not
-  //   even a descendant of TJSObject, but still is capable of handling the same
-  //   functionality.
-  // - It is possible to create 'custom objects' with native pascal properties and
-  //   functions, and have them create the appropriate values beneath them based
-  //   on property name, without having to worry about overriding the streaming
-  //   of fpjsonrtti.
+   {This is a somewhat more flexible replacement for the fpjson and jsonparser units.
+   Features available that weren't provided by the others:
+   - More controlled creation of member-values, allowing for context-specific
+     custom javascript objects. Fpjson has re-assignable 'create json' functions,
+     but these are global, so if you want a different object to be created based
+     on its location in its parent, for example, it would take a lot of work.
+   - More controlled and obvious lifetime of objects. With fpjson, assignments
+     of values (at least in most cases) were copied into a new object. This
+     meant you would suddenly have two objects where you might have been expecting
+     only one. In this unit, there is no way to assign non-primitive objects,
+     so copying is the only way, and it's clearer who manages the lifetime of
+     the objects.
+   - More similarity to the way JavaScript objects work.
+     - in Fpjson, the default index properties of the objects were all 'integers',
+     while this unit and JavaScript defaults to strings.
+     - values are more 'dynamic'. They all support the same object map interface,
+     even if they aren't capable of storing properties. This allows you to
+     essentially create your own, completely different custom object that's not
+     even a descendant of TJSObject, but still is capable of handling the same
+     functionality.
+   - It is possible to create 'custom objects' with native pascal properties and
+     functions, and have them create the appropriate values beneath them based
+     on property name, without having to worry about overriding the streaming
+     of fpjsonrtti.}
 
   // FUTURE: This has inspired me to recreate the entire EcmaScript standard
   // functionality in some sort of engine. YOU MUST RESIST THIS. The primary issue with

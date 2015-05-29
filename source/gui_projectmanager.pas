@@ -9,8 +9,6 @@ uses
 
 type
 
-  // TODO: May need a way to distinguish between creating a new sibling and a child document.
-
   { TProjectManager }
 
   TProjectManager = class(TFrame)
@@ -263,21 +261,12 @@ begin
   aNode := ProjectExplorer.Selected as TProjectInspectorNode;
   aSiblingNode := aNode.GetNextSibling as TProjectInspectorNode;
   if aSiblingNode = nil then
-  // TODO: Prevent by disabling button.
     Exit;
   aDoc := MainForm.Project.GetDocument(aNode.DocumentID);
   aSibling := MainForm.Project.GetDocument(aSiblingNode.DocumentID);
   aParent := aDoc.GetParent;
   with aNode.GetPrevSibling do;
   if aParent.IsLocked then
-  // TODO: Moving the document requires saving the properties, therefore we can't really
-  // do that if the user is editing those properties. Revisit this once we can
-  // track for modifications in the editor and have closequery working for those,
-  // because then we can either check for modifications and save if none, or let
-  // the user choose to save (although we have to make sure we can mark the data
-  // as modified).
-  // TODO: Alternatively, this may be a good enough reason to move the 'index' into
-  // a separate attachment, outside of properties. (_index.txt)
      ShowMessage('The containing document is open in a tab. Please close that before you re-order it''s contents');
 
   aParent.OrderDocument(aDoc,odpAfter,aSibling);
@@ -295,21 +284,12 @@ begin
   aNode := ProjectExplorer.Selected as TProjectInspectorNode;
   aSiblingNode := aNode.GetPrevSibling as TProjectInspectorNode;
   if aSiblingNode = nil then
-  // TODO: Prevent by disabling button.
     Exit;
   aDoc := MainForm.Project.GetDocument(aNode.DocumentID);
   aSibling := MainForm.Project.GetDocument(aSiblingNode.DocumentID);
   aParent := aDoc.GetParent;
   with aNode.GetPrevSibling do;
   if aParent.IsLocked then
-  // TODO: Moving the document requires saving the properties, therefore we can't really
-  // do that if the user is editing those properties. Revisit this once we can
-  // track for modifications in the editor and have closequery working for those,
-  // because then we can either check for modifications and save if none, or let
-  // the user choose to save (although we have to make sure we can mark the data
-  // as modified).
-  // TODO: Alternatively, this may be a good enough reason to move the 'index' into
-  // a separate attachment, outside of properties. (_index.txt)
      ShowMessage('The containing document is open in a tab. Please close that before you re-order it''s contents');
 
   aParent.OrderDocument(aDoc,odpBefore,aSibling);
@@ -666,9 +646,6 @@ var
       bm.Height := iconWidth;
       with bm.Canvas do
       begin
-        // TODO: okay.. this is pretty ugly, a png would be better,
-        // but it will do for now since I'm going to switch to glyphs
-        // later anyway.
         Brush.Color := clWindow;
         Pen.Color := clWindow;
         FillRect(0,0,iconWidth,iconWidth);

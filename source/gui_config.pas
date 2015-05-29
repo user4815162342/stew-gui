@@ -5,7 +5,7 @@ unit gui_config;
 interface
 
 uses
-  Classes, SysUtils, stew_persist;
+  Classes, SysUtils, stew_persist, sys_file;
 
 type
 
@@ -52,13 +52,13 @@ type
     fMainWindowConfig: TMainWindowConfig;
     fMRUProjects: TStrings;
     const MRUListMaxSize = 20;
-    function GetMRUProject: TFilename;
-    procedure SetMRUProject(AValue: TFilename);
+    function GetMRUProject: TFile;
+    procedure SetMRUProject(AValue: TFile);
   public
     constructor Create;
     destructor Destroy; override;
     procedure Clear; override;
-    property MRUProject: TFilename read GetMRUProject write SetMRUProject;
+    property MRUProject: TFile read GetMRUProject write SetMRUProject;
   published
     property mainWindow: TMainWindowConfig read fMainWindowConfig;
     property mruProjects: TStrings read fMRUProjects write fMRUProjects;
@@ -68,39 +68,38 @@ type
 implementation
 
 uses
-  jsonparser, FileUtil;
+  jsonparser, FileUtil, sys_localfile;
 
 { TStewApplicationConfig }
 
-procedure TStewApplicationConfig.SetMRUProject(AValue: TFilename);
+procedure TStewApplicationConfig.SetMRUProject(AValue: TFile);
 var
   index: Integer;
+  aID: String;
 begin
   // Sometimes, we're getting the last backslash on the file in here
   // which causes duplicate entries.
-  // TODO: I should also make sure the files are compared based on
-  // the OS case sensitivity.
-  AValue := ExcludeTrailingPathDelimiter(AValue);
-  index := fMRUProjects.IndexOf(AValue);
+  // NOTE: The TFile should be handling this itself, shouldn't it?
+  aID := ExcludeTrailingPathDelimiter(AValue.ID);
+  index := fMRUProjects.IndexOf(aID);
   if index > -1 then
     fMRUProjects.Delete(index);
-  fMRUProjects.Insert(0,AValue);
+  fMRUProjects.Insert(0,aID);
   while fMRUProjects.Count > MRUListMaxSize do
     fMRUProjects.Delete(MRUListMaxSize);
 end;
 
-function TStewApplicationConfig.GetMRUProject: TFilename;
+function TStewApplicationConfig.GetMRUProject: TFile;
 begin
   if fMRUProjects.Count > 0 then
-     result := fMRUProjects[0]
+     result := LocalFile(fMRUProjects[0])
   else
-    result := '';
+    result := LocalFile('');
 end;
 
 constructor TStewApplicationConfig.Create;
 begin
   inherited Create(GetAppConfigDir(false) + 'stew-gui-config.json');
-  // TODO: Need to set a way to mark it modified when these things change.
   fMainWindowConfig := TMainWindowConfig.Create;
   fMainWindowConfig.FPOAttachObserver(Self);
   FMRUProjects := TStringList.Create;

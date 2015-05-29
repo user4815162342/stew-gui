@@ -10,11 +10,6 @@ uses
 
 type
 
-  // TODO: Carefully move a bunch of the excess code in the frame
-  // which relies on things like 'ImageIndex' and specially formatted
-  // text to store data into this object to make it simpler to change
-  // data types and get data back out of it.
-
   { TJSONTreeNode }
 
   TJSONTreeNode = class(TTreeNode)
@@ -36,7 +31,6 @@ type
     function IsValidTextValue(const aValue: String): Boolean;
     function IsValidKey(const aValue: String): Boolean;
   public
-    // TODO: Convert all imageindex use to use this.
     property DataType: TJSONtype read fDataType write SetDataType;
     property AsBoolean: Boolean read GetAsBoolean write SetAsBoolean;
     property AsNumber: Double read GetAsNumber write SetAsNumber;

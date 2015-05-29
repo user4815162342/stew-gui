@@ -4,24 +4,34 @@ unit sys_async;
 
 interface
 
-// TODO: Need to handle errors as well. Could I create some sort of simple
-// Promise architecture? Promises are a bit more complex, but maybe there's
-// a really simple mechanism.
-//
-// Although, with a type-safe language, I am guaranteed not to accidentally
-// call a procedure that requires a callback.
-
 {This unit allows the other units to easily behave in an asynchronous manner.
 The mechanism isn't to create actual, separate threads, but to split longer
 tasks into smaller tasks and queue them into the application's event loop,
 to be handled after user input. As long as you're using this right, the user
 should see a responsive interface, and no "hanging". If you don't break down
 tasks far enough, you will see moments of hanging, but at least it won't be
-in the middle of a mouse click.
+in the middle of a mouse click, leaving the button depressed and the window
+not repainting.
+
+That said, this isn't a complete replacement for using threads where threads
+are the preferred option. For example, network communication is very slow,
+and should always be done in a separate thread. Also loading and processing
+of large files. And, even if you *can* break down a long running operation
+into short bits, if there are a lot of short bits, it can still cause problems
+with the interface -- I would expect some flickering and lagging. However,
+the architecture of the classes below should be able to be used to manage
+such threaded operations and communicate back to the interface, with a little
+bit of work.
+
+Please don't attempt to override the benefits of this setup by trying to create
+a "WaitFor" version of the async classes, or call Application.ProcessMessages
+until the code is completed. The idea of these classes is to make these sorts
+of things unnecessary by making "asynchronous callback" type code easier to
+write.
 
 NOTE: In order to use this, you need to set up a queue mechanism. In a GUI
 application, you can do this with Application.QueueAsyncCall, but in other
-environments, you'll have to come up with your own mechanism.
+environments, you'll have to come up with your own alternative.
 }
 
 uses
@@ -68,15 +78,6 @@ type
   // - I'm also considering a TCustomPromise which does a bunch of stuff here, then
   //   a TNoInputPromise<OutputType> and a TNoOutputPromise<InputType>, both
   //   of which are useful.
-  // TODO: Consider adding:
-  // - a 'Cancel' command which sets a flag on the promise for long chains,
-  // and can be checked before calling DoTask.
-  // - a ProgressCallback option which can be used to watch for progress.
-  // - In order to allow the promise to stick around for a while, and possibly
-  //   be cancelled if necessary, use a static TList or maybe a hashlist and
-  //   some sort of unique instance identifier guaranteed to be 0 if the object
-  //   is not created, on create, add it to the list, on destroy, remove it. And,
-  //   if the object is not present in the list, then it is destroyed.
   generic TPromise<InputType,OutputType> = class
   private type
   public type
@@ -96,7 +97,7 @@ type
     procedure RunErrorbacks;
   protected
     // FUTURE: Once I can have abstract methods here, this should be abstract.
-    // TODO: Don't forget to call Resolve to complete the promise.
+    // NOTE: Don't forget to call Resolve to complete the promise.
     procedure DoTask; virtual;
     procedure RunQueuedTask; virtual;
     procedure Resolve(aResult: OutputType);

@@ -4,319 +4,6 @@ unit gui_mainform;
 
 interface
 
-{
-
-TODO: Moving TODO's over to Github.
-
-TODO: Make sure everything works well with document names that have periods and
-underscores. Examples: "I. The Call", "A scene...", "The _End_ of Eternity"
-
-TODO: Need to be able to 'pack' the index data that stores document order, removing
-references to documents which no longer exist or have been renamed.
-
-TODO: Still need a mechanism for bulk queries of documents, especially recursive
-data. This is already available in the CLI.
-
-TODO: Still need a mechanism for bulk updates of properties and some other things.
-This does not just mean "set all statuses to First Draft", I might want to do something
-like "set user.originalTitle to filename".
-
-TODO: A rename doesn't keep order. I'm fairly certain it should.
-
-TODO: The original CLI had the unfinished concept of "references", allowing you
-to link documents together. I'm not completely certain this is necessary at
-this point, the primary issue is maintaining references when documents are
-renamed or moved.
-
-TODO: The original CLI had the unfinished concept of "tags", which were a way
-to flag the data with certain attributes. Some of the things it allowed: specifying
-a color to display the document as, specifying certain structural elements of
-the document, specifying additional properties for items with a specific tag,
-etc. The tag information would be stored in a separate hierarchy in the project.
-Much of this functionality can be handled more simply using the custom
-properties, especially since I have arrays (use a set of string values and it
-essentially is a tag), but I'm not completely ready to get rid of it yet.
-
-TODO: Need to handle User Tasks.
-
-Basically, my first instinct is that these are stored in an attachment labeled
-_tasks.txt, probably using something like a todo.txt format. That way, tasks
-can be applied to specific documents, rather than be in a separate section and
-have to reference those docs (although global tasks would be available too).
-
-There would then be a "task" pane on the right side editor which lists tasks
-for the current document, as well as global tasks, sorted according to priority
-and due date.
-
-Tasks would have a priority, a start date, a due date, a description and a repetition.
-
-Priority, start and due dates and description are clear from other task systems.
-
-Repetition would cause a "finished" task to wake up again and become unfinished
-at certain intervals, resetting it's due and start dates. These kinds of tasks
-can be marked as cumulative as well, which means that if the task is already active,
-when the repetition date comes around, it will create a *new* task which has
-to be completed.
-
-Eventually, there might be a "current" task as well, which makes a task currently
-active. This might even be possibly related to a workplace setup -- which documents
-are open, etc. A status might appear in the UI to keep reminding you that this
-is what you're supposed to be doing.
-
-The task thing could actually be part of a workflow system, nudging you to keep going.
-1) A task can be associated with documents, that are opened up as soon as you start working on the task.
-2) When you start up stew, the current task will immediately pop up and ask to be worked on (this should be optional,
-in case you started up stew to open up a different project temporarily).
-3) When you close up stew for the day, it will ask you if you are done with the task or if you need to keep working on it.
-4) Tasks can be associated with "production" goals, such as word-count, file counts,
-files at a given status, etc. This is a bit more complex, since you need to give it
-a filter to watch, and it has to be able to handle document types. These goals can
-be "verified" to have the current values recalculated and determine if they've been
-reached, recorded for historical reference, compared with previous values, and come
-up with ETA's.
-5) There might also be reminders, scheduled to pop up occasionally, such as on
-start up or shut down. These could be used to help get your mind back on track,
-or to remember to write in your journal at the end of the day, etc.
-
-TODO: Need to eventually have some test programs that, run regression tests against
-code in the sys_* and stew_* namespaces. This can be done most simply by just
-having a form with a TMemo that has test results output to the memo -- at least
-until I have a CLI version that implements the AsyncQueue stuff, at which point
-I can make it a console app.
-
-TODO: I don't really want to create a single instance application, or a single instance
-per project application -- I would rather be able to have multiple people connect
-to the same project if necessary (although this is going to take some testing if I
-ever get it connected to the internet). However, it might be nice to have a warning
-if the local project file is already open on the same machine. I could use an IPC
-server to do this, lazarus has TSimpleIPCServer/Client, I just have to figure out
-the system to figure this out.
-
-TODO: We also need to make use of the 'closeQuery' on the editors, check if values
-are modified prior to saving.
--- Actually, *this* is where we want to check modified, not the property objects themselves,
-because we've been saving them immediately after writing out the data. So, we
-can pretty much get rid of the "SetModified" and "ClearModified" on that.
-
-TODO: Don't forget to revisit the "Tasks" Idea, and all of the other thoughts
-I had on the stew-cli that can still be transferred over.
-
-TODO: I just realized that the temporary back up files are going to appear as attachments,
-which could really make the whole data structure for the cache huge given enough
-time. But then, I also need to revisit those backups once I'm certain they're
-working.
-
-TODO: Need a wiki article on coding philosophy:
-- only use private scopes for things that can mess with the program state if
-not called appropriately. Everything else should be public, or at least protected,
-to allow the functionality to be used in novel ways.
-- avoid third-party libraries unless they are very well maintained.
-- Keep to the default user interface appearance of the desktop.
-
-
-TODO: Need to come up with a more dynamic, active layout system for Documents.
-The layout should depend on the aspect ratio of the screen as well as the size,
-somewhat like the way it's done with Bootstrap: - if there's enough width to
-have controls next to each other, do it. Otherwise set them up vertically.
-
-TODO: All MessageDlg's should use MainForm.Title as the caption.
-
-TODO: Some sort of GUI testing framework would be nice, so I can do regression
-testing to make sure that bugs don't reappear.
-
-TODO: Need to test this with documents containing '_'. I might have to "fix"
-certain names before applying them.
-
-TODO: A search function would basically bring up a DocumentQuery Tab. You would
-specify what document to start at, what properties to filter by (including user
-props), and whether to search recursively. The document would show up as a grid
-showing all of the documents, including the color coding and glyphs of the
-project manager. The document ID would be something like :query?category=Chapter;status=Complete...
-
-TODO: At some point, I need to go through and convert all string-based and
-file-based functions to UTF8 equivalents.
-
-TODO: Put into some sort of coding guidelines the following rules:
-- Code should only be made protected or private if it would cause the object
-to go into an unknown state if it was called with incorrect parameters.
-- Similarly, all functions and types should be in the interface unless calling
-them with incorrect parameters would put the application into an unknown state.
-
-These two rules allow for easier code re-use, since you're not restricting functions
-that might actually be useful elsewhere (such as a filename processing function
-or something). I don't guarantee I've followed this everywhere, because I've
-come up with this rule after a lot of the development was done.
-
-TODO: At some point in the future, I might feel the need to "clear" the cache
-every once in a while. This is a little complex, but not too bad, we just
-have to avoid removing documents that are currently open (locking required
-if we haven't put that in yet) or new. But, we also can't remove siblings
-of said locked or new documents either, or parents of them, because we'll
-lose the listing state of the parent. Actually, this requires us to lock
-them based on expanded nodes in the project manager as well.
-
-TODO: Eventually, rework the JSON persistence stuff to work like the attachments,
-with our own JSON objects. The setup is very similar to fpjson, except that the
-JSON objects and arrays, and possibly even the primitives, are "typed":
-- A given json object will have all of the mechanisms to retrieve data directly
-from it's hash as protected properties, so they aren't available publicly.
-- the object will not necessarily be TPersistent, it will at least be compiled
-with $M+ or whatever, to allow it to have published properties.
-- The public versions of these properties will work with RTTI. If you are attempting
-to assign a value, it will first check if it's a published property, and if it is
-it will try to assign the value to that property (if it's read-only, it will create
-an error, or maybe it will call an assign method, so maybe this is a TPersistent).
--- These published properties can either 1) validate and assign using the internal
-protected mechanisms for assigning properties or 2) store the data in some other
-process.
--- Even if a property isn't published, the object can still override the data
-by overriding a DoCreateMember which is given the property name and returns the
-actually constructed object that is needed. This is an alternative mechanism.
-- for the array, I'm not sure if published stuff will work, I'll have to look
-into that, but it might just be some virtual 'Add' or 'insert' methods that
-would get overridden.
-- The streamer will have methods like ReadObject(AObject: TJSONObject), ReadArray(AArray: TJSONArray), ReadString, etc.
-In which you provide the object to apply the data to. This streamer will do the
-following:
--- if it has primitive data to assign to a property or index, it will attempt to assign directly.
--- if it has an array or an object, it will assume the object is going to be read-only
-and that the objects will be assigned directly. In this case, it will retrieve the
-value from the parent object, then call ReadObject on itself.
--- The one thing it will be restricted to: It only knows how to read JSON Objects,
-strings, numbers and booleans, not anything else like TPersistent, or TComponent
-or anything like that.
-
-- This way, all you'd have to do to create a JSON object that has typed properties
-as well as storing arbitrary data, is to create a subclass of this, and add in
-some published properties with your own backed private data (or even storing them
-in the hash itself), and you can control what kinds of values go into it.
-
-
-TODO: Test with an empty or new project again.
-
-TODO: FPC now has 'strict private' and 'strict protected' that make things
-work the way private and protected are supposed to work (just being in the
-same unit doesn't help). Convert everything to that for clearer documentation
-on what fields are actually supposed to be private, and which ones are supposed
-to be unit private.
-
-TODO: Also, I can use nested classes for some of the 'deferred tasks' things,
-also almost anywhere that I've got a class defined in implementation. This
-makes for clearer documentation.
-
-TODO: When storing and opening project-dependent GUI states (open files, expanded folders),
-these should go in the desktop's preferences directory for now. My reasoning is that
-if it stays in the directory of the project, not only do I have to have one more
-async file to worry about, but any "project sharing" that's going on will mean
-other people find the tabs they have opened gone when they open it up after
-someone else has opened it up. At some point in the future, I can figure out a
-way to store it on a per-user basis, so that someone can have the same tabs open
-no matter where they are, but I'm not really certain that's important right now
-(that might be useful for a web app version, but not this).
-- Anyway, the settings would best be stored in with the MRU data in the config
-file. That way, they get cleaned out after a bunch of projects, and I don't have
-to worry about trying to match up the filename with the path of the document.
-
-TODO: "Note Stew":
-- this would be an application very similar to Stew (which would become Story Stew).
-In fact, it's similar enough that it could just be a different project that shares
-a lot of the same UI, perhaps with just a few ifdefs, or perhaps an "application spec"
-file that sets some global variables.
-- The primary differences:
-  - metadata consists only of the primary document and properties. There are no
-    'notes', 'synopsis', etc. Because the primary document is the notes.
-  - some of the properties are removed because they're unnecessary (published is
-    out, but categories and statuses might still be available).
-  - the document editor is replaced with a note editor, most of whose body is a
-    RichTextEditor, or something like that (depending on how we store the notes,
-    in fact the body might differ based on the extension).
-    - It would also still have some properties, but these are less obtrusive, but
-      would include a user data editor.
-  - almost everything else should work just the same. So, it's a matter of:
-    - having a different "type" for the metadata
-    - having a different "type" for the main document interface.
-
-
-TODO: Some interface ideas:
-- Instead of the "filter" button, make it a combobox, plus add a "search" button next to it, and an "advanced" search button.
-Although that's sometime in the future. Maybe get rid of the thing for now, until
-I find a need for it. Something like this might work better as a search bar in
-a toolbar across the top of the form.
-- Application Settings (stewconfig) and Project Settings (_stew.json) should be
-opened in the central pain, in a tab.
-- Close, Edit, etc. buttons should be in a toolbar across the top of the document inspector form,
-above all of it's contents. In theory, it should be possible to add buttons as
-necessary.
-- said toolbar could also include the "path" to the document.
-
-TODO: Need a central repository of bitmaps and icons for buttons. I would like
-to be able to retrieve these from the system, if possible. Otherwise, here
-are some good icons:
-/usr/share/lazarus/1.2.6/lcl/images
-http://tango.freedesktop.org/Tango_Desktop_Project
-and, of course, the silk icons are good.
-
-Also, look at Dialogs.GetDialogIcon, which uses ThemeServices (What is that?)
-and CreateBitmapFromLazarusResource if that doesn't work.
-
-TODO: For the JSON Editors, look at the demo JSONViewer project at /usr/share/lazarus/1.2.6/tools/jsonviewer
-then again, maybe not, because it doesn't do it quite the way I expected.
-
-
-TODO: One of the possible frames is a "grid" frame which shows the contents of one
-directory in the project only, with a bunch of it's standard properties, and
-possibly the user property.
-
-TODO: Document Frames include an optional "Content" and "Notes" tabsheet. If the
-document type for these is a .txt or .rtf, then an editor can be shown. Otherwise,
-the tabs for these will be replaced by buttons which open up the item in another
-process. I'm not sure exactly how to do this, I don't think it's possible to add
-a button, but perhaps it's possible to show a tab.
--- I'm thinking a button panel at the bottom of the tab, which shows up on every
-tab (or is actually set up above the tabs). This button panel will include a
-"close" button (when on Windows, which doesn't support close buttons on tabs),
-and "Content" and "Notes" buttons, and maybe some other tools.
-
-TODO: I've got something started. Next:
-- Rough up the rest of the interface to make it look nice. Just keep controls disabled
-until I finish each feature.
-
-- A window with two panes:
-  - Left Pane: "Explorer"
-    - would be a treeview, only getting file system data when node is expanded.
-    - A "filter" textbox and button at the top to show only content which matches certain filters.
-    - A button would expand this whole left pane and turn it into a grid, showing
-      properties of each document (user-customizable what properties are shown).
-      -- Would need to switch to VirtualTreeView to get the columns
-      - It's even possible that the properties could be "edited" in the grid.
-  - Right Pane:
-    - Document name, and possibly last modified time.
-    - Synopsis: A text box allowing review/editing of synopsis.
-    - Properties: A "Treeview" of properties for the currently selected document, with some editing capabilities.
-    - Contents: A list of the contents of the file, if it's a folder.
-    - Edit Buttons: Buttons to edit notes, edit primary, edit thumbnail, backup. Possibly more.
-- Consider Making the UI layout dockable, so the user can drag things around. But,
-instead of keeping this unlocked, make the docking locked by default, and then save
-a few standard layouts to pick from in the view menu. This prevents accidental "weird"
-docking bugs.
-
-- The documents aren't showing up in order, which means I do have to load properties
-right now to get those orders.
-- remember previously open projects, and previously expanded nodes within a project.
-
-
-TODO: Support some internal editors:
-- RichTextEditor for RTF, possibly others once I can find support
-- TextEditor for TXT
-- SynEdit for Markdown, possibly some other stuff.
-
-TODO: Divide the units into three parts:
-- UI (forms, frames and controls): prefix is ui
-- Stew Data Structures: prefix is stew
-- Platform Interface (basically just stewfile, stewasync, future stewshell): prefix is sys
-
-}
-
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, Menus,
   ExtCtrls, Buttons, ComCtrls, stew_project, fgl, gui_config, contnrs,
@@ -324,10 +11,6 @@ uses
 
 type
 
-  // TODO: It might be better to be able to register events for a specific action
-  // and even document ID. Currently, each tab is a separate observer. If I add
-  // in other objects which might observe, and I get to a point where there's
-  // a lot, then cycling through the list could get expensive.
   TMainFormAction = (mfaProjectPropertiesLoading,
                      mfaProjectPropertiesLoaded,
                      mfaProjectPropertiesSaving,
@@ -408,7 +91,6 @@ type
     procedure RefreshProjectMenuItemClick(Sender: TObject);
   strict private type
     TProtectedStewProject = class(TStewProject)
-
     end;
 
   private
@@ -683,7 +365,6 @@ begin
   begin
      NotifyObservers(mfaDocumentSynopsisLoaded,Document);
   end;
-  // TODO: What other attachments;
 end;
 
 procedure TMainForm.DocumentAttachmentError(Sender: TObject;
@@ -808,14 +489,7 @@ begin
   // another instance.
   fConfig.Load;
   WriteUISettings;
-  try
-    fConfig.Save;
-  except
-    // TODO:
-    // Error occurred while saving settings, how to alert the user?
-    // at this point, if I show a message, it messes with the destruction
-    // of the form. I can't output to the console because of Windows.
-  end;
+  fConfig.Save;
 end;
 
 procedure TMainForm.FormCloseQuery(Sender: TObject; var CanClose: boolean);
@@ -828,7 +502,6 @@ begin
     Frame := fOpenDocuments[i] as TEditorFrame;
     if Frame <> nil then
     begin
-      // TODO: We actually have to have the frames *use* this method now.
       if not Frame.CloseQuery then
       begin
         Frame.SetFocus;
@@ -842,12 +515,14 @@ end;
 
 procedure TMainForm.FormCreate(Sender: TObject);
 var
-  stewFolder: String;
+  openParam: String;
+  stewFolder: TFile;
 begin
 
   fOpenDocuments := TObjectList.create(false);
 
-  stewFolder := '';
+  openParam := '';
+  stewFolder := LocalFile('');
   fProject := nil;
 
   fConfig := TStewApplicationConfig.Create;
@@ -866,16 +541,22 @@ begin
   Enabled := false;
   if (Application.ParamCount > 0) then
   begin
-    stewFolder := Application.Params[1];
+    openParam := Application.Params[1];
+    if openParam <> PromptForProjectArgument then
+    begin
+      stewFolder := LocalFile(openParam);
+    end;
+    // else, this automatically causes the code below to not create
+    // a project with that as the property.
   end
   else
   begin
     stewFolder := fConfig.MRUProject;
   end;
 
-  if (stewFolder <> '') and (stewFolder <> PromptForProjectArgument) then
+  if (stewFolder.ID <> '') then
   begin
-    fProject := TProtectedStewProject.Create(LocalFile(stewFolder));
+    fProject := TProtectedStewProject.Create(stewFolder);
   end;
   Application.QueueAsyncCall(@StartupCheckProject,0);
 end;
@@ -970,7 +651,7 @@ var
   mru: TFile;
 begin
   // FUTURE: Someday, will have to store the system type as well.
-  fConfig.MRUProject := fProject.DiskPath.ID;
+  fConfig.MRUProject := fProject.DiskPath;
   // save the configuration, so that the MRU Project becomes available
   // if we open up another project in the midst of this.
   fConfig.Save;
@@ -1137,7 +818,7 @@ end;
 
 procedure TMainForm.WriteUISettings;
 begin
-  // TODO: Perhaps I should "load" the current settings, so I don't
+  // FUTURE: Perhaps I should "load" the current settings, so I don't
   // override stuff which I didn't touch. For example: If another
   // instance opens while this one is open, it's going to mess with
   // the MRUProjects, and these will be lost.

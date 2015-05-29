@@ -11,29 +11,6 @@ uses
 type
 
 {
-TODO: Possibly also need to have a contents grid which shows the
-values of specific properties.
-
-TODO: Keep the paradigms similar in projectsettingseditor.
-
-TODO: Edit the following properties...
-  - Directory Index? Although that might be managed in another way.
-  - x Title
-  - x Category
-  - x Status
-  - x Publish
-  - References?
-  - Tags?
-  - x Notes
-  - x Synopsis
-  - TODO: Thumbnails -- should be done by clicking on the thumbnail image itself.
-  - TODO: Backups
-
-TODO: Thumbnail image should only show up if it's set.
-
-TODO: Someday, I should revisit the layout... I'd like something more like a
-flow-based layout.
-
 FUTURE: The 'Notes' and 'Edit' buttons should have some way of indicating if
 the file exists already. Or, we need to come up with a different way of doing that.
 }
@@ -159,7 +136,6 @@ procedure TDocumentEditor.RefreshButtonClick(Sender: TObject);
 var
   aData: TDocumentMetadata;
 begin
-  // TODO: Test this.
   if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
   begin
     aData := MainForm.Project.GetDocument(Document);
@@ -217,7 +193,6 @@ end;
 
 procedure TDocumentEditor.EditNotesButtonClick(Sender: TObject);
 begin
-  // TODO: Test this.
   if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
   begin
     MainForm.Project.GetDocument(Document).Notes.OpenInEditor;
@@ -247,7 +222,6 @@ begin
         inherited SetDocument(aValue);
         DocumentIDLabel.Caption := AValue.ID;
 
-        // TODO: Make use of 'title'?
         aName := GetName;
         if (Parent <> nil) and (Parent is TTabSheet) then
         begin

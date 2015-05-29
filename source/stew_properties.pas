@@ -9,9 +9,6 @@ uses
 
 type
 
-  // TODO: For the user property editor, need to make sure that when it's changed,
-  // the properties themselves are marked as changed.
-
 
   { TDocumentProperties }
 
@@ -247,8 +244,6 @@ end;
 
 procedure TDocumentProperties.SetUserProperties(AValue: TJSONData);
 begin
-  // TODO: Instead of cloning... apply data in place so that we
-  // can tell if something was modified.
   if fUserProperties <> nil then
     FreeAndNil(fUserProperties);
   if AValue <> nil then
@@ -721,7 +716,7 @@ end;
 
 procedure TProjectProperties.Clear;
 begin
-  // TODO: Initialize all of the primitive data, clear all of the child data.
+  // Initialize all of the primitive data, clear all of the child data.
   Fcategories.Clear;
   fStatuses.Clear;
   FdefaultCategory := '';
@@ -801,7 +796,6 @@ end;
 
 class function TProjectProperties.GetPath(aFolderPath: TFile): TFile;
 begin
-  // TODO: Verify that this works.
   result := aFolderPath.GetContainedFile('','stew','json',false);
 end;
 

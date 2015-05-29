@@ -8,39 +8,7 @@ interface
 uses
   Classes, SysUtils, sys_file, sys_async, stew_properties, stew_types, contnrs;
 
-// TODO: So that we can deal with attachments better, maybe move those off into
-// a separate object:
-// - edit: opens it up for editing
-// - load: loads contents into a string if that's possible.
-// - contents: gets the contents of the string if it's loaded.
-// - loaded: Returns whether it's loaded
-// - onloaded: etc.
-
-// TODO: When opening 'attachments', need a system of events and handlers
-// for cases where there is ambiguity. Or, just use defaults.
-
-// TODO: For property filing, instead of having multiple different event handlers,
-// just have two: one for state change and one for errors. The filingstate property
-// can be checked to get actual value. This simplifies the code hookups here, and
-// just has to be translated into a main form event quickly.
-
-// TODO: I think that, perhaps, it should be possible to "lock" a property object,
-// to prevent deletion and other changes, at least from inside the application.
-// The document editor tabs can then lock it, this will prevent the cache from
-// being cleared, it will also prevent changing location or name while it is open,
-// or at least make sure the opener can get notified.
-
 type
-  // All of these are just strings, representing paths off of the root
-  // of the stew project (names always use '/' as separators, and must
-  // start with a '/' if not a relative name. In the future I may
-  // make use of more structured types.
-
-  // TODO: If I make a more structure type, Free Pascal has extended records
-  // which allow me to add procedures to a record, then I can make sure things
-  // are controlled as I want them instead of relying on string and TFilename
-  // functionality).
-
   { TDocumentID }
 
   TDocumentID = record
@@ -106,7 +74,7 @@ type
     constructor Create(aDocument: TDocumentMetadata);
     procedure Load;
     procedure Save(aForce: Boolean = false);
-    // TODO: Consider this possibility if I ever add RichText.
+    // FUTURE: Consider this possibility if I ever add internal editing which requires a RichMemo or something.
     // procedure Read(aCallback: TDeferredStreamCallback), would
     //   allow reading directly from the stream, for things like
     //   rich text content. You couldn't use GetContents, and the
@@ -369,14 +337,7 @@ type
     constructor Create(const Path: TFile);
     destructor Destroy; override;
     property DiskPath: TFile read fDisk;
-    // TODO: Figure out filtering...
-    // TODO: More importantly, need to 'sort' by directory index.
     function GetDocument(const aDocumentID: TDocumentID): TDocumentMetadata;
-    // TODO: Figure out patterns and reg ex...
-    // TODO: function Match: TProjectContentEnumerator;
-    // TODO: function Add(Name: TPacketBaseName): T;
-    // TODO: function Get(Name: TPacketName): T;
-    // TODO: procedure MoveHere(NewChild: T);
     procedure OpenAtPath(aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
     procedure OpenInParentDirectory(aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
     procedure OpenNewAtPath;
@@ -490,7 +451,6 @@ end;
 
 function TDocumentID.GetContainedDocument(aName: UTF8String): TDocumentID;
 begin
-  // TODO: Should I be checking if the name is troublesome?
   result.fID := IncludeTrailingSlash(fID) + aName;
 end;
 
@@ -568,7 +528,6 @@ end;
 
 function TPrimaryMetadata.GetDefaultExtension: String;
 begin
-  // TODO: Do I need a '.'?
   result := fDocument.Project.GetProperties.defaultDocExtension;
 end;
 
@@ -722,9 +681,6 @@ begin
         aCandidates[0].Read(@FileLoaded,@FileLoadFailed);
       end
     else
-
-        // TODO: Should ask user which one to load instead. This requires
-        // an event.
         raise Exception.Create('Too many ' + GetName + ' files');
     end;
   end
@@ -751,8 +707,6 @@ begin
         end;
         1: // do nothing, we save in a minute.
       else
-          // TODO: Should ask user which one to load instead. This requires
-          // an event.
           raise Exception.Create('Too many ' + GetName + ' files');
       end;
 
@@ -779,14 +733,11 @@ begin
     0:
     if fDocument.DoConfirmNewAttachment(GetName) then
     begin
-      // TODO: This should actually be deferred, shouldn't it?
       GetDefaultFile.ListTemplatesFor(@EditorTemplatesListed,@FileLoadFailed);
     end;
     1:
       aCandidates[0].OpenInEditor;
   else
-      // TODO: Should ask user which one to edit instead. This requires
-      // an event.
       raise Exception.Create('Too many ' + GetName + ' files');
   end;
 
@@ -1379,7 +1330,6 @@ begin
   SetLength(lTarget,aOldChild.fFiles.Count);
   for i := 0 to aOldChild.fFiles.Count - 1 do
   begin
-    // TODO: Make sure this is working.
     lSource[i] := aOldChild.fFiles[i];
     lTarget[i] := fDisk.GetContainedFile(aOldChild.fFiles[i].Name);
   end;

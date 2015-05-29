@@ -41,7 +41,7 @@ uses
 
 procedure TAboutForm.FormCreate(Sender: TObject);
 begin
-  // TODO: Make the Title a bigger font (and bold), and the version slightly bigger.
+  // FUTURE: Make the Title a bigger font (and bold), and the version slightly bigger.
   // What I don't want to happen, though, is for it to end up using a different
   // font than the desktop theme expects. So, if I change the size, will that
   // change everything?
