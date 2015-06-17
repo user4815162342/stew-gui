@@ -1,0 +1,429 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectSession>
+    <Version Value="9"/>
+    <BuildModes Active="Default"/>
+    <Units Count="29">
+      <Unit0>
+        <Filename Value="stewtest.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="stewtest"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="1" Y="1"/>
+        <UsageCount Value="39"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="test_main.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="MainForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="test_main"/>
+        <EditorIndex Value="0"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="3" Y="9"/>
+        <UsageCount Value="39"/>
+        <Loaded Value="True"/>
+        <LoadedDesigner Value="True"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="test_registry.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="test_registry"/>
+        <EditorIndex Value="8"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="141"/>
+        <CursorPos X="50" Y="153"/>
+        <UsageCount Value="39"/>
+        <Loaded Value="True"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="test_test.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="test_test"/>
+        <EditorIndex Value="16"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="18"/>
+        <CursorPos X="25" Y="29"/>
+        <UsageCount Value="39"/>
+        <Loaded Value="True"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="sys_json.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="sys_json"/>
+        <EditorIndex Value="19"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="128"/>
+        <CursorPos X="70" Y="139"/>
+        <UsageCount Value="39"/>
+        <Loaded Value="True"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="test_sys_json.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="test_sys_json"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="18"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="340"/>
+        <CursorPos X="33" Y="352"/>
+        <UsageCount Value="39"/>
+        <Loaded Value="True"/>
+      </Unit5>
+      <Unit6>
+        <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/fgl.pp"/>
+        <UnitName Value="fgl"/>
+        <EditorIndex Value="9"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="118"/>
+        <CursorPos X="11" Y="128"/>
+        <UsageCount Value="19"/>
+        <Loaded Value="True"/>
+      </Unit6>
+      <Unit7>
+        <Filename Value="/usr/share/fpcsrc/2.6.4/packages/fcl-fpcunit/src/testregistry.pp"/>
+        <UnitName Value="testregistry"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="52"/>
+        <CursorPos X="1" Y="1"/>
+        <UsageCount Value="8"/>
+      </Unit7>
+      <Unit8>
+        <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/inc/objpash.inc"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="202"/>
+        <CursorPos X="26" Y="213"/>
+        <UsageCount Value="8"/>
+      </Unit8>
+      <Unit9>
+        <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/inc/objpas.inc"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="491"/>
+        <CursorPos X="26" Y="399"/>
+        <UsageCount Value="8"/>
+      </Unit9>
+      <Unit10>
+        <Filename Value="/usr/share/lazarus/1.2.6/lcl/forms.pp"/>
+        <UnitName Value="Forms"/>
+        <EditorIndex Value="13"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1316"/>
+        <CursorPos X="15" Y="1327"/>
+        <UsageCount Value="19"/>
+        <Loaded Value="True"/>
+      </Unit10>
+      <Unit11>
+        <Filename Value="/usr/share/lazarus/1.2.6/lcl/include/application.inc"/>
+        <EditorIndex Value="14"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1051"/>
+        <CursorPos X="1" Y="1062"/>
+        <UsageCount Value="19"/>
+        <Loaded Value="True"/>
+      </Unit11>
+      <Unit12>
+        <Filename Value="/usr/share/lazarus/1.2.6/components/lazutils/lazmethodlist.pas"/>
+        <UnitName Value="LazMethodList"/>
+        <EditorIndex Value="15"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="112"/>
+        <CursorPos X="3" Y="115"/>
+        <UsageCount Value="19"/>
+        <Loaded Value="True"/>
+      </Unit12>
+      <Unit13>
+        <Filename Value="/usr/share/lazarus/1.2.6/lcl/extctrls.pp"/>
+        <UnitName Value="ExtCtrls"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="163"/>
+        <CursorPos X="29" Y="174"/>
+        <UsageCount Value="8"/>
+      </Unit13>
+      <Unit14>
+        <Filename Value="/usr/share/lazarus/1.2.6/lcl/customtimer.pas"/>
+        <UnitName Value="CustomTimer"/>
+        <EditorIndex Value="10"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="176"/>
+        <CursorPos X="1" Y="192"/>
+        <UsageCount Value="19"/>
+        <Loaded Value="True"/>
+      </Unit14>
+      <Unit15>
+        <Filename Value="/usr/share/lazarus/1.2.6/lcl/interfacebase.pp"/>
+        <UnitName Value="InterfaceBase"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="222"/>
+        <CursorPos X="3" Y="233"/>
+        <UsageCount Value="8"/>
+      </Unit15>
+      <Unit16>
+        <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/typinfo.pp"/>
+        <UnitName Value="typinfo"/>
+        <EditorIndex Value="17"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1800"/>
+        <CursorPos X="3" Y="1821"/>
+        <UsageCount Value="20"/>
+        <Loaded Value="True"/>
+      </Unit16>
+      <Unit17>
+        <Filename Value="/usr/share/lazarus/1.2.6/lcl/interfaces/gtk2/gtk2callback.inc"/>
+        <EditorIndex Value="11"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="2934"/>
+        <CursorPos X="1" Y="2950"/>
+        <UsageCount Value="19"/>
+        <Loaded Value="True"/>
+      </Unit17>
+      <Unit18>
+        <Filename Value="/usr/share/lazarus/1.2.6/lcl/interfaces/gtk2/gtk2widgetset.inc"/>
+        <EditorIndex Value="12"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="2396"/>
+        <CursorPos X="1" Y="2408"/>
+        <UsageCount Value="19"/>
+        <Loaded Value="True"/>
+      </Unit18>
+      <Unit19>
+        <Filename Value="/usr/share/lazarus/1.2.6/components/richmemo/richmemo.pas"/>
+        <UnitName Value="RichMemo"/>
+        <EditorIndex Value="3"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="483"/>
+        <CursorPos X="1" Y="494"/>
+        <UsageCount Value="17"/>
+        <Loaded Value="True"/>
+      </Unit19>
+      <Unit20>
+        <Filename Value="/usr/share/lazarus/1.2.6/lcl/controls.pp"/>
+        <UnitName Value="Controls"/>
+        <EditorIndex Value="1"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1461"/>
+        <CursorPos X="59" Y="1470"/>
+        <UsageCount Value="17"/>
+        <Loaded Value="True"/>
+      </Unit20>
+      <Unit21>
+        <Filename Value="/usr/share/lazarus/1.2.6/lcl/graphics.pp"/>
+        <UnitName Value="Graphics"/>
+        <EditorIndex Value="2"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1026"/>
+        <CursorPos X="3" Y="1036"/>
+        <UsageCount Value="17"/>
+        <Loaded Value="True"/>
+      </Unit21>
+      <Unit22>
+        <Filename Value="/usr/share/lazarus/1.2.6/components/richmemo/wsrichmemo.pas"/>
+        <UnitName Value="WSRichMemo"/>
+        <EditorIndex Value="7"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="138"/>
+        <CursorPos X="3" Y="141"/>
+        <UsageCount Value="17"/>
+        <Loaded Value="True"/>
+      </Unit22>
+      <Unit23>
+        <Filename Value="/usr/share/lazarus/1.2.6/lcl/include/wincontrol.inc"/>
+        <EditorIndex Value="6"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="7225"/>
+        <CursorPos X="1" Y="7238"/>
+        <UsageCount Value="17"/>
+        <Loaded Value="True"/>
+      </Unit23>
+      <Unit24>
+        <Filename Value="/usr/share/lazarus/1.2.6/components/richmemo/gtk2/gtk2richmemo.pas"/>
+        <UnitName Value="Gtk2RichMemo"/>
+        <EditorIndex Value="4"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1289"/>
+        <CursorPos X="1" Y="1303"/>
+        <UsageCount Value="17"/>
+        <Loaded Value="True"/>
+      </Unit24>
+      <Unit25>
+        <Filename Value="/usr/share/lazarus/1.2.6/lcl/interfaces/gtk2/gtk2proc.inc"/>
+        <EditorIndex Value="5"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="7022"/>
+        <CursorPos X="1" Y="7036"/>
+        <UsageCount Value="17"/>
+        <Loaded Value="True"/>
+      </Unit25>
+      <Unit26>
+        <Filename Value="/usr/share/fpcsrc/2.6.4/packages/fcl-json/src/jsonscanner.pp"/>
+        <UnitName Value="jsonscanner"/>
+        <EditorIndex Value="21"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="24"/>
+        <CursorPos X="5" Y="35"/>
+        <UsageCount Value="13"/>
+        <Loaded Value="True"/>
+      </Unit26>
+      <Unit27>
+        <Filename Value="../test-data/json-parse-test.json"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="22"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="2" Y="22"/>
+        <UsageCount Value="22"/>
+        <Loaded Value="True"/>
+        <DefaultSyntaxHighlighter Value="JScript"/>
+      </Unit27>
+      <Unit28>
+        <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/math.pp"/>
+        <UnitName Value="math"/>
+        <EditorIndex Value="20"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="2164"/>
+        <CursorPos X="1" Y="2169"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+      </Unit28>
+    </Units>
+    <General>
+      <ActiveWindowIndexAtStart Value="0"/>
+    </General>
+    <JumpHistory Count="30" HistoryIndex="29">
+      <Position1>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="1673" Column="21" TopLine="1654"/>
+      </Position1>
+      <Position2>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="377" Column="24" TopLine="366"/>
+      </Position2>
+      <Position3>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="602" Column="39" TopLine="584"/>
+      </Position3>
+      <Position4>
+        <Filename Value="test_sys_json.pas"/>
+        <Caret Line="353" Column="1" TopLine="338"/>
+      </Position4>
+      <Position5>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="602" Column="1" TopLine="584"/>
+      </Position5>
+      <Position6>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="1561" Column="1" TopLine="1549"/>
+      </Position6>
+      <Position7>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="1562" Column="1" TopLine="1549"/>
+      </Position7>
+      <Position8>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="603" Column="41" TopLine="594"/>
+      </Position8>
+      <Position9>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="602" Column="1" TopLine="594"/>
+      </Position9>
+      <Position10>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="1563" Column="1" TopLine="1551"/>
+      </Position10>
+      <Position11>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="1564" Column="1" TopLine="1551"/>
+      </Position11>
+      <Position12>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="602" Column="26" TopLine="595"/>
+      </Position12>
+      <Position13>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="604" Column="21" TopLine="595"/>
+      </Position13>
+      <Position14>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="602" Column="1" TopLine="595"/>
+      </Position14>
+      <Position15>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="1561" Column="1" TopLine="1549"/>
+      </Position15>
+      <Position16>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="1562" Column="1" TopLine="1549"/>
+      </Position16>
+      <Position17>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="1561" Column="1" TopLine="1549"/>
+      </Position17>
+      <Position18>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="1562" Column="1" TopLine="1549"/>
+      </Position18>
+      <Position19>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="605" Column="1" TopLine="596"/>
+      </Position19>
+      <Position20>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="615" Column="1" TopLine="598"/>
+      </Position20>
+      <Position21>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="513" Column="39" TopLine="504"/>
+      </Position21>
+      <Position22>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="1103" Column="21" TopLine="1084"/>
+      </Position22>
+      <Position23>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="1673" Column="21" TopLine="1654"/>
+      </Position23>
+      <Position24>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="377" Column="24" TopLine="366"/>
+      </Position24>
+      <Position25>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="1103" Column="21" TopLine="1084"/>
+      </Position25>
+      <Position26>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="1673" Column="21" TopLine="1654"/>
+      </Position26>
+      <Position27>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="377" Column="24" TopLine="366"/>
+      </Position27>
+      <Position28>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="602" Column="60" TopLine="584"/>
+      </Position28>
+      <Position29>
+        <Filename Value="test_sys_json.pas"/>
+        <Caret Line="352" Column="32" TopLine="338"/>
+      </Position29>
+      <Position30>
+        <Filename Value="test_sys_json.pas"/>
+        <Caret Line="351" Column="8" TopLine="340"/>
+      </Position30>
+    </JumpHistory>
+  </ProjectSession>
+  <Debugging>
+    <BreakPoints Count="1">
+      <Item1>
+        <Kind Value="bpkSource"/>
+        <WatchScope Value="wpsLocal"/>
+        <WatchKind Value="wpkWrite"/>
+        <Source Value="sys_json.pas"/>
+        <Line Value="832"/>
+      </Item1>
+    </BreakPoints>
+  </Debugging>
+  <EditorMacros Count="0"/>
+</CONFIG>

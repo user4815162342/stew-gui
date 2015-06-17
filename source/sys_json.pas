@@ -51,11 +51,10 @@ type
   TJSNull = class;
 
   TJSValue = class
-  private
+  strict private
     class var fUndefined: TJSUndefined;
     class var fNull: TJSNull;
-  private
-  protected
+  strict protected
     // override this to behave the way Javascript '"" + x' might behave
     // for your given value.
     function GetAsString: UTF8String; virtual; abstract;
@@ -65,11 +64,6 @@ type
     // override this to behave the way Javascript '!!x' might behave
     // for your given value.
     function GetAsBoolean: Boolean; virtual; abstract;
-    // override these to handle conversion of native primitive properties values
-    // to the object when read from a stream or other source.
-    procedure SetAsBoolean(AValue: Boolean); virtual; abstract;
-    procedure SetAsNumber(AValue: Double); virtual; abstract;
-    procedure SetAsString(AValue: UTF8String); virtual; abstract;
     // override this to behave the way Javascript 'x["key"] = y' might behave for your value of x
     // and any value of y of the specified type. You are allowed to not create a
     // new instance (perhaps returning the value that's already there), and return
@@ -79,7 +73,14 @@ type
     // to do this, you can look at the GetTypeOf function on the requested type
     // to find the behavior expected.
     function CreateValue({%H-}aKey: UTF8String; {%H-}aRequestType: TJSValueClass): TJSValue; virtual; overload;
+    function CreateStringValue({%H-}aKey: UTF8String; {%H-}aRequestType: TJSValueClass; {%H-}aValue: UTF8String): TJSValue; virtual; overload;
+    function CreateNumberValue({%H-}aKey: UTF8String; {%H-}aRequestType: TJSValueClass; {%H-}aValue: Double): TJSValue; virtual; overload;
+    function CreateBooleanValue({%H-}aKey: UTF8String; {%H-}aRequestType: TJSValueClass; {%H-}aValue: Boolean): TJSValue; virtual; overload;
     function CreateValue(aKey: Integer; aRequestType: TJSValueClass): TJSValue; overload;
+    function CreateValue(aRequestType: TJSValueClass): TJSValue; overload;
+    function CreateStringValue(aRequestType: TJSValueClass; {%H-}aValue: UTF8String): TJSValue; virtual; overload;
+    function CreateNumberValue(aRequestType: TJSValueClass; {%H-}aValue: Double): TJSValue; virtual; overload;
+    function CreateBooleanValue(aRequestType: TJSValueClass; {%H-}aValue: Boolean): TJSValue; virtual; overload;
     // override this to handle assigning a value to the specified key. This
     // value *should* have been created using CreateValue, so there shouldn't be
     // any reason to expect the wrong type here.
@@ -87,14 +88,16 @@ type
     function Put(aKey: Integer; aValue: TJSValue): TJSValue; overload;
   public
     constructor Create; virtual;
+    constructor CreateString(aValue: UTF8String); virtual; abstract;
+    constructor CreateNumber(aValue: Double); virtual; abstract;
+    constructor CreateBoolean(aValue: Boolean); virtual; abstract;
     class constructor Initialize;
     class destructor Finalize;
     class property Undefined: TJSUndefined read fUndefined;
     class property Null: TJSNull read fNull;
-    // override this to behave the way Javascript 'x.toString' might behave
-    // for your given value.
     procedure Assign(aValue: TJSValue); virtual;
     function Clone: TJSValue; virtual;
+    function DeepEquals(aValue: TJSValue): Boolean; virtual;
     // override this only if you have a "custom" value, not descended from
     // the primitives or TJSObject, and you want it to be able to be cloned
     // to another JSObject.
@@ -128,19 +131,19 @@ type
     // override this the same way as delete if your object can handle integer
     // keys.
     procedure delete(aKey: Integer); overload;
-    procedure Put(aKey: UTF8String; aValue: UTF8String); virtual; overload;
-    procedure Put(aKey: Integer; aValue: UTF8String); overload;
-    procedure Put(aKey: UTF8String; aValue: Double); virtual; overload;
-    procedure Put(aKey: Integer; aValue: Double); overload;
-    procedure Put(aKey: UTF8String; aValue: Boolean); virtual; overload;
-    procedure Put(aKey: Integer; aValue: Boolean); overload;
+    function Put(aKey: UTF8String; aValue: UTF8String): TJSValue; virtual; overload;
+    function Put(aKey: Integer; aValue: UTF8String): TJSValue; overload;
+    function Put(aKey: UTF8String; aValue: Double): TJSValue; virtual; overload;
+    function Put(aKey: Integer; aValue: Double): TJSValue; overload;
+    function Put(aKey: UTF8String; aValue: Boolean): TJSValue; virtual; overload;
+    function Put(aKey: Integer; aValue: Boolean): TJSValue; overload;
     // non-primitive 'puts' don't need to be virtual because their behavior
     // can be overridden in CreateValue and PutValue. The primitive ones
     // might need to be overridden in a way that doesn't deal with TJSValue.
-    procedure PutNull(aKey: UTF8String); overload;
-    procedure PutNull(aKey: Integer); overload;
-    procedure PutUndefined(aKey: UTF8String); overload;
-    procedure PutUndefined(aKey: Integer); overload;
+    function PutNull(aKey: UTF8String): TJSValue; overload;
+    function PutNull(aKey: Integer): TJSValue; overload;
+    function PutUndefined(aKey: UTF8String): TJSValue; overload;
+    function PutUndefined(aKey: Integer): TJSValue; overload;
     function PutNewObject(aKey: UTF8String): TJSValue; overload;
     function PutNewObject(aKey: Integer): TJSValue; overload;
     function PutNewArray(aKey: UTF8String): TJSValue; overload;
@@ -150,16 +153,17 @@ type
   { TJSString }
 
   TJSString = class(TJSValue)
-  private
+  strict private
     fValue: UTF8String;
-  protected
+  strict protected
     function GetAsBoolean: Boolean; override;
     function GetAsNumber: Double; override;
     function GetAsString: UTF8String; override;
-    procedure SetAsBoolean(AValue: Boolean); override;
-    procedure SetAsNumber(AValue: Double); override;
-    procedure SetAsString(AValue: UTF8String); override;
   public
+    constructor Create; override;
+    constructor CreateBoolean(aValue: Boolean); override;
+    constructor CreateNumber(aValue: Double); override;
+    constructor CreateString(aValue: UTF8String); override;
     class function GetTypeOf: TJSType; override;
     property Value: UTF8String read fValue write fValue;
     procedure Assign(aValue: TJSValue); override;
@@ -168,16 +172,17 @@ type
   { TJSNumber }
 
   TJSNumber = class(TJSValue)
-  private
+  strict private
     fValue: Double;
-  protected
+  strict protected
     function GetAsBoolean: Boolean; override;
     function GetAsNumber: Double; override;
     function GetAsString: UTF8String; override;
-    procedure SetAsBoolean(AValue: Boolean); override;
-    procedure SetAsNumber(AValue: Double); override;
-    procedure SetAsString(AValue: UTF8String); override;
   public
+    constructor Create; override;
+    constructor CreateBoolean(aValue: Boolean); override;
+    constructor CreateNumber(aValue: Double); override;
+    constructor CreateString(aValue: UTF8String); override;
     class function GetTypeOf: TJSType; override;
     property Value: Double read fValue write fValue;
     procedure Assign(aValue: TJSValue); override;
@@ -186,16 +191,17 @@ type
   { TJSBoolean }
 
   TJSBoolean = class(TJSValue)
-  private
+  strict private
     fValue: Boolean;
-  protected
+  strict protected
     function GetAsBoolean: Boolean; override;
     function GetAsNumber: Double; override;
     function GetAsString: UTF8String; override;
-    procedure SetAsBoolean(AValue: Boolean); override;
-    procedure SetAsNumber(AValue: Double); override;
-    procedure SetAsString(AValue: UTF8String); override;
   public
+    constructor Create; override;
+    constructor CreateBoolean(aValue: Boolean); override;
+    constructor CreateNumber(aValue: Double); override;
+    constructor CreateString(aValue: UTF8String); override;
     class function GetTypeOf: TJSType; override;
     property Value: Boolean read fValue write fValue;
     procedure Assign(aValue: TJSValue); override;
@@ -206,32 +212,32 @@ type
   // NOTE: Undefined is a singletone type. It is represented by 'nil'
   // in the data itself, and is never actually stored.
   TJSUndefined = class(TJSValue)
-  protected
+  strict protected
     function GetAsNumber: Double; override;
     function GetAsString: UTF8String; override;
     function GetAsBoolean: Boolean; override;
-    procedure SetAsBoolean({%H-}AValue: Boolean); override;
-    procedure SetAsNumber({%H-}AValue: Double); override;
-    procedure SetAsString({%H-}AValue: UTF8String); override;
   public
     constructor Create; override;
     procedure Assign({%H-}aValue: TJSValue); override;
+    constructor CreateBoolean({%H-}aValue: Boolean); override;
+    constructor CreateNumber({%H-}aValue: Double); override;
+    constructor CreateString({%H-}aValue: UTF8String); override;
     class function GetTypeOf: TJSType; override;
   end;
 
   { TJSNull }
 
   TJSNull = class(TJSValue)
-  protected
+  strict protected
     function GetAsNumber: Double; override;
     function GetAsString: UTF8String; override;
     function GetAsBoolean: Boolean; override;
-    procedure SetAsBoolean({%H-}AValue: Boolean); override;
-    procedure SetAsNumber({%H-}AValue: Double); override;
-    procedure SetAsString({%H-}AValue: UTF8String); override;
   public
     constructor Create; override;
     procedure Assign({%H-}aValue: TJSValue); override;
+    constructor CreateBoolean({%H-}aValue: Boolean); override;
+    constructor CreateNumber({%H-}aValue: Double); override;
+    constructor CreateString({%H-}aValue: UTF8String); override;
     class function GetTypeOf: TJSType; override;
   end;
 
@@ -247,20 +253,26 @@ type
   // tried to abstract TJSValues as delphi native primitive types.
 
   TJSObject = class(TJSValue)
-  private
+  strict private
     fList: TFPHashObjectList;
-  protected
+  strict protected
     function Put(aKey: UTF8String; aValue: TJSValue): TJSValue; override;
     function GetAsBoolean: Boolean; override;
     function GetAsNumber: Double; override;
     function GetAsString: UTF8String; override;
-    procedure SetAsBoolean({%H-}AValue: Boolean); override;
-    procedure SetAsNumber({%H-}AValue: Double); override;
-    procedure SetAsString({%H-}AValue: UTF8String); override;
     function CreateValue({%H-}aKey: UTF8String; aType: TJSValueClass): TJSValue;
        override; overload;
+    function CreateNumberValue({%H-}aKey: UTF8String; aRequestType: TJSValueClass;
+      aValue: Double): TJSValue; override; overload;
+    function CreateBooleanValue({%H-}aKey: UTF8String; aRequestType: TJSValueClass;
+      aValue: Boolean): TJSValue; override; overload;
+    function CreateStringValue({%H-}aKey: UTF8String; aRequestType: TJSValueClass;
+      aValue: UTF8String): TJSValue; override; overload;
   public
     constructor Create; override;
+    constructor CreateBoolean({%H-}aValue: Boolean); override;
+    constructor CreateNumber({%H-}aValue: Double); override;
+    constructor CreateString({%H-}aValue: UTF8String); override;
     destructor Destroy; override;
     class function GetTypeOf: TJSType; override;
     procedure Assign(aValue: TJSValue); override;
@@ -278,12 +290,22 @@ type
     function Get(aKey: UTF8String): TJSValue; override; overload;
     function Move(aKey: UTF8String; aNewOwner: TJSObject; aNewKey: UTF8String
       ): TJSValue; overload;
+    function Move(aKey: UTF8String; aNewKey: UTF8String): TJSValue; overload;
+    function Move(aKey: UTF8String; aNewOwner: TJSObject): TJSValue; overload;
   end;
 
   { TJSArray }
   TJSArray = class(TJSObject)
-  private
-  protected
+  strict private
+  strict protected
+    function CreateValue(aKey: UTF8String; aType: TJSValueClass): TJSValue;
+      override; overload;
+    function CreateStringValue(aKey: UTF8String; aRequestType: TJSValueClass;
+      aValue: UTF8String): TJSValue; override; overload;
+    function CreateBooleanValue(aKey: UTF8String; aRequestType: TJSValueClass;
+      aValue: Boolean): TJSValue; override; overload;
+    function CreateNumberValue(aKey: UTF8String; aRequestType: TJSValueClass;
+       aValue: Double): TJSValue; override; overload;
     function Put(aKey: UTF8String; aValue: TJSValue): TJSValue; override; overload;
     procedure SetLength(AValue: Integer);
     function GetLength: Integer;
@@ -299,28 +321,28 @@ type
   end;
 
   { TJSONParser }
+  EJSONParserSyntaxError = class(Exception)
+  end;
 
   TJSONParser = class
-  private
+  strict private
     fScanner: TJSONScanner;
-  public type
-    TCreateJSValueFunction = function(aKey: UTF8String; aRequestType: TJSValueClass): TJSValue of object;
-  protected
+  strict protected
     procedure SkipWhitespace;
-    function DefaultCreator({%H-}aKey: UTF8String; aRequestType: TJSValueClass): TJSValue;
+    procedure Expected(const aMessage: String);
+    procedure Unexpected(const aMessage: String);
   public
     constructor Create(aStream: TStream);
     destructor Destroy; override;
     function Parse: TJSValue;
-    function Parse(aCreationName: UTF8String; aCreator: TCreateJSValueFunction
-      ): TJSValue;
-    procedure Parse(aTarget: TJSValue);
-    procedure ParseString(aTarget: TJSValue);
-    procedure ParseNumber(aTarget: TJSValue);
-    procedure ParseBoolean(aTarget: TJSValue);
-    procedure ParseNull;
-    procedure ParseObject(aTarget: TJSValue);
-    procedure ParseArray(aTarget: TJSValue);
+    function Parse(aClass: TJSValueClass): TJSValue;
+    function Parse(aClass: TJSValueClass; aCreationName: UTF8String; aParent: TJSValue): TJSValue;
+    function ParseString(aClass: TJSValueClass; aCreationName: UTF8String; aParent: TJSValue): TJSValue;
+    function ParseNumber(aClass: TJSValueClass; aCreationName: UTF8String; aParent: TJSValue): TJSValue;
+    function ParseBoolean(aClass: TJSValueClass; aCreationName: UTF8String; aParent: TJSValue): TJSValue;
+    function ParseNull(aClass: TJSValueClass; aCreationName: UTF8String; aParent: TJSValue): TJSValue;
+    function ParseObject(aClass: TJSValueClass; aCreationName: UTF8String; aParent: TJSValue): TJSValue;
+    function ParseArray(aClass: TJSValueClass; aCreationName: UTF8String; aParent: TJSValue): TJSValue;
   end;
 
   function JSStringToNumber(aValue: UTF8String): Double;
@@ -334,9 +356,7 @@ type
   procedure ToJSON(aObject: TJSValue; aStream: TStream; aSpace: UTF8String = '');
   function ToJSON(aObject: TJSValue; aSpace: UTF8String = ''): UTF8String;
   function FromJSON(aClass: TJSValueClass; aStream: TStream): TJSValue;
-  procedure FromJSON(aObject: TJSValue; aStream: TStream);
   function FromJSON(aClass: TJSValueClass; aData: UTF8String): TJSValue;
-  procedure FromJSON(AObject: TJSVAlue; aData: UTF8String);
   function FromJSON(aData: UTF8String): TJSValue;
   function FromJSON(aStream: TStream): TJSValue;
 
@@ -579,7 +599,7 @@ var
         WriteQuote(aValue.AsString);
       jstNumber:
       begin
-        if (aValue.AsNumber = math.NaN) or (aValue.AsNumber = math.Infinity) then
+        if (math.IsNan(aValue.AsNumber)) or (math.IsInfinite(aValue.AsNumber)) then
           Write(NullText)
         else
           Write(aValue.AsString);
@@ -623,18 +643,12 @@ begin
 end;
 
 function FromJSON(aClass: TJSValueClass; aStream: TStream): TJSValue;
-begin
-  result := aClass.Create;
-  FromJSON(result,aStream);
-end;
-
-procedure FromJSON(aObject: TJSValue; aStream: TStream);
 var
   lParser: TJSONParser;
 begin
   lParser := TJSONParser.Create(aStream);
   try
-    lParser.Parse(aObject);
+    result := lParser.Parse(aClass);
   finally
     lParser.Free;
   end;
@@ -647,19 +661,6 @@ begin
   lInput := TStringStream.Create(aData);
   try
     result := FromJSON(aClass,lInput);
-  finally
-    lInput.Free;
-  end;
-
-end;
-
-procedure FromJSON(AObject: TJSVAlue; aData: UTF8String);
-var
-  lInput: TStringStream;
-begin
-  lInput := TStringStream.Create(aData);
-  try
-    FromJSON(aObject,lInput);
   finally
     lInput.Free;
   end;
@@ -699,129 +700,188 @@ begin
     fScanner.FetchToken;
 end;
 
-procedure TJSONParser.ParseString(aTarget: TJSValue);
+procedure TJSONParser.Expected(const aMessage: String);
+begin
+  raise EJSONParserSyntaxError.Create('(' + IntToStr(fScanner.CurRow) + ',' + IntToStr(fScanner.CurColumn) + ') Expected ' + aMessage);
+end;
+
+procedure TJSONParser.Unexpected(const aMessage: String);
+begin
+  raise EJSONParserSyntaxError.Create('(' + IntToStr(fScanner.CurRow) + ',' + IntToStr(fScanner.CurColumn) + ') Unexpected ' + aMessage);
+end;
+
+function TJSONParser.ParseString(aClass: TJSValueClass;
+  aCreationName: UTF8String; aParent: TJSValue): TJSValue;
 begin
   SkipWhitespace;
   if fScanner.CurToken = tkString then
   begin
-    aTarget.SetAsString(fScanner.CurTokenString);
+    if aClass = nil then
+      aClass := TJSString;
+    if aParent <> nil then
+      result := aParent.Put(aCreationName,fScanner.CurTokenString)
+    else
+      result := aClass.CreateString(fScanner.CurTokenString);
     fScanner.FetchToken;
   end
   else
-    raise Exception.Create('Expected string');
+    Expected('string');
 end;
 
-procedure TJSONParser.ParseNumber(aTarget: TJSValue);
+function TJSONParser.ParseNumber(aClass: TJSValueClass;
+  aCreationName: UTF8String; aParent: TJSValue): TJSValue;
 begin
   SkipWhitespace;
   if fScanner.CurToken = tkNumber then
   begin
-    aTarget.SetAsString(fScanner.CurTokenString);
+    if aClass = nil then
+      aClass := TJSNumber;
+    if aParent <> nil then
+      result := aParent.Put(aCreationName,JSStringToNumber(fScanner.CurTokenString))
+    else
+      result := aClass.CreateNumber(JSStringToNumber(fScanner.CurTokenString));
     fScanner.FetchToken;
   end
   else
-    raise Exception.Create('Expected number');
-
+    Expected('number');
 end;
 
-procedure TJSONParser.ParseBoolean(aTarget: TJSValue);
+function TJSONParser.ParseBoolean(aClass: TJSValueClass;
+  aCreationName: UTF8String; aParent: TJSValue): TJSValue;
 begin
   SkipWhitespace;
   if fScanner.CurToken in [tkTrue,tkFalse] then
   begin
-    aTarget.SetAsBoolean(fScanner.CurToken = tkTrue);
+    if aClass = nil then
+      aClass := TJSBoolean;
+    if aParent <> nil then
+      result := aParent.Put(aCreationName,fScanner.CurToken = tkTrue)
+    else
+      result := aClass.CreateBoolean(fScanner.CurToken = tkTrue);
     fScanner.FetchToken;
   end
   else
-    raise Exception.Create('Expected boolean');
+    Expected('boolean');
 
 end;
 
-procedure TJSONParser.ParseNull;
+function TJSONParser.ParseNull(aClass: TJSValueClass;
+  aCreationName: UTF8String; aParent: TJSValue): TJSValue;
 begin
   SkipWhitespace;
   if fScanner.CurToken = tkNull then
+  begin
+    if (aClass = nil) then
+       aClass := TJSNull;
+    if aParent <> nil then
+      result := aParent.PutNull(aCreationName)
+    else if aClass = TJSNull then
+      result := TJSValue.Null
+    else
+      result := aClass.Create;
     fScanner.FetchToken
+  end
   else
-    raise Exception.Create('Expected null');
+    Expected('null');
 
 end;
 
-procedure TJSONParser.ParseObject(aTarget: TJSValue);
+function TJSONParser.ParseObject(aClass: TJSValueClass;
+  aCreationName: UTF8String; aParent: TJSValue): TJSValue;
 var
   lKey: UTF8String;
-  lValue: TJSValue;
 begin
-  SkipWhitespace;
-  if fScanner.CurToken <> tkCurlyBraceOpen then
-    raise Exception.Create('Expected object open');
-  fScanner.FetchToken;
-  SkipWhitespace;
-  // look for a property
-  while not (fScanner.CurToken in [tkCurlyBraceClose,tkEOF]) do
-  begin
-    if fScanner.CurToken <> tkString then
-      raise Exception.Create('Expected property name');
-    lKey := fScanner.CurTokenString;
+  if aClass = nil then
+    aClass := TJSObject;
+  if aParent <> nil then
+     result := aParent.PutNewObject(aCreationName)
+  else
+    result := aClass.Create;
+  try
+    SkipWhitespace;
+    if fScanner.CurToken <> tkCurlyBraceOpen then
+      Expected('object start');
     fScanner.FetchToken;
     SkipWhitespace;
-    if fScanner.CurToken <> tkColon then
-      raise Exception.Create('Expected colon');
+    // look for a property
+    while not (fScanner.CurToken in [tkCurlyBraceClose,tkEOF]) do
+    begin
+      if fScanner.CurToken <> tkString then
+        Expected('property name');
+      lKey := fScanner.CurTokenString;
+      fScanner.FetchToken;
+      SkipWhitespace;
+      if fScanner.CurToken <> tkColon then
+        Expected('colon');
+      fScanner.FetchToken;
+      Parse(nil,lKey,result);
+      SkipWhitespace;
+      if fScanner.CurToken = tkComma then
+      begin
+        fScanner.FetchToken;
+        SkipWhitespace;
+      end
+      else if fScanner.CurToken <> tkCurlyBraceClose then
+        Expected('comma');
+    end;
+    if fScanner.CurToken <> tkCurlyBraceClose then
+      Expected('object end');
     fScanner.FetchToken;
-    lValue := Parse(lKey,@aTarget.CreateValue);
-    aTarget.Put(lKey,lValue);
-    SkipWhitespace;
-    if fScanner.CurToken = tkComma then
-      SkipWhitespace
-    else if fScanner.CurToken <> tkCurlyBraceClose then
-      raise Exception.Create('Expected comma');
+  except
+    if aParent <> nil then
+       FreeAndNil(result);
+    raise;
   end;
-  if fScanner.CurToken <> tkCurlyBraceClose then
-    raise Exception.Create('Expected object close');
-  fScanner.FetchToken;
 
 end;
 
-procedure TJSONParser.ParseArray(aTarget: TJSValue);
+function TJSONParser.ParseArray(aClass: TJSValueClass;
+  aCreationName: UTF8String; aParent: TJSValue): TJSValue;
 var
   lKey: Integer;
-  lValue: TJSValue;
 begin
-  SkipWhitespace;
-  if fScanner.CurToken <> tkSquaredBraceOpen then
-    raise Exception.Create('Expected array open');
-  fScanner.FetchToken;
-  // look for a item
-  lKey := 0;
-  while not (fScanner.CurToken in [tkSquaredBraceClose,tkEOF]) do
-  begin
-    lValue := Parse(IntToStr(lKey),@aTarget.CreateValue);
-    aTarget.Put(lKey,lValue);
+  if aClass = nil then
+     aClass := TJSArray;
+  if aParent <> nil then
+     result := aParent.PutNewArray(aCreationName)
+  else
+    result := aClass.Create;
+  try
     SkipWhitespace;
-    if fScanner.CurToken = tkComma then
+    if fScanner.CurToken <> tkSquaredBraceOpen then
+      Expected('array start');
+    fScanner.FetchToken;
+    // look for a item
+    lKey := 0;
+    while not (fScanner.CurToken in [tkSquaredBraceClose,tkEOF]) do
     begin
-      fScanner.FetchToken;
-      lKey := lKey + 1;
-    end
-    else if fScanner.CurToken <> tkSquaredBraceClose then
-      raise Exception.Create('Expected comma');
+      Parse(nil,IntToStr(lKey),Result);
+      SkipWhitespace;
+      if fScanner.CurToken = tkComma then
+      begin
+        fScanner.FetchToken;
+        lKey := lKey + 1;
+      end
+      else if fScanner.CurToken <> tkSquaredBraceClose then
+        Expected('comma');
+    end;
+    if fScanner.CurToken <> tkSquaredBraceClose then
+      Expected('array end');
+    fScanner.FetchToken;
+
+  except
+    if aParent <> nil then
+       FreeAndNil(result);
+    raise;
   end;
-  if fScanner.CurToken <> tkSquaredBraceClose then
-    raise Exception.Create('Expected array close');
-  fScanner.FetchToken;
 
-end;
-
-function TJSONParser.DefaultCreator(aKey: UTF8String;
-  aRequestType: TJSValueClass): TJSValue;
-begin
-  result := aRequestType.Create;
 end;
 
 constructor TJSONParser.Create(aStream: TStream);
 begin
   fScanner := TJSONScanner.Create(aStream,true);
   fScanner.Strict := true;
+  fScanner.FetchToken;
 end;
 
 destructor TJSONParser.Destroy;
@@ -832,85 +892,104 @@ end;
 
 function TJSONParser.Parse: TJSValue;
 begin
-  result := Parse('',@DefaultCreator);
+  result := Parse(nil,'',nil);
 end;
 
-function TJSONParser.Parse(aCreationName: UTF8String; aCreator: TCreateJSValueFunction): TJSValue;
+function TJSONParser.Parse(aClass: TJSValueClass): TJSValue;
+begin
+  result := Parse(aClass,'',nil);
+end;
+
+function TJSONParser.Parse(aClass: TJSValueClass; aCreationName: UTF8String;
+  aParent: TJSValue): TJSValue;
 begin
   Skipwhitespace;
   case fScanner.CurToken of
     tkEOF:
-      raise Exception.Create('Unexpected end of file');
+      Unexpected('end of file');
     //tkWhitespace,
     tkString:
     begin
-      result := aCreator(aCreationName,TJSString);
-      ParseString(result);
+      result := ParseString(aClass,aCreationName,aParent);
     end;
     tkNumber:
     begin
-      result := aCreator(aCreationName,TJSNumber);
-      ParseNumber(result);
+      result := ParseNumber(aClass,aCreationName,aParent);
     end;
     tkTrue, tkFalse:
     begin
-      result := aCreator(aCreationName,TJSBoolean);
-      ParseBoolean(result);
+      result := ParseBoolean(aClass,aCreationName,aParent);
     end;
     tkNull:
     begin
-      result := aCreator(aCreationName,TJSNull);
-      ParseNull;
+      result := ParseNull(aClass,aCreationName,aParent);
     end;
     // Simple (one-character) tokens
     tkComma:
-      raise Exception.Create('Unexpected comma in file');
+      Unexpected('comma');
     tkColon:
-      raise Exception.Create('Unexpected colon in file');
+      Unexpected('colon');
     tkCurlyBraceOpen:
     begin
-      result := aCreator(aCreationName,TJSObject);
-      ParseObject(result as TJSObject);
+      result := ParseObject(aClass,aCreationName,aParent);
     end;
     tkCurlyBraceClose:
-      raise Exception.Create('Unexpected end of object in file');
+      Unexpected('object end');
     tkSquaredBraceOpen:
     begin
-      result := aCreator(aCreationName,TJSArray);
-      ParseArray(result as TJSObject);
+      result := ParseArray(aClass,aCreationName,aParent);
     end;
     tkSquaredBraceClose:
-      raise Exception.Create('Unexpected end of array in file');
+      Unexpected('array end');
     tkIdentifier:
-      raise Exception.Create('Unexpected identifier in file (only strict JSON is allowed)');
+      Unexpected('identifier'); // only strict JSON is allowed.
     tkUnknown:
-      raise Exception.Create('Unknown token in file');
+      Unexpected('unknown token');
   end;
-end;
-
-procedure TJSONParser.Parse(aTarget: TJSValue);
-begin
-  SkipWhitespace;
-  case aTarget.TypeOf of
-    jstUndefined:;
-    jstNull:
-      ParseNull;
-    jstBoolean:
-      ParseBoolean(aTarget);
-    jstNumber:
-      ParseNumber(aTarget);
-    jstString:
-      ParseString(aTarget);
-    jstObject:
-      if aTarget is TJSArray then
-         ParseArray(aTarget as TJSObject)
-      else
-         ParseObject(aTarget as TJSObject);
-  end;
-
 end;
 
 { TJSArray }
+
+function TJSArray.CreateValue(aKey: UTF8String; aType: TJSValueClass): TJSValue;
+begin
+  if aKey = LengthKey then
+    raise Exception.Create('Invalid value for array length');
+  Result:=inherited CreateValue(aKey, aType);
+end;
+
+function TJSArray.CreateStringValue(aKey: UTF8String;
+  aRequestType: TJSValueClass; aValue: UTF8String): TJSValue;
+begin
+  if aKey = LengthKey then
+     result := CreateNumberValue(aKey,TJSNumber,JSStringToNumber(aValue))
+  else
+     Result:=inherited CreateStringValue(aKey, aRequestType, aValue);
+end;
+
+function TJSArray.CreateBooleanValue(aKey: UTF8String;
+  aRequestType: TJSValueClass; aValue: Boolean): TJSValue;
+begin
+  if aKey = LengthKey then
+     result := CreateNumberValue(aKey,TJSNumber,JSBooleanToNumber(aValue))
+  else
+     Result:=inherited CreateBooleanValue(aKey, aRequestType, aValue);
+end;
+
+function TJSArray.CreateNumberValue(aKey: UTF8String;
+  aRequestType: TJSValueClass; aValue: Double): TJSValue;
+var
+  lNewLength: Integer;
+begin
+  if aKey = LengthKey then
+  begin
+    lNewLength := trunc(aValue);
+    if lNewLength <> aValue then
+        raise Exception.Create('Length value is out of range');
+    result := TJSNumber.CreateNumber(lNewLength);
+  end
+  else
+     Result:=inherited CreateNumberValue(aKey, aRequestType, aValue);
+end;
 
 function TJSArray.Put(aKey: UTF8String; aValue: TJSValue): TJSValue;
 var
@@ -921,28 +1000,20 @@ begin
   lOldLength := Length;
   if aKey = LengthKey then
   begin
+    // Should be automatically created by CreateValue, so we know
+    // it's a TJSNumber and the value is valid.
     lNewLength := Trunc(aValue.AsNumber);
-    if lNewLength <> aValue.AsNumber then
-       raise Exception.Create('Length value is out of range');
-    aValue.SetAsNumber(lNewLength);
     while lNewLength < lOldLength do
     begin
       lOldLength := lOldLength - 1;
-      try
-         delete(lOldLength);
-      except
-        aValue.SetAsNumber(lOldLength + 1);
-        result := inherited Put(aKey,aValue);
-        raise;
-      end;
-
+      delete(lOldLength);
     end;
     result := inherited Put(aKey,aValue);
   end
   else if TryStrToInt(aKey,lIndex) then
   begin
     result := inherited Put(aKey,aValue);
-    if lIndex > lOldLength then
+    if lIndex > (lOldLength - 1) then
        Put(LengthKey,lIndex + 1);
 
   end
@@ -1047,23 +1118,6 @@ begin
   result := jstUndefined;
 end;
 
-procedure TJSUndefined.SetAsBoolean(AValue: Boolean);
-begin
-  raise Exception.Create('Can''t set value of undefined');
-end;
-
-procedure TJSUndefined.SetAsNumber(AValue: Double);
-begin
-  raise Exception.Create('Can''t set value of undefined');
-
-end;
-
-procedure TJSUndefined.SetAsString(AValue: UTF8String);
-begin
-  raise Exception.Create('Can''t set value of undefined');
-
-end;
-
 constructor TJSUndefined.Create;
 begin
   if fUndefined <> nil then
@@ -1077,11 +1131,107 @@ begin
   raise Exception.Create('Can''t set assign to undefined');
 end;
 
+constructor TJSUndefined.CreateBoolean(aValue: Boolean);
+begin
+  raise Exception.Create('Can''t set value of undefined');
+end;
+
+constructor TJSUndefined.CreateNumber(aValue: Double);
+begin
+  raise Exception.Create('Can''t set value of undefined');
+end;
+
+constructor TJSUndefined.CreateString(aValue: UTF8String);
+begin
+  raise Exception.Create('Can''t set value of undefined');
+end;
+
 { TJSValue }
+
+function TJSValue.CreateValue(aRequestType: TJSValueClass): TJSValue;
+begin
+  if aRequestType <> nil then
+  begin;
+     if aRequestType = TJSUndefined then
+       result := TJSUndefined.Undefined
+     else if aRequestType = TJSNull then
+       result := TJSNull.Null
+     else
+       result := aRequestType.Create
+  end
+  else
+     result := TJSUndefined.Undefined;
+end;
+
+function TJSValue.CreateStringValue(aRequestType: TJSValueClass;
+  aValue: UTF8String): TJSValue;
+begin
+  if aRequestType <> nil then
+  begin;
+     if aRequestType = TJSUndefined then
+       result := TJSUndefined.Undefined
+     else if aRequestType = TJSNull then
+       result := TJSNull.Null
+     else
+       result := aRequestType.CreateString(aValue)
+  end
+  else
+     result := TJSUndefined.Undefined;
+end;
+
+function TJSValue.CreateNumberValue(aRequestType: TJSValueClass; aValue: Double
+  ): TJSValue;
+begin
+  if aRequestType <> nil then
+  begin;
+     if aRequestType = TJSUndefined then
+       result := TJSUndefined.Undefined
+     else if aRequestType = TJSNull then
+       result := TJSNull.Null
+     else
+       result := aRequestType.CreateNumber(aValue)
+  end
+  else
+     result := TJSUndefined.Undefined;
+end;
+
+function TJSValue.CreateBooleanValue(aRequestType: TJSValueClass;
+  aValue: Boolean): TJSValue;
+begin
+  if aRequestType <> nil then
+  begin;
+     if aRequestType = TJSUndefined then
+       result := TJSUndefined.Undefined
+     else if aRequestType = TJSNull then
+       result := TJSNull.Null
+     else
+       result := aRequestType.CreateBoolean(aValue)
+  end
+  else
+     result := TJSUndefined.Undefined;
+end;
 
 function TJSValue.{%H-}CreateValue(aKey: UTF8String; aRequestType: TJSValueClass): TJSValue;
 begin
-  raise Exception.Create('Object type does not support contained objects.');
+  raise Exception.Create('This type does not support contained objects.');
+end;
+
+function TJSValue.{%H-}CreateStringValue(aKey: UTF8String;
+  aRequestType: TJSValueClass; aValue: UTF8String): TJSValue;
+begin
+  raise Exception.Create('This type does not support contained objects.');
+end;
+
+function TJSValue.{%H-}CreateNumberValue(aKey: UTF8String;
+  aRequestType: TJSValueClass; aValue: Double): TJSValue;
+begin
+  raise Exception.Create('This type does not support contained objects.');
+end;
+
+function TJSValue.{%H-}CreateBooleanValue(aKey: UTF8String;
+  aRequestType: TJSValueClass; aValue: Boolean): TJSValue;
+begin
+  raise Exception.Create('This type does not support contained objects.');
 end;
 
 function TJSValue.CreateValue(aKey: Integer; aRequestType: TJSValueClass
@@ -1128,15 +1278,59 @@ begin
   result.Assign(Self);
 end;
 
+function TJSValue.DeepEquals(aValue: TJSValue): Boolean;
+var
+  lKeys: TStringArray;
+  i: Integer;
+begin
+  if TypeOf = aValue.TypeOf then
+  begin
+    case TypeOf of
+      jstUndefined:
+        result := (aValue = TJSValue.Undefined) and (Self = TJSValue.Undefined);
+      jstNull:
+        result := (aValue = TJSValue.Null) and (Self = TJSValue.Null);
+      jstBoolean:
+        result := AsBoolean = aValue.AsBoolean;
+      jstNumber:
+        result := AsNumber = aValue.AsNumber;
+      jstString:
+        result := AsString = aValue.AsString;
+      jstObject:
+      begin
+        lKeys := keys;
+        if Length(lKeys) = Length(aValue.keys) then
+        begin
+          result := true;
+          for i := 0 to Length(lKeys) - 1 do
+          begin
+            if (not aValue.hasOwnProperty(lKeys[i])) or
+               (not Get(lKeys[i]).DeepEquals(aValue.Get(lKeys[i]))) then
+            begin
+              result := false;
+              break;
+            end;
+          end;
+
+        end
+        else
+          result := false;
+      end;
+    end;
+
+  end
+  else
+    result := false;
+end;
+
 procedure TJSValue.AssignTo(aTarget: TJSValue);
 begin
-  raise Exception.Create('I don''t know how to assign this custom js object to another object.');
+  raise Exception.Create('I don''t know how to assign this js object to another object.');
 end;
 
 function TJSValue.keys: TStringArray;
 begin
   SetLength(Result,0);
-
 end;
 
 function TJSValue.hasOwnProperty(aKey: UTF8String): Boolean;
@@ -1171,57 +1365,57 @@ begin
 
 end;
 
-procedure TJSValue.Put(aKey: UTF8String; aValue: UTF8String);
+function TJSValue.Put(aKey: UTF8String; aValue: UTF8String): TJSValue;
 begin
-  Put(aKey,CreateValue(aKey,TJSString)).SetAsString(aValue);
+  result := Put(aKey,CreateStringValue(aKey,TJSString,aValue));
 end;
 
-procedure TJSValue.Put(aKey: Integer; aValue: UTF8String);
+function TJSValue.Put(aKey: Integer; aValue: UTF8String): TJSValue;
 begin
-  Put(IntToStr(aKey),aValue);
+  result := Put(IntToStr(aKey),aValue);
 end;
 
-procedure TJSValue.Put(aKey: UTF8String; aValue: Double);
+function TJSValue.Put(aKey: UTF8String; aValue: Double): TJSValue;
 begin
-  Put(aKey,CreateValue(aKey,TJSNumber)).SetAsNumber(aValue);
-
-end;
-
-procedure TJSValue.Put(aKey: Integer; aValue: Double);
-begin
-  Put(IntToStr(aKey),aValue);
+  result := Put(aKey,CreateNumberValue(aKey,TJSNumber,aValue));
 
 end;
 
-procedure TJSValue.Put(aKey: UTF8String; aValue: Boolean);
+function TJSValue.Put(aKey: Integer; aValue: Double): TJSValue;
 begin
-  Put(aKey,CreateValue(aKey,TJSBoolean)).SetAsBoolean(aValue);
+  result := Put(IntToStr(aKey),aValue);
 
 end;
 
-procedure TJSValue.Put(aKey: Integer; aValue: Boolean);
+function TJSValue.Put(aKey: UTF8String; aValue: Boolean): TJSValue;
 begin
-  Put(IntToStr(aKey),aValue);
+  result := Put(aKey,CreateBooleanValue(aKey,TJSBoolean,aValue));
+
 end;
 
-procedure TJSValue.PutNull(aKey: UTF8String);
+function TJSValue.Put(aKey: Integer; aValue: Boolean): TJSValue;
 begin
-  Put(aKey,CreateValue(aKey,TJSNull));
+  result := Put(IntToStr(aKey),aValue);
 end;
 
-procedure TJSValue.PutNull(aKey: Integer);
+function TJSValue.PutNull(aKey: UTF8String): TJSValue;
 begin
-  PutNull(IntToStr(aKey));
+  result := Put(aKey,CreateValue(aKey,TJSNull));
 end;
 
-procedure TJSValue.PutUndefined(aKey: UTF8String);
+function TJSValue.PutNull(aKey: Integer): TJSValue;
 begin
-  Put(aKey,CreateValue(aKey,TJSUndefined));
+  result := PutNull(IntToStr(aKey));
 end;
 
-procedure TJSValue.PutUndefined(aKey: Integer);
+function TJSValue.PutUndefined(aKey: UTF8String): TJSValue;
 begin
-  PutUndefined(IntToStr(aKey));
+  result := Put(aKey,CreateValue(aKey,TJSUndefined));
+end;
+
+function TJSValue.PutUndefined(aKey: Integer): TJSValue;
+begin
+  result := PutUndefined(IntToStr(aKey));
 end;
 
 function TJSValue.PutNewObject(aKey: UTF8String): TJSValue;
@@ -1270,24 +1464,6 @@ begin
   result := jstNull;
 end;
 
-procedure TJSNull.SetAsBoolean(AValue: Boolean);
-begin
-  raise Exception.Create('Can''t set value of null');
-
-end;
-
-procedure TJSNull.SetAsNumber(AValue: Double);
-begin
-  raise Exception.Create('Can''t set value of null');
-
-end;
-
-procedure TJSNull.SetAsString(AValue: UTF8String);
-begin
-  raise Exception.Create('Can''t set value of null');
-
-end;
-
 constructor TJSNull.Create;
 begin
   if fNull <> nil then
@@ -1298,6 +1474,21 @@ end;
 procedure TJSNull.Assign(aValue: TJSValue);
 begin
   raise Exception.Create('Can''t assign to null');
+end;
+
+constructor TJSNull.CreateBoolean(aValue: Boolean);
+begin
+  raise Exception.Create('Can''t set value of null');
+end;
+
+constructor TJSNull.CreateNumber(aValue: Double);
+begin
+  raise Exception.Create('Can''t set value of null');
+end;
+
+constructor TJSNull.CreateString(aValue: UTF8String);
+begin
+  raise Exception.Create('Can''t set value of null');
 end;
 
 { TJSBoolean }
@@ -1323,19 +1514,27 @@ begin
   result := JSBooleanToString(fValue);
 end;
 
-procedure TJSBoolean.SetAsBoolean(AValue: Boolean);
+constructor TJSBoolean.Create;
 begin
-  fValue := AValue;
+  CreateBoolean(False);
 end;
 
-procedure TJSBoolean.SetAsNumber(AValue: Double);
+constructor TJSBoolean.CreateBoolean(aValue: Boolean);
 begin
-  fValue := JSNumbertoBoolean(AValue);
+  inherited Create;
+  fValue := aValue;
 end;
 
-procedure TJSBoolean.SetAsString(AValue: UTF8String);
+constructor TJSBoolean.CreateNumber(aValue: Double);
 begin
-  fValue := JSStringToBoolean(AValue);
+  CreateBoolean(JSNumbertoBoolean(aValue));
+
+end;
+
+constructor TJSBoolean.CreateString(aValue: UTF8String);
+begin
+  CreateBoolean(JSStringToBoolean(aValue));
+
 end;
 
 procedure TJSBoolean.Assign(aValue: TJSValue);
@@ -1367,19 +1566,26 @@ begin
   result := JSNumberToString(fValue);
 end;
 
-procedure TJSNumber.SetAsBoolean(AValue: Boolean);
+constructor TJSNumber.Create;
 begin
-  fValue := JSBooleanToNumber(AValue);
+  CreateNumber(0);
 end;
 
-procedure TJSNumber.SetAsNumber(AValue: Double);
+constructor TJSNumber.CreateBoolean(aValue: Boolean);
 begin
-  fValue := AValue;
+  CreateNumber(JSBooleanToNumber(aValue));
 end;
 
-procedure TJSNumber.SetAsString(AValue: UTF8String);
+constructor TJSNumber.CreateNumber(aValue: Double);
 begin
-  fValue := JSStringToNumber(AValue);
+  inherited Create;
+  fValue := aValue;
+
+end;
+
+constructor TJSNumber.CreateString(aValue: UTF8String);
+begin
+  CreateNumber(JSStringToNumber(aValue));
 end;
 
 procedure TJSNumber.Assign(aValue: TJSValue);
@@ -1421,19 +1627,26 @@ begin
   result := fValue;
 end;
 
-procedure TJSString.SetAsBoolean(AValue: Boolean);
+constructor TJSString.Create;
 begin
-  fValue := JSBooleanToString(AValue);
+  CreateString('');
 end;
 
-procedure TJSString.SetAsNumber(AValue: Double);
+constructor TJSString.CreateBoolean(aValue: Boolean);
 begin
-  fValue := JSNumberToString(AValue);
+  CreateString(JSBooleanToString(aValue));
 end;
 
-procedure TJSString.SetAsString(AValue: UTF8String);
+constructor TJSString.CreateNumber(aValue: Double);
 begin
-  fValue := AValue;
+  CreateString(JSNumberToString(aValue));
+end;
+
+constructor TJSString.CreateString(aValue: UTF8String);
+begin
+  inherited Create;
+  fValue := aValue;
+
 end;
 
 procedure TJSString.Assign(aValue: TJSValue);
@@ -1465,35 +1678,28 @@ begin
   result := '[object Object]';
 end;
 
-procedure TJSObject.SetAsBoolean(AValue: Boolean);
-begin
-  raise Exception.Create('Can''t set primitive value on object');
-end;
-
-procedure TJSObject.SetAsNumber(AValue: Double);
-begin
-  raise Exception.Create('Can''t set primitive value on object');
-end;
-
-procedure TJSObject.SetAsString(AValue: UTF8String);
-begin
-  raise Exception.Create('Can''t set primitive value on object');
-end;
-
 function TJSObject.CreateValue(aKey: UTF8String; aType: TJSValueClass
   ): TJSValue;
 begin
-  if aType <> nil then
-  begin;
-     if aType = TJSUndefined then
-       result := TJSUndefined.Undefined
-     else if aType = TJSNull then
-       result := TJSNull.Null
-     else
-       result := aType.Create
-  end
-  else
-     result := TJSUndefined.Undefined;
+  result := CreateValue(aType);
+end;
+
+function TJSObject.CreateNumberValue(aKey: UTF8String;
+  aRequestType: TJSValueClass; aValue: Double): TJSValue;
+begin
+  result := CreateNumberValue(aRequestType,aValue);
+end;
+
+function TJSObject.CreateBooleanValue(aKey: UTF8String;
+  aRequestType: TJSValueClass; aValue: Boolean): TJSValue;
+begin
+  Result:=CreateBooleanValue(aRequestType, aValue);
+end;
+
+function TJSObject.CreateStringValue(aKey: UTF8String;
+  aRequestType: TJSValueClass; aValue: UTF8String): TJSValue;
+begin
+  Result:=CreateStringValue(aRequestType, aValue);
 end;
 
 function TJSObject.Put(aKey: UTF8String; aValue: TJSValue): TJSValue;
@@ -1537,7 +1743,6 @@ begin
         FreeAndNil(value)
      else
         value := nil;
-     fList.Delete(idx);
   end;
 end;
 
@@ -1554,13 +1759,28 @@ begin
   fList := TFPHashObjectList.Create(false);
 end;
 
+constructor TJSObject.CreateBoolean(aValue: Boolean);
+begin
+  raise Exception.Create('Can''t set primitive value on object');
+end;
+
+constructor TJSObject.CreateNumber(aValue: Double);
+begin
+  raise Exception.Create('Can''t set primitive value on object');
+end;
+
+constructor TJSObject.CreateString(aValue: UTF8String);
+begin
+  raise Exception.Create('Can''t set primitive value on object');
+end;
+
 destructor TJSObject.Destroy;
 var
   i: Integer;
   value: TJSValue;
 begin
   // clear the list
-  for i := 0 to fList.Count do
+  for i := 0 to fList.Count - 1 do
   begin
     value := fList[i] as TJSValue;
     if not ((value is TJSNull) or (value is TJSUndefined)) then
@@ -1644,6 +1864,16 @@ begin
   if aNewOwner <> nil then
      aNewOwner.Put(aNewKey,result);
 
+end;
+
+function TJSObject.Move(aKey: UTF8String; aNewKey: UTF8String): TJSValue;
+begin
+  result := Move(aKey,Self,aNewKey);
+end;
+
+function TJSObject.Move(aKey: UTF8String; aNewOwner: TJSObject): TJSValue;
+begin
+  result := Move(aKey,aNewOwner,aKey);
 end;
 
 end.
