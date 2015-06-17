@@ -80,6 +80,7 @@ type
     // to find the behavior expected.
     function CreateValue({%H-}aKey: UTF8String; {%H-}aRequestType: TJSValueClass): TJSValue; virtual; overload;
     function CreateValue(aKey: Integer; aRequestType: TJSValueClass): TJSValue; overload;
+    class function CreateValue(aRequestType: TJSValueClass): TJSValue; overload;
     // override this to handle assigning a value to the specified key. This
     // value *should* have been created using CreateValue, so there shouldn't be
     // any reason to expect the wrong type here.
@@ -91,10 +92,9 @@ type
     class destructor Finalize;
     class property Undefined: TJSUndefined read fUndefined;
     class property Null: TJSNull read fNull;
-    // override this to behave the way Javascript 'x.toString' might behave
-    // for your given value.
     procedure Assign(aValue: TJSValue); virtual;
     function Clone: TJSValue; virtual;
+    function DeepEquals(aValue: TJSValue): Boolean; virtual;
     // override this only if you have a "custom" value, not descended from
     // the primitives or TJSObject, and you want it to be able to be cloned
     // to another JSObject.
@@ -145,6 +145,9 @@ type
     function PutNewObject(aKey: Integer): TJSValue; overload;
     function PutNewArray(aKey: UTF8String): TJSValue; overload;
     function PutNewArray(aKey: Integer): TJSValue; overload;
+    class function MakeString(aValue: UTF8String): TJSValue;
+    class function MakeNumber(aValue: Double): TJSValue;
+    class function MakeBoolean(aValue: Boolean): TJSValue;
   end;
 
   { TJSString }
@@ -1079,6 +1082,21 @@ end;
 
 { TJSValue }
 
+class function TJSValue.CreateValue(aRequestType: TJSValueClass): TJSValue;
+begin
+  if aRequestType <> nil then
+  begin;
+     if aRequestType = TJSUndefined then
+       result := TJSUndefined.Undefined
+     else if aRequestType = TJSNull then
+       result := TJSNull.Null
+     else
+       result := aRequestType.Create
+  end
+  else
+     result := TJSUndefined.Undefined;
+end;
+
 function TJSValue.{%H-}CreateValue(aKey: UTF8String; aRequestType: TJSValueClass): TJSValue;
 begin
   raise Exception.Create('Object type does not support contained objects.');
@@ -1128,6 +1146,51 @@ begin
   result.Assign(Self);
 end;
 
+function TJSValue.DeepEquals(aValue: TJSValue): Boolean;
+var
+  lKeys: TStringArray;
+  i: Integer;
+begin
+  if TypeOf = aValue.TypeOf then
+  begin
+    case TypeOf of
+      jstUndefined:
+        result := (aValue = TJSValue.Undefined) and (Self = TJSValue.Undefined);
+      jstNull:
+        result := (aValue = TJSValue.Null) and (Self = TJSValue.Null);
+      jstBoolean:
+        result := AsBoolean = aValue.AsBoolean;
+      jstNumber:
+        result := AsNumber = aValue.AsNumber;
+      jstString:
+        result := AsString = aValue.AsString;
+      jstObject:
+      begin
+        lKeys := keys;
+        if Length(lKeys) = Length(aValue.keys) then
+        begin
+          result := true;
+          for i := 0 to Length(lKeys) - 1 do
+          begin
+            if (not aValue.hasOwnProperty(lKeys[i])) or
+               (not Get(lKeys[i]).DeepEquals(aValue.Get(lKeys[i]))) then
+            begin
+              result := false;
+              break;
+            end;
+          end;
+
+        end
+        else
+          result := false;
+      end;
+    end;
+
+  end
+  else
+    result := false;
+end;
+
 procedure TJSValue.AssignTo(aTarget: TJSValue);
 begin
   raise Exception.Create('I don''t know how to assign this custom js object to another object.');
@@ -1136,7 +1199,6 @@ end;
 function TJSValue.keys: TStringArray;
 begin
   SetLength(Result,0);
-
 end;
 
 function TJSValue.hasOwnProperty(aKey: UTF8String): Boolean;
@@ -1246,6 +1308,24 @@ function TJSValue.PutNewArray(aKey: Integer): TJSValue;
 begin
   result := PutNewArray(IntToStr(aKey));
 
+end;
+
+class function TJSValue.MakeString(aValue: UTF8String): TJSValue;
+begin
+  result := CreateValue(TJSString);
+  Result.SetAsString(aValue);
+end;
+
+class function TJSValue.MakeNumber(aValue: Double): TJSValue;
+begin
+  result := CreateValue(TJSNumber);
+  Result.SetAsNumber(aValue);
+end;
+
+class function TJSValue.MakeBoolean(aValue: Boolean): TJSValue;
+begin
+  result := CreateValue(TJSBoolean);
+  Result.SetAsBoolean(aValue);
 end;
 
 { TJSNull }
@@ -1483,17 +1563,7 @@ end;
 function TJSObject.CreateValue(aKey: UTF8String; aType: TJSValueClass
   ): TJSValue;
 begin
-  if aType <> nil then
-  begin;
-     if aType = TJSUndefined then
-       result := TJSUndefined.Undefined
-     else if aType = TJSNull then
-       result := TJSNull.Null
-     else
-       result := aType.Create
-  end
-  else
-     result := TJSUndefined.Undefined;
+  result := CreateValue(aType);
 end;
 
 function TJSObject.Put(aKey: UTF8String; aValue: TJSValue): TJSValue;
@@ -1560,7 +1630,7 @@ var
   value: TJSValue;
 begin
   // clear the list
-  for i := 0 to fList.Count do
+  for i := 0 to fList.Count - 1 do
   begin
     value := fList[i] as TJSValue;
     if not ((value is TJSNull) or (value is TJSUndefined)) then

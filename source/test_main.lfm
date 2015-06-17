@@ -1,0 +1,61 @@
+object MainForm: TMainForm
+  Left = 472
+  Height = 405
+  Top = 187
+  Width = 485
+  Caption = 'MainForm'
+  ClientHeight = 405
+  ClientWidth = 485
+  OnCreate = FormCreate
+  OnShow = FormShow
+  LCLVersion = '1.2.6.0'
+  object ResultsMemo: TMemo
+    Left = 0
+    Height = 379
+    Top = 26
+    Width = 485
+    Align = alClient
+    TabOrder = 0
+  end
+  object MainToolbar: TToolBar
+    Left = 0
+    Height = 26
+    Top = 0
+    Width = 485
+    Caption = 'MainToolbar'
+    ShowCaptions = True
+    TabOrder = 1
+    object RunButton: TToolButton
+      Left = 1
+      Top = 2
+      Caption = 'Run Again...'
+      OnClick = RunButtonClick
+    end
+    object CancelButton: TToolButton
+      Left = 80
+      Top = 2
+      Caption = 'Cancel'
+      Enabled = False
+      OnClick = CancelButtonClick
+    end
+    object CloseButton: TToolButton
+      Left = 209
+      Top = 2
+      Caption = 'Close'
+      OnClick = CloseButtonClick
+    end
+    object RunTesterTestsButton: TToolButton
+      Left = 128
+      Top = 2
+      Caption = 'Test Tester...'
+      OnClick = RunTesterTestsButtonClick
+    end
+  end
+  object TestTimeoutTimer: TTimer
+    Enabled = False
+    Interval = 10000
+    OnTimer = TestTimeoutTimerTimer
+    left = 293
+    top = 55
+  end
+end

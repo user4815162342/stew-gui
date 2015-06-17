@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="9"/>
+    <General>
+      <SessionStorage Value="InProjectDir"/>
+      <MainUnit Value="0"/>
+      <Title Value="stewtest"/>
+      <ResourceType Value="res"/>
+      <UseXPManifest Value="True"/>
+      <Icon Value="0"/>
+    </General>
+    <i18n>
+      <EnableI18N LFM="False"/>
+    </i18n>
+    <VersionInfo>
+      <StringTable ProductVersion=""/>
+    </VersionInfo>
+    <BuildModes Count="1">
+      <Item1 Name="Default" Default="True"/>
+    </BuildModes>
+    <PublishOptions>
+      <Version Value="2"/>
+    </PublishOptions>
+    <RunParams>
+      <local>
+        <FormatVersion Value="1"/>
+      </local>
+    </RunParams>
+    <RequiredPackages Count="1">
+      <Item1>
+        <PackageName Value="LCL"/>
+      </Item1>
+    </RequiredPackages>
+    <Units Count="6">
+      <Unit0>
+        <Filename Value="stewtest.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="stewtest"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="test_main.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="MainForm"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="test_main"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="test_registry.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="test_registry"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="test_test.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="test_test"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="sys_json.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="sys_json"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="test_sys_json.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="test_sys_json"/>
+      </Unit5>
+    </Units>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <Target>
+      <Filename Value="../executable/stewtest"/>
+    </Target>
+    <SearchPaths>
+      <IncludeFiles Value="$(ProjOutDir)"/>
+      <UnitOutputDirectory Value="../units/"/>
+    </SearchPaths>
+    <Linking>
+      <Options>
+        <Win32>
+          <GraphicApplication Value="True"/>
+        </Win32>
+      </Options>
+    </Linking>
+    <Other>
+      <CompilerMessages>
+        <MsgFileName Value=""/>
+      </CompilerMessages>
+      <CompilerPath Value="$(CompPath)"/>
+    </Other>
+  </CompilerOptions>
+  <Debugging>
+    <Exceptions Count="4">
+      <Item1>
+        <Name Value="EAbort"/>
+      </Item1>
+      <Item2>
+        <Name Value="ECodetoolError"/>
+      </Item2>
+      <Item3>
+        <Name Value="EFOpenError"/>
+      </Item3>
+      <Item4>
+        <Name Value="ETestFailure"/>
+      </Item4>
+    </Exceptions>
+  </Debugging>
+</CONFIG>
