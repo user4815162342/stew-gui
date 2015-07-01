@@ -77,10 +77,6 @@ type
     function CreateNumberValue({%H-}aKey: UTF8String; {%H-}aRequestType: TJSValueClass; {%H-}aValue: Double): TJSValue; virtual; overload;
     function CreateBooleanValue({%H-}aKey: UTF8String; {%H-}aRequestType: TJSValueClass; {%H-}aValue: Boolean): TJSValue; virtual; overload;
     function CreateValue(aKey: Integer; aRequestType: TJSValueClass): TJSValue; overload;
-    function CreateValue(aRequestType: TJSValueClass): TJSValue; overload;
-    function CreateStringValue(aRequestType: TJSValueClass; {%H-}aValue: UTF8String): TJSValue; virtual; overload;
-    function CreateNumberValue(aRequestType: TJSValueClass; {%H-}aValue: Double): TJSValue; virtual; overload;
-    function CreateBooleanValue(aRequestType: TJSValueClass; {%H-}aValue: Boolean): TJSValue; virtual; overload;
     // override this to handle assigning a value to the specified key. This
     // value *should* have been created using CreateValue, so there shouldn't be
     // any reason to expect the wrong type here.
@@ -1699,7 +1695,17 @@ end;
 function TJSObject.CreateStringValue(aKey: UTF8String;
   aRequestType: TJSValueClass; aValue: UTF8String): TJSValue;
 begin
-  Result:=CreateStringValue(aRequestType, aValue);
+  if aType <> nil then
+  begin;
+     if aType = TJSUndefined then
+       result := TJSUndefined.Undefined
+     else if aType = TJSNull then
+       result := TJSNull.Null
+     else
+       result := aType.Create
+  end
+  else
+     result := TJSUndefined.Undefined;
 end;
 
 function TJSObject.Put(aKey: UTF8String; aValue: TJSValue): TJSValue;
