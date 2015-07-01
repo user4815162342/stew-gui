@@ -11,7 +11,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="1"/>
         <CursorPos X="1" Y="1"/>
-        <UsageCount Value="39"/>
+        <UsageCount Value="40"/>
       </Unit0>
       <Unit1>
         <Filename Value="test_main.pas"/>
@@ -24,7 +24,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="1"/>
         <CursorPos X="3" Y="9"/>
-        <UsageCount Value="39"/>
+        <UsageCount Value="40"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
       </Unit1>
@@ -36,41 +36,41 @@
         <WindowIndex Value="0"/>
         <TopLine Value="141"/>
         <CursorPos X="50" Y="153"/>
-        <UsageCount Value="39"/>
+        <UsageCount Value="40"/>
         <Loaded Value="True"/>
       </Unit2>
       <Unit3>
         <Filename Value="test_test.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="test_test"/>
-        <EditorIndex Value="16"/>
+        <EditorIndex Value="22"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="18"/>
-        <CursorPos X="25" Y="29"/>
-        <UsageCount Value="39"/>
+        <TopLine Value="12"/>
+        <CursorPos X="24" Y="12"/>
+        <UsageCount Value="40"/>
         <Loaded Value="True"/>
       </Unit3>
       <Unit4>
         <Filename Value="sys_json.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_json"/>
-        <EditorIndex Value="19"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="18"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="128"/>
-        <CursorPos X="70" Y="139"/>
-        <UsageCount Value="39"/>
+        <TopLine Value="263"/>
+        <CursorPos X="37" Y="272"/>
+        <UsageCount Value="40"/>
         <Loaded Value="True"/>
       </Unit4>
       <Unit5>
         <Filename Value="test_sys_json.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="test_sys_json"/>
-        <IsVisibleTab Value="True"/>
-        <EditorIndex Value="18"/>
+        <EditorIndex Value="17"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="340"/>
-        <CursorPos X="33" Y="352"/>
-        <UsageCount Value="39"/>
+        <TopLine Value="31"/>
+        <CursorPos X="1" Y="38"/>
+        <UsageCount Value="40"/>
         <Loaded Value="True"/>
       </Unit5>
       <Unit6>
@@ -163,7 +163,7 @@
       <Unit16>
         <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/typinfo.pp"/>
         <UnitName Value="typinfo"/>
-        <EditorIndex Value="17"/>
+        <EditorIndex Value="16"/>
         <WindowIndex Value="0"/>
         <TopLine Value="1800"/>
         <CursorPos X="3" Y="1821"/>
@@ -259,7 +259,7 @@
       <Unit26>
         <Filename Value="/usr/share/fpcsrc/2.6.4/packages/fcl-json/src/jsonscanner.pp"/>
         <UnitName Value="jsonscanner"/>
-        <EditorIndex Value="21"/>
+        <EditorIndex Value="20"/>
         <WindowIndex Value="0"/>
         <TopLine Value="24"/>
         <CursorPos X="5" Y="35"/>
@@ -269,18 +269,18 @@
       <Unit27>
         <Filename Value="../test-data/json-parse-test.json"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="22"/>
+        <EditorIndex Value="21"/>
         <WindowIndex Value="0"/>
         <TopLine Value="1"/>
         <CursorPos X="2" Y="22"/>
-        <UsageCount Value="22"/>
+        <UsageCount Value="23"/>
         <Loaded Value="True"/>
         <DefaultSyntaxHighlighter Value="JScript"/>
       </Unit27>
       <Unit28>
         <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/math.pp"/>
         <UnitName Value="math"/>
-        <EditorIndex Value="20"/>
+        <EditorIndex Value="19"/>
         <WindowIndex Value="0"/>
         <TopLine Value="2164"/>
         <CursorPos X="1" Y="2169"/>
@@ -294,136 +294,125 @@
     <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="1673" Column="21" TopLine="1654"/>
+        <Caret Line="1147" Column="19" TopLine="1137"/>
       </Position1>
       <Position2>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="377" Column="24" TopLine="366"/>
+        <Caret Line="75" Column="14" TopLine="66"/>
       </Position2>
       <Position3>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="602" Column="39" TopLine="584"/>
+        <Caret Line="1147" Column="19" TopLine="1137"/>
       </Position3>
       <Position4>
-        <Filename Value="test_sys_json.pas"/>
-        <Caret Line="353" Column="1" TopLine="338"/>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="75" Column="14" TopLine="66"/>
       </Position4>
       <Position5>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="602" Column="1" TopLine="584"/>
+        <Caret Line="1148" Column="19" TopLine="1137"/>
       </Position5>
       <Position6>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="1561" Column="1" TopLine="1549"/>
+        <Caret Line="1163" Column="19" TopLine="1152"/>
       </Position6>
       <Position7>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="1562" Column="1" TopLine="1549"/>
+        <Caret Line="77" Column="14" TopLine="68"/>
       </Position7>
       <Position8>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="603" Column="41" TopLine="594"/>
+        <Caret Line="1147" Column="19" TopLine="1136"/>
       </Position8>
       <Position9>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="602" Column="1" TopLine="594"/>
+        <Caret Line="75" Column="14" TopLine="66"/>
       </Position9>
       <Position10>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="1563" Column="1" TopLine="1551"/>
+        <Caret Line="1147" Column="19" TopLine="1137"/>
       </Position10>
       <Position11>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="1564" Column="1" TopLine="1551"/>
+        <Caret Line="75" Column="14" TopLine="66"/>
       </Position11>
       <Position12>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="602" Column="26" TopLine="595"/>
+        <Caret Line="1148" Column="19" TopLine="1137"/>
       </Position12>
       <Position13>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="604" Column="21" TopLine="595"/>
+        <Caret Line="1163" Column="19" TopLine="1152"/>
       </Position13>
       <Position14>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="602" Column="1" TopLine="595"/>
+        <Caret Line="77" Column="14" TopLine="68"/>
       </Position14>
       <Position15>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="1561" Column="1" TopLine="1549"/>
+        <Caret Line="1165" Column="19" TopLine="1153"/>
       </Position15>
       <Position16>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="1562" Column="1" TopLine="1549"/>
+        <Caret Line="1183" Column="19" TopLine="1170"/>
       </Position16>
       <Position17>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="1561" Column="1" TopLine="1549"/>
+        <Caret Line="1201" Column="19" TopLine="1188"/>
       </Position17>
       <Position18>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="1562" Column="1" TopLine="1549"/>
+        <Caret Line="1687" Column="17" TopLine="1676"/>
       </Position18>
       <Position19>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="605" Column="1" TopLine="596"/>
+        <Caret Line="46" Column="28" TopLine="35"/>
       </Position19>
       <Position20>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="615" Column="1" TopLine="598"/>
+        <Caret Line="87" Column="1" TopLine="68"/>
       </Position20>
       <Position21>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="513" Column="39" TopLine="504"/>
+        <Caret Line="1703" Column="8" TopLine="1695"/>
       </Position21>
       <Position22>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="1103" Column="21" TopLine="1084"/>
+        <Caret Line="1683" Column="3" TopLine="1676"/>
       </Position22>
       <Position23>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="1673" Column="21" TopLine="1654"/>
+        <Caret Line="1705" Column="22" TopLine="1695"/>
       </Position23>
       <Position24>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="377" Column="24" TopLine="366"/>
+        <Caret Line="78" Column="28" TopLine="69"/>
       </Position24>
       <Position25>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="1103" Column="21" TopLine="1084"/>
+        <Caret Line="839" Column="1" TopLine="828"/>
       </Position25>
       <Position26>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="1673" Column="21" TopLine="1654"/>
+        <Caret Line="1" Column="1" TopLine="1"/>
       </Position26>
       <Position27>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="377" Column="24" TopLine="366"/>
+        <Caret Line="209" Column="17" TopLine="199"/>
       </Position27>
       <Position28>
         <Filename Value="sys_json.pas"/>
-        <Caret Line="602" Column="60" TopLine="584"/>
+        <Caret Line="272" Column="76" TopLine="253"/>
       </Position28>
       <Position29>
-        <Filename Value="test_sys_json.pas"/>
-        <Caret Line="352" Column="32" TopLine="338"/>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="1705" Column="43" TopLine="1694"/>
       </Position29>
       <Position30>
-        <Filename Value="test_sys_json.pas"/>
-        <Caret Line="351" Column="8" TopLine="340"/>
+        <Filename Value="sys_json.pas"/>
+        <Caret Line="1883" Column="1" TopLine="1861"/>
       </Position30>
     </JumpHistory>
   </ProjectSession>
-  <Debugging>
-    <BreakPoints Count="1">
-      <Item1>
-        <Kind Value="bpkSource"/>
-        <WatchScope Value="wpsLocal"/>
-        <WatchKind Value="wpkWrite"/>
-        <Source Value="sys_json.pas"/>
-        <Line Value="832"/>
-      </Item1>
-    </BreakPoints>
-  </Debugging>
   <EditorMacros Count="0"/>
 </CONFIG>
