@@ -306,6 +306,7 @@ begin
 
        lFile2 := TFileStream.Create('../test-data/json-parse-test.json',fmOpenRead + fmShareDenyNone);
        try
+          // make sure this all works with a descendant of jsobject as well.
           lObject2 := FromJSON(TTestObject,lFile2);
           assert(lObject2.DeepEquals(lObject1),'Objects parsed from the same file should be deep equals');
        finally

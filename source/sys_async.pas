@@ -31,7 +31,8 @@ write.
 
 NOTE: In order to use this, you need to set up a queue mechanism. In a GUI
 application, you can do this with Application.QueueAsyncCall, but in other
-environments, you'll have to come up with your own alternative.
+environments, you'll have to come up with your own alternative. See SetAsyncCaller
+function for more information.
 }
 
 uses
@@ -41,8 +42,7 @@ type
 
   { TPromise }
 
-  // This one is basically a proof of concept. It's not used anywhere in the code,
-  // but it might be nice to try converting over in order to get this correct.
+  // TODO: Convert over to using this for all async code.
   // Advantages:
   // - chains of functionality are easier because I can *add* callbacks on.
   // - I can just return the resulting object from the async function, and
@@ -70,44 +70,41 @@ type
   //   async code that is triggered in DoTask and calls callbacks in the object,
   //   and only resolves or rejects once you get there.
   //
+  TPromise = class;
+
+  // Since exceptions are freed after they are caught, or raised to the top,
+  // we have to use strings to report errors. However, I wouldn't be against
+  // using a structured type at some point. Just have to make it easy to
+  // copy an Exception into that structure.
   TPromiseException = string;
-  TErrorback = procedure(Sender: TObject; aError: TPromiseException) of object;
+  TErrorback = procedure(Sender: TPromise; aError: TPromiseException) of object;
   TErrorbackList = specialize TFPGList<TErrorback>;
+  TCallback = procedure(Sender: TPromise) of object;
+  TCallbackList = specialize TFPGList<TCallback>;
   TPromiseState = (psQueued,psResolving,psRejecting);
 
-  // - I'm also considering a TCustomPromise which does a bunch of stuff here, then
-  //   a TNoInputPromise<OutputType> and a TNoOutputPromise<InputType>, both
-  //   of which are useful.
-  generic TPromise<InputType,OutputType> = class
-  private type
-  public type
-    // Since exceptions are freed after they are caught, or raised to the top,
-    // we have to deal with strings. However, I wouldn't be against using a
-    // structured type at some point.
-    TCallback = procedure(Sender: TObject; aResult: OutputType) of object;
-    TCallbackList = specialize TFPGList<TCallback>;
-  private
+  // - To input data into a promise, one would simply create private variables
+  // on a subclass and include these in parameters to an overridden Enqueue
+  // constructor.
+  // - To get output data from a promise, just use the 'as' operator on the
+  // Promise parameter of the callback event to get your subclass of promise.
+  TPromise = class
+  strict private
     fCallbacks: TCallbackList;
     fErrorbacks: TErrorbackList;
-    fInput: InputType;
-    fResult: OutputType;
     fError: TPromiseException;
     fState: TPromiseState;
     procedure RunCallbacks;
     procedure RunErrorbacks;
-  protected
-    // FUTURE: Once I can have abstract methods here, this should be abstract.
-    // NOTE: Don't forget to call Resolve to complete the promise.
-    procedure DoTask; virtual;
+  strict protected
+    procedure DoTask; virtual; abstract;
     procedure RunQueuedTask; virtual;
-    procedure Resolve(aResult: OutputType);
+    procedure Resolve;
     procedure Reject(aError: TPromiseException);
-    // FUTURE: Once I can have abstract methods here, this should be abstract.
-    procedure DestroyResult(var {%H-}aResult: OutputType); virtual;
   public
-    constructor Enqueue(aInput: InputType);
+    constructor Enqueue;
     destructor Destroy; override;
-    procedure After(aCallback: TCallback; aErrorback: TErrorback = nil);
+    function After(aCallback: TCallback; aErrorback: TErrorback = nil): TPromise;
     procedure Catch(aErrorback: TErrorback);
   end;
 
@@ -152,16 +149,26 @@ var
   AsyncCallQueuer: TAsyncCallQueuer;
 
 procedure SetAsyncCallQueuer(aQueuer: TAsyncCallQueuer);
+procedure RemoveAsyncCallQueuer(aQueuer: TAsyncCallQueuer);
 
 
 implementation
 
 procedure SetAsyncCallQueuer(aQueuer: TAsyncCallQueuer);
 begin
+  if AsyncCallQueuer <> nil then
+    raise Exception.Create('An async queuer method is already set. Please only set this once.');
   AsyncCallQueuer := aQueuer;
 end;
 
-{ TPromise }
+procedure RemoveAsyncCallQueuer(aQueuer: TAsyncCallQueuer);
+begin
+  if AsyncCallQueuer <> aQueuer then
+    raise Exception.Create('To avoid conflicts, please don''t unset the async queuer method without access to the original pointer.');
+  AsyncCallQueuer := nil;
+end;
+
+{ GPromise }
 
 procedure TPromise.RunCallbacks;
 var
@@ -172,7 +179,7 @@ begin
     lCallback := fCallbacks[0];
     fCallbacks.Delete(0);
     try
-       lCallback(Self,fResult);
+       lCallback(Self);
     except
       on E: Exception do
       begin
@@ -204,18 +211,10 @@ begin
     except
       // do nothing here, I don't like it, but it's necessary.
     end;
-    AsyncCallQueuer(@RunCallbacks);
+    AsyncCallQueuer(@RunErrorbacks);
   end
   else
       Free;
-end;
-
-procedure TPromise.DoTask;
-begin
-  // this function is implemented in order to avoid a compile error.
-  // Future versions of FPC are supposed to allow abstract methods in generics
-  // and this won't be necessary.
-  AbstractError;
 end;
 
 procedure TPromise.RunQueuedTask;
@@ -228,11 +227,10 @@ begin
   end;
 end;
 
-procedure TPromise.Resolve(aResult: OutputType);
+procedure TPromise.Resolve;
 begin
   if fState <> psQueued then
      raise Exception.Create('Promise already resolved');
-  fResult := aResult;
   fState := psResolving;
   // we should know by now if the async system isn't setup, since that
   // is checked in the constructor.
@@ -246,17 +244,11 @@ begin
   AsyncCallQueuer(@RunErrorbacks);
 end;
 
-procedure TPromise.DestroyResult(var aResult: OutputType);
-begin
-  // do nothing, because I don't know what type of result it is.
-end;
-
-constructor TPromise.Enqueue(aInput: InputType);
+constructor TPromise.Enqueue;
 begin
   inherited Create;
   fCallbacks := TCallbackList.Create;
   fErrorbacks := TErrorbackList.Create;
-  fInput := aInput;
   fState := psQueued;
   // In a future version of FPC, this should work: fResult := default(OutputType);
   fError := '';
@@ -268,14 +260,14 @@ end;
 
 destructor TPromise.Destroy;
 begin
-  DestroyResult(fResult);
   FreeAndNil(fCallbacks);
   FreeAndNil(fErrorbacks);
   inherited Destroy;
 end;
 
-procedure TPromise.After(aCallback: TCallback; aErrorback: TErrorback);
+function TPromise.After(aCallback: TCallback; aErrorback: TErrorback): TPromise;
 begin
+  result := Self;
   case fState of
     psQueued, psResolving:
     begin

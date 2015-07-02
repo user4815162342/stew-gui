@@ -8,7 +8,7 @@ uses
   {$ENDIF}{$ENDIF}
   Interfaces, // this includes the LCL widgetset
   Forms, richmemopackage, test_main, test_registry, test_test, sys_json,
-  test_sys_json
+  test_sys_json, test_sys_async, gui_async, sys_async
   { you can add units after this };
 
 {$R *.res}

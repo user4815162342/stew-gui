@@ -10,6 +10,24 @@ uses
 
 type
 
+  {
+  TODO: This testing is being done as part of a slight refactoring to make use
+  of TPromises and TJSValues. I will slowly be converting other code to work with
+  this in the GUI, and create test code as I do. The next steps:
+  1. Convert the sys_file (and sys_localfile) to work with TPromise for async
+  code. We can even have things like TFileExistsPromises that can be subclassed
+  to do the correct work in local file. Remember that TPromises could initiate
+  and report the results of threads, so this is acceptable.
+  2. Create tests for the new filing functionality, at least for the local files.
+  3. Convert the various properties objects to make use of TJSObjects. And,
+  create tests to validate that they are working (so we can get rid of the
+  'backup files').
+  4. Create some tests to work with TStewProject opening, initializing and retrieving
+  data. This will require some test projects to work with. Don't create a *lot*
+  of tests, more tests will be added to this section as bugs are reported in the
+  GUI. This process should also involve moving those things over to TPromises.
+  }
+
   { TMainForm }
 
   TMainForm = class(TForm)
@@ -48,7 +66,7 @@ var
 implementation
 
 uses
-  test_test, test_sys_json;
+  test_test, test_sys_json, test_sys_async;
 
 {$R *.lfm}
 
@@ -141,8 +159,10 @@ begin
   else
   begin
     // TODO: Create the various test objects and register them
-    // in order, here.
+    // in order, here. I don't do this with 'initialization' because
+    // I want to control the order.
     fRegistry.AddTests(TJSONSpec);
+    fRegistry.AddTests(TAsyncSpec);
   end;
 end;
 

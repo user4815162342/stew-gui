@@ -152,18 +152,6 @@ type
     property ProjectPath: TFile read fProjectPath write fProjectPath;
   end;
 
-  { TAsyncCallback }
-
-  TAsyncCallback = class
-    procedure Callback({%H-}Data: PtrInt);
-  private
-    fCallback: TDeferredCallback;
-  public
-    constructor Create(aCallback: TDeferredCallback);
-    procedure Enqueue;
-  end;
-
-  procedure QueueAsyncCall(aCallback: TDeferredCallback);
   procedure RunNewStewInstance(const aProjectPath: TFile);
   procedure RunNewStewInstanceWithPrompt;
 
@@ -177,18 +165,13 @@ const
 implementation
 
 uses
-  gui_projectmanager, gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor, LCLProc, gui_about, gui_listdialog, sys_localfile;
+  gui_projectmanager, gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor, LCLProc, gui_about, gui_listdialog, sys_localfile, gui_async;
 
 {$R *.lfm}
 
 // using ':' at the beginning because that should not be a valid filename.
 const PreferencesDocumentID: UTF8String = 'preferences';
 const ProjectSettingsDocumentID: UTF8String = 'project settings';
-
-procedure QueueAsyncCall(aCallback: TDeferredCallback);
-begin
-  TAsyncCallback.Create(aCallback).Enqueue;
-end;
 
 procedure RunNewStewInstance(const aProjectPath: TFile);
 begin
@@ -222,28 +205,6 @@ constructor TMRUMenuItem.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
   OnClick:=@MRUProjectClicked;
-end;
-
-{ TAsyncCallback }
-
-procedure TAsyncCallback.Callback(Data: PtrInt);
-begin
-  fCallback;
-  Free;
-end;
-
-constructor TAsyncCallback.Create(aCallback: TDeferredCallback);
-begin
-  inherited Create;
-  fCallback := aCallback;
-end;
-
-procedure TAsyncCallback.Enqueue;
-begin
-  // Notice that I'm sending 0 as the data parameter to the Deferred call. Rather
-  // then dealing with pointers, I've already got a pointer to the object in the
-  // method, so I can store the data on there.
-  Application.QueueAsyncCall(@Callback,0);
 end;
 
 { TMainForm }
@@ -1000,7 +961,7 @@ end;
 
 initialization
 
-  SetAsyncCallQueuer(@QueueAsyncCall);
+  SetAsyncCallQueuer(@GUIQueueAsyncCall);
 
 end.
 

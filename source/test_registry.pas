@@ -32,10 +32,13 @@ type
   protected
     function BeginAsync: Integer;
     procedure EndAsync(aTestID: Integer);
+    procedure Defer(aFunc: TDataEvent; aData: PtrInt);
     procedure FailAsync(aTestID: Integer; const aMessage: String);
     // I know there's an assert function in pascal, but that is only
     // compiled when a certain switch is on.
     procedure Assert(aCondition: Boolean; aError: String);
+    procedure SetupTest; virtual;
+    procedure CleanupTest; virtual;
   public
     constructor Create(aRegistry: TTestRegistry);
   end;
@@ -143,6 +146,11 @@ begin
   fRegistry.EndAsync(aTestID);
 end;
 
+procedure TTestSpec.Defer(aFunc: TDataEvent; aData: PtrInt);
+begin
+  Application.QueueAsyncCall(aFunc,aData);
+end;
+
 procedure TTestSpec.FailAsync(aTestID: Integer; const aMessage: String);
 begin
   fRegistry.TestFailed(aTestID,aMessage);
@@ -152,6 +160,16 @@ procedure TTestSpec.Assert(aCondition: Boolean; aError: String);
 begin
   if not aCondition then
     raise ETestFailure.Create(aError);
+end;
+
+procedure TTestSpec.SetupTest;
+begin
+  // can be overridden to set the environent up for the test.
+end;
+
+procedure TTestSpec.CleanupTest;
+begin
+  // can be overridden to clean up the environment after a test.
 end;
 
 constructor TTestSpec.Create(aRegistry: TTestRegistry);
@@ -380,6 +398,7 @@ var
   list: TStringList;
   lMethod: TMethod;
 begin
+  AddTest(CalculateTestName(aObject,'Set Up'),@aObject.SetupTest);
   list := TStringList.Create;
   try
     vmt := aObject.ClassType;
@@ -409,6 +428,7 @@ begin
   finally
     list.Free;
   end;
+  AddTest(CalculateTestName(aObject,'Clean Up'),@aObject.CleanupTest);
 
 end;
 

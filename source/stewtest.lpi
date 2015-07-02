@@ -35,7 +35,7 @@
         <PackageName Value="LCL"/>
       </Item2>
     </RequiredPackages>
-    <Units Count="7">
+    <Units Count="10">
       <Unit0>
         <Filename Value="stewtest.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -73,6 +73,21 @@
         <Filename Value="../test-data/json-parse-test.json"/>
         <IsPartOfProject Value="True"/>
       </Unit6>
+      <Unit7>
+        <Filename Value="test_sys_async.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="test_sys_async"/>
+      </Unit7>
+      <Unit8>
+        <Filename Value="gui_async.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="gui_async"/>
+      </Unit8>
+      <Unit9>
+        <Filename Value="sys_async.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="sys_async"/>
+      </Unit9>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
