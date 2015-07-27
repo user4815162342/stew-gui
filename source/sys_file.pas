@@ -10,6 +10,13 @@ uses
 
 const NewFileAge: Longint = -1;
 
+  // TODO: Google Drive allows multiple files with the same name. This system
+  // will have to account for it: ID's are separate from names, even if they're
+  // the same thing in most systems. I also have to consider the possibility of
+  // a file system using mime-types instead of extensions (as I
+  // believe Google Drive does), that will cause an even bigger problem. And,
+  // if I go that far, I could consider using other mechanisms for descriptors:
+  // for example, google drive has file labels which could be used instead.
 
 type
 

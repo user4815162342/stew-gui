@@ -39,6 +39,7 @@ type
     procedure Assert(aCondition: Boolean; aError: String);
     procedure SetupTest; virtual;
     procedure CleanupTest; virtual;
+    procedure Alert(aMessage: String);
   public
     constructor Create(aRegistry: TTestRegistry);
   end;
@@ -56,6 +57,7 @@ type
     fOnCompleted: TNotifyEvent;
     FOnException: TExceptionEvent;
     FOnFailed: TTestMessageEvent;
+    fOnAlert: TTestMessageEvent;
     FOnSucceeded: TTestEvent;
     fOwnedTestSpecs: TObjectList;
     fTestNames: TStringList;
@@ -70,6 +72,7 @@ type
     procedure SetOnCompleted(AValue: TNotifyEvent);
     procedure SetOnException(AValue: TExceptionEvent);
     procedure SetOnFailed(AValue: TTestMessageEvent);
+    procedure SetOnAlert(AValue: TTestMessageEvent);
     procedure SetOnSucceeded(AValue: TTestEvent);
     procedure SetTimeout(AValue: Cardinal);
   protected
@@ -84,6 +87,7 @@ type
     procedure TestsCompleted;
     procedure TestException(Sender: TObject; E: Exception);
     procedure TestTimedout(Sender: TObject);
+    procedure Alert(aMessage: String);
   public
     constructor Create;
     destructor Destroy; override;
@@ -95,6 +99,7 @@ type
     procedure Cancel;
     property OnSucceeded: TTestEvent read FOnSucceeded write SetOnSucceeded;
     property OnFailed: TTestMessageEvent read FOnFailed write SetOnFailed;
+    property OnAlert: TTestMessageEvent read fOnAlert write SetOnAlert;
     property OnAsyncStarted: TTestEvent read FOnAsyncStarted write SetOnAsyncStarted;
     property OnCompleted: TNotifyEvent read fOnCompleted write SetOnCompleted;
     property OnCancelled: TNotifyEvent read FOnCancelled write SetOnCancelled;
@@ -170,6 +175,11 @@ end;
 procedure TTestSpec.CleanupTest;
 begin
   // can be overridden to clean up the environment after a test.
+end;
+
+procedure TTestSpec.Alert(aMessage: String);
+begin
+  fRegistry.Alert(aMessage);
 end;
 
 constructor TTestSpec.Create(aRegistry: TTestRegistry);
@@ -277,6 +287,12 @@ begin
   TestFailed(fCurrent,'Timed out after waiting ' + FloatToStr(Timeout/1000) + ' seconds for a response');
 end;
 
+procedure TTestRegistry.Alert(aMessage: String);
+begin
+  if fOnAlert<>nil then
+    fOnAlert(Self,fTestNames[fCurrent],aMessage);
+end;
+
 function TTestRegistry.GetTimeout: Cardinal;
 begin
   result := fTimer.Interval;
@@ -298,6 +314,12 @@ procedure TTestRegistry.SetOnFailed(AValue: TTestMessageEvent);
 begin
   if FOnFailed=AValue then Exit;
   FOnFailed:=AValue;
+end;
+
+procedure TTestRegistry.SetOnAlert(AValue: TTestMessageEvent);
+begin
+  if fOnAlert=AValue then Exit;
+  fOnAlert:=AValue;
 end;
 
 procedure TTestRegistry.SetOnSucceeded(AValue: TTestEvent);

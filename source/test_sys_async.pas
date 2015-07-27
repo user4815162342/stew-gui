@@ -162,7 +162,7 @@ end;
 
 procedure TTestPromiseError.DoTask;
 begin
-  raise Exception.Create('Promise raised error');
+  raise ETestFailure.Create('Promise raised error');
 end;
 
 { TTestPromiseReject }
@@ -228,7 +228,7 @@ end;
 
 procedure TAsyncSpec.After_Callback_Error(Sender: TPromise);
 begin
-  raise Exception.Create('This callback raises an error');
+  raise ETestFailure.Create('This callback raises an error');
 end;
 
 procedure TAsyncSpec.After_Chain(Sender: TPromise);

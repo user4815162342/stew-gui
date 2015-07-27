@@ -35,7 +35,7 @@
         <PackageName Value="LCL"/>
       </Item2>
     </RequiredPackages>
-    <Units Count="10">
+    <Units Count="13">
       <Unit0>
         <Filename Value="stewtest.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -70,24 +70,40 @@
         <UnitName Value="test_sys_json"/>
       </Unit5>
       <Unit6>
-        <Filename Value="../test-data/json-parse-test.json"/>
-        <IsPartOfProject Value="True"/>
-      </Unit6>
-      <Unit7>
         <Filename Value="test_sys_async.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="test_sys_async"/>
-      </Unit7>
-      <Unit8>
+      </Unit6>
+      <Unit7>
         <Filename Value="gui_async.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="gui_async"/>
-      </Unit8>
-      <Unit9>
+      </Unit7>
+      <Unit8>
         <Filename Value="sys_async.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_async"/>
+      </Unit8>
+      <Unit9>
+        <Filename Value="test_sys_localfile.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="test_sys_localfile"/>
       </Unit9>
+      <Unit10>
+        <Filename Value="test_sys_file.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="test_sys_file"/>
+      </Unit10>
+      <Unit11>
+        <Filename Value="sys_localfile.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="sys_localfile"/>
+      </Unit11>
+      <Unit12>
+        <Filename Value="sys_file.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="sys_file"/>
+      </Unit12>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

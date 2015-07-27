@@ -15,10 +15,12 @@ type
   of TPromises and TJSValues. I will slowly be converting other code to work with
   this in the GUI, and create test code as I do. The next steps:
   1. Convert the sys_file (and sys_localfile) to work with TPromise for async
-  code. We can even have things like TFileExistsPromises that can be subclassed
+  code, using the testing framework as a place to test compilation. We can even
+  have things like TFileExistsPromises that can be subclassed
   to do the correct work in local file. Remember that TPromises could initiate
   and report the results of threads, so this is acceptable.
-  2. Create tests for the new filing functionality, at least for the local files.
+  2. Go back into the regular GUI and recompile/refactor to make use of the
+  promises in the filing system.
   3. Convert the various properties objects to make use of TJSObjects. And,
   create tests to validate that they are working (so we can get rid of the
   'backup files').
@@ -43,6 +45,8 @@ type
     procedure FormShow(Sender: TObject);
     procedure RunButtonClick(Sender: TObject);
     procedure RunTesterTestsButtonClick(Sender: TObject);
+    procedure TestAlert(const aSender: TObject; const aTestName: String;
+      const aMessage: String);
     procedure TestFailed(const {%H-}aSender: TObject; const aTestName: String;
       const aMessage: String);
     procedure TestsCancelled(Sender: TObject);
@@ -66,7 +70,7 @@ var
 implementation
 
 uses
-  test_test, test_sys_json, test_sys_async;
+  test_test, test_sys_json, test_sys_async, test_sys_localfile;
 
 {$R *.lfm}
 
@@ -102,6 +106,12 @@ end;
 procedure TMainForm.RunTesterTestsButtonClick(Sender: TObject);
 begin
   Application.QueueAsyncCall(@StartTests,1);
+end;
+
+procedure TMainForm.TestAlert(const aSender: TObject; const aTestName: String;
+  const aMessage: String);
+begin
+  Log(aTestName + ' reports: ' + aMessage,mtWarning);
 end;
 
 procedure TMainForm.TestFailed(const aSender: TObject; const aTestName: String;
@@ -151,6 +161,7 @@ begin
     fRegistry.OnSucceeded:=@TestSucceeded;
     fRegistry.OnException:=@TestsException;
     fRegistry.OnAsyncStarted:=@TestStarted;
+    fRegistry.OnAlert:=@TestAlert;
     fRegistry.Timeout := 5000;
   end;
   fRegistry.ClearTests;
@@ -163,6 +174,7 @@ begin
     // I want to control the order.
     fRegistry.AddTests(TJSONSpec);
     fRegistry.AddTests(TAsyncSpec);
+    fRegistry.AddTests(TLocalFileSpec);
   end;
 end;
 

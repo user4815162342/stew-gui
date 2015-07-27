@@ -1,0 +1,18 @@
+{
+  "user" : {
+    "characters" : [
+      "Joe",
+      "Jane",
+      "Jack",
+      "Jen"
+    ],
+    "place" : "Jen's Lakeside Cottage",
+    "time" : "noon on Jack's birthday"
+  },
+  "category" : "Chapter",
+  "index" : [
+  ],
+  "publish" : false,
+  "status" : "Unwritten",
+  "title" : "The Cottage"
+}

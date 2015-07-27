@@ -360,7 +360,10 @@ begin
     if aCurrentAge <> fFileAge then
     begin
       if fConflictBack <> nil then
-        fConflictBack(aCurrentAge)
+      begin
+        fConflictBack(aCurrentAge);
+        exit;
+      end
       else
         raise Exception.Create('File has been changed since last read. Can''t write.');
     end;
