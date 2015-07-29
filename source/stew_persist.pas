@@ -5,7 +5,7 @@ unit stew_persist;
 interface
 
 uses
-  Classes, SysUtils, stew_types, fpjson, fpjsonrtti, sys_file;
+  Classes, SysUtils, stew_types, fpjson, fpjsonrtti, sys_file, sys_async;
 
 
 {$Interfaces CORBA}
@@ -125,10 +125,11 @@ type
     fOnFileSaving: TNotifyEvent;
   protected
     procedure Clear; virtual; abstract;
-    procedure FileLoaded(aData: TStream; aFileAge: Longint);
-    procedure FileSaved(aFileAge: Longint);
-    procedure FileLoadFailed(aError: String);
+    procedure FileLoaded(aSender: TPromise);
+    procedure FileSaved(aSender: TPromise);
+    procedure FileLoadFailed(aSender: TPromise; aError: String);
     procedure FileSaveFailed(aError: String);
+    procedure FileSaveConflictCheck(aSender: TPromise; aError: String);
     // File age is only passed for informational purposes, and I don't
     // need that information here.
     procedure FileSaveConflicted({%H-}aFileAge: Longint);
@@ -476,10 +477,9 @@ end;
 
 { TJSONAsyncFileStoreContainer }
 
-procedure TJSONAsyncFileStoreContainer.FileLoaded(aData: TStream;
-  aFileAge: Longint);
+procedure TJSONAsyncFileStoreContainer.FileLoaded(aSender: TPromise);
 begin
-  if (aData = nil) then
+  if ((aSender as TFileReadPromise).Data = nil) then
   begin
     // the file does not exist yet, so create a blank data object.
     Clear;
@@ -489,25 +489,26 @@ begin
   else
   begin
     Clear;
-    ParseJSON(Self,aData);
+    ParseJSON(Self,(aSender as TFileReadPromise).Data);
     ClearModified;
   end;
-  fFileAge := aFileAge;
+  fFileAge := (aSender as TFileReadPromise).Age;
   fFilingState := fsLoaded;
   if fOnFileLoaded <> nil then
     fOnFileLoaded(Self);
 end;
 
-procedure TJSONAsyncFileStoreContainer.FileSaved(aFileAge: Longint);
+procedure TJSONAsyncFileStoreContainer.FileSaved(aSender: TPromise);
 begin
   ClearModified;
-  fFileAge := aFileAge;
+  fFileAge := (aSender as TFileWritePromise).Age;
   fFilingState := fsLoaded;
   if fOnFileSaved <> nil then
     fOnFileSaved(Self);
 end;
 
-procedure TJSONAsyncFileStoreContainer.FileLoadFailed(aError: String);
+procedure TJSONAsyncFileStoreContainer.FileLoadFailed(aSender: TPromise;
+  aError: String);
 begin
   fFilingState := fsError;
   if fOnFileLoadFailed <> nil then
@@ -521,6 +522,15 @@ begin
   fFilingState := fsLoaded;
   if fOnFileSaveFailed <> nil then
     fOnFileSaveFailed(Self,aError);
+end;
+
+procedure TJSONAsyncFileStoreContainer.FileSaveConflictCheck(aSender: TPromise;
+  aError: String);
+begin
+  if (aSender as TFileWritePromise).IsConflict then
+    FileSaveConflicted((aSender as TFileWritePromise).Age)
+  else
+    FileSaveFailed(aError);
 end;
 
 procedure TJSONAsyncFileStoreContainer.FileSaveConflicted(aFileAge: Longint);
@@ -553,7 +563,7 @@ begin
     fFilingState := fsLoading;
     if fOnFileLoading <> nil then
       fOnFileLoading(Self);
-    fFile.Read(@FileLoaded,@FileLoadFailed);
+    fFile.Read.After(@FileLoaded,@FileLoadFailed);
   end
   else if fFilingState = fsSaving then
      raise Exception.Create('Can''t load JSON data while saving.');
@@ -563,6 +573,7 @@ end;
 procedure TJSONAsyncFileStoreContainer.Save(aForce: Boolean);
 var
   text: UTF8String;
+  lOptions: TFileWriteOptions;
 begin
   if Modified then
   begin
@@ -572,7 +583,12 @@ begin
       if fOnFileSaving <> nil then
         fOnFileSaving(Self);
       text := GetJSONString(Self);
-      fFile.Write(fCreateDir and (fFileAge = -1),not aForce,fFileAge,text,@FileSaved,@FileSaveConflicted,@FileSaveFailed);
+      lOptions := [];
+      if fCreateDir and (fFileAge = -1) then
+        lOptions := lOptions + [fwoCreateDir];
+      if not aForce then
+        lOptions := lOptions + [fwoCheckAge];
+      fFile.Write(lOptions,fFileAge,text).After(@FileSaved,@FileSaveConflictCheck);
 
     end
     else if fFilingState = fsNotLoaded then

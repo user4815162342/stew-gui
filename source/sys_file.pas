@@ -6,7 +6,7 @@ unit sys_file;
 interface
 
 uses
-  Classes, SysUtils, sys_async, FileUtil;
+  Classes, SysUtils, sys_async;
 
 const NewFileAge: Longint = -1;
 
@@ -17,6 +17,8 @@ const NewFileAge: Longint = -1;
   // believe Google Drive does), that will cause an even bigger problem. And,
   // if I go that far, I could consider using other mechanisms for descriptors:
   // for example, google drive has file labels which could be used instead.
+  // Another issue: Google Drive also allows a file to be contained in multiple
+  // folders (this isn't just links).
 
 type
 
@@ -29,6 +31,24 @@ type
   TTemplateArray = array of TTemplate;
 
   TTemplateListCallback = procedure(Data: TTemplateArray) of object;
+
+  TFileListPromise = class;
+
+  TFileReadPromise = class;
+
+  TFileWriteOption = (fwoCreateDir, fwoCheckAge);
+  TFileWriteOptions = set of TFileWriteOption;
+
+  TFileWritePromise = class;
+
+  TFileCopyOption = (fcoOverwrite, fcoCreateDir);
+  TFileCopyOptions = set of TFileCopyOption;
+
+  TFileCopyPromise = class;
+
+  TFileRenamePromise = class;
+
+  TFileListTemplatesPromise = class;
 
   TFileSystem = class;
 
@@ -48,44 +68,24 @@ type
     function GetExtension: UTF8String;
     function GetName: UTF8String;
     function GetPacketName: UTF8String;
-  public type
-    // NOTE: In order to do this API, I need to be able to forward declare
-    // The TFile record, because at least one of it's methods (ListFiles)
-    // requires a type for an argument that references TFile (TDeferredFileListCallback).
-    // (Among other issues)
-    //
-    // Options to resolve this situation that come up on the web:
-    // - change to class, which can forward declare. This isn't applicable, because
-    //   I want the "dynamic" memory allocation of the TFile.
-    // - forward reference a pointer. This doesn't make sense, because the referencing
-    //   type shouldn't have to use a pointer, and therefore dynamic memory allocation,
-    //   it should be able to use a static variable.
-    // - make use of a record helper to define the functions. This would actually
-    //   work, but it has the unfortunate side effect of not providing code
-    //   completion for the helper methods in Lazarus.
-    // - Inner types are probably the best way to do this, even though it looks funny,
-    //   it has the effect that I want.
-    TFileArray = array of TFile;
-    TDeferredFileListCallback = procedure(Data: TFileArray) of object;
-    TReadFileCallback = procedure(aData: TStream; aFileAge: Longint) of object;
-    TWriteFileCallback = procedure(aFileAge: Longint) of object;
   public
     property System: TFileSystemClass read fSystem;
     property ID: UTF8String read fID;
-    procedure List(aCallback: TDeferredFileListCallback; aErrorBack: TDeferredExceptionCallback);
-    procedure CheckExistence(aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
-    procedure Read(aCallback: TReadFileCallback; aErrorback: TDeferredExceptionCallback);
-    procedure Write(const aData: UTF8String; aCallback: TWriteFileCallback; aErrorback: TDeferredExceptionCallback); overload;
-    procedure Write(aCreateDir: Boolean;
-                    aCheckFileAge: Boolean;
+    function List: TFileListPromise;
+    function CheckExistence: TBooleanPromise;
+    function Read: TFileReadPromise;
+    function Write(const aData: UTF8String): TFileWritePromise; overload;
+    function Write(aOptions: TFileWriteOptions;
+                    const aData: UTF8String): TFileWritePromise; overload;
+    function Write(aOptions: TFileWriteOptions;
                     aFileAge: Longint;
-                    const aData: UTF8String;
-                    aCallback: TWriteFileCallback;
-                    aConflictBack: TWriteFileCallback;
-                    aErrorback: TDeferredExceptionCallback); overload;
-    procedure CopyTo(aTarget: TFile; aFlags: TCopyFileFlags; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback); overload;
-    procedure CopyTo(aTarget: TFile; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback); overload;
-    procedure Rename(aTarget: TFile; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
+                    const aData: UTF8String): TFileWritePromise; overload;
+    function CopyTo(aTarget: TFile; aFlags: TFileCopyOptions): TFileCopyPromise; overload;
+    function CopyTo(aTarget: TFile): TFileCopyPromise; overload;
+    function Rename(aTarget: TFile): TFileRenamePromise;
+    procedure OpenInEditor;
+    function ListTemplatesFor: TFileListTemplatesPromise;
+    function CreateFromTemplate(aTemplate: TTemplate): TFileCopyPromise;
     property BaseName: UTF8String read GetBaseName;
     property PacketName: UTF8String read GetPacketName;
     property Name: UTF8String read GetName;
@@ -98,10 +98,114 @@ type
     function WithDifferentExtension(aExt: UTF8String): TFile;
     function WithDifferentDescriptorAndExtension(aDesc: UTF8String; aExt: UTF8String): TFile;
     function WithDifferentPacketName(aName: UTF8String): TFile;
+  end;
 
-    procedure OpenInEditor;
-    procedure ListTemplatesFor(aCallback: TTemplateListCallback; aErrorback: TDeferredExceptionCallback);
-    procedure CreateFromTemplate(aTemplate: TTemplate; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
+  TFileArray = array of TFile;
+  { TFileListPromise }
+
+  TFileListPromise = class(TPromise)
+  private
+    fPath: TFile;
+  protected
+    fFiles: TFileArray;
+  public
+    constructor Enqueue(aFile: TFile);
+    property Files: TFileArray read fFiles;
+    property Path: TFile read fPath;
+  end;
+
+  { TFileCheckExistencePromise }
+
+  TCheckExistencePromise = class(TBooleanPromise)
+  private
+    fPath: Tfile;
+  public
+    constructor Enqueue(aFile: TFile);
+    property Path: TFile read fPath;
+  end;
+
+  { TFileReadPromise }
+
+  // TODO: Very important... we need to make sure the stream gets freed!
+  // TODO: Another possibility: Most of the time we're just reading the contents
+  // of the stream into memory, what if this doesn't return the stream, but the
+  // data itself (after closing the stream)? We might have to have some mechanism
+  // for inserting a parser or something in there to return different kinds of
+  // data, however. The other possibility is the Read isn't a promise, because
+  // we don't want to risk someone else trying to read a stream that's already
+  // been read.
+  TFileReadPromise = class(TPromise)
+  private
+    fPath: Tfile;
+  protected
+    fData: TStream;
+    fAge: Longint;
+  public
+    constructor Enqueue(aFile: TFile);
+    property Path: TFile read FPath;
+    property Data: TStream read FData;
+    property Age: Longint read FAge;
+  end;
+
+  { TFileWritePromise }
+
+  TFileWritePromise = class(TPromise)
+  private
+    fPath: Tfile;
+    fOptions: TFileWriteOptions;
+    fData: UTF8String;
+  protected
+    fAge: Longint;
+    fIsConflict: Boolean;
+  public
+    constructor Enqueue(aFile: TFile; aOptions: TFileWriteOptions; aFileAge: Longint; const aData: UTF8String); overload;
+    constructor Enqueue(aFile: TFile; aOptions: TFileWriteOptions; const aData: UTF8String); overload;
+    constructor Enqueue(aFile: TFile; const aData: UTF8String); overload;
+    property Data: UTF8String read fData;
+    property Path: TFile read fPath;
+    property Age: Longint read fAge;
+    property Options: TFileWriteOptions read fOptions;
+    property IsConflict: Boolean read fIsConflict;
+  end;
+
+  { TFileCopyPromise }
+
+  TFileCopyPromise = class(TPromise)
+  private
+    fSource: TFile;
+    fTarget: TFile;
+    fOptions: TFileCopyOptions;
+  public
+    constructor Enqueue(aSource: TFile; aTarget: TFile; aOptions: TFileCopyOptions); overload;
+    constructor Enqueue(aSource: TFile; aTarget: TFile); overload;
+    property Source: TFile read fSource;
+    property Target: TFile read fTarget;
+    property Options: TFileCopyOptions read fOptions;
+  end;
+
+  { TFileRenamePromise }
+
+  TFileRenamePromise = class(TPromise)
+  private
+    fSource: TFileArray;
+    fTarget: TFileArray;
+  public
+    constructor Enqueue(aSource: TFileArray; aTarget: TFileArray);
+    property Source: TFileArray read fSource;
+    property Target: TFileArray read fTarget;
+  end;
+
+  { TFileListTemplatesPromise }
+
+  TFileListTemplatesPromise = class(TPromise)
+  private
+    fPath: TFile;
+  protected
+    fTemplates: TTemplateArray;
+  public
+    constructor Enqueue(aFile: TFile);
+    property Templates: TTemplateArray read fTemplates;
+    property Path: TFile read fPath;
   end;
 
   { TFileSystem }
@@ -122,34 +226,28 @@ type
   TFileSystem = class
   protected
     // Almost functions are protected, because they should really only be
-    // called from TFileSystem.
+    // called from TFile.
 
-    class procedure ListFiles(aFile: TFile; aCallback: TFile.TDeferredFileListCallback; aErrorBack: TDeferredExceptionCallback); virtual; abstract;
-    class procedure CheckFileExistence(aFile: TFile; aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback); virtual; abstract;
-    class procedure ReadFile(aFile: TFile; aCallback: TFile.TReadFileCallback; aErrorback: TDeferredExceptionCallback); virtual; abstract;
-    class procedure WriteFile(aFile: TFile;
-                        aCreateDir: Boolean;
-                        aCheckFileAge: Boolean;
+    class function ListFiles(aFile: TFile): TFileListPromise; virtual; abstract;
+    class function CheckFileExistence(aFile: TFile): TBooleanPromise; virtual; abstract;
+    class function ReadFile(aFile: TFile): TFileReadPromise; virtual; abstract;
+    class function WriteFile(aFile: TFile; aOptions: TFileWriteOptions;
                         aFileAge: Longint;
-                        const aData: UTF8String;
-                        aCallback: TFile.TWriteFileCallback;
-                        aConflictBack: TFile.TWriteFileCallback;
-                        aErrorback: TDeferredExceptionCallback); virtual; abstract;
-    class procedure CopyFile(aSource: TFile; aTarget: TFile; aFlags: TCopyFileFlags; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback); virtual; abstract;
-    class procedure RenameFile(aSource: TFile; aTarget: TFile; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback); virtual;
+                        const aData: UTF8String): TFileWritePromise; virtual; abstract;
+    class function CopyFile(aSource: TFile; aTarget: TFile; aOptions: TFileCopyOptions): TFileCopyPromise; virtual; abstract;
+    class function RenameFile(aSource: TFile; aTarget: TFile): TFileRenamePromise; virtual;
     class function GetDirectory(aFile: TFile): TFile; virtual; abstract;
     class function GetName(aFile: TFile): UTF8String; virtual; abstract;
     class function GetContainedFile(aFile: TFile; aName: UTF8String): TFile; virtual; abstract;
     class procedure OpenInEditor(aFile: TFile); virtual; abstract;
-    class procedure GetTemplatesFor(aFile: TFile; aCallback: TTemplateListCallback; aErrorback: TDeferredExceptionCallback); virtual; abstract;
-    class procedure CreateFileFromTemplate(aFile: TFile; aTemplate: TTemplate; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback); virtual; abstract;
+    class function GetTemplatesFor(aFile: TFile): TFileListTemplatesPromise; virtual; abstract;
+    class function CreateFileFromTemplate(aFile: TFile; aTemplate: TTemplate): TFileCopyPromise; virtual; abstract;
 
     class function GetFileSystemClass: TFileSystemClass; virtual; abstract;
-    class procedure DoRenameFiles(aSource: TFile.TFileArray; aTarget: TFile.TFileArray; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback); virtual; abstract;
     class function GetFile(ID: String): TFile;
   public
     // allows batch renames of multiple files.
-    class procedure RenameFiles(aSource: TFile.TFileArray; aTarget: TFile.TFileArray; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
+    class function RenameFiles(aSource: TFileArray; aTarget: TFileArray): TFileRenamePromise; virtual; abstract;
   end;
 
   { TFileList }
@@ -193,7 +291,110 @@ type
 implementation
 
 uses
-  strutils;
+  strutils, FileUtil;
+
+{ TFileListTemplatesPromise }
+
+constructor TFileListTemplatesPromise.Enqueue(aFile: TFile);
+begin
+  fPath := aFile;
+  inherited Enqueue;
+end;
+
+{ TFileRenamePromise }
+
+constructor TFileRenamePromise.Enqueue(aSource: TFileArray;
+  aTarget: TFileArray);
+var
+  l: Integer;
+  i: Integer;
+  aSystem: TFileSystemClass;
+begin
+  aSystem := nil;
+  l := Length(aSource);
+  if l <> Length(aTarget) then
+    raise Exception.Create('Batch file rename requires the same number of files in source and target.');
+  SetLength(fSource,l);
+  SetLength(fTarget,l);
+  for i := 0 to l - 1 do
+  begin
+    if aSystem = nil then
+      aSystem := aSource[i].System
+    else if ((aSystem <> aSource[i].System) or
+             (aSystem <> aTarget[i].System)) then
+      raise Exception.Create('Can''t batch rename across file systems');
+    fSource[i] := aSource[i];
+    fTarget[i] := aTarget[i];
+  end;
+  inherited Enqueue;
+end;
+
+{ TFileCopyPromise }
+
+constructor TFileCopyPromise.Enqueue(aSource: TFile; aTarget: TFile;
+  aOptions: TFileCopyOptions);
+begin
+  if aTarget.System <> aSource.System then
+     raise Exception.Create('Can''t copy files across file systems');
+  fSource := aSource;
+  fTarget := aTarget;
+  fOptions := aOptions;
+  inherited Enqueue;
+end;
+
+constructor TFileCopyPromise.Enqueue(aSource: TFile; aTarget: TFile);
+begin
+  Enqueue(aSource,aTarget,[]);
+end;
+
+{ TFileWritePromise }
+
+constructor TFileWritePromise.Enqueue(aFile: TFile;
+  aOptions: TFileWriteOptions; aFileAge: Longint; const aData: UTF8String);
+begin
+  fIsConflict := false;
+  fPath := aFile;
+  fOptions := aOptions;
+  fAge := aFileAge;
+  fData := aData;
+  inherited Enqueue;
+end;
+
+constructor TFileWritePromise.Enqueue(aFile: TFile;
+  aOptions: TFileWriteOptions; const aData: UTF8String);
+begin
+  Enqueue(aFile,aOptions,NewFileAge,aData);
+end;
+
+constructor TFileWritePromise.Enqueue(aFile: TFile; const aData: UTF8String);
+begin
+  Enqueue(aFile,[],NewFileAge,aData);
+end;
+
+{ TFileReadPromise }
+
+constructor TFileReadPromise.Enqueue(aFile: TFile);
+begin
+  fPath := aFile;
+  inherited Enqueue;
+
+end;
+
+{ TFileCheckExistencePromise }
+
+constructor TCheckExistencePromise.Enqueue(aFile: TFile);
+begin
+  fPath := aFile;
+  inherited Enqueue;
+end;
+
+{ TFileListPromise }
+
+constructor TFileListPromise.Enqueue(aFile: TFile);
+begin
+  fPath := aFile;
+  inherited Enqueue;
+end;
 
 { TFileList }
 
@@ -239,42 +440,17 @@ end;
 
 { TFileSystem }
 
-class procedure TFileSystem.RenameFile(aSource: TFile; aTarget: TFile;
-  aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
+class function TFileSystem.RenameFile(aSource: TFile; aTarget: TFile
+  ): TFileRenamePromise;
 var
-  aSourceArr: TFile.TFileArray;
-  aTargetArr: TFile.TFileArray;
+  aSourceArr: TFileArray;
+  aTargetArr: TFileArray;
 begin
   SetLength(aSourceArr,1);
   aSourceArr[0] := aSource;
   SetLength(aTargetArr,1);
   aTargetArr[0] := aTarget;
-  RenameFiles(aSourceArr,aTargetArr,aCallback,aErrorback);
-end;
-
-class procedure TFileSystem.RenameFiles(aSource: TFile.TFileArray;
-  aTarget: TFile.TFileArray; aCallback: TDeferredCallback;
-  aErrorback: TDeferredExceptionCallback);
-var
-  l: Integer;
-  i: Integer;
-  aSystem: TFileSystemClass;
-begin
-  aSystem := nil;
-  l := Length(aSource);
-  if l <> Length(aTarget) then
-    raise Exception.Create('Batch file rename requires the same number of files in source and target.');
-  if l = 0 then
-    Exit;
-  for i := 0 to l - 1 do
-  begin
-    if aSystem = nil then
-      aSystem := aSource[i].System
-    else if ((aSystem <> aSource[i].System) or
-             (aSystem <> aTarget[i].System)) then
-      raise Exception.Create('Can''t batch rename across file systems');
-  end;
-  aSystem.DoRenameFiles(aSource,aTarget,aCallback,aErrorback);
+  result := RenameFiles(aSourceArr,aTargetArr);
 end;
 
 class function TFileSystem.GetFile(ID: String): TFile;
@@ -315,59 +491,54 @@ begin
   result := ExtractFileNameWithoutDescriptor(Name);
 end;
 
-procedure TFile.List(aCallback: TDeferredFileListCallback;
-  aErrorBack: TDeferredExceptionCallback);
+function TFile.List: TFileListPromise;
 begin
-  fSystem.ListFiles(Self,aCallback,aErrorback);
+  result := fSystem.ListFiles(Self);
 end;
 
-procedure TFile.CheckExistence(aCallback: TDeferredBooleanCallback;
-  aErrorback: TDeferredExceptionCallback);
+function TFile.CheckExistence: TBooleanPromise;
 begin
-  fSystem.CheckFileExistence(Self,aCallback,aErrorback);
-
-end;
-
-procedure TFile.Read(aCallback: TReadFileCallback;
-  aErrorback: TDeferredExceptionCallback);
-begin
-  fSystem.ReadFile(Self,aCallback,aErrorback);
-end;
-
-procedure TFile.Write(const aData: UTF8String; aCallback: TWriteFileCallback;
-  aErrorback: TDeferredExceptionCallback);
-begin
-  Write(false,false,NewFileAge,aData,aCallback,Nil,aErrorback);
+  result := fSystem.CheckFileExistence(Self);
 
 end;
 
-procedure TFile.Write(aCreateDir: Boolean; aCheckFileAge: Boolean;
-  aFileAge: Longint; const aData: UTF8String; aCallback: TWriteFileCallback;
-  aConflictBack: TWriteFileCallback; aErrorback: TDeferredExceptionCallback);
+function TFile.Read: TFileReadPromise;
 begin
-  fSystem.WriteFile(Self,aCreateDir,aCheckFileAge,aFileAge,aData,aCallback,aConflictBack,aErrorback);
+  result := fSystem.ReadFile(Self);
 end;
 
-procedure TFile.CopyTo(aTarget: TFile; aFlags: TCopyFileFlags;
-  aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
+function TFile.Write(const aData: UTF8String): TFileWritePromise;
 begin
-  if aTarget.System <> fSystem then
-     raise Exception.Create('Can''t copy files across file systems');
-  fSystem.CopyFile(Self,aTarget,aFlags,aCallback,aErrorback);
+  result := fSystem.WriteFile(Self,[],NewFileAge,aData);
+
 end;
 
-procedure TFile.CopyTo(aTarget: TFile; aCallback: TDeferredCallback;
-  aErrorback: TDeferredExceptionCallback);
+function TFile.Write(aOptions: TFileWriteOptions; const aData: UTF8String
+  ): TFileWritePromise;
 begin
-  CopyTo(aTarget,[],aCallback,aErrorback);
+  result := fSystem.WriteFile(Self,aOptions,NewFileAge,aData);
 end;
 
-procedure TFile.Rename(aTarget: TFile; aCallback: TDeferredCallback;
-  aErrorback: TDeferredExceptionCallback);
+function TFile.Write(aOptions: TFileWriteOptions; aFileAge: Longint;
+  const aData: UTF8String): TFileWritePromise;
 begin
-  if aTarget.System <> fSystem then
-     raise Exception.Create('Can''t move files across file systems');
-  fSystem.RenameFile(Self,aTarget,aCallback,aErrorback);
+  result := fSystem.WriteFile(Self,aOptions,aFileAge,aData);
+end;
+
+function TFile.CopyTo(aTarget: TFile; aFlags: TFileCopyOptions
+  ): TFileCopyPromise;
+begin
+  result := fSystem.CopyFile(Self,aTarget,aFlags);
+end;
+
+function TFile.CopyTo(aTarget: TFile): TFileCopyPromise;
+begin
+  result := CopyTo(aTarget,[]);
+end;
+
+function TFile.Rename(aTarget: TFile): TFileRenamePromise;
+begin
+  result := fSystem.RenameFile(Self,aTarget);
 end;
 
 function TFile.GetContainedFile(aPacketName: UTF8String;
@@ -403,16 +574,14 @@ begin
   fSystem.OpenInEditor(Self);
 end;
 
-procedure TFile.ListTemplatesFor(aCallback: TTemplateListCallback;
-  aErrorback: TDeferredExceptionCallback);
+function TFile.ListTemplatesFor: TFileListTemplatesPromise;
 begin
-  fSystem.GetTemplatesFor(Self,aCallback,aErrorback);
+  result := fSystem.GetTemplatesFor(Self);
 end;
 
-procedure TFile.CreateFromTemplate(aTemplate: TTemplate;
-  aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
+function TFile.CreateFromTemplate(aTemplate: TTemplate): TFileCopyPromise;
 begin
-  fSystem.CreateFileFromTemplate(Self,aTemplate,aCallback,aErrorback);
+  result := fSystem.CreateFileFromTemplate(Self,aTemplate);
 end;
 
 operator=(a: TFile; b: TFile): Boolean;

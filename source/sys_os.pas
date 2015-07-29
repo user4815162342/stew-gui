@@ -9,49 +9,34 @@ uses
 
 type
 
-  { TRunSimpleCommand }
+  { TRunSimpleCommandPromise }
 
-  TRunSimpleCommand = class(TDeferredTask)
+  TRunSimpleCommandPromise = class(TPromise)
   private
     fCmd: String;
     fArgs: Array of String;
-    fCallback: TDeferredStringCallback;
+    fData: String;
   protected
     procedure DoTask; override;
   public
-    constructor Create(aCmd: String; const aArgs: array of string;
-      aOutput: TDeferredStringCallback; aErrorBack: TDeferredExceptionCallback);
-
+    constructor Enqueue(aCmd: String; const aArgs: array of string);
+    property Data: String read fData;
   end;
 
-  { TTemplateLister }
+  { TLocalFileListTemplatesFromOSPromise }
 
-  { TListTemplates }
-
-  TListTemplates = class
-  private
-    fExt: String;
-    fCallback: TTemplateListCallback;
-    fErrorback: TDeferredExceptionCallback;
-    {$IFDEF Linux}
-      fTemplatePath: String;
-    {$ENDIF}
+  TLocalFileListTemplatesFromOSPromise = class(TFileListTemplatesPromise)
   protected
-    procedure Failed(Data: String);
   {$IFDEF Linux}
-    procedure XdgUserDirDone(Data: String);
-    procedure TemplateFilesListed(Data: TFile.TFileArray);
+    procedure XdgUserDirDone(Sender: TPromise);
+    procedure TemplateFilesListed(Sender: TPromise);
   {$ENDIF}
-  public
-    constructor Create(aExt: String; aCallback: TTemplateListCallback; aErrorBack: TDeferredExceptionCallback);
-    procedure Enqueue;
+    procedure DoTask; override;
   end platform;
 
+function RunSimpleCommand(aCmd: String; const aArgs: array of string): TRunSimpleCommandPromise;
+function CreateFileFromTemplate(aTemplate: TTemplate; aFile: TFile): TFileCopyPromise;
 procedure EditFile(aFile: TFile);
-procedure RunSimpleCommand(aCmd: String; const aArgs: array of string;
-      aOutput: TDeferredStringCallback; aErrorBack: TDeferredExceptionCallback);
-procedure GetTemplatesForExt(const aExt: String; aCallback: TTemplateListCallback; aErrorback: TDeferredExceptionCallback);
-procedure CreateFileFromTemplate(aTemplate: TTemplate; aFile: TFile; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
 procedure RunDetachedProcess(const aExecutable: String; aArgs: array of String);
 
 implementation
@@ -113,24 +98,17 @@ begin
 {$ENDIF}
 end;
 
-procedure RunSimpleCommand(aCmd: String; const aArgs: array of string;
-  aOutput: TDeferredStringCallback; aErrorBack: TDeferredExceptionCallback);
+function RunSimpleCommand(aCmd: String; const aArgs: array of string
+  ): TRunSimpleCommandPromise;
 begin
-  TRunSimpleCommand.Create(aCmd,aArgs,aOutput,aErrorBack).Enqueue;
+  result := TRunSimpleCommandPromise.Enqueue(aCmd,aArgs);
 end;
 
-procedure GetTemplatesForExt(const aExt: String;
-  aCallback: TTemplateListCallback; aErrorback: TDeferredExceptionCallback
-  );
-begin
-  TListTemplates.Create(aExt,aCallback,aErrorback).Enqueue;
-end;
-
-procedure CreateFileFromTemplate(aTemplate: TTemplate; aFile: TFile;
-  aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
+function CreateFileFromTemplate(aTemplate: TTemplate; aFile: TFile
+  ): TFileCopyPromise;
 begin
 {$IFDEF Linux}
-  LocalFile(aTemplate.ID).CopyTo(aFile,aCallback,aErrorback)
+  result := LocalFile(aTemplate.ID).CopyTo(aFile)
 {$ELSE}
 {$ERROR Required code is not yet written for this platform.}
 {$ENDIF}
@@ -171,9 +149,9 @@ begin
   end;
 end;
 
-{ TRunSimpleCommand }
+{ TRunSimpleCommandPromise }
 
-procedure TRunSimpleCommand.DoTask;
+procedure TRunSimpleCommandPromise.DoTask;
 var
   lApp: String;
   lOut: String;
@@ -183,7 +161,10 @@ begin
   begin
     lOut := '';
     if RunCommand(lApp,fArgs,lOut) then
-       fCallback(lOut)
+    begin
+      fData := lOut;
+      Resolve;
+    end
     else
       raise Exception.Create('Command "' + fCmd + '" failed to run properly');
   end
@@ -191,13 +172,12 @@ begin
      raise Exception.Create('Command "' + fCmd + '" could not be found on your system');
 end;
 
-constructor TRunSimpleCommand.Create(aCmd: String; const aArgs: array of string;
-  aOutput: TDeferredStringCallback; aErrorBack: TDeferredExceptionCallback);
+constructor TRunSimpleCommandPromise.Enqueue(aCmd: String;
+  const aArgs: array of string);
 var
   i: Integer;
   l: Integer;
 begin
-  inherited Create(aErrorBack);
   fCmd := aCmd;
   l := Length(aArgs);
   // can't assign "open array" to "dynamic array". Which really doesn't
@@ -208,76 +188,48 @@ begin
   begin
     fArgs[i] := aArgs[i];
   end;
-  fCallback := aOutput;
+  inherited Enqueue;
 end;
 
-{ TTemplateLister }
+{ TLocalFileListTemplatesFromOSPromise }
 
-{$IFDEF Linux}
-
-procedure TListTemplates.TemplateFilesListed(Data: TFile.TFileArray);
+procedure TLocalFileListTemplatesFromOSPromise.TemplateFilesListed(
+  Sender: TPromise);
 var
-  aAnswer: TTemplateArray;
+  lAnswer: TTemplateArray;
+  lExt: String;
   l: Integer;
   i: Integer;
   j: Integer;
+  lData: TFileArray;
 begin
-  try
-    l := Length(Data);
-    j := 0;
-    for i := 0 to l - 1 do
+  lExt := Path.Extension;
+  lData := (Sender as TFileListPromise).Files;
+  l := Length(lData);
+  j := 0;
+  for i := 0 to l - 1 do
+  begin
+    if (lExt = '') or (lData[i].Extension = lExt) then
     begin
-      if (fExt = '') or (Data[i].Extension = fExt) then
-      begin
-        SetLength(aAnswer,j + 1);
-        aAnswer[j].Name := Data[i].BaseName;
-        aAnswer[j].ID := Data[i].ID;
-        j := j + 1;
-      end;
-    end;
-    fCallback(aAnswer);
-  except
-    on E: Exception do
-    begin
-      Failed(E.Message);
-      // Failed already freed us, so don't do anything more.
-      exit;
+      SetLength(lAnswer,j + 1);
+      lAnswer[j].Name := lData[i].BaseName;
+      lAnswer[j].ID := lData[i].ID;
+      j := j + 1;
     end;
   end;
-  // process is complete, so free it.
-  Free;
+  fTemplates := lAnswer;
+  Resolve;
 end;
 
-procedure TListTemplates.XdgUserDirDone(Data: String);
+procedure TLocalFileListTemplatesFromOSPromise.XdgUserDirDone(Sender: TPromise);
+var
+  lTemplatePath: String;
 begin
-  try
-    fTemplatePath := IncludeTrailingPathDelimiter(Trim(Data));
-    LocalFile(fTemplatePath).List(@TemplateFilesListed,@Failed);
-  except
-    on E: Exception do
-      Failed(E.Message);
-  end;
-end;
-{$ENDIF}
-
-procedure TListTemplates.Failed(Data: String);
-begin
-  fErrorback(Data);
-  // an error occurred, so we're done.
-  Free;
+  lTemplatePath := IncludeTrailingPathDelimiter(Trim((Sender as TRunSimpleCommandPromise).Data));
+  LocalFile(lTemplatePath).List.After(@TemplateFilesListed,@SubPromiseRejected);
 end;
 
-
-constructor TListTemplates.Create(aExt: String;
-  aCallback: TTemplateListCallback; aErrorBack: TDeferredExceptionCallback);
-begin
-  inherited Create;
-  fErrorback := aErrorBack;
-  fCallback := aCallback;
-  fExt := ExcludeExtensionDelimiter(aExt);
-end;
-
-procedure TListTemplates.Enqueue;
+procedure TLocalFileListTemplatesFromOSPromise.DoTask;
 begin
 {$IFDEF Linux}
 { There are two possible ways to do this:
@@ -293,7 +245,7 @@ begin
 
 I think I know which way *I* want to do it, at least until we find out that it
 doesn't work. }
-  RunSimpleCommand('xdg-user-dir',['TEMPLATES'],@XdgUserDirDone,@Failed);
+  TRunSimpleCommandPromise.Enqueue('xdg-user-dir',['TEMPLATES']).After(@XdgUserDirDone,@SubPromiseRejected);
 
 {$ELSE}
 {$ERROR Required code is not yet written for this platform.}

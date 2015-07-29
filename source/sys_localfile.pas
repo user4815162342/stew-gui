@@ -8,127 +8,73 @@ uses
   Classes, SysUtils, sys_file, sys_async, FileUtil;
 
 type
-  { TListFiles }
 
-  TListFiles = class(TDeferredTask)
-  private
-    fPath: TFile;
-    fFilesCallback: TFile.TDeferredFileListCallback;
+  { TFileListPromise }
+
+  TLocalFileListPromise = class(TFileListPromise)
   protected
     procedure DoTask; override;
-  public
-    constructor Create(const aPath: TFile;
-      aCallback: TFile.TDeferredFileListCallback;
-      aErrorback: TDeferredExceptionCallback); overload;
   end;
 
-  { TFileExists }
+  { TLocalFileCheckExistencePromise }
 
-  TFileExists = class(TDeferredTask)
-  private
-    fPath: TFile;
-    fCallback: TDeferredBooleanCallback;
+  TLocalFileCheckExistencePromise = class(TCheckExistencePromise)
   protected
     procedure DoTask; override;
-  public
-    constructor Create(const aPath: TFile; aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
   end;
 
-  { TReadFile }
+  { TLocalFileReadPromise }
 
-  TReadFile = class(TDeferredTask)
-  private
-    fPath: TFile;
-    fCallback: TFile.TReadFileCallback;
+  TLocalFileReadPromise = class(TFileReadPromise)
   protected
     procedure DoTask; override;
   public
-    constructor Create(const aPath: TFile; aCallback: TFile.TReadFileCallback; aErrorback: TDeferredExceptionCallback);
+    destructor Destroy; override;
   end;
 
+  { TLocalFileWritePromise }
 
-  { TWriteFile }
-
-  TWriteFile = class(TDeferredTask)
-  private
-    fPath: TFile;
-    fFileAge: Longint;
-    fCheckFileAge: Boolean;
-    fCreateDir: Boolean;
-    fData: UTF8String;
-    fCallback: TFile.TWriteFileCallback;
-    fConflictBack: TFile.TWriteFileCallback;
+  TLocalFileWritePromise = class(TFileWritePromise)
   protected
     procedure DoTask; override;
-  public
-    // NOTE: for FileAge, pass the mtime retrieved by the TReadFile.
-    // If the file was new, pass NewFileAge(-1).
-    constructor Create(const aPath: TFile; aCreateDir: Boolean; aCheckFileAge: Boolean; aFileAge: Longint;
-      const aData: UTF8String; aCallback: TFile.TWriteFileCallback; aConflictBack: TFile.TWriteFileCallback;
-  aErrorback: TDeferredExceptionCallback);
   end;
 
-  { TCopyFile }
+  { TLocalFileCopyPromise }
 
-  TCopyFile = class(TDeferredTask)
-  private
-    fSource: TFile;
-    fTarget: TFile;
-    fOptions: TCopyFileFlags;
-    fCallback: TDeferredCallback;
+  TLocalFileCopyPromise = class(TFileCopyPromise)
   protected
     procedure DoTask; override;
-  public
-    constructor Create(aSource: TFile; aTarget: TFile; aFlags: TCopyFileFlags; aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
   end;
 
-  { TRenameFiles }
+  { TLocalFileRenamePromise }
 
-  TRenameFiles = class(TDeferredTask)
-  private
-    fSources: TFile.TFileArray;
-    fTargets: TFile.TFileArray;
-    fCallback: TDeferredCallback;
+  TLocalFileRenamePromise = class(TFileRenamePromise)
   protected
     procedure DoTask; override;
-  public
-    constructor Create(aSources: TFile.TFileArray; aTargets: TFile.TFileArray; aCallback: TDeferredCallback; aErrorBack: TDeferredExceptionCallback);
   end;
 
   { TLocalFileSystem }
 
   TLocalFileSystem = class(TFileSystem)
   protected
-    class procedure CheckFileExistence(aFile: TFile;
-      aCallback: TDeferredBooleanCallback;
-      aErrorback: TDeferredExceptionCallback); override;
-    class procedure CopyFile(aSource: TFile; aTarget: TFile;
-      aFlags: TCopyFileFlags; aCallback: TDeferredCallback;
-      aErrorback: TDeferredExceptionCallback); override;
-    class procedure CreateFileFromTemplate(aFile: TFile; aTemplate: TTemplate;
-      aCallback: TDeferredCallback; aErrorback: TDeferredExceptionCallback);
+    class function CheckFileExistence(aFile: TFile): TBooleanPromise; override;
+    class function CopyFile(aSource: TFile; aTarget: TFile;
+      aOptions: TFileCopyOptions): TFileCopyPromise; override;
+    class function CreateFileFromTemplate(aFile: TFile; aTemplate: TTemplate): TFileCopyPromise;
       override;
     class function GetContainedFile(aDir: TFile; aFileName: UTF8String
       ): TFile; override;
     class function GetDirectory(aFile: TFile): TFile; override;
     class function GetFileSystemClass: TFileSystemClass; override;
     class function GetName(aFile: TFile): UTF8String; override;
-    class procedure GetTemplatesFor(aFile: TFile;
-      aCallback: TTemplateListCallback; aErrorback: TDeferredExceptionCallback
-      ); override;
-    class procedure ListFiles(aFile: TFile;
-      aCallback: TFile.TDeferredFileListCallback;
-      aErrorBack: TDeferredExceptionCallback); override;
+    class function GetTemplatesFor(aFile: TFile): TFileListTemplatesPromise; override;
+    class function ListFiles(aFile: TFile): TFile.TFileListPromise; override;
     class procedure OpenInEditor(aFile: TFile); override;
-    class procedure ReadFile(aFile: TFile; aCallback: TFile.TReadFileCallback;
-      aErrorback: TDeferredExceptionCallback); override;
-    class procedure DoRenameFiles(aSource: TFile.TFileArray;
-      aTarget: TFile.TFileArray; aCallback: TDeferredCallback;
-      aErrorback: TDeferredExceptionCallback); override;
-    class procedure WriteFile(aFile: TFile; aCreateDir: Boolean;
-      aCheckFileAge: Boolean; aFileAge: Longint; const aData: UTF8String;
-      aCallback: TFile.TWriteFileCallback; aConflictBack: TFile.TWriteFileCallback;
-      aErrorback: TDeferredExceptionCallback); override;
+    class function ReadFile(aFile: TFile): TFileReadPromise; override;
+    class function WriteFile(aFile: TFile; aOptions: TFileWriteOptions; aFileAge: Longint; const aData: UTF8String): TFileWritePromise; override;
+  public
+    class function RenameFiles(aSource: TFileArray;
+      aTarget: TFileArray): TFileRenamePromise; override;
   end;
 
   function LocalFile(aPath: TFilename): TFile;
@@ -150,26 +96,186 @@ begin
   result := TLocalFileSystem.GetFile(aPath);
 end;
 
+{ TLocalFileRenamePromise }
+
+procedure TLocalFileRenamePromise.DoTask;
+var
+  i: Integer;
+begin
+  for i := 0 to Length(Source) - 1 do
+  begin
+    if Source[i] <> Target[i] then
+      if not RenameFile(Source[i].ID,Target[i].ID) then
+         raise Exception.Create('An error occurred while renaming ' + Source[i].ID + ' to ' + Target[i].ID);
+  end;
+  Resolve;
+end;
+
+{ TLocalFileCopyPromise }
+
+procedure TLocalFileCopyPromise.DoTask;
+var
+  lFlags: TCopyFileFlags;
+begin
+  lFlags := [];
+  // have to raise our own exceptions here, since CopyFile doesn't do that
+  // if it's not in the options.
+  if not (fcoOverwrite in Options) and
+     FileExists(Target.ID) then
+     raise Exception.Create('File ' + Target.ID + ' already exists.');
+
+  if not (fcoCreateDir in Options) and
+     not DirectoryExists(Target.Directory.ID) then
+     raise Exception.Create('Directory ' + Target.Directory.ID + ' does not exist');
+
+  if fcoCreateDir in Options then
+    lFlags := lFlags + [cffCreateDestDirectory];
+  if fcoOverwrite in Options then
+    lFlags := lFlags + [cffOverwriteFile];
+  if not CopyFile(Source.ID,Target.ID,lFlags) then
+     raise Exception.Create('Copy file failed. Source: ' + Source.ID + '; Target: ' + Target.ID);
+  Resolve;
+
+end;
+
+{ TLocalFileWritePromise }
+
+// TODO: At some point, I need to 'test' the save conflicts.
+procedure TLocalFileWritePromise.DoTask;
+var
+  stream: TFileStream;
+  aCurrentAge: Longint;
+begin
+  // FUTURE: There is a potential race condition here. The file could
+  // be modified between this file age check and the actual write.
+  // However, by the time we get done with TFileStream.Create, there's
+  // no way to check the previous creation time. So... we'll just have
+  // to hope things aren't going too fast. I could possibly fix this by locking
+  // the file, checking the mtime, then opening it, but I've never done that
+  // before so I'd have to do some research that I don't have time for right now.
+  if fwoCheckAge in Options then
+  begin
+    aCurrentAge := FileAge(Path.ID);
+    // if the file does not exist yet, it should return -1. If the file
+    // did not exist before, the caller should have passed -1 to indicate a
+    // new file. These are the possible conditions I see:
+    // fFileAge  fCurrentAge   means
+    // -1        -1            file did not exist before, file does not exist now, no conflict, write as normal.
+    // -1        > -1          file did not exist before, file does exist now, conflict, so report and don't write.
+    // > -1      = fFileAge    file existed before, file has same mtime as before, no conflict, write as normal.
+    // > -1      <> fFileAgge  file existed before, file has different mtime now, conflict, so report and don't write.
+    if aCurrentAge <> Age then
+    begin
+      fIsConflict := true;
+      fAge := aCurrentAge;
+      Reject('File has been changed since last read. Can''t write.');
+      exit;
+    end;
+  end;
+
+  if not DirectoryExists(Path.Directory.ID) and (fwoCreateDir in Options) then
+  begin
+     ForceDirectories(Path.Directory.ID);
+  end;
+  // otherwise, an error might occur, but that should be handled and reported by the base class here.
+
+  // TODO: Once I'm sure that saving is being done right, get rid
+  // of this.
+  if FileExists(Path.ID) then
+    CopyFile(Path.ID,Path.ID + '-' + FormatDateTime(TimestampFormat, Now));
+  stream := TFileStream.Create(Path.ID,fmCreate or fmShareDenyWrite);
+  try
+    fAge := FileAge(Path.ID);
+    stream.Write(Data[1],Length(Data));
+  finally
+    stream.Free;
+  end;
+  Resolve;
+
+end;
+
+{ TLocalFileReadPromise }
+
+procedure TLocalFileReadPromise.DoTask;
+begin
+  if FileExists(Path.ID) then
+  begin
+    fData := TFileStream.Create(Path.ID,fmOpenRead or fmShareDenyWrite);
+    // get the age of the file now, while it's locked, to prevent certain
+    // race conditions
+    fAge := FileAge(Path.ID);
+  end
+  else
+  begin
+    fData := nil;
+    fAge := NewFileAge;
+  end;
+  Resolve;
+end;
+
+destructor TLocalFileReadPromise.Destroy;
+begin
+  if fData <> nil then
+    FreeAndNil(fData);
+  inherited Destroy;
+end;
+
+{ TLocalFileCheckExistencePromise }
+
+procedure TLocalFileCheckExistencePromise.DoTask;
+begin
+  fAnswer := FileExists(Path.ID);
+  Resolve;
+end;
+
+{ TFileListPromise }
+procedure TLocalFileListPromise.DoTask;
+var
+  SR: TSearchRec;
+  Answer: TFileArray;
+  L: Integer;
+begin
+  L := 0;
+  if DirectoryExists(Path.ID) then
+  begin
+    if FindFirst(IncludeTrailingPathDelimiter(Path.ID) + '*',faDirectory,SR) = 0 then
+    begin
+      try
+        repeat
+          if (SR.Name <> '.') and (SR.Name <> '..') then
+          begin
+             L := L + 1;
+             SetLength(Answer,L);
+             Answer[L-1] := Path.GetContainedFile(SR.Name);
+          end;
+        until FindNext(SR) <> 0;
+      finally
+        FindClose(SR);
+      end;
+    end;
+  end;
+  fFiles := Answer;
+  Resolve;
+end;
+
 { TLocalFileSystem }
 
-class procedure TLocalFileSystem.CheckFileExistence(aFile: TFile;
-  aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
+class function TLocalFileSystem.CheckFileExistence(aFile: TFile
+  ): TBooleanPromise;
 begin
-  TFileExists.Create(aFile,aCallback,aErrorback).Enqueue;
+  result := TLocalFileCheckExistencePromise.Enqueue(aFile);
 end;
 
-class procedure TLocalFileSystem.CopyFile(aSource: TFile; aTarget: TFile;
-  aFlags: TCopyFileFlags; aCallback: TDeferredCallback;
-  aErrorback: TDeferredExceptionCallback);
+class function TLocalFileSystem.CopyFile(aSource: TFile; aTarget: TFile;
+  aOptions: TFileCopyOptions): TFileCopyPromise;
 begin
-  TCopyFile.Create(aSource,aTarget,aFlags,aCallback,aErrorback).Enqueue;
+  result := TLocalFileCopyPromise.Enqueue(aSource,aTarget,aOptions);
 end;
 
-class procedure TLocalFileSystem.CreateFileFromTemplate(aFile: TFile;
-  aTemplate: TTemplate; aCallback: TDeferredCallback;
-  aErrorback: TDeferredExceptionCallback);
+class function TLocalFileSystem.CreateFileFromTemplate(aFile: TFile;
+  aTemplate: TTemplate): TFileCopyPromise;
 begin
-  sys_os.CreateFileFromTemplate(aTemplate,aFile,aCallback,aErrorback);
+  result := sys_os.CreateFileFromTemplate(aTemplate,aFile);
 end;
 
 class function TLocalFileSystem.GetContainedFile(aDir: TFile;
@@ -195,16 +301,15 @@ begin
   result := ExtractFileName(aFile.ID);
 end;
 
-class procedure TLocalFileSystem.GetTemplatesFor(aFile: TFile;
-  aCallback: TTemplateListCallback; aErrorback: TDeferredExceptionCallback);
+class function TLocalFileSystem.GetTemplatesFor(aFile: TFile
+  ): TFileListTemplatesPromise;
 begin
-  GetTemplatesForExt(aFile.Extension,aCallback,aErrorback);
+  result := TLocalFileListTemplatesFromOSPromise.Enqueue(aFile);
 end;
 
-class procedure TLocalFileSystem.ListFiles(aFile: TFile;
-  aCallback: TFile.TDeferredFileListCallback; aErrorBack: TDeferredExceptionCallback);
+class function TLocalFileSystem.ListFiles(aFile: TFile): TFile.TFileListPromise;
 begin
-  TListFiles.Create(aFile,aCallback,aErrorBack).Enqueue;
+  result := TLocalFileListPromise.Enqueue(aFile);
 end;
 
 class procedure TLocalFileSystem.OpenInEditor(aFile: TFile);
@@ -212,252 +317,23 @@ begin
   EditFile(aFile);
 end;
 
-class procedure TLocalFileSystem.ReadFile(aFile: TFile;
-  aCallback: TFile.TReadFileCallback; aErrorback: TDeferredExceptionCallback);
+class function TLocalFileSystem.ReadFile(aFile: TFile): TFileReadPromise;
 begin
-  TReadFile.Create(aFile,aCallback,aErrorback).Enqueue;
+  result := TLocalFileReadPromise.Enqueue(aFile);
 end;
 
-class procedure TLocalFileSystem.DoRenameFiles(aSource: TFile.TFileArray;
-  aTarget: TFile.TFileArray; aCallback: TDeferredCallback;
-  aErrorback: TDeferredExceptionCallback);
+class function TLocalFileSystem.RenameFiles(aSource: TFileArray;
+  aTarget: TFileArray): TFileRenamePromise;
 begin
-  TRenameFiles.Create(aSource,aTarget,aCallback,aErrorback).Enqueue;
+  result := TLocalFileRenamePromise.Enqueue(aSource,aTarget);
 end;
 
-class procedure TLocalFileSystem.WriteFile(aFile: TFile; aCreateDir: Boolean;
-  aCheckFileAge: Boolean; aFileAge: Longint; const aData: UTF8String;
-  aCallback: TFile.TWriteFileCallback; aConflictBack: TFile.TWriteFileCallback;
-  aErrorback: TDeferredExceptionCallback);
+class function TLocalFileSystem.WriteFile(aFile: TFile;
+  aOptions: TFileWriteOptions; aFileAge: Longint; const aData: UTF8String
+  ): TFileWritePromise;
 begin
-  TWriteFile.Create(aFile,aCreateDir,aCheckFileAge,aFileAge,aData,aCallback,aConflictBack,aErrorback).Enqueue;
+  result := TLocalFileWritePromise.Enqueue(aFile,aOptions,aFileAge,aData);
 end;
-
-{ TRenameFiles }
-
-procedure TRenameFiles.DoTask;
-var
-  i: Integer;
-begin
-  for i := 0 to Length(fSources) - 1 do
-  begin
-    if fSources[i] <> fTargets[i] then
-      if not RenameFile(fSources[i].ID,fTargets[i].ID) then
-         raise Exception.Create('An error occurred while renaming ' + fSources[i].ID + ' to ' + fTargets[i].ID);
-  end;
-  fCallback;
-end;
-
-constructor TRenameFiles.Create(aSources: TFile.TFileArray;
-  aTargets: TFile.TFileArray; aCallback: TDeferredCallback;
-  aErrorBack: TDeferredExceptionCallback);
-var
-  l: Integer;
-begin
-  inherited Create(aErrorBack);
-  l := Length(aSources);
-  if l <> Length(aTargets) then
-     raise Exception.Create('Number of targets does not match number of sources.');
-  fSources := aSources;
-  fTargets := aTargets;
-  fCallback:= aCallback;
-end;
-
-{ TCopyFile }
-
-procedure TCopyFile.DoTask;
-begin
-  // have to raise our own exceptions here, since CopyFile doesn't do that
-  // if it's not in the options.
-  if not (cffOverwriteFile in fOptions) and
-     FileExists(fTarget.ID) then
-     raise Exception.Create('File ' + fTarget.ID + ' already exists.');
-
-  if not (cffCreateDestDirectory in fOptions) and
-     not DirectoryExists(fTarget.Directory.ID) then
-     raise Exception.Create('Directory ' + fTarget.Directory.ID + ' does not exist');
-
-  if not CopyFile(fSource.ID,fTarget.ID,fOptions) then
-     raise Exception.Create('Copy file failed. Source: ' + fSource.ID + '; Target: ' + fTarget.ID);
-  fCallback;
-end;
-
-constructor TCopyFile.Create(aSource: TFile; aTarget: TFile;
-  aFlags: TCopyFileFlags; aCallback: TDeferredCallback;
-  aErrorback: TDeferredExceptionCallback);
-begin
-  inherited Create(aErrorback);
-  fSource := aSource;
-  fTarget := aTarget;
-  fOptions := aFlags;
-  fCallback := aCallback;
-end;
-
-{ TListFiles }
-
-procedure TListFiles.DoTask;
-var
-  SR: TSearchRec;
-  Answer: TFile.TFileArray;
-  L: Integer;
-begin
-  L := 0;
-  if DirectoryExists(fPath.ID) then
-  begin
-       if FindFirst(IncludeTrailingPathDelimiter(fPath.ID) + '*',faDirectory,SR) = 0 then
-       begin
-          try
-            repeat
-              if (SR.Name <> '.') and (SR.Name <> '..') then
-              begin
-                 L := L + 1;
-                 SetLength(Answer,L);
-                 Answer[L-1] := fPath.GetContainedFile(SR.Name);
-              end;
-            until FindNext(SR) <> 0;
-          finally
-            FindClose(SR);
-          end;
-       end;
-  end;
-  fFilesCallback(Answer);
-end;
-
-constructor TListFiles.Create(const aPath: TFile;
-  aCallback: TFile.TDeferredFileListCallback; aErrorback: TDeferredExceptionCallback);
-begin
-  inherited Create(aErrorback);
-  fPath := aPath;
-  fFilesCallback:=aCallback;
-end;
-
-{ TWriteFile }
-
-// TODO: At some point, I need to 'test' the save conflicts.
-procedure TWriteFile.DoTask;
-var
-  stream: TFileStream;
-  aCurrentAge: Longint;
-begin
-  // FUTURE: There is a potential race condition here. The file could
-  // be modified between this file age check and the actual write.
-  // However, by the time we get done with TFileStream.Create, there's
-  // no way to check the previous creation time. So... we'll just have
-  // to hope things aren't going too fast. I could possibly fix this by locking
-  // the file, checking the mtime, then opening it, but I've never done that
-  // before so I'd have to do some research that I don't have time for right now.
-  if fCheckFileAge then
-  begin
-    aCurrentAge := FileAge(fPath.ID);
-    // if the file does not exist yet, it should return -1. If the file
-    // did not exist before, the caller should have passed -1 to indicate a
-    // new file. These are the possible conditions I see:
-    // fFileAge  fCurrentAge   means
-    // -1        -1            file did not exist before, file does not exist now, no conflict, write as normal.
-    // -1        > -1          file did not exist before, file does exist now, conflict, so report and don't write.
-    // > -1      = fFileAge    file existed before, file has same mtime as before, no conflict, write as normal.
-    // > -1      <> fFileAgge  file existed before, file has different mtime now, conflict, so report and don't write.
-    if aCurrentAge <> fFileAge then
-    begin
-      if fConflictBack <> nil then
-      begin
-        fConflictBack(aCurrentAge);
-        exit;
-      end
-      else
-        raise Exception.Create('File has been changed since last read. Can''t write.');
-    end;
-  end;
-
-  if not DirectoryExists(fPath.Directory.ID) and fCreateDir then
-  begin
-     ForceDirectories(fPath.Directory.ID);
-  end;
-  // otherwise, an error might occur, but that should be handled and reported by the base class here.
-
-  // TODO: Once I'm sure that saving is being done right, get rid
-  // of this.
-  if FileExists(fPath.ID) then
-    CopyFile(fPath.ID,fPath.ID + FormatDateTime(TimestampFormat, Now));
-  stream := TFileStream.Create(fPath.ID,fmCreate or fmShareDenyWrite);
-  try
-    aCurrentAge := FileAge(fPath.ID);
-    stream.Write(fData[1],Length(fData));
-  finally
-    stream.Free;
-  end;
-  fCallback(aCurrentAge);
-
-end;
-
-constructor TWriteFile.Create(const aPath: TFile; aCreateDir: Boolean;
-  aCheckFileAge: Boolean; aFileAge: Longint; const aData: UTF8String;
-  aCallback: TFile.TWriteFileCallback; aConflictBack: TFile.TWriteFileCallback;
-  aErrorback: TDeferredExceptionCallback);
-begin
-  inherited Create(aErrorback);
-  fPath := aPath;
-  fFileAge := aFileAge;
-  fCheckFileAge := aCheckFileAge;
-  fCreateDir := aCreateDir;
-  fData := aData;
-  fCallback := aCallback;
-  fConflictBack := aConflictBack;
-
-end;
-
-
-{ TReadFile }
-
-procedure TReadFile.DoTask;
-var
-  stream: TFileStream;
-  age: Longint;
-begin
-  if FileExists(fPath.ID) then
-  begin
-     stream := TFileStream.Create(fPath.ID,fmOpenRead or fmShareDenyWrite);
-     try
-       // get the age of the file now, while it's locked, to prevent certain
-       // race conditions
-       age := FileAge(fPath.ID);
-       fCallback(stream,age);
-     finally
-       stream.Free;
-     end;
-  end
-  else
-  begin
-    fCallback(nil,NewFileAge);
-  end;
-
-end;
-
-constructor TReadFile.Create(const aPath: TFile;
-  aCallback: TFile.TReadFileCallback; aErrorback: TDeferredExceptionCallback);
-begin
-  inherited Create(aErrorback);
-  fCallback := aCallback;
-  fPath := aPath;
-end;
-
-{ TFileExists }
-
-procedure TFileExists.DoTask;
-begin
-  fCallback(FileExists(fPath.ID));
-
-end;
-
-constructor TFileExists.Create(const aPath: TFile;
-  aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
-begin
-  inherited Create(aErrorback);
-  fPath := aPath;
-  fCallback  := aCallback;
-end;
-
-
 
 end.
 

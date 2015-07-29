@@ -94,6 +94,7 @@ type
     fErrorbacks: TErrorbackList;
     fError: TPromiseException;
     fState: TPromiseState;
+    fTag: Integer;
     procedure RunCallbacks;
     procedure RunErrorbacks;
   strict protected
@@ -101,11 +102,22 @@ type
     procedure RunQueuedTask; virtual;
     procedure Resolve;
     procedure Reject(aError: TPromiseException);
+    // Useful for chaining promises.. just add this function as the catch
+    // to a subpromise and it will automatically reject this promise.
+    procedure SubPromiseRejected(Sender: TPromise; aError: TPromiseException);
   public
     constructor Enqueue;
     destructor Destroy; override;
     function After(aCallback: TCallback; aErrorback: TErrorback = nil): TPromise;
     procedure Catch(aErrorback: TErrorback);
+    property Tag: Integer read fTag write fTag;
+  end;
+
+  TBooleanPromise = class(TPromise)
+  protected
+    fAnswer: Boolean;
+  public
+    property Answer: Boolean read fAnswer;
   end;
 
   // Use this one to create your own deferred code. Just override DoCallback to
@@ -242,6 +254,12 @@ begin
   fError := aError;
   fState := psRejecting;
   AsyncCallQueuer(@RunErrorbacks);
+end;
+
+procedure TPromise.SubPromiseRejected(Sender: TPromise;
+  aError: TPromiseException);
+begin
+  Reject(aError);
 end;
 
 constructor TPromise.Enqueue;

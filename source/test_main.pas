@@ -14,20 +14,19 @@ type
   TODO: This testing is being done as part of a slight refactoring to make use
   of TPromises and TJSValues. I will slowly be converting other code to work with
   this in the GUI, and create test code as I do. The next steps:
-  1. Convert the sys_file (and sys_localfile) to work with TPromise for async
-  code, using the testing framework as a place to test compilation. We can even
-  have things like TFileExistsPromises that can be subclassed
-  to do the correct work in local file. Remember that TPromises could initiate
-  and report the results of threads, so this is acceptable.
-  2. Go back into the regular GUI and recompile/refactor to make use of the
-  promises in the filing system.
-  3. Convert the various properties objects to make use of TJSObjects. And,
+  1. Convert the various properties objects to make use of TJSObjects. And,
   create tests to validate that they are working (so we can get rid of the
   'backup files').
-  4. Create some tests to work with TStewProject opening, initializing and retrieving
+  2. Create some tests to work with TStewProject opening, initializing and retrieving
   data. This will require some test projects to work with. Don't create a *lot*
   of tests, more tests will be added to this section as bugs are reported in the
   GUI. This process should also involve moving those things over to TPromises.
+
+  TODO: Consider keeping a "log" (this would be an application setting)
+  of "actions", and their responses in the StewProject option. That will, at least,
+  make it easier to debug and reproduce errors, if we can get users to reproduce
+  and send the logs to us. Basically, it would tell us what order actions happened
+  in order to create tests around them at the project level.
   }
 
   { TMainForm }
@@ -45,7 +44,7 @@ type
     procedure FormShow(Sender: TObject);
     procedure RunButtonClick(Sender: TObject);
     procedure RunTesterTestsButtonClick(Sender: TObject);
-    procedure TestAlert(const aSender: TObject; const aTestName: String;
+    procedure TestAlert(const {%H-}aSender: TObject; const aTestName: String;
       const aMessage: String);
     procedure TestFailed(const {%H-}aSender: TObject; const aTestName: String;
       const aMessage: String);
