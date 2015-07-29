@@ -60,16 +60,20 @@ type
     function GetDefaultExtension: String; virtual; abstract;
     function GetDefaultFile: TFile; virtual;
     function GetName: String; virtual; abstract;
-    procedure FileLoaded(aData: TStream; aFileAge: Longint);
-    procedure FileLoadFailed(Data: String);
+    procedure FileLoaded(aSender: TPromise); overload;
+    procedure FileLoaded(aData: TStream; aAge: Longint); overload;
+    procedure FileLoadFailed({%H-}aSender: TPromise; Data: String);
+    // TODO: Get rid of this once we're using promises everywhere...
+    procedure FileLoadFailedNonPromise(Data: String);
+    procedure FileSaveConflictCheck(aSender: TPromise; aData: TPromiseException);
     procedure FileSaveConflicted({%H-}aFileAge: Longint);
-    procedure FileSaved(aFileAge: Longint);
+    procedure FileSaved(aSender: TPromise);
     procedure FileSaveFailed(Data: String);
     function GetContents: String;
     procedure SetContents(AValue: String);
-    procedure EditorTemplatesListed(Data: TTemplateArray);
-    procedure EditableFileWritten({%H-}aAge: Longint);
-    procedure EditableFileReady;
+    procedure EditorTemplatesListed(aSender: TPromise);
+    procedure EditableFileWritten({%H-}aSender: TPromise);
+    procedure EditableFileReady({%H-}aSender: TPromise);
   public
     constructor Create(aDocument: TDocumentMetadata);
     procedure Load;
@@ -167,12 +171,12 @@ type
     procedure AttachmentSaved(const aName: String);
     procedure AttachmentSaveConflicted(const aName: String);
     procedure AttachmentSaveFailed(const aName: String; aError: String);
-    procedure FileRenameFailed(Data: String);
-    procedure FilesRenamed;
+    procedure FileRenameFailed({%H-}aSender: TPromise; Data: String);
+    procedure FilesRenamed({%H-}aSender: TPromise);
     procedure FilesListed(Data: TFile.TFileArray; aRecursive: Boolean);
-    procedure FilesListedNonrecursive(Data: TFile.TFileArray);
-    procedure FilesListedRecursive(Data: TFile.TFileArray);
-    procedure FilesListError(Data: String);
+    procedure FilesListedNonrecursive(aSender: TPromise);
+    procedure FilesListedRecursive(aSender: TPromise);
+    procedure FilesListError({%H-}aSender: TPromise; Data: String);
     procedure StateChanged;
     function DoConfirmNewAttachment(aName: String): Boolean;
     function DoChooseTemplate(aAttachmentName: String;
@@ -236,8 +240,8 @@ type
       fProject: TStewProject;
       fCallback: TDeferredBooleanCallback;
       fErrorback: TDeferredExceptionCallback;
-      procedure FileExistsCallback(Data: Boolean);
-      procedure FileExistsFailed(Error: String);
+      procedure FileExistsCallback(aSender: TPromise);
+      procedure FileExistsFailed({%H-}aSender: TPromise; Error: String);
     public
       constructor Create(aProject: TStewProject; aCallback: TDeferredBooleanCallback;
         aErrorback: TDeferredExceptionCallback);
@@ -252,8 +256,8 @@ type
       fPath: TFile;
       fCallback: TDeferredBooleanCallback;
       fErrorback: TDeferredExceptionCallback;
-      procedure FileExistsCallback(Data: Boolean);
-      procedure FileExistsFailed(Data: String);
+      procedure FileExistsCallback(aSender: TPromise);
+      procedure FileExistsFailed({%H-}aSender: TPromise; Data: String);
     public
       constructor Create(aProject: TStewProject; aPath: TFile; aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
       procedure Enqueue;
@@ -533,7 +537,13 @@ end;
 
 { TAttachmentMetadata }
 
-procedure TAttachmentMetadata.FileLoaded(aData: TStream; aFileAge: Longint);
+procedure TAttachmentMetadata.FileLoaded(aSender: TPromise);
+begin
+  FileLoaded((aSender as TFileReadPromise).Data,(aSender as TFileReadPromise).Age);
+
+end;
+
+procedure TAttachmentMetadata.FileLoaded(aData: TStream; aAge: Longint);
 begin
   if (aData = nil) then
   begin
@@ -550,17 +560,33 @@ begin
       Free;
     end;
   end;
-  fFileAge := aFileAge;
+  fFileAge := aAge;
   fFilingState := fsLoaded;
   fDocument.AttachmentLoaded(GetName);
 
 end;
 
-procedure TAttachmentMetadata.FileLoadFailed(Data: String);
+procedure TAttachmentMetadata.FileLoadFailed(aSender: TPromise; Data: String);
 begin
   fFilingState := fsError;
   fDocument.AttachmentLoadFailed(GetName,Data);
 
+end;
+
+procedure TAttachmentMetadata.FileLoadFailedNonPromise(Data: String);
+begin
+  fFilingState := fsError;
+  fDocument.AttachmentLoadFailed(GetName,Data);
+
+end;
+
+procedure TAttachmentMetadata.FileSaveConflictCheck(aSender: TPromise;
+  aData: TPromiseException);
+begin
+  if (aSender as TFileWritePromise).IsConflict then
+     FileSaveConflicted((aSender as TFileWritePromise).Age)
+  else
+     FileSaveFailed(aData);
 end;
 
 procedure TAttachmentMetadata.FileSaveConflicted(aFileAge: Longint);
@@ -569,9 +595,9 @@ begin
   fDocument.AttachmentSaveConflicted(GetName);
 end;
 
-procedure TAttachmentMetadata.FileSaved(aFileAge: Longint);
+procedure TAttachmentMetadata.FileSaved(aSender: TPromise);
 begin
-  fFileAge := aFileAge;
+  fFileAge := (aSender as TFileWritePromise).Age;
   fFilingState := fsLoaded;
   fDocument.AttachmentSaved(GetName);
 end;
@@ -596,46 +622,48 @@ end;
 
 const EmptyFileTemplate: TTemplate = ( Name: 'Empty File'; ID: '');
 
-procedure TAttachmentMetadata.EditorTemplatesListed(Data: TTemplateArray);
+procedure TAttachmentMetadata.EditorTemplatesListed(aSender: TPromise);
 var
   aTemplate: TTemplate;
+  lData: TTemplateArray;
 begin
-  if Length(Data) = 0 then
+  lData := (aSender as TFileListTemplatesPromise).Templates;
+  if Length(lData) = 0 then
   // create a simple, basic, blank file.
-     GetDefaultFile.Write('',@EditableFileWritten,@FileLoadFailed)
+     GetDefaultFile.Write('').After(@EditableFileWritten,@FileLoadFailed)
   else
   begin
-    if Length(Data) > 1 then
+    if Length(lData) > 1 then
     begin
       if (GetDefaultExtension = '') then
       begin
         // no extension is known, so it's possible that they might
         // want to just create a blank template, like above.
-        SetLength(Data,Length(Data) + 1);
-        Data[Length(Data) - 1] := EmptyFileTemplate;
+        SetLength(lData,Length(lData) + 1);
+        lData[Length(lData) - 1] := EmptyFileTemplate;
       end;
-      if not fDocument.DoChooseTemplate(GetName,Data,aTemplate) then
+      if not fDocument.DoChooseTemplate(GetName,lData,aTemplate) then
         Exit;
     end
     else
-      aTemplate := Data[0];
+      aTemplate := lData[0];
     if aTemplate.Name = EmptyFileTemplate.Name then
       // we're creating a blank file anyway, but in this case,
       // we know that we don't know what extension it is, so set
       // the extension to '.txt'.
-       GetDefaultFile.WithDifferentExtension('txt').Write('',@EditableFileWritten,@FileLoadFailed)
+       GetDefaultFile.WithDifferentExtension('txt').Write('').After(@EditableFileWritten,@FileLoadFailed)
     else
-       GetDefaultFile.CreateFromTemplate(aTemplate,@EditableFileReady,@FileLoadFailed);
+       GetDefaultFile.CreateFromTemplate(aTemplate).After(@EditableFileReady,@FileLoadFailed);
   end;
 
 end;
 
-procedure TAttachmentMetadata.EditableFileWritten(aAge: Longint);
+procedure TAttachmentMetadata.EditableFileWritten(aSender: TPromise);
 begin
-  EditableFileReady;
+  EditableFileReady(aSender);
 end;
 
-procedure TAttachmentMetadata.EditableFileReady;
+procedure TAttachmentMetadata.EditableFileReady(aSender: TPromise);
 var
   aFile: TFile;
 begin
@@ -665,7 +693,7 @@ end;
 
 procedure TAttachmentMetadata.Load;
 var
-  aCandidates: TFile.TFileArray;
+  aCandidates: TFileArray;
 begin
   if fFilingState in [fsNotLoaded,fsLoaded,fsError,fsConflict] then
   begin
@@ -678,7 +706,7 @@ begin
       begin
         fFilingState := fsLoading;
         fDocument.AttachmentLoading(GetName);
-        aCandidates[0].Read(@FileLoaded,@FileLoadFailed);
+        aCandidates[0].Read.After(@FileLoaded,@FileLoadFailed);
       end
     else
         raise Exception.Create('Too many ' + GetName + ' files');
@@ -691,7 +719,8 @@ end;
 
 procedure TAttachmentMetadata.Save(aForce: Boolean);
 var
-  aCandidates: TFile.TFileArray;
+  aCandidates: TFileArray;
+  lOptions: TFileWriteOptions;
 begin
   if Modified then
   begin
@@ -712,7 +741,10 @@ begin
 
       fFilingState := fsSaving;
       fDocument.AttachmentSaving(GetName);
-      aCandidates[0].Write(false,not aForce,fFileAge,fContents,@FileSaved,@FileSaveConflicted,@FileSaveFailed);
+      lOptions := [];
+      if not aForce then
+        lOptions := lOptions + [fwoCheckAge];
+      aCandidates[0].Write(lOptions,fFileAge,fContents).After(@FileSaved,@FileSaveConflictCheck);
     end
     else if fFilingState = fsNotLoaded then
       raise Exception.Create('Can''t save attachment data when it has not yet been loaded')
@@ -726,14 +758,14 @@ end;
 
 procedure TAttachmentMetadata.OpenInEditor;
 var
-  aCandidates: TFile.TFileArray;
+  aCandidates: TFileArray;
 begin
   aCandidates := GetCandidateFiles;
   case Length(aCandidates) of
     0:
     if fDocument.DoConfirmNewAttachment(GetName) then
     begin
-      GetDefaultFile.ListTemplatesFor(@EditorTemplatesListed,@FileLoadFailed);
+      GetDefaultFile.ListTemplatesFor.After(@EditorTemplatesListed,@FileLoadFailed);
     end;
     1:
       aCandidates[0].OpenInEditor;
@@ -823,12 +855,12 @@ begin
      fProject.fOnDocumentsListed(fProject,fID);
 end;
 
-procedure TDocumentMetadata.FilesListedNonrecursive(Data: TFile.TFileArray);
+procedure TDocumentMetadata.FilesListedNonrecursive(aSender: TPromise);
 begin
-  FilesListed(Data,false);
+  FilesListed((aSender as TFileListPromise).Files,false);
 end;
 
-procedure TDocumentMetadata.FilesListError(Data: String);
+procedure TDocumentMetadata.FilesListError(aSender: TPromise; Data: String);
 begin
   if fProject.fOnDocumentListError <> nil then
      fProject.fOnDocumentListError(fProject,fID,Data);
@@ -1012,9 +1044,9 @@ begin
 
 end;
 
-procedure TDocumentMetadata.FilesListedRecursive(Data: TFile.TFileArray);
+procedure TDocumentMetadata.FilesListedRecursive(aSender: TPromise);
 begin
-  FilesListed(Data,true);
+  FilesListed((aSender as TFileListPromise).Files,true);
 end;
 
 function TDocumentMetadata.GetPrimary: TPrimaryMetadata;
@@ -1025,16 +1057,18 @@ begin
      raise Exception.Create('The root document does not have a primary file');
 end;
 
-procedure TDocumentMetadata.FileRenameFailed(Data: String);
+procedure TDocumentMetadata.FileRenameFailed(aSender: TPromise; Data: String);
 begin
   if fProject.fOnDocumentRenameFailed <> nil then
      fProject.fOnDocumentRenameFailed(fProject,fID,Data);
   ListDocuments(true);
 end;
 
-procedure TDocumentMetadata.FilesRenamed;
+procedure TDocumentMetadata.FilesRenamed(aSender: TPromise);
 begin
   // now, refresh the parent so that this thing appears under the new location.
+  // TODO: With the new Promise system, we keep track of the old file and the
+  // new, in the Promise, which means we can refresh both of them.
   ListDocuments(true);
 end;
 
@@ -1143,9 +1177,9 @@ begin
   begin
     fListingState := lsListing;
     if Recursive then
-       fDisk.List(@FilesListedRecursive,@FilesListError)
+       fDisk.List.After(@FilesListedRecursive,@FilesListError)
     else
-       fDisk.List(@FilesListedNonrecursive,@FilesListError);
+       fDisk.List.After(@FilesListedNonrecursive,@FilesListError);
   end;
 
 end;
@@ -1277,8 +1311,8 @@ procedure TDocumentMetadata.Rename(aOldName: String; aNewName: String);
 var
   i: Integer;
   aOld: TDocumentMetadata;
-  source: TFile.TFileArray;
-  target: TFile.TFileArray;
+  source: TFileArray;
+  target: TFileArray;
 begin
   if ListingState <> lsListed then
     raise Exception.Create('Please make sure the document is listed before attempting to rename');
@@ -1307,15 +1341,15 @@ begin
   // finally, remove the old one, it will get relisted later.
   fContents.Remove(aOld);
 
-  TFileSystem.RenameFiles(source,target,@FilesRenamed,@FileRenameFailed);
+  TFileSystem.RenameFiles(source,target).After(@FilesRenamed,@FileRenameFailed);
 end;
 
 procedure TDocumentMetadata.MoveDocToHere(aOldChild: TDocumentMetadata);
 var
   i: Integer;
   aOldParent: TDocumentMetadata;
-  lSource: TFile.TFileArray;
-  lTarget: TFile.TFileArray;
+  lSource: TFileArray;
+  lTarget: TFileArray;
 begin
   aOldParent := aOldChild.GetParent;
   if (aOldParent.ListingState <> lsListed) or
@@ -1339,7 +1373,7 @@ begin
   // report a change in state so the listings get refreshed where wanted.
   aOldParent.StateChanged;
 
-  TFileSystem.RenameFiles(lSource,lTarget,@FilesRenamed,@FileRenameFailed);
+  TFileSystem.RenameFiles(lSource,lTarget).After(@FilesRenamed,@FileRenameFailed);
 end;
 
 procedure TDocumentMetadata.OrderDocument(aDoc: TDocumentMetadata;
@@ -1597,15 +1631,16 @@ end;
 
 { TProjectExists }
 
-procedure TStewProject.TProjectExists.FileExistsCallback(Data: Boolean);
+procedure TStewProject.TProjectExists.FileExistsCallback(aSender: TPromise);
 begin
-  if (data) then
+  if ((aSender as TBooleanPromise).Answer) then
     fProject.DoOpened;
-  fCallback(Data);
+  fCallback((aSender as TBooleanPromise).Answer);
   Free;
 end;
 
-procedure TStewProject.TProjectExists.FileExistsFailed(Error: String);
+procedure TStewProject.TProjectExists.FileExistsFailed(aSender: TPromise;
+  Error: String);
 begin
   fErrorback(Error);
   Free;
@@ -1622,7 +1657,7 @@ end;
 
 procedure TStewProject.TProjectExists.Enqueue;
 begin
-  TProjectProperties.GetPath(fProject.fDisk).CheckExistence(@FileExistsCallback,@FileExistsFailed);
+  TProjectProperties.GetPath(fProject.fDisk).CheckExistence.After(@FileExistsCallback,@FileExistsFailed);
 end;
 
 procedure TStewProject.OpenAtPath(aCallback: TDeferredBooleanCallback;
@@ -1633,17 +1668,19 @@ end;
 
 { TSearchParentDirectories }
 
-procedure TStewProject.TSearchParentDirectories.FileExistsFailed(Data: String);
+procedure TStewProject.TSearchParentDirectories.FileExistsFailed(
+  aSender: TPromise; Data: String);
 begin
   fErrorback(Data);
   Free;
 end;
 
-procedure TStewProject.TSearchParentDirectories.FileExistsCallback(Data: Boolean);
+procedure TStewProject.TSearchParentDirectories.FileExistsCallback(
+  aSender: TPromise);
 var
   aPath: TFile;
 begin
-  if (Data) then
+  if ((aSender as TBooleanPromise).Answer) then
   begin
     fProject.fDisk := fPath;
     fProject.DoOpened;
@@ -1679,7 +1716,7 @@ end;
 
 procedure TStewProject.TSearchParentDirectories.Enqueue;
 begin
-  TProjectProperties.GetPath(fPath).CheckExistence(@FileExistsCallback,@FileExistsFailed);
+  TProjectProperties.GetPath(fPath).CheckExistence.After(@FileExistsCallback,@FileExistsFailed);
 end;
 
 

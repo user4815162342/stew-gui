@@ -5,50 +5,37 @@ unit test_sys_file;
 interface
 
 uses
-  Classes, SysUtils, test_registry, sys_file;
+  Classes, SysUtils, test_registry, sys_file, sys_async;
 
 type
 
   { TFileSpec }
 
   TFileSpec = class(TTestSpec)
-    procedure BasicWriteCallback(aFileAge: Longint);
-    procedure BasicWriteCallback2(aData: TStream; {%H-}aFileAge: Longint);
-    procedure BasicWriteErrorBack(Data: String);
-    procedure BatchRenameCallback1(Data: TFile.TFileArray);
-    procedure BatchRenameCallback2;
-    procedure BatchRenameError(Data: String);
-    procedure CheckExistenceCallback1(Data: Boolean);
-    procedure CheckExistenceCallback2(Data: Boolean);
-    procedure CheckExistenceErrorBack(Data: String);
-    procedure ComplexWriteCallback1(aFileAge: Longint);
-    procedure ComplexWriteCallback2(aData: TStream; aFileAge: Longint);
-    procedure ComplexWriteCallback3({%H-}aFileAge: Longint);
-    procedure ComplexWriteCallback4({%H-}aFileAge: Longint);
-    procedure ComplexWriteConflict1({%H-}aFileAge: Longint);
-    procedure ComplexWriteConflict3({%H-}aFileAge: Longint);
-    procedure ComplexWriteConflict4({%H-}aFileAge: Longint);
-    procedure ComplexWriteError(Data: String);
-    procedure ComplexWriteErrorback(Data: String);
-    procedure CopyFileCallback;
-    procedure CopyFileCallback2(aData: TStream; {%H-}aFileAge: Longint);
-    procedure CopyFileCallback3(aData: TStream; {%H-}aFileAge: Longint);
-    procedure CopyFileError(Data: String);
-    procedure ListFilesCallback(Data: TFile.TFileArray);
-    procedure ListFilesErrorBack(Data: String);
-    procedure ReadTestCallback(aData: TStream; aFileAge: Longint);
-    procedure ReadTestErrorback(Data: String);
-    procedure RenameFileCallback;
-    procedure RenameFileCallback2(Data: Boolean);
-    procedure RenameFileError(Data: String);
-    procedure SystemFunctionalityCallback1(Data: TTemplateArray);
-    procedure SystemFunctionalityCallback2;
-    procedure SystemFunctionalityError(Data: String);
+    procedure PromiseError(aSender: TPromise; aError: TPromiseException);
+    procedure BasicWriteCallback(aSender: TPromise);
+    procedure BasicWriteCallback2(aSender: TPromise);
+    procedure BatchRenameCallback1(aSender: TPromise);
+    procedure BatchRenameCallback2({%H-}aSender: TPromise);
+    procedure CheckExistenceCallback1(aSender: TPromise);
+    procedure CheckExistenceCallback2(aSender: TPromise);
+    procedure ComplexWriteCallback1(aSender: TPromise);
+    procedure ComplexWriteCallback2(aSender: TPromise);
+    procedure ComplexWriteCallback3({%H-}aSender: TPromise);
+    procedure ComplexWriteCallback4({%H-}aSender: TPromise);
+    procedure ComplexWriteConflict1(aSender: TPromise; aData: String);
+    procedure ComplexWriteConflict3(Sender: TPromise; aError: TPromiseException);
+    procedure ComplexWriteConflict4(aSender: TPromise; aData: String);
+    procedure CopyFileCallback({%H-}aSender: TPromise);
+    procedure CopyFileCallback2(aSender: TPromise);
+    procedure CopyFileCallback3(aSender: TPromise);
+    procedure ListFilesCallback(aSender: TPromise);
+    procedure ReadTestCallback(aSender: TPromise);
+    procedure RenameFileCallback({%H-}aSender: TPromise);
+    procedure RenameFileCallback2(aSender: TPromise);
+    procedure SystemFunctionalityCallback1(aSender: TPromise);
+    procedure SystemFunctionalityCallback2({%H-}aSender: TPromise);
   private
-    // Once we have everything moved over to Promises, I shouldn't
-    // have to keep this here. I can just make this part of the promise
-    // and use Sender arguments on the callbacks.
-    fAsyncCode: Integer;
     fComplexFileAge: Longint;
     fCopyFileContents: String;
   protected
@@ -73,7 +60,7 @@ type
 implementation
 
 uses
-  sys_async, gui_async;
+  gui_async;
 
 { TFileSpec }
 
@@ -94,128 +81,138 @@ const
   '_stew.json'
   );
 
-procedure TFileSpec.BasicWriteCallback(aFileAge: Longint);
+procedure TFileSpec.ComplexWriteConflict3(Sender: TPromise;
+  aError: TPromiseException);
 var
   root: TFile;
 begin
-  if aFileAge = NewFileAge then
-    FailAsync(fAsyncCode,'Basic writing returned a "new" file age')
+  if (Sender as TFileWritePromise).IsConflict then
+  begin
+    // should have worked correctly
+    root := GetTestRootDir;
+    root.GetContainedFile('bar').GetContainedFile('test.txt').Write([fwoCheckAge],
+                                                                fComplexFileAge,
+                                                                'TEST2').After(
+                                                                @ComplexWriteCallback4,
+                                                                @ComplexWriteConflict4).Tag := Sender.Tag;
+  end
+  else
+    PromiseError(Sender,aError);
+end;
+
+procedure TFileSpec.PromiseError(aSender: TPromise; aError: TPromiseException);
+begin
+  FailAsync(aSender.Tag,aError);
+end;
+
+procedure TFileSpec.BasicWriteCallback(aSender: TPromise);
+var
+  root: TFile;
+begin
+  if (aSender as TFileWritePromise).Age = NewFileAge then
+    FailAsync(aSender.Tag,'Basic writing returned a "new" file age')
   else
   begin
     root := GetTestRootDir;
-    root.GetContainedFile('foo.txt').Read(@BasicWriteCallback2,@BasicWriteErrorback);
+    root.GetContainedFile('foo.txt').Read.After(@BasicWriteCallback2,@PromiseError).Tag := aSender.Tag;
   end;
 end;
 
-procedure TFileSpec.BasicWriteCallback2(aData: TStream; aFileAge: Longint);
+procedure TFileSpec.BasicWriteCallback2(aSender: TPromise);
 var
   check: TStringStream;
 begin
   check := TStringStream.Create('');
   try
-    check.CopyFrom(aData,0);
+    check.CopyFrom((aSender as TFileReadPromise).Data,0);
     if check.DataString <> 'TEST' then
-      FailAsync(fAsyncCode,'Data read from file did not match data written')
+      FailAsync(aSender.Tag,'Data read from file did not match data written')
     else
-      EndAsync(fAsyncCode);
+      EndAsync(aSender.Tag);
   finally
     check.Free;
   end;
 
 end;
 
-procedure TFileSpec.BasicWriteErrorBack(Data: String);
-begin
-  FailAsync(fAsyncCode,Data);
-end;
-
-procedure TFileSpec.BatchRenameCallback1(Data: TFile.TFileArray);
+procedure TFileSpec.BatchRenameCallback1(aSender: TPromise);
 var
   root: TFile;
-  target: TFile.TFileArray;
+  target: TFileArray;
   i: Integer;
+  lData: TFileArray;
 begin
-  SetLength(target,Length(Data));
+  lData := (aSender as TFileListPromise).Files;
+  SetLength(target,Length(lData));
   root := GetTestRootDir;
-  for i := 0 to Length(Data) -1 do
+  for i := 0 to Length(lData) -1 do
   begin
-    target[i] := Data[i].Directory.GetContainedFile(Data[i].Name + '2');
+    target[i] := lData[i].Directory.GetContainedFile(lData[i].Name + '2');
   end;
-  root.System.RenameFiles(Data,target,@BatchRenameCallback2,@BatchRenameError);
+  root.System.RenameFiles(lData,target).After(@BatchRenameCallback2,@PromiseError).Tag := aSender.Tag;
 
 end;
 
-procedure TFileSpec.BatchRenameCallback2;
+procedure TFileSpec.BatchRenameCallback2(aSender: TPromise);
 begin
-  EndAsync(fAsyncCode);
+  EndAsync(aSender.Tag);
 end;
 
-procedure TFileSpec.BatchRenameError(Data: String);
-begin
-  FailAsync(fAsyncCode,Data);
-end;
-
-procedure TFileSpec.CheckExistenceCallback1(Data: Boolean);
+procedure TFileSpec.CheckExistenceCallback1(aSender: TPromise);
 var
   root: TFile;
 begin
-  if not Data then
-    FailAsync(fAsyncCode,'"_stew.json" should have existed in test data')
+  if not (aSender as TBooleanPromise).Answer then
+    FailAsync(aSender.Tag,'"_stew.json" should have existed in test data')
   else
   begin
     root := GetTestRootDir;
-    root.GetContainedFile('_foo.bar').CheckExistence(@CheckExistenceCallback2,@CheckExistenceErrorBack);
+    root.GetContainedFile('_foo.bar').CheckExistence.
+       After(@CheckExistenceCallback2,@PromiseError).Tag := aSender.Tag;
   end;
 end;
 
-procedure TFileSpec.CheckExistenceCallback2(Data: Boolean);
+procedure TFileSpec.CheckExistenceCallback2(aSender: TPromise);
 begin
-  if Data then
-    FailAsync(fAsyncCode,'"_foo.bar" should not exist in test data.')
+  if (aSender as TBooleanPromise).Answer then
+    FailAsync(aSender.Tag,'"_foo.bar" should not exist in test data.')
   else
-    EndAsync(fAsyncCode);
+    EndAsync(aSender.Tag);
 end;
 
-procedure TFileSpec.CheckExistenceErrorBack(Data: String);
-begin
-  FailAsync(fAsyncCode,Data);
-end;
-
-procedure TFileSpec.ComplexWriteCallback1(aFileAge: Longint);
+procedure TFileSpec.ComplexWriteCallback1(aSender: TPromise);
 var
   root: TFile;
 begin
-  if aFileAge = NewFileAge then
-    FailAsync(fAsyncCode,'Basic writing returned a "new" file age')
+  if (aSender as TFileWritePromise).Age = NewFileAge then
+    FailAsync(aSender.Tag,'Basic writing returned a "new" file age')
   else
   begin
     root := GetTestRootDir;
-    root.GetContainedFile('bar').GetContainedFile('test.txt').Read(@ComplexWriteCallback2,@ComplexWriteErrorback);
+    root.GetContainedFile('bar').GetContainedFile('test.txt').Read.After(@ComplexWriteCallback2,@PromiseError).Tag := aSender.Tag;
   end;
 
 end;
 
-procedure TFileSpec.ComplexWriteCallback2(aData: TStream; aFileAge: Longint);
+procedure TFileSpec.ComplexWriteCallback2(aSender: TPromise);
 var
   check: TStringStream;
   root: TFile;
 begin
-  fComplexFileAge := aFileAge;
+  fComplexFileAge := (aSender as TFileReadPromise).Age;
   check := TStringStream.Create('');
   try
-    check.CopyFrom(aData,0);
+    check.CopyFrom((aSender as TFileReadPromise).Data,0);
     if check.DataString <> 'TEST' then
-      FailAsync(fAsyncCode,'Data read from file did not match data written')
+      FailAsync(aSender.Tag,'Data read from file did not match data written')
     else
     begin
       root := GetTestRootDir;
-      root.GetContainedFile('bar').GetContainedFile('test.txt').Write(false,
-                                                                  true,
+      root.GetContainedFile('bar').GetContainedFile('test.txt').Write([fwoCheckAge],
                                                                   fComplexFileAge - 1,
-                                                                  'TEST2',
+                                                                  'TEST2').After(
                                                                   @ComplexWriteCallback3,
-                                                                  @ComplexWriteConflict3,
-                                                                  @ComplexWriteError);
+                                                                  @ComplexWriteConflict3).Tag := aSender.Tag;
     end;
   finally
     check.Free;
@@ -223,119 +220,97 @@ begin
 
 end;
 
-procedure TFileSpec.ComplexWriteCallback3(aFileAge: Longint);
+procedure TFileSpec.ComplexWriteCallback3(aSender: TPromise);
 begin
-  FailAsync(fAsyncCode,'Complex write with wrong file age should have reported a conflict.');
+  FailAsync(aSender.Tag,'Complex write with wrong file age should have reported a conflict.');
 end;
 
-procedure TFileSpec.ComplexWriteCallback4(aFileAge: Longint);
+procedure TFileSpec.ComplexWriteCallback4(aSender: TPromise);
 begin
   // should have worked correctly this time...
-  EndAsync(fAsyncCode);
+  EndAsync(aSender.Tag);
 
 end;
 
-procedure TFileSpec.ComplexWriteConflict1(aFileAge: Longint);
+procedure TFileSpec.ComplexWriteConflict1(aSender: TPromise; aData: String);
 begin
-  FailAsync(fAsyncCode,'Complex write first write should not have reported a conflict');
+  if (aSender as TFileWritePromise).IsConflict then
+     FailAsync(aSender.Tag,'Complex write first write should not have reported a conflict')
+  else
+     FailAsync(aSender.Tag,aData);
 end;
 
-procedure TFileSpec.ComplexWriteConflict3(aFileAge: Longint);
-var
-  root: TFile;
+procedure TFileSpec.ComplexWriteConflict4(aSender: TPromise; aData: String);
 begin
-  // should have worked correctly
-  root := GetTestRootDir;
-  root.GetContainedFile('bar').GetContainedFile('test.txt').Write(false,
-                                                              true,
-                                                              fComplexFileAge,
-                                                              'TEST2',
-                                                              @ComplexWriteCallback4,
-                                                              @ComplexWriteConflict4,
-                                                              @ComplexWriteError);
+  if (aSender as TFileWritePromise).IsConflict then
+      FailAsync(aSender.Tag,'Final write should not have reported conflict')
+  else
+      FailAsync(aSender.Tag,aData);
 end;
 
-procedure TFileSpec.ComplexWriteConflict4(aFileAge: Longint);
-begin
-  FailAsync(fAsyncCode,'Final write should not have reported conflict');
-end;
-
-procedure TFileSpec.ComplexWriteError(Data: String);
-begin
-  FailAsync(fAsyncCode,Data);
-end;
-
-procedure TFileSpec.ComplexWriteErrorback(Data: String);
-begin
-  FailAsync(fAsyncCode,Data);
-end;
-
-procedure TFileSpec.CopyFileCallback;
+procedure TFileSpec.CopyFileCallback(aSender: TPromise);
 var
   root: TFile;
 begin
   root := GetTestRootDir;
-  root.GetContainedFile('_stew.json').Read(@CopyFileCallback2,@CopyFileError);
+  root.GetContainedFile('_stew.json').Read.After(@CopyFileCallback2,@PromiseError).Tag := aSender.Tag;
 
 end;
 
-procedure TFileSpec.CopyFileCallback2(aData: TStream; aFileAge: Longint);
+procedure TFileSpec.CopyFileCallback2(aSender: TPromise);
 var
   lCheck: TStringStream;
   root: TFile;
 begin
   lCheck := TStringStream.Create('');
   try
-    lCheck.CopyFrom(aData,0);
+    lCheck.CopyFrom((aSender as TFileReadPromise).Data,0);
     fCopyFileContents := lCheck.DataString;
     root := GetTestRootDir;
-    root.GetContainedFile('_stew.json.bak').Read(@CopyFileCallback3,@CopyFileError);
+    root.GetContainedFile('_stew.json.bak').Read.After(@CopyFileCallback3,@PromiseError).Tag := aSender.Tag;
   finally
     lCheck.Free;
   end;
 end;
 
-procedure TFileSpec.CopyFileCallback3(aData: TStream; aFileAge: Longint);
+procedure TFileSpec.CopyFileCallback3(aSender: TPromise);
 var
   lCheck: TStringStream;
 begin
   lCheck := TStringStream.Create('');
   try
-    lCheck.CopyFrom(aData,0);
+    lCheck.CopyFrom((aSender as TFileReadPromise).Data,0);
     if lCheck.DataString <> fCopyFileContents then
-      FailAsync(fAsyncCode,'Copied file did not contain the same contents')
+      FailAsync(aSender.Tag,'Copied file did not contain the same contents')
     else
-      EndAsync(fAsyncCode);
+      EndAsync(aSender.Tag);
   finally
     lCheck.Free;
   end;
 end;
 
-procedure TFileSpec.CopyFileError(Data: String);
-begin
-  FailAsync(fAsyncCode,Data);
-end;
-
-procedure TFileSpec.ListFilesCallback(Data: TFile.TFileArray);
+procedure TFileSpec.ListFilesCallback(aSender: TPromise);
 var
   i: Integer;
   j: Integer;
   lFound: Boolean;
+  lData: TFileArray;
 begin
   lFound := false;
-  if Length(data) <> Length(ExpectedFileNamesInList) then
+  lData := (aSender as TFileListPromise).Files;
+  if Length(lData) <> Length(ExpectedFileNamesInList) then
   begin
-    FailAsync(fAsyncCode,'Expected list results to have ' + IntToStr(Length(ExpectedFileNamesInList)) + ' results.');
+    FailAsync(aSender.Tag,'Expected list results to have ' + IntToStr(Length(ExpectedFileNamesInList)) + ' results.');
     exit;
 
   end;
 
-  for i := 0 to Length(Data) - 1 do
+  for i := 0 to Length(lData) - 1 do
   begin
     lFound := false;
     for j := 0 to Length(ExpectedFileNamesInList) - 1 do
     begin
-       if ExpectedFileNamesInList[j] = Data[i].Name then
+       if ExpectedFileNamesInList[j] = lData[i].Name then
        begin
          lFound := true;
          break;
@@ -343,73 +318,60 @@ begin
     end;
     if (not lFound) then
     begin
-      FailAsync(fAsyncCode,'List result "' + Data[i].Name  + '" was not expected.');
+      FailAsync(aSender.Tag,'List result "' + lData[i].Name  + '" was not expected.');
       exit;
     end;
   end;
 
-  EndAsync(fAsyncCode);
+  EndAsync(aSender.Tag);
 
 end;
 
-procedure TFileSpec.ListFilesErrorBack(Data: String);
+procedure TFileSpec.ReadTestCallback(aSender: TPromise);
 begin
-  FailAsync(fAsyncCode,Data);
-end;
-
-procedure TFileSpec.ReadTestCallback(aData: TStream; aFileAge: Longint);
-begin
-  if aData = nil then
-    FailAsync(fAsyncCode,'Read test did not return any data')
-  else if aFileAge = NewFileAge then
-    FailAsync(fAsyncCode,'Read test returned "new" file')
+  if (aSender as TFileReadPromise).Data = nil then
+    FailAsync(aSender.Tag,'Read test did not return any data')
+  else if (aSender as TFileReadPromise).Age = NewFileAge then
+    FailAsync(aSender.Tag,'Read test returned "new" file')
   else
-    EndAsync(fAsyncCode);
+    EndAsync(aSender.Tag);
 end;
 
-procedure TFileSpec.ReadTestErrorback(Data: String);
-begin
-  FailAsync(fAsyncCode,Data);
-end;
-
-procedure TFileSpec.RenameFileCallback;
-var
-  root: TFile;
-begin
-  fAsyncCode := BeginAsync;
-  root := GetTestRootDir;
-  root.GetContainedFile('_stew.json.2').CheckExistence(@RenameFileCallback2,@RenameFileError);
-end;
-
-procedure TFileSpec.RenameFileCallback2(Data: Boolean);
-begin
-  if not Data then
-    FailAsync(fAsyncCode,'Renamed file does not exist')
-  else
-    EndAsync(fAsyncCode);
-end;
-
-procedure TFileSpec.RenameFileError(Data: String);
-begin
-  FailAsync(fAsyncCode,Data);
-end;
-
-procedure TFileSpec.SystemFunctionalityCallback1(Data: TTemplateArray);
+procedure TFileSpec.RenameFileCallback(aSender: TPromise);
 var
   root: TFile;
 begin
   root := GetTestRootDir;
-  if (Length(Data) = 0) then
+  root.GetContainedFile('_stew.json.2').CheckExistence.
+    After(@RenameFileCallback2,@PromiseError).Tag := BeginAsync;
+end;
+
+procedure TFileSpec.RenameFileCallback2(aSender: TPromise);
+begin
+  if not (aSender as TBooleanPromise).Answer then
+    FailAsync(aSender.Tag,'Renamed file does not exist')
+  else
+    EndAsync(aSender.Tag);
+end;
+
+procedure TFileSpec.SystemFunctionalityCallback1(aSender: TPromise);
+var
+  root: TFile;
+  lData: TTemplateArray;
+begin
+  root := GetTestRootDir;
+  lData := (aSender as TFileListTemplatesPromise).Templates;
+  if (Length(lData) = 0) then
   begin
-    FailAsync(fAsyncCode,'No templates found for ".txt" extension. This may actually be due to a normal local system configuration.');
+    FailAsync(aSender.Tag,'No templates found for ".png" extension. This may actually be due to a normal local system configuration.');
   end
   else
   begin
-    root.GetContainedFile('test.png').CreateFromTemplate(Data[0],@SystemFunctionalityCallback2,@SystemFunctionalityError);
+    root.GetContainedFile('test.png').CreateFromTemplate(lData[0]).After(@SystemFunctionalityCallback2,@PromiseError).Tag := aSender.Tag;
   end;
 end;
 
-procedure TFileSpec.SystemFunctionalityCallback2;
+procedure TFileSpec.SystemFunctionalityCallback2(aSender: TPromise);
 var
   root: TFile;
 begin
@@ -420,12 +382,7 @@ begin
   // opening the file. This is not considered an error for this test, as there is no
   // way to test for whether the program succeed anyway.
   root.GetContainedFile('test.png').OpenInEditor;
-  EndAsync(fAsyncCode);
-end;
-
-procedure TFileSpec.SystemFunctionalityError(Data: String);
-begin
-  FailAsync(fAsyncCode,Data);
+  EndAsync(aSender.Tag);
 end;
 
 procedure TFileSpec.SetupTest;
@@ -444,18 +401,17 @@ procedure TFileSpec.Test_List_Files;
 var
   root: TFile;
 begin
-  fAsyncCode := BeginAsync;
   root := GetTestRootDir;
-  root.List(@ListFilesCallback,@ListFilesErrorBack);
+  root.List.After(@ListFilesCallback,@PromiseError).Tag := BeginAsync;
 end;
 
 procedure TFileSpec.Test_Check_Existence;
 var
   root: TFile;
 begin
-  fAsyncCode := BeginAsync;
   root := GetTestRootDir;
-  root.GetContainedFile('_stew.json').CheckExistence(@CheckExistenceCallback1,@CheckExistenceErrorBack);
+  root.GetContainedFile('_stew.json').CheckExistence.
+     After(@CheckExistenceCallback1,@PromiseError).Tag := BeginAsync;
 
 end;
 
@@ -463,18 +419,16 @@ procedure TFileSpec.Test_Read_File;
 var
   root: TFile;
 begin
-  fAsyncCode := BeginAsync;
   root := GetTestRootDir;
-  root.GetContainedFile('_stew.json').Read(@ReadTestCallback,@ReadTestErrorback);
+  root.GetContainedFile('_stew.json').Read.After(@ReadTestCallback,@PromiseError).Tag := BeginAsync;
 end;
 
 procedure TFileSpec.Test_Basic_File_Writing;
 var
   root: TFile;
 begin
-  fAsyncCode := BeginAsync;
   root := GetTestRootDir;
-  root.GetContainedFile('foo.txt').Write('TEST',@BasicWriteCallback,@BasicWriteErrorback);
+  root.GetContainedFile('foo.txt').Write('TEST').After(@BasicWriteCallback,@PromiseError).Tag := BeginAsync;
 
 end;
 
@@ -482,48 +436,42 @@ procedure TFileSpec.Test_File_Writing_with_Conflict_Checking;
 var
   root: TFile;
 begin
-  fAsyncCode := BeginAsync;
   root := GetTestRootDir;
-  root.GetContainedFile('bar').GetContainedFile('test.txt').Write(true,
-                                                                  true,
+  root.GetContainedFile('bar').GetContainedFile('test.txt').Write([fwoCreateDir,fwoCheckAge],
                                                                   NewFileAge,
-                                                                  'TEST',
+                                                                  'TEST').After(
                                                                   @ComplexWriteCallback1,
-                                                                  @ComplexWriteConflict1,
-                                                                  @ComplexWriteError);
+                                                                  @ComplexWriteConflict1).Tag := BeginAsync;
 end;
 
 procedure TFileSpec.Test_File_Copying;
 var
   root: TFile;
 begin
-  fAsyncCode := BeginAsync;
   root := GetTestRootDir;
-  root.GetContainedFile('_stew.json').CopyTo(root.GetContainedFile('_stew.json.bak'),@CopyFileCallback,@CopyFileError);
+  root.GetContainedFile('_stew.json').CopyTo(root.GetContainedFile('_stew.json.bak')).After(@CopyFileCallback,@PromiseError).Tag := BeginAsync;
 end;
 
 procedure TFileSpec.Test_File_Renaming;
 var
   root: TFile;
 begin
-  fAsyncCode := BeginAsync;
   root := GetTestRootDir;
-  root.GetContainedFile('_stew.json').Rename(root.GetContainedFile('_stew.json.2'),@RenameFileCallback,@RenameFileError);
+  root.GetContainedFile('_stew.json').Rename(root.GetContainedFile('_stew.json.2')).After(@RenameFileCallback,@PromiseError).Tag := BeginAsync;
 end;
 
 procedure TFileSpec.Test_File_Batch_Renaming;
 var
   root: TFile;
 begin
-  fAsyncCode := BeginAsync;
   root := GetTestRootDir;
-  root.GetContainedFile('Notes').GetContainedFile('Characters').List(@BatchRenameCallback1,@BatchRenameError);
+  root.GetContainedFile('Notes').GetContainedFile('Characters').List.
+     After(@BatchRenameCallback1,@PromiseError).Tag := BeginAsync;
 end;
 
 procedure TFileSpec.Test_Filename_Routines;
 var
   root: TFile;
-  name: String;
 begin
   root := GetTestRootDir;
   root := root.WithDifferentExtension('txt');
@@ -538,9 +486,8 @@ procedure TFileSpec.Test_System_Functionality;
 var
   root: TFile;
 begin
-  fAsyncCode := BeginAsync;
   root := GetTestRootDir;
-  root.GetContainedFile('test.png').ListTemplatesFor(@SystemFunctionalityCallback1,@SystemFunctionalityError);
+  root.GetContainedFile('test.png').ListTemplatesFor.After(@SystemFunctionalityCallback1,@PromiseError).Tag := BeginAsync;
 end;
 
 end.
