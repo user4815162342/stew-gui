@@ -61,7 +61,7 @@ type
     function GetDefaultFile: TFile; virtual;
     function GetName: String; virtual; abstract;
     procedure FileLoaded(aSender: TPromise); overload;
-    procedure FileLoaded(aData: TStream; aAge: Longint); overload;
+    procedure FileLoaded(const aData: String; aAge: Longint); overload;
     procedure FileLoadFailed({%H-}aSender: TPromise; Data: String);
     // TODO: Get rid of this once we're using promises everywhere...
     procedure FileLoadFailedNonPromise(Data: String);
@@ -539,27 +539,13 @@ end;
 
 procedure TAttachmentMetadata.FileLoaded(aSender: TPromise);
 begin
-  FileLoaded((aSender as TFileReadPromise).Data,(aSender as TFileReadPromise).Age);
+  FileLoaded(((aSender as TFileReadPromise).Handler as TFileTextHandler).Data,(aSender as TFileReadPromise).Age);
 
 end;
 
-procedure TAttachmentMetadata.FileLoaded(aData: TStream; aAge: Longint);
+procedure TAttachmentMetadata.FileLoaded(const aData: String; aAge: Longint);
 begin
-  if (aData = nil) then
-  begin
-    // the file does not exist yet, so create a blank data object.
-    fContents := '';
-  end
-  else
-  begin
-    with TStringStream.Create('') do
-    try
-      CopyFrom(aData,0);
-      fContents := DataString;
-    finally
-      Free;
-    end;
-  end;
+  fContents := aData;
   fFileAge := aAge;
   fFilingState := fsLoaded;
   fDocument.AttachmentLoaded(GetName);
@@ -701,12 +687,12 @@ begin
     case Length(aCandidates) of
       0:
       // just pretend it's loaded, but with no contents.
-        FileLoaded(nil,NewFileAge);
+        FileLoaded('',NewFileAge);
       1:
       begin
         fFilingState := fsLoading;
         fDocument.AttachmentLoading(GetName);
-        aCandidates[0].Read.After(@FileLoaded,@FileLoadFailed);
+        aCandidates[0].Read(TFileTextHandler).After(@FileLoaded,@FileLoadFailed);
       end
     else
         raise Exception.Create('Too many ' + GetName + ' files');

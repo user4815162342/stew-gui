@@ -85,7 +85,7 @@ type
   protected
     procedure FPOObservedChanged({%H-}ASender : TObject; {%H-}Operation : TFPObservedOperation; {%H-}Data : Pointer);
     procedure ClearModified; virtual;
-    procedure ParseJSON(aObject: TObject; aData: TStream);
+    procedure ParseJSON(aObject: TObject; aData: String);
     function GetJSONString(AObject: TObject): String;
   public
     property Modified: Boolean read FModified;
@@ -479,7 +479,7 @@ end;
 
 procedure TJSONAsyncFileStoreContainer.FileLoaded(aSender: TPromise);
 begin
-  if ((aSender as TFileReadPromise).Data = nil) then
+  if ((aSender as TFileReadPromise).DoesNotExist) then
   begin
     // the file does not exist yet, so create a blank data object.
     Clear;
@@ -489,7 +489,7 @@ begin
   else
   begin
     Clear;
-    ParseJSON(Self,(aSender as TFileReadPromise).Data);
+    ParseJSON(Self,((aSender as TFileReadPromise).Handler as TFileTextHandler).Data);
     ClearModified;
   end;
   fFileAge := (aSender as TFileReadPromise).Age;
@@ -563,7 +563,7 @@ begin
     fFilingState := fsLoading;
     if fOnFileLoading <> nil then
       fOnFileLoading(Self);
-    fFile.Read.After(@FileLoaded,@FileLoadFailed);
+    fFile.Read(TFileTextHandler).After(@FileLoaded,@FileLoadFailed);
   end
   else if fFilingState = fsSaving then
      raise Exception.Create('Can''t load JSON data while saving.');
@@ -621,7 +621,7 @@ begin
   FModified := false;
 end;
 
-procedure TJSONStoreContainer.ParseJSON(aObject: TObject; aData: TStream);
+procedure TJSONStoreContainer.ParseJSON(aObject: TObject; aData: String);
 var
   loader: TJSONDeStreamer;
   data: TJSONData;
@@ -674,6 +674,7 @@ end;
 procedure TJSONFileStoreContainer.Load;
 var
   fs: TFileStream;
+  ss: TStringStream;
 begin
   If Not FileExists(fFileName) then
   begin
@@ -685,9 +686,15 @@ begin
   begin
     fs := TFileStream.Create(fFilename,fmOpenRead or fmShareDenyWrite);
     try
-      Clear;
-      ParseJSON(Self,fs);
-      ClearModified;
+      ss := TStringStream.Create('');
+      try
+        ss.CopyFrom(fs,0);
+        Clear;
+        ParseJSON(Self,ss.DataString);
+        ClearModified;
+      finally
+        ss.Free;
+      end;
 
     finally
       fs.Free;

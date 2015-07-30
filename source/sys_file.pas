@@ -34,6 +34,9 @@ type
 
   TFileListPromise = class;
 
+  TFileStreamHandler = class;
+  TFileStreamHandlerClass = class of TFileStreamHandler;
+
   TFileReadPromise = class;
 
   TFileWriteOption = (fwoCreateDir, fwoCheckAge);
@@ -73,7 +76,7 @@ type
     property ID: UTF8String read fID;
     function List: TFileListPromise;
     function CheckExistence: TBooleanPromise;
-    function Read: TFileReadPromise;
+    function Read(aHandler: TFileStreamHandlerClass): TFileReadPromise;
     function Write(const aData: UTF8String): TFileWritePromise; overload;
     function Write(aOptions: TFileWriteOptions;
                     const aData: UTF8String): TFileWritePromise; overload;
@@ -116,7 +119,7 @@ type
 
   { TFileCheckExistencePromise }
 
-  TCheckExistencePromise = class(TBooleanPromise)
+  TFileExistencePromise = class(TBooleanPromise)
   private
     fPath: Tfile;
   public
@@ -124,27 +127,37 @@ type
     property Path: TFile read fPath;
   end;
 
+  TFileStreamHandler = class
+  public
+    procedure Handle(aData: TStream); virtual; abstract;
+  end;
+
+  { TFileTextHandler }
+
+  TFileTextHandler = class(TFileStreamHandler)
+  private
+    fData: UTF8String;
+  public
+    procedure Handle(aData: TStream); override;
+    property Data: UTF8String read fData;
+  end;
+
   { TFileReadPromise }
 
-  // TODO: Very important... we need to make sure the stream gets freed!
-  // TODO: Another possibility: Most of the time we're just reading the contents
-  // of the stream into memory, what if this doesn't return the stream, but the
-  // data itself (after closing the stream)? We might have to have some mechanism
-  // for inserting a parser or something in there to return different kinds of
-  // data, however. The other possibility is the Read isn't a promise, because
-  // we don't want to risk someone else trying to read a stream that's already
-  // been read.
   TFileReadPromise = class(TPromise)
   private
     fPath: Tfile;
   protected
-    fData: TStream;
+    fHandler: TFileStreamHandler;
     fAge: Longint;
+    fDoesNotExist: Boolean;
   public
-    constructor Enqueue(aFile: TFile);
+    constructor Enqueue(aFile: TFile; aHandler: TFileStreamHandlerClass);
+    destructor Destroy; override;
     property Path: TFile read FPath;
-    property Data: TStream read FData;
+    property Handler: TFileStreamHandler read fHandler;
     property Age: Longint read FAge;
+    property DoesNotExist: Boolean read fDoesNotExist;
   end;
 
   { TFileWritePromise }
@@ -230,7 +243,7 @@ type
 
     class function ListFiles(aFile: TFile): TFileListPromise; virtual; abstract;
     class function CheckFileExistence(aFile: TFile): TBooleanPromise; virtual; abstract;
-    class function ReadFile(aFile: TFile): TFileReadPromise; virtual; abstract;
+    class function ReadFile(aFile: TFile; aHandler: TFileStreamHandlerClass): TFileReadPromise; virtual; abstract;
     class function WriteFile(aFile: TFile; aOptions: TFileWriteOptions;
                         aFileAge: Longint;
                         const aData: UTF8String): TFileWritePromise; virtual; abstract;
@@ -292,6 +305,29 @@ implementation
 
 uses
   strutils, FileUtil;
+
+{ TFileTextHandler }
+
+procedure TFileTextHandler.Handle(aData: TStream);
+var
+  lTarget: TStringStream;
+begin
+  if aData <> nil then
+  begin
+
+    lTarget := TStringStream.Create('');
+    try
+      lTarget.CopyFrom(aData,0);
+      fData := lTarget.DataString;
+    finally
+      lTarget.Free;
+    end;
+
+  end
+  else
+    fData := '';
+
+end;
 
 { TFileListTemplatesPromise }
 
@@ -373,16 +409,24 @@ end;
 
 { TFileReadPromise }
 
-constructor TFileReadPromise.Enqueue(aFile: TFile);
+constructor TFileReadPromise.Enqueue(aFile: TFile;
+  aHandler: TFileStreamHandlerClass);
 begin
   fPath := aFile;
+  fHandler := aHandler.Create;
   inherited Enqueue;
 
 end;
 
+destructor TFileReadPromise.Destroy;
+begin
+  FreeAndNil(fHandler);
+  inherited Destroy;
+end;
+
 { TFileCheckExistencePromise }
 
-constructor TCheckExistencePromise.Enqueue(aFile: TFile);
+constructor TFileExistencePromise.Enqueue(aFile: TFile);
 begin
   fPath := aFile;
   inherited Enqueue;
@@ -502,9 +546,9 @@ begin
 
 end;
 
-function TFile.Read: TFileReadPromise;
+function TFile.Read(aHandler: TFileStreamHandlerClass): TFileReadPromise;
 begin
-  result := fSystem.ReadFile(Self);
+  result := fSystem.ReadFile(Self,aHandler);
 end;
 
 function TFile.Write(const aData: UTF8String): TFileWritePromise;

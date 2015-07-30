@@ -16,9 +16,9 @@ type
     procedure DoTask; override;
   end;
 
-  { TLocalFileCheckExistencePromise }
+  { TLocalFileExistsPromise }
 
-  TLocalFileCheckExistencePromise = class(TCheckExistencePromise)
+  TLocalFileExistsPromise = class(TFileExistencePromise)
   protected
     procedure DoTask; override;
   end;
@@ -28,8 +28,6 @@ type
   TLocalFileReadPromise = class(TFileReadPromise)
   protected
     procedure DoTask; override;
-  public
-    destructor Destroy; override;
   end;
 
   { TLocalFileWritePromise }
@@ -70,7 +68,7 @@ type
     class function GetTemplatesFor(aFile: TFile): TFileListTemplatesPromise; override;
     class function ListFiles(aFile: TFile): TFile.TFileListPromise; override;
     class procedure OpenInEditor(aFile: TFile); override;
-    class function ReadFile(aFile: TFile): TFileReadPromise; override;
+    class function ReadFile(aFile: TFile; aHandler: TFileStreamHandlerClass): TFileReadPromise; override;
     class function WriteFile(aFile: TFile; aOptions: TFileWriteOptions; aFileAge: Longint; const aData: UTF8String): TFileWritePromise; override;
   public
     class function RenameFiles(aSource: TFileArray;
@@ -197,32 +195,34 @@ end;
 { TLocalFileReadPromise }
 
 procedure TLocalFileReadPromise.DoTask;
+var
+  lStream: TFileStream;
 begin
   if FileExists(Path.ID) then
   begin
-    fData := TFileStream.Create(Path.ID,fmOpenRead or fmShareDenyWrite);
-    // get the age of the file now, while it's locked, to prevent certain
-    // race conditions
-    fAge := FileAge(Path.ID);
+    lStream := TFileStream.Create(Path.ID,fmOpenRead or fmShareDenyWrite);
+    try
+      // get the age of the file now, while it's locked, to prevent certain
+      // race conditions
+      fAge := FileAge(Path.ID);
+      fDoesNotExist := false;
+      Handler.Handle(lStream);
+    finally
+      lStream.Free;
+    end;
   end
   else
   begin
-    fData := nil;
+    Handler.Handle(nil);
     fAge := NewFileAge;
+    fDoesNotExist := True;
   end;
   Resolve;
 end;
 
-destructor TLocalFileReadPromise.Destroy;
-begin
-  if fData <> nil then
-    FreeAndNil(fData);
-  inherited Destroy;
-end;
+{ TLocalFileExistsPromise }
 
-{ TLocalFileCheckExistencePromise }
-
-procedure TLocalFileCheckExistencePromise.DoTask;
+procedure TLocalFileExistsPromise.DoTask;
 begin
   fAnswer := FileExists(Path.ID);
   Resolve;
@@ -263,7 +263,7 @@ end;
 class function TLocalFileSystem.CheckFileExistence(aFile: TFile
   ): TBooleanPromise;
 begin
-  result := TLocalFileCheckExistencePromise.Enqueue(aFile);
+  result := TLocalFileExistsPromise.Enqueue(aFile);
 end;
 
 class function TLocalFileSystem.CopyFile(aSource: TFile; aTarget: TFile;
@@ -317,9 +317,10 @@ begin
   EditFile(aFile);
 end;
 
-class function TLocalFileSystem.ReadFile(aFile: TFile): TFileReadPromise;
+class function TLocalFileSystem.ReadFile(aFile: TFile;
+  aHandler: TFileStreamHandlerClass): TFileReadPromise;
 begin
-  result := TLocalFileReadPromise.Enqueue(aFile);
+  result := TLocalFileReadPromise.Enqueue(aFile,aHandler);
 end;
 
 class function TLocalFileSystem.RenameFiles(aSource: TFileArray;

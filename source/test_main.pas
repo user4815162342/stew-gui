@@ -17,6 +17,11 @@ type
   1. Convert the various properties objects to make use of TJSObjects. And,
   create tests to validate that they are working (so we can get rid of the
   'backup files').
+  - all of these should be found in stew_properties and gui_config (this one
+  won't be tested, though). Although, since I'm getting rid of the ability to
+  load and save from within the object, some things will have to be changed in
+  stew_project as well -- the properties become a Metadata object like synopsis
+  (and these are probably moved into stew_persist).
   2. Create some tests to work with TStewProject opening, initializing and retrieving
   data. This will require some test projects to work with. Don't create a *lot*
   of tests, just basic operations. More tests will be added to this section as
