@@ -539,7 +539,7 @@ end;
 
 procedure TAttachmentMetadata.FileLoaded(aSender: TPromise);
 begin
-  FileLoaded(((aSender as TFileReadPromise).Handler as TFileTextHandler).Data,(aSender as TFileReadPromise).Age);
+  FileLoaded(((aSender as TFileReadPromise).Reader as TFileTextReader).Data,(aSender as TFileReadPromise).Age);
 
 end;
 
@@ -616,7 +616,7 @@ begin
   lData := (aSender as TFileListTemplatesPromise).Templates;
   if Length(lData) = 0 then
   // create a simple, basic, blank file.
-     GetDefaultFile.Write('').After(@EditableFileWritten,@FileLoadFailed)
+     GetDefaultFile.Write(TFileTextWriter.Create('')).After(@EditableFileWritten,@FileLoadFailed)
   else
   begin
     if Length(lData) > 1 then
@@ -637,7 +637,7 @@ begin
       // we're creating a blank file anyway, but in this case,
       // we know that we don't know what extension it is, so set
       // the extension to '.txt'.
-       GetDefaultFile.WithDifferentExtension('txt').Write('').After(@EditableFileWritten,@FileLoadFailed)
+       GetDefaultFile.WithDifferentExtension('txt').Write(TFileTextWriter.Create('')).After(@EditableFileWritten,@FileLoadFailed)
     else
        GetDefaultFile.CreateFromTemplate(aTemplate).After(@EditableFileReady,@FileLoadFailed);
   end;
@@ -692,7 +692,7 @@ begin
       begin
         fFilingState := fsLoading;
         fDocument.AttachmentLoading(GetName);
-        aCandidates[0].Read(TFileTextHandler).After(@FileLoaded,@FileLoadFailed);
+        aCandidates[0].Read(TFileTextReader.Create).After(@FileLoaded,@FileLoadFailed);
       end
     else
         raise Exception.Create('Too many ' + GetName + ' files');
@@ -730,7 +730,7 @@ begin
       lOptions := [];
       if not aForce then
         lOptions := lOptions + [fwoCheckAge];
-      aCandidates[0].Write(lOptions,fFileAge,fContents).After(@FileSaved,@FileSaveConflictCheck);
+      aCandidates[0].Write(lOptions,fFileAge,TFileTextWriter.Create(fContents)).After(@FileSaved,@FileSaveConflictCheck);
     end
     else if fFilingState = fsNotLoaded then
       raise Exception.Create('Can''t save attachment data when it has not yet been loaded')

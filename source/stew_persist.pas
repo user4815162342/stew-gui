@@ -489,7 +489,7 @@ begin
   else
   begin
     Clear;
-    ParseJSON(Self,((aSender as TFileReadPromise).Handler as TFileTextHandler).Data);
+    ParseJSON(Self,((aSender as TFileReadPromise).Reader as TFileTextReader).Data);
     ClearModified;
   end;
   fFileAge := (aSender as TFileReadPromise).Age;
@@ -563,7 +563,7 @@ begin
     fFilingState := fsLoading;
     if fOnFileLoading <> nil then
       fOnFileLoading(Self);
-    fFile.Read(TFileTextHandler).After(@FileLoaded,@FileLoadFailed);
+    fFile.Read(TFileTextReader.Create).After(@FileLoaded,@FileLoadFailed);
   end
   else if fFilingState = fsSaving then
      raise Exception.Create('Can''t load JSON data while saving.');
@@ -588,7 +588,7 @@ begin
         lOptions := lOptions + [fwoCreateDir];
       if not aForce then
         lOptions := lOptions + [fwoCheckAge];
-      fFile.Write(lOptions,fFileAge,text).After(@FileSaved,@FileSaveConflictCheck);
+      fFile.Write(lOptions,fFileAge,TFileTextWriter.Create(text)).After(@FileSaved,@FileSaveConflictCheck);
 
     end
     else if fFilingState = fsNotLoaded then

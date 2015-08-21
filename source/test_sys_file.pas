@@ -12,6 +12,8 @@ type
   { TFileSpec }
 
   TFileSpec = class(TTestSpec)
+    procedure EmptyWriteCallback(Sender: TPromise);
+    procedure EmptyWriteCallback2(Sender: TPromise);
     procedure PromiseError(aSender: TPromise; aError: TPromiseException);
     procedure BasicWriteCallback(aSender: TPromise);
     procedure BasicWriteCallback2(aSender: TPromise);
@@ -48,6 +50,7 @@ type
     procedure Test_Check_Existence;
     procedure Test_Read_File;
     procedure Test_Basic_File_Writing;
+    procedure Test_Empty_File_Writing;
     procedure Test_File_Writing_with_Conflict_Checking;
     procedure Test_File_Copying;
     procedure Test_File_Renaming;
@@ -92,12 +95,28 @@ begin
     root := GetTestRootDir;
     root.GetContainedFile('bar').GetContainedFile('test.txt').Write([fwoCheckAge],
                                                                 fComplexFileAge,
-                                                                'TEST2').After(
+                                                                TFileTextWriter.Create('TEST2')).After(
                                                                 @ComplexWriteCallback4,
                                                                 @ComplexWriteConflict4).Tag := Sender.Tag;
   end
   else
     PromiseError(Sender,aError);
+end;
+
+procedure TFileSpec.EmptyWriteCallback(Sender: TPromise);
+var
+  root: TFile;
+begin
+  root := GetTestRootDir;
+  root.GetContainedFile('empty.txt').CheckExistence.After(@EmptyWriteCallback2,@PromiseError).Tag := Sender.Tag;
+end;
+
+procedure TFileSpec.EmptyWriteCallback2(Sender: TPromise);
+begin
+  if (Sender as TFileExistencePromise).Answer then
+    EndAsync(Sender.Tag)
+  else
+    FailAsync(Sender.Tag,'Empty write did not create a file');
 end;
 
 procedure TFileSpec.PromiseError(aSender: TPromise; aError: TPromiseException);
@@ -114,7 +133,7 @@ begin
   else
   begin
     root := GetTestRootDir;
-    root.GetContainedFile('foo.txt').Read(TFileTextHandler).After(@BasicWriteCallback2,@PromiseError).Tag := aSender.Tag;
+    root.GetContainedFile('foo.txt').Read(TFileTextReader.Create).After(@BasicWriteCallback2,@PromiseError).Tag := aSender.Tag;
   end;
 end;
 
@@ -122,7 +141,7 @@ procedure TFileSpec.BasicWriteCallback2(aSender: TPromise);
 var
   lData: UTF8String;
 begin
-  lData := ((aSender as TFileReadPromise).Handler as TFileTextHandler).Data;
+  lData := ((aSender as TFileReadPromise).Reader as TFileTextReader).Data;
   if lData <> 'TEST' then
     FailAsync(aSender.Tag,'Data read from file did not match data written')
   else
@@ -184,7 +203,7 @@ begin
   else
   begin
     root := GetTestRootDir;
-    root.GetContainedFile('bar').GetContainedFile('test.txt').Read(TFileTextHandler).After(@ComplexWriteCallback2,@PromiseError).Tag := aSender.Tag;
+    root.GetContainedFile('bar').GetContainedFile('test.txt').Read(TFileTextReader.Create).After(@ComplexWriteCallback2,@PromiseError).Tag := aSender.Tag;
   end;
 
 end;
@@ -195,7 +214,7 @@ var
   root: TFile;
 begin
   fComplexFileAge := (aSender as TFileReadPromise).Age;
-  lCheck := ((aSender as TFileReadPromise).Handler as TFileTextHandler).Data;
+  lCheck := ((aSender as TFileReadPromise).Reader as TFileTextReader).Data;
   if lCheck <> 'TEST' then
     FailAsync(aSender.Tag,'Data read from file did not match data written')
   else
@@ -203,7 +222,7 @@ begin
     root := GetTestRootDir;
     root.GetContainedFile('bar').GetContainedFile('test.txt').Write([fwoCheckAge],
                                                                 fComplexFileAge - 1,
-                                                                'TEST2').After(
+                                                                TFileTextWriter.Create('TEST2')).After(
                                                                 @ComplexWriteCallback3,
                                                                 @ComplexWriteConflict3).Tag := aSender.Tag;
   end;
@@ -243,7 +262,7 @@ var
   root: TFile;
 begin
   root := GetTestRootDir;
-  root.GetContainedFile('_stew.json').Read(TFileTextHandler).After(@CopyFileCallback2,@PromiseError).Tag := aSender.Tag;
+  root.GetContainedFile('_stew.json').Read(TFileTextReader.Create).After(@CopyFileCallback2,@PromiseError).Tag := aSender.Tag;
 
 end;
 
@@ -251,14 +270,14 @@ procedure TFileSpec.CopyFileCallback2(aSender: TPromise);
 var
   root: TFile;
 begin
-  fCopyFileContents := ((aSender as TFileReadPromise).Handler as TFileTextHandler).Data;
+  fCopyFileContents := ((aSender as TFileReadPromise).Reader as TFileTextReader).Data;
   root := GetTestRootDir;
-  root.GetContainedFile('_stew.json.bak').Read(TFileTextHandler).After(@CopyFileCallback3,@PromiseError).Tag := aSender.Tag;
+  root.GetContainedFile('_stew.json.bak').Read(TFileTextReader.Create).After(@CopyFileCallback3,@PromiseError).Tag := aSender.Tag;
 end;
 
 procedure TFileSpec.CopyFileCallback3(aSender: TPromise);
 begin
-  if ((aSender as TFileReadPromise).Handler as TFileTextHandler).Data <> fCopyFileContents then
+  if ((aSender as TFileReadPromise).Reader as TFileTextReader).Data <> fCopyFileContents then
     FailAsync(aSender.Tag,'Copied file did not contain the same contents')
   else
     EndAsync(aSender.Tag);
@@ -395,7 +414,7 @@ var
   root: TFile;
 begin
   root := GetTestRootDir;
-  root.GetContainedFile('_stew.json').Read(TFileTextHandler).After(@ReadTestCallback,@PromiseError).Tag := BeginAsync;
+  root.GetContainedFile('_stew.json').Read(TFileTextReader.Create).After(@ReadTestCallback,@PromiseError).Tag := BeginAsync;
 end;
 
 procedure TFileSpec.Test_Basic_File_Writing;
@@ -403,7 +422,16 @@ var
   root: TFile;
 begin
   root := GetTestRootDir;
-  root.GetContainedFile('foo.txt').Write('TEST').After(@BasicWriteCallback,@PromiseError).Tag := BeginAsync;
+  root.GetContainedFile('foo.txt').Write(TFileTextWriter.Create('TEST')).After(@BasicWriteCallback,@PromiseError).Tag := BeginAsync;
+
+end;
+
+procedure TFileSpec.Test_Empty_File_Writing;
+var
+  root: TFile;
+begin
+  root := GetTestRootDir;
+  root.GetContainedFile('empty.txt').Write(TFileTextWriter.Create('')).After(@EmptyWriteCallback,@PromiseError).Tag := BeginAsync;
 
 end;
 
@@ -414,7 +442,7 @@ begin
   root := GetTestRootDir;
   root.GetContainedFile('bar').GetContainedFile('test.txt').Write([fwoCreateDir,fwoCheckAge],
                                                                   NewFileAge,
-                                                                  'TEST').After(
+                                                                  TFileTextWriter.Create('TEST')).After(
                                                                   @ComplexWriteCallback1,
                                                                   @ComplexWriteConflict1).Tag := BeginAsync;
 end;

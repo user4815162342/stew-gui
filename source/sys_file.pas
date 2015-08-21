@@ -34,14 +34,13 @@ type
 
   TFileListPromise = class;
 
-  TFileStreamHandler = class;
-  TFileStreamHandlerClass = class of TFileStreamHandler;
-
+  TFileReader = class;
   TFileReadPromise = class;
 
   TFileWriteOption = (fwoCreateDir, fwoCheckAge);
   TFileWriteOptions = set of TFileWriteOption;
 
+  TFileWriter = class;
   TFileWritePromise = class;
 
   TFileCopyOption = (fcoOverwrite, fcoCreateDir);
@@ -76,13 +75,17 @@ type
     property ID: UTF8String read fID;
     function List: TFileListPromise;
     function CheckExistence: TBooleanPromise;
-    function Read(aHandler: TFileStreamHandlerClass): TFileReadPromise;
-    function Write(const aData: UTF8String): TFileWritePromise; overload;
+    // The 'Reader' is owned by the promise and destroyed when that is destroyed.
+    function Read(aHandler: TFileReader): TFileReadPromise;
+    // The 'Writer' is owned by the promise and destroyed when that is destroyed.
+    function Write(aWriter: TFileWriter): TFileWritePromise; overload;
+    // The 'Writer' is owned by the promise and destroyed when that is destroyed.
     function Write(aOptions: TFileWriteOptions;
-                    const aData: UTF8String): TFileWritePromise; overload;
+                    aWriter: TFileWriter): TFileWritePromise; overload;
+    // The 'Writer' is owned by the promise and destroyed when that is destroyed.
     function Write(aOptions: TFileWriteOptions;
                     aFileAge: Longint;
-                    const aData: UTF8String): TFileWritePromise; overload;
+                    aWriter: TFileWriter): TFileWritePromise; overload;
     function CopyTo(aTarget: TFile; aFlags: TFileCopyOptions): TFileCopyPromise; overload;
     function CopyTo(aTarget: TFile): TFileCopyPromise; overload;
     function Rename(aTarget: TFile): TFileRenamePromise;
@@ -127,19 +130,11 @@ type
     property Path: TFile read fPath;
   end;
 
-  TFileStreamHandler = class
-  public
-    procedure Handle(aData: TStream); virtual; abstract;
-  end;
+  { TFileReader }
 
-  { TFileTextHandler }
-
-  TFileTextHandler = class(TFileStreamHandler)
-  private
-    fData: UTF8String;
+  TFileReader = class
   public
-    procedure Handle(aData: TStream); override;
-    property Data: UTF8String read fData;
+    procedure Read(aData: TStream); virtual; abstract;
   end;
 
   { TFileReadPromise }
@@ -148,16 +143,22 @@ type
   private
     fPath: Tfile;
   protected
-    fHandler: TFileStreamHandler;
+    fReader: TFileReader;
     fAge: Longint;
     fDoesNotExist: Boolean;
   public
-    constructor Enqueue(aFile: TFile; aHandler: TFileStreamHandlerClass);
+    // The 'Reader' is owned by the promise and destroyed when that is destroyed.
+    constructor Enqueue(aFile: TFile; aHandler: TFileReader);
     destructor Destroy; override;
     property Path: TFile read FPath;
-    property Handler: TFileStreamHandler read fHandler;
+    property Reader: TFileReader read fReader;
     property Age: Longint read FAge;
     property DoesNotExist: Boolean read fDoesNotExist;
+  end;
+
+  TFileWriter = class
+  public
+    procedure Write(aTarget: TStream); virtual; abstract;
   end;
 
   { TFileWritePromise }
@@ -166,15 +167,14 @@ type
   private
     fPath: Tfile;
     fOptions: TFileWriteOptions;
-    fData: UTF8String;
+    fWriter: TFileWriter;
   protected
     fAge: Longint;
     fIsConflict: Boolean;
   public
-    constructor Enqueue(aFile: TFile; aOptions: TFileWriteOptions; aFileAge: Longint; const aData: UTF8String); overload;
-    constructor Enqueue(aFile: TFile; aOptions: TFileWriteOptions; const aData: UTF8String); overload;
-    constructor Enqueue(aFile: TFile; const aData: UTF8String); overload;
-    property Data: UTF8String read fData;
+    constructor Enqueue(aFile: TFile; aOptions: TFileWriteOptions; aFileAge: Longint; aWriter: TFileWriter); overload;
+    destructor Destroy; override;
+    property Writer: TFileWriter read fWriter;
     property Path: TFile read fPath;
     property Age: Longint read fAge;
     property Options: TFileWriteOptions read fOptions;
@@ -243,10 +243,12 @@ type
 
     class function ListFiles(aFile: TFile): TFileListPromise; virtual; abstract;
     class function CheckFileExistence(aFile: TFile): TBooleanPromise; virtual; abstract;
-    class function ReadFile(aFile: TFile; aHandler: TFileStreamHandlerClass): TFileReadPromise; virtual; abstract;
+    // The 'Reader' is owned by the promise and destroyed when that is destroyed.
+    class function ReadFile(aFile: TFile; aHandler: TFileReader): TFileReadPromise; virtual; abstract;
+    // The 'Writer' is owned by the promise and destroyed when that is destroyed.
     class function WriteFile(aFile: TFile; aOptions: TFileWriteOptions;
                         aFileAge: Longint;
-                        const aData: UTF8String): TFileWritePromise; virtual; abstract;
+                        aWriter: tFileWriter): TFileWritePromise; virtual; abstract;
     class function CopyFile(aSource: TFile; aTarget: TFile; aOptions: TFileCopyOptions): TFileCopyPromise; virtual; abstract;
     class function RenameFile(aSource: TFile; aTarget: TFile): TFileRenamePromise; virtual;
     class function GetDirectory(aFile: TFile): TFile; virtual; abstract;
@@ -282,6 +284,26 @@ type
     property Item[Index: Integer]: TFile read GetItem; default;
   end;
 
+  { TFileTextHandler }
+
+  TFileTextReader = class(TFileReader)
+  private
+    fData: UTF8String;
+  public
+    procedure Read(aData: TStream); override;
+    property Data: UTF8String read fData;
+  end;
+
+  { TFileTextWriter }
+
+  TFileTextWriter = class(TFileWriter)
+  private
+    fData: UTF8String;
+  public
+    constructor Create(aData: UTF8String);
+    procedure Write(aTarget: TStream); override;
+  end;
+
   const
     ExtensionDelimiter: Char = '.';
     DescriptorDelimiter: Char = '_';
@@ -306,9 +328,23 @@ implementation
 uses
   strutils, FileUtil;
 
+{ TFileTextWriter }
+
+constructor TFileTextWriter.Create(aData: UTF8String);
+begin
+  fData := aData;
+end;
+
+procedure TFileTextWriter.Write(aTarget: TStream);
+var
+  l: Integer;
+begin
+  aTarget.Write(fData[1],Length(fData))
+end;
+
 { TFileTextHandler }
 
-procedure TFileTextHandler.Handle(aData: TStream);
+procedure TFileTextReader.Read(aData: TStream);
 var
   lTarget: TStringStream;
 begin
@@ -386,41 +422,36 @@ end;
 { TFileWritePromise }
 
 constructor TFileWritePromise.Enqueue(aFile: TFile;
-  aOptions: TFileWriteOptions; aFileAge: Longint; const aData: UTF8String);
+  aOptions: TFileWriteOptions; aFileAge: Longint; aWriter: TFileWriter);
 begin
   fIsConflict := false;
   fPath := aFile;
   fOptions := aOptions;
   fAge := aFileAge;
-  fData := aData;
+  fWriter := aWriter;
   inherited Enqueue;
 end;
 
-constructor TFileWritePromise.Enqueue(aFile: TFile;
-  aOptions: TFileWriteOptions; const aData: UTF8String);
+destructor TFileWritePromise.Destroy;
 begin
-  Enqueue(aFile,aOptions,NewFileAge,aData);
-end;
-
-constructor TFileWritePromise.Enqueue(aFile: TFile; const aData: UTF8String);
-begin
-  Enqueue(aFile,[],NewFileAge,aData);
+  FreeAndNil(fWriter);
+  inherited Destroy;
 end;
 
 { TFileReadPromise }
 
 constructor TFileReadPromise.Enqueue(aFile: TFile;
-  aHandler: TFileStreamHandlerClass);
+  aHandler: TFileReader);
 begin
   fPath := aFile;
-  fHandler := aHandler.Create;
+  fReader := aHandler;
   inherited Enqueue;
 
 end;
 
 destructor TFileReadPromise.Destroy;
 begin
-  FreeAndNil(fHandler);
+  FreeAndNil(fReader);
   inherited Destroy;
 end;
 
@@ -546,27 +577,26 @@ begin
 
 end;
 
-function TFile.Read(aHandler: TFileStreamHandlerClass): TFileReadPromise;
+function TFile.Read(aHandler: TFileReader): TFileReadPromise;
 begin
   result := fSystem.ReadFile(Self,aHandler);
 end;
 
-function TFile.Write(const aData: UTF8String): TFileWritePromise;
+function TFile.Write(aWriter: TFileWriter): TFileWritePromise;
 begin
-  result := fSystem.WriteFile(Self,[],NewFileAge,aData);
+  result := fSystem.WriteFile(Self,[],NewFileAge,aWriter);
 
 end;
 
-function TFile.Write(aOptions: TFileWriteOptions; const aData: UTF8String
-  ): TFileWritePromise;
+function TFile.Write(aOptions: TFileWriteOptions; aWriter: TFileWriter): TFileWritePromise;
 begin
-  result := fSystem.WriteFile(Self,aOptions,NewFileAge,aData);
+  result := fSystem.WriteFile(Self,aOptions,NewFileAge,aWriter);
 end;
 
 function TFile.Write(aOptions: TFileWriteOptions; aFileAge: Longint;
-  const aData: UTF8String): TFileWritePromise;
+  aWriter: TFileWriter): TFileWritePromise;
 begin
-  result := fSystem.WriteFile(Self,aOptions,aFileAge,aData);
+  result := fSystem.WriteFile(Self,aOptions,aFileAge,aWriter);
 end;
 
 function TFile.CopyTo(aTarget: TFile; aFlags: TFileCopyOptions

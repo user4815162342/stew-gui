@@ -68,8 +68,8 @@ type
     class function GetTemplatesFor(aFile: TFile): TFileListTemplatesPromise; override;
     class function ListFiles(aFile: TFile): TFile.TFileListPromise; override;
     class procedure OpenInEditor(aFile: TFile); override;
-    class function ReadFile(aFile: TFile; aHandler: TFileStreamHandlerClass): TFileReadPromise; override;
-    class function WriteFile(aFile: TFile; aOptions: TFileWriteOptions; aFileAge: Longint; const aData: UTF8String): TFileWritePromise; override;
+    class function ReadFile(aFile: TFile; aHandler: TFileReader): TFileReadPromise; override;
+    class function WriteFile(aFile: TFile; aOptions: TFileWriteOptions; aFileAge: Longint; aWriter: TFileWriter): TFileWritePromise; override;
   public
     class function RenameFiles(aSource: TFileArray;
       aTarget: TFileArray): TFileRenamePromise; override;
@@ -184,7 +184,7 @@ begin
   stream := TFileStream.Create(Path.ID,fmCreate or fmShareDenyWrite);
   try
     fAge := FileAge(Path.ID);
-    stream.Write(Data[1],Length(Data));
+    Writer.Write(stream);
   finally
     stream.Free;
   end;
@@ -206,14 +206,14 @@ begin
       // race conditions
       fAge := FileAge(Path.ID);
       fDoesNotExist := false;
-      Handler.Handle(lStream);
+      Reader.Read(lStream);
     finally
       lStream.Free;
     end;
   end
   else
   begin
-    Handler.Handle(nil);
+    Reader.Read(nil);
     fAge := NewFileAge;
     fDoesNotExist := True;
   end;
@@ -318,7 +318,7 @@ begin
 end;
 
 class function TLocalFileSystem.ReadFile(aFile: TFile;
-  aHandler: TFileStreamHandlerClass): TFileReadPromise;
+  aHandler: TFileReader): TFileReadPromise;
 begin
   result := TLocalFileReadPromise.Enqueue(aFile,aHandler);
 end;
@@ -330,10 +330,9 @@ begin
 end;
 
 class function TLocalFileSystem.WriteFile(aFile: TFile;
-  aOptions: TFileWriteOptions; aFileAge: Longint; const aData: UTF8String
-  ): TFileWritePromise;
+  aOptions: TFileWriteOptions; aFileAge: Longint; aWriter: TFileWriter): TFileWritePromise;
 begin
-  result := TLocalFileWritePromise.Enqueue(aFile,aOptions,aFileAge,aData);
+  result := TLocalFileWritePromise.Enqueue(aFile,aOptions,aFileAge,aWriter);
 end;
 
 end.
