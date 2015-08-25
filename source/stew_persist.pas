@@ -127,7 +127,7 @@ type
     procedure Clear; virtual; abstract;
     procedure FileLoaded(aSender: TPromise);
     procedure FileSaved(aSender: TPromise);
-    procedure FileLoadFailed(aSender: TPromise; aError: String);
+    procedure FileLoadFailed({%H-}aSender: TPromise; aError: String);
     procedure FileSaveFailed(aError: String);
     procedure FileSaveConflictCheck(aSender: TPromise; aError: String);
     // File age is only passed for informational purposes, and I don't

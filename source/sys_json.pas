@@ -1925,12 +1925,10 @@ destructor TJSObject.Destroy;
 var
   i: Integer;
   value: TJSValue;
-  name: UTF8String;
 begin
   // clear the list
   for i := 0 to fList.Count - 1 do
   begin
-    name := fList.NameOfIndex(i);
     value := fList[i] as TJSValue;
     if not ((value is TJSNull) or (value is TJSUndefined)) then
       value.Free;

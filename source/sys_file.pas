@@ -336,8 +336,6 @@ begin
 end;
 
 procedure TFileTextWriter.Write(aTarget: TStream);
-var
-  l: Integer;
 begin
   aTarget.Write(fData[1],Length(fData))
 end;
