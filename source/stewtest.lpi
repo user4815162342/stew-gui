@@ -35,7 +35,7 @@
         <PackageName Value="LCL"/>
       </Item2>
     </RequiredPackages>
-    <Units Count="16">
+    <Units Count="18">
       <Unit0>
         <Filename Value="stewtest.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -119,6 +119,16 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="test_stew_properties"/>
       </Unit15>
+      <Unit16>
+        <Filename Value="stew_project.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="stew_project"/>
+      </Unit16>
+      <Unit17>
+        <Filename Value="test_stew_project.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="test_stew_project"/>
+      </Unit17>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

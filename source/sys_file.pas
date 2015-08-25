@@ -18,7 +18,26 @@ const NewFileAge: Longint = -1;
   // if I go that far, I could consider using other mechanisms for descriptors:
   // for example, google drive has file labels which could be used instead.
   // Another issue: Google Drive also allows a file to be contained in multiple
-  // folders (this isn't just links).
+  // folders (this isn't just symlinks). In fact, defining a file by it's
+  // name doesn't even work, so the GetContainedFile isn't going to work.
+  // -- back to the drawing board! Two things have to be done:
+  // * Probably our best bet is to stop using
+  // paths completely, and especially stop using the ID to denote the path.
+  // You would create a LocalFile given a local path, sure, and internally the
+  // local file would use the path as an ID, but you wouldn't actually use the
+  // ID anywhere else. This ID would then be used as an actual ID for Google Drive.
+  // * GetContainedFile would have to be changed. Instead of indicating a file
+  // contained in a parent, it's a hypothetical file contained inside that
+  // parent, so it would be called GetHypotheticalContainedFile.
+  // Actually getting the real file would require a "List" async command,
+  // but you could turn a hypothetical file into a real file when writing to it.
+  // * We'd still depend on naming when looking in Google Drive, because there's
+  // no other way to specify where the _stew.json file might be, or things like
+  // that.
+  // * We have to accept that there might be multiple files with the same name.
+  // I'm almost doing that anyway, since files can have the same name and different
+  // extensions. We just have to provide a file age when differentiating with the
+  // user.
 
 type
 
