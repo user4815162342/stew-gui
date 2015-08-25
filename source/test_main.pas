@@ -39,6 +39,9 @@ type
   make it easier to debug and reproduce errors, if we can get users to reproduce
   and send the logs to us. Basically, it would tell us what order actions happened
   in order to create tests around them at the project level.
+
+  TODO: Also, consider being able to 'plug in' a project to test certain basic operations
+  with, so users can write their own tests and use actual data.
   }
 
   { TMainForm }
@@ -81,7 +84,7 @@ var
 implementation
 
 uses
-  test_test, test_sys_json, test_sys_async, test_sys_localfile;
+  test_test, test_sys_json, test_sys_async, test_sys_localfile, test_stew_properties;
 
 {$R *.lfm}
 
@@ -186,6 +189,7 @@ begin
     fRegistry.AddTests(TJSONSpec);
     fRegistry.AddTests(TAsyncSpec);
     fRegistry.AddTests(TLocalFileSpec);
+    fRegistry.AddTests(TPropertiesSpec);
   end;
 end;
 
@@ -226,6 +230,8 @@ begin
     end;
     OutputMemo.SetTextAttributes(i, j, aStyle);  //apply now
   end;
+  // move log down so we can watch results...
+  OutputMemo.SelStart := i + j;
 end;
 
 initialization

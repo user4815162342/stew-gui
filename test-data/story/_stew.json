@@ -1,9 +1,64 @@
 {
-  "categories" : {},
-  "defaultCategory" : "",
+  "categories" : {
+    "Chapter" : {
+      "publishMarkerAfter" : false,
+      "publishMarkerBefore" : false,
+      "publishMarkerBetween" : false,
+      "publishTitle" : false,
+      "publishTitleLevel" : 0,
+      "publishTitlePrefix" : ""
+    },
+    "Scene" : {
+      "publishMarkerAfter" : false,
+      "publishMarkerBefore" : false,
+      "publishMarkerBetween" : false,
+      "publishTitle" : false,
+      "publishTitleLevel" : 0,
+      "publishTitlePrefix" : ""
+    },
+    "Passage" : {
+      "publishMarkerAfter" : false,
+      "publishMarkerBefore" : false,
+      "publishMarkerBetween" : false,
+      "publishTitle" : false,
+      "publishTitleLevel" : 0,
+      "publishTitlePrefix" : ""
+    },
+    "Tome" : {
+      "publishMarkerAfter" : false,
+      "publishMarkerBefore" : false,
+      "publishMarkerBetween" : false,
+      "publishTitle" : false,
+      "publishTitleLevel" : 0,
+      "publishTitlePrefix" : ""
+    }
+  },
+  "defaultCategory" : "Chapter",
   "defaultDocExtension" : ".txt",
   "defaultNotesExtension" : ".txt",
-  "defaultStatus" : "",
+  "defaultStatus" : "Unwritten",
   "defaultThumbnailExtension" : ".png",
-  "statuses" : {}
+  "statuses" : {
+    "Unwritten" : {
+      "color" : {
+        "r" : 255,
+        "g" : 0,
+        "b" : 0
+      }
+    },
+    "Written" : {
+      "color" : {
+        "r" : 255,
+        "g" : 255,
+        "b" : 0
+      }
+    },
+    "Finished" : {
+      "color" : {
+        "r" : 0,
+        "g" : 128,
+        "b" : 0
+      }
+    }
+  }
 }

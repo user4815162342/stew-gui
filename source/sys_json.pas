@@ -128,6 +128,9 @@ type
     function Get({%H-}aKey: UTF8String): TJSValue; virtual; overload;
     // override this the same way as GetValue if your object can handle integer indexes
     function Get(aKey: Integer): TJSValue; overload;
+    function GetDefault(aKey: UTF8String; aValue: UTF8String): UTF8String;
+    function GetDefault(aKey: UTF8String; aValue: Double): Double;
+    function GetDefault(aKey: UTF8String; aValue: Boolean): Boolean;
     // override this to behave the way Javascript 'delete x["key"]' might behave
     // for your given value.
     procedure delete({%H-}aKey: UTF8String); virtual; overload;
@@ -248,12 +251,15 @@ type
   // You can make "custom" objects fairly easily. Just:
   // - create a native property that translates between Get(aKey...) and Put(aKey..)
   // - override Put(aKey, TJSValue) to control what happens when a value is set.
-  // - override CreateValue(aKey, RequestType) to control what happens when a new value
-  //   is created.
+  // - override RequestType(aKey, RequestType) to control what type is created
+  //   for a given key.
+  // - override CreateValue(aKey, RequestType) to more specifically control what
+  //   happens when a new value is created.
   //
   // I considered making a "persistent" JSObject which automatically managed
   // published properties in the manner above, but complications arose when I
   // tried to abstract TJSValues as delphi native primitive types.
+  //
 
   TJSObject = class(TJSValue)
   strict private
@@ -263,6 +269,7 @@ type
     function GetAsBoolean: Boolean; override;
     function GetAsNumber: Double; override;
     function GetAsString: UTF8String; override;
+    function RequestType({%H-}aKey: UTF8String; aType: TJSValueClass): TJSValueClass; virtual;
     function CreateValue({%H-}aKey: UTF8String; aType: TJSValueClass): TJSValue;
        override; overload;
     function CreateNumberValue({%H-}aKey: UTF8String; aRequestType: TJSValueClass;
@@ -326,6 +333,39 @@ type
   { TJSONParser }
   EJSONParserSyntaxError = class(Exception)
   end;
+
+  // Overriding persistence:
+  //
+  // Occasionally, you may need to override how JSON data is parsed into the object.
+  // For example, you depend on being backwards compatible with an old JSON format
+  // structure. There are several ways to do this, as indicated by this chart,
+  // where the letters along the left side represent the old format types and
+  // letters along the top indicate the new format types:
+  //
+  //   O A S N B
+  // O 1 2 2 2 2
+  // A 2 1 2 2 2
+  // S 3 3 - 3 3
+  // N 3 3 3 - 3
+  // B 3 3 3 3 -
+  //
+  // 1. If both old and new are object or old and new are array, but the structure
+  //    has changed: If old property names have been deprecated, simply override
+  //    'Put' to put a converted value in the correct property. If member structures
+  //    and types have changed, handle the conversion according to the table
+  //    above.
+  // 2. If the old type is an object and the new type is an array, or vice versa,
+  //    or the new type is a primitive and the old type is structured:
+  //    the parser will check if the value returned by 'PutNewObject' or 'PutNewArray'
+  //    is the correct type for the syntax. If it is not, it will create a
+  //    temporary object of of the correct type, and call Assign on the returned
+  //    value once it is parsed. Do your conversion in the overridden Assign
+  //    method.
+  // 3. If the old value is primitive and the new value is a structure, or the
+  //    new value is a primitive of a different type: make sure
+  //    the subclass that handles the new value implements the CreateString,
+  //    CreateNumber, CreateBoolean constructors in a way that converts
+  //    appropriately.
 
   TJSONParser = class
   strict private
@@ -793,45 +833,80 @@ function TJSONParser.ParseObject(aClass: TJSValueClass;
   aCreationName: UTF8String; aParent: TJSValue): TJSValue;
 var
   lKey: UTF8String;
+  lAssignToObject: TJSValue;
 begin
   if aClass = nil then
     aClass := TJSObject;
   if aParent <> nil then
      result := aParent.PutNewObject(aCreationName)
   else
-    result := aClass.Create;
+     result := aClass.Create;
   try
-    SkipWhitespace;
-    if fScanner.CurToken <> tkCurlyBraceOpen then
-      Expected('object start');
-    fScanner.FetchToken;
-    SkipWhitespace;
-    // look for a property
-    while not (fScanner.CurToken in [tkCurlyBraceClose,tkEOF]) do
+    // if the wrong type is returned, then we are possibly using
+    // an old syntax, so create the correct type and we will assign
+    // to it later.
+    if (result is TJSArray) or (not (result is TJSObject)) then
     begin
-      if fScanner.CurToken <> tkString then
-        Expected('property name');
-      lKey := fScanner.CurTokenString;
+      lAssignToObject := Result;
+      result := TJSObject.Create;
+    end
+    else
+    begin
+      // make sure this is nil so we know not to assign.
+      lAssignToObject := nil;
+    end;
+
+    try
+
+      SkipWhitespace;
+      if fScanner.CurToken <> tkCurlyBraceOpen then
+        Expected('object start');
       fScanner.FetchToken;
       SkipWhitespace;
-      if fScanner.CurToken <> tkColon then
-        Expected('colon');
-      fScanner.FetchToken;
-      Parse(nil,lKey,result);
-      SkipWhitespace;
-      if fScanner.CurToken = tkComma then
+      // look for a property
+      while not (fScanner.CurToken in [tkCurlyBraceClose,tkEOF]) do
       begin
+        if fScanner.CurToken <> tkString then
+          Expected('property name');
+        lKey := fScanner.CurTokenString;
         fScanner.FetchToken;
         SkipWhitespace;
-      end
-      else if fScanner.CurToken <> tkCurlyBraceClose then
-        Expected('comma');
+        if fScanner.CurToken <> tkColon then
+          Expected('colon');
+        fScanner.FetchToken;
+        Parse(nil,lKey,result);
+        SkipWhitespace;
+        if fScanner.CurToken = tkComma then
+        begin
+          fScanner.FetchToken;
+          SkipWhitespace;
+        end
+        else if fScanner.CurToken <> tkCurlyBraceClose then
+          Expected('comma');
+      end;
+      if fScanner.CurToken <> tkCurlyBraceClose then
+        Expected('object end');
+      fScanner.FetchToken;
+
+      // if we are assigning to an actual object, do the
+      // assignment.
+      if lAssignToObject <> nil then
+      begin
+        lAssignToObject.Assign(Result);
+      end;
+    finally
+      // if we were assigning to an actual object, free
+      // the fake result.
+      if lAssignToObject <> nil then
+      begin
+        FreeAndNil(Result);
+        result := lAssignToObject;
+      end;
     end;
-    if fScanner.CurToken <> tkCurlyBraceClose then
-      Expected('object end');
-    fScanner.FetchToken;
   except
-    if aParent <> nil then
+    // if the parent is nil, then the result is not owned,
+    // so free it.
+    if (aParent = nil) then
        FreeAndNil(result);
     raise;
   end;
@@ -842,6 +917,7 @@ function TJSONParser.ParseArray(aClass: TJSValueClass;
   aCreationName: UTF8String; aParent: TJSValue): TJSValue;
 var
   lKey: Integer;
+  lAssignToObject: TJSValue;
 begin
   if aClass = nil then
      aClass := TJSArray;
@@ -850,30 +926,66 @@ begin
   else
     result := aClass.Create;
   try
-    SkipWhitespace;
-    if fScanner.CurToken <> tkSquaredBraceOpen then
-      Expected('array start');
-    fScanner.FetchToken;
-    // look for a item
-    lKey := 0;
-    while not (fScanner.CurToken in [tkSquaredBraceClose,tkEOF]) do
+    // if the wrong type is returned, then we are possibly using
+    // an old syntax, so create the correct type and we will assign
+    // to it later.
+    if (not (result is TJSArray)) then
     begin
-      Parse(nil,IntToStr(lKey),Result);
-      SkipWhitespace;
-      if fScanner.CurToken = tkComma then
-      begin
-        fScanner.FetchToken;
-        lKey := lKey + 1;
-      end
-      else if fScanner.CurToken <> tkSquaredBraceClose then
-        Expected('comma');
+      lAssignToObject := Result;
+      result := TJSArray.Create;
+    end
+    else
+    begin
+      // make sure this is nil so we know not to assign.
+      lAssignToObject := nil;
     end;
-    if fScanner.CurToken <> tkSquaredBraceClose then
-      Expected('array end');
-    fScanner.FetchToken;
+
+    try
+
+      SkipWhitespace;
+      if fScanner.CurToken <> tkSquaredBraceOpen then
+        Expected('array start');
+      fScanner.FetchToken;
+      SkipWhitespace;
+      // look for a item
+      lKey := 0;
+      while not (fScanner.CurToken in [tkSquaredBraceClose,tkEOF]) do
+      begin
+        Parse(nil,IntToStr(lKey),Result);
+        SkipWhitespace;
+        if fScanner.CurToken = tkComma then
+        begin
+          fScanner.FetchToken;
+          lKey := lKey + 1;
+          SkipWhitespace;
+        end
+        else if fScanner.CurToken <> tkSquaredBraceClose then
+          Expected('comma');
+      end;
+      if fScanner.CurToken <> tkSquaredBraceClose then
+        Expected('array end');
+      fScanner.FetchToken;
+
+      // if we are assigning to an actual object, do the
+      // assignment.
+      if lAssignToObject <> nil then
+      begin
+        lAssignToObject.Assign(Result);
+      end;
+    finally
+      // if we were assigning to an actual object, free
+      // the fake result.
+      if lAssignToObject <> nil then
+      begin
+        FreeAndNil(Result);
+        result := lAssignToObject;
+      end;
+    end;
 
   except
-    if aParent <> nil then
+    // if the parent is nil, then the result is not owned,
+    // so free it.
+    if aParent = nil then
        FreeAndNil(result);
     raise;
   end;
@@ -1357,6 +1469,32 @@ begin
   result := Get(IntToStr(aKey));
 end;
 
+function TJSValue.GetDefault(aKey: UTF8String; aValue: UTF8String): UTF8String;
+begin
+  if hasOwnProperty(aKey) then
+     result := Get(aKey).AsString
+  else
+     result := aValue;
+end;
+
+function TJSValue.GetDefault(aKey: UTF8String; aValue: Double): Double;
+begin
+  if hasOwnProperty(aKey) then
+     result := Get(aKey).AsNumber
+  else
+     result := aValue;
+
+end;
+
+function TJSValue.GetDefault(aKey: UTF8String; aValue: Boolean): Boolean;
+begin
+  if hasOwnProperty(aKey) then
+     result := Get(aKey).AsBoolean
+  else
+     result := aValue;
+
+end;
+
 procedure TJSValue.delete(aKey: UTF8String);
 begin
   raise Exception.Create('Object type does not support properties');
@@ -1681,28 +1819,34 @@ begin
   result := '[object Object]';
 end;
 
+function TJSObject.RequestType(aKey: UTF8String; aType: TJSValueClass
+  ): TJSValueClass;
+begin
+  result := aType;
+end;
+
 function TJSObject.CreateValue(aKey: UTF8String; aType: TJSValueClass
   ): TJSValue;
 begin
-  result := CreateValue(aType);
+  result := CreateValue(RequestType(aKey,aType));
 end;
 
 function TJSObject.CreateNumberValue(aKey: UTF8String;
   aRequestType: TJSValueClass; aValue: Double): TJSValue;
 begin
-  result := CreateNumberValue(aRequestType,aValue);
+  result := CreateNumberValue(RequestType(aKey,aRequestType),aValue);
 end;
 
 function TJSObject.CreateBooleanValue(aKey: UTF8String;
   aRequestType: TJSValueClass; aValue: Boolean): TJSValue;
 begin
-  Result:=CreateBooleanValue(aRequestType, aValue);
+  Result:=CreateBooleanValue(RequestType(aKey,aRequestType), aValue);
 end;
 
 function TJSObject.CreateStringValue(aKey: UTF8String;
   aRequestType: TJSValueClass; aValue: UTF8String): TJSValue;
 begin
-  result := CreateStringValue(aRequestType,aValue);
+  result := CreateStringValue(RequestType(aKey,aRequestType),aValue);
 end;
 
 function TJSObject.Put(aKey: UTF8String; aValue: TJSValue): TJSValue;
@@ -1781,10 +1925,12 @@ destructor TJSObject.Destroy;
 var
   i: Integer;
   value: TJSValue;
+  name: UTF8String;
 begin
   // clear the list
   for i := 0 to fList.Count - 1 do
   begin
+    name := fList.NameOfIndex(i);
     value := fList[i] as TJSValue;
     if not ((value is TJSNull) or (value is TJSUndefined)) then
       value.Free;
