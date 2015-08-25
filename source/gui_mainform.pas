@@ -89,13 +89,9 @@ type
     procedure ProjectPropertiesSaving(Sender: TObject);
     procedure ProjectSettingsMenuItemClick(Sender: TObject);
     procedure RefreshProjectMenuItemClick(Sender: TObject);
-  strict private type
-    TProtectedStewProject = class(TStewProject)
-    end;
-
   private
     { private declarations }
-    fProject: TProtectedStewProject;
+    fProject: TStewProject;
     fConfig: TStewApplicationConfig;
     fObservers: TMainFormObserverList;
     fFrames: array[TAlign] of TControl;
@@ -111,15 +107,18 @@ type
     procedure DocumentPropertiesSaved(Sender: TObject; Document: TDocumentID);
     function GetProject: TStewProject;
     procedure ProjectLoadFailed(E: String);
-    procedure ProjectOpened(Sender: TObject);
     procedure ProjectPropertiesError(Sender: TObject; aError: String);
     procedure ProjectPropertiesLoaded(Sender: TObject);
     procedure ProjectPropertiesSaveConflicted(Sender: TObject);
     procedure ProjectPropertiesSaved(Sender: TObject);
   protected
-    procedure StartupCheckProject({%H-}Data: PtrInt);
-    procedure StartupIfProjectExists(aValue: Boolean);
-    procedure StartupIfProjectParentDirectoryExists(aValue: Boolean);
+    procedure OpenProject(aPath: TFile);
+    procedure InitializeProject;
+    procedure AfterProjectOpen(Sender: TPromise);
+    procedure AfterProjectOpenInParent(Sender: TPromise);
+    procedure AfterProjectCreateNew(Sender: TPromise);
+    procedure ProjectOpenFailed(Sender: TPromise; Error: TPromiseException);
+    procedure StartupAskForProject({%H-}Data: PtrInt);
     procedure NotifyObservers(aAction: TMainFormAction; aDocument: TDocumentID);
     procedure ReadUISettings;
     procedure WriteUISettings;
@@ -212,6 +211,59 @@ end;
 procedure TMainForm.AboutMenuItemClick(Sender: TObject);
 begin
   AboutForm.ShowModal;
+end;
+
+procedure TMainForm.AfterProjectCreateNew(Sender: TPromise);
+begin
+  fProject := (Sender as TProjectPromise).Project;
+  if fProject = nil then
+     // should never happen if things are going right...
+     ProjectOpenFailed(Sender,'No project was created')
+  else
+     InitializeProject;
+end;
+
+procedure TMainForm.AfterProjectOpen(Sender: TPromise);
+begin
+  fProject := (Sender as TProjectPromise).Project;
+  if fProject = nil then
+     TStewProject.OpenInParent((Sender as TProjectPromise).Path).After(@AfterProjectOpenInParent,@ProjectOpenFailed)
+  else
+     InitializeProject;
+end;
+
+procedure TMainForm.AfterProjectOpenInParent(Sender: TPromise);
+var
+  lPath: TFile;
+begin
+  fProject := (Sender as TProjectPromise).Project;
+  lPath := (Sender as TProjectPromise).Path;
+  if fProject = nil then
+  begin
+     if MessageDlg('No stew project could be found.' + LineEnding +
+                'Would you like to create one at: ' + lPath.ID + '?',mtConfirmation,mbYesNo,0) =
+        mrYes then
+     begin;
+        TStewProject.CreateNew(lPath).After(@AfterProjectCreateNew,@ProjectOpenFailed);
+     end
+     else
+        Close;
+  end
+  else
+  begin
+     ShowMessage('Found a project at: ' + fProject.DiskPath.ID);
+     InitializeProject;
+  end;
+
+end;
+
+procedure TMainForm.ProjectOpenFailed(Sender: TPromise; Error: TPromiseException
+  );
+begin
+  ShowMessage('The project couldn''t be loaded.' + LineEnding +
+              'The error message was: ' + Error + LineEnding +
+              'This program will close.');
+  Close;
 end;
 
 procedure TMainForm.DoChooseNewAttachmentTemplate(Sender: TObject;
@@ -517,9 +569,10 @@ begin
 
   if (stewFolder.ID <> '') then
   begin
-    fProject := TProtectedStewProject.Create(stewFolder);
-  end;
-  Application.QueueAsyncCall(@StartupCheckProject,0);
+    OpenProject(stewFolder);
+  end
+  else
+    Application.QueueAsyncCall(@StartupAskForProject,0);
 end;
 
 procedure TMainForm.FormDestroy(Sender: TObject);
@@ -559,28 +612,6 @@ begin
   result := fProject;
 end;
 
-procedure TMainForm.StartupIfProjectParentDirectoryExists(aValue: Boolean);
-begin
-  if not aValue then
-  begin
-    if MessageDlg('No stew project could be found.' + LineEnding +
-               'Would you like to create one at: ' + fProject.DiskPath.ID + '?',mtConfirmation,mbYesNo,0) =
-       mrYes then
-    begin;
-      fProject.OpenNewAtPath;
-
-    end
-    else
-      Close;
-  end
-  else
-  begin
-
-    ShowMessage('Found a project at: ' + fProject.DiskPath.ID);
-  end;
-
-end;
-
 procedure TMainForm.PreferencesMenuItemClick(Sender: TObject);
 begin
   OpenPreferences;
@@ -605,12 +636,71 @@ begin
   Close;
 end;
 
-procedure TMainForm.ProjectOpened(Sender: TObject);
+procedure TMainForm.ProjectPropertiesError(Sender: TObject; aError: String);
+begin
+  ShowMessage('An error occurred while saving or loading the project properties.' + LineEnding +
+              aError + LineEnding +
+              'You may want to restart the program, or wait and try your task again later');
+end;
+
+procedure TMainForm.ProjectPropertiesLoaded(Sender: TObject);
+begin
+  Enabled := true;
+  NotifyObservers(mfaProjectPropertiesLoaded,TDocumentID.Null);
+end;
+
+procedure TMainForm.ProjectPropertiesSaveConflicted(Sender: TObject);
+begin
+  if MessageDlg('The properties file has changed on the disk since the last time it was loaded.' + LineEnding +
+             'Would you like to overwrite it''s contents?',mtWarning,mbYesNo,0) = mrYes then
+   begin
+     fProject.Properties.Save(true);
+   end;
+end;
+
+procedure TMainForm.ProjectPropertiesSaved(Sender: TObject);
+begin
+  NotifyObservers(mfaProjectPropertiesSaved,TDocumentID.Null);
+end;
+
+procedure TMainForm.OpenProject(aPath: TFile);
+begin
+  TStewProject.Open(aPath).After(@AfterProjectOpen,@ProjectOpenFailed);
+
+end;
+
+procedure TMainForm.InitializeProject;
 var
   i: Integer;
   item: TMRUMenuItem;
   mru: TFile;
 begin
+  fProject.OnPropertiesError:=@ProjectPropertiesError;
+  fProject.OnPropertiesLoaded:=@ProjectPropertiesLoaded;
+  fProject.OnPropertiesSaveConflicted:=@ProjectPropertiesSaveConflicted;
+  fProject.OnPropertiesSaved:=@ProjectPropertiesSaved;
+  fProject.OnPropertiesLoading:=@ProjectPropertiesLoading;
+  fProject.OnPropertiesSaving:=@ProjectPropertiesSaving;
+  fProject.OnDocumentPropertiesError:=@DocumentPropertiesError;
+  fProject.OnDocumentPropertiesLoaded:=@DocumentPropertiesLoaded;
+  fProject.OnDocumentPropertiesSaveConflicted:=@DocumentPropertiesSaveConflicted;
+  fProject.OnDocumentPropertiesSaved:=@DocumentPropertiesSaved;
+  fProject.OnDocumentPropertiesSaving:=@DocumentPropertiesSaving;
+  fProject.OnDocumentPropertiesLoading:=@DocumentPropertiesLoading;
+  fProject.OnDocumentAttachmentLoaded:=@DocumentAttachmentLoaded;
+  fProject.OnDocumentAttachmentError:=@DocumentAttachmentError;
+  fProject.OnDocumentAttachmentLoading:=@DocumentAttachmentLoading;
+  fProject.OnDocumentAttachmentSaving:=@DocumentAttachmentSaving;
+  fProject.OnDocumentAttachmentSaved:=@DocumentAttachmentSaved;
+  fProject.OnDocumentAttachmentSaveConflicted:=@DocumentAttachmentSaveConflicted;
+  fProject.OnDocumentsListed:=@DocumentsListed;
+  fProject.OnDocumentListError:=@DocumentListError;
+  fProject.OnDocumentCreated:=@DocumentCreated;
+  fProject.OnDocumentChanged:=@DocumentChanged;
+  fProject.OnDocumentRenameFailed:=@DocumentRenameFailed;
+  fProject.OnConfirmNewAttachment:=@DoConfirmNewAttachment;
+  fProject.OnChooseTemplate:=@DoChooseNewAttachmentTemplate;
+
   // FUTURE: Someday, will have to store the system type as well.
   fConfig.MRUProject := fProject.DiskPath;
   // save the configuration, so that the MRU Project becomes available
@@ -641,33 +731,6 @@ begin
 
 end;
 
-procedure TMainForm.ProjectPropertiesError(Sender: TObject; aError: String);
-begin
-  ShowMessage('An error occurred while saving or loading the project properties.' + LineEnding +
-              aError + LineEnding +
-              'You may want to restart the program, or wait and try your task again later');
-end;
-
-procedure TMainForm.ProjectPropertiesLoaded(Sender: TObject);
-begin
-  Enabled := true;
-  NotifyObservers(mfaProjectPropertiesLoaded,TDocumentID.Null);
-end;
-
-procedure TMainForm.ProjectPropertiesSaveConflicted(Sender: TObject);
-begin
-  if MessageDlg('The properties file has changed on the disk since the last time it was loaded.' + LineEnding +
-             'Would you like to overwrite it''s contents?',mtWarning,mbYesNo,0) = mrYes then
-   begin
-     fProject.Properties.Save(true);
-   end;
-end;
-
-procedure TMainForm.ProjectPropertiesSaved(Sender: TObject);
-begin
-  NotifyObservers(mfaProjectPropertiesSaved,TDocumentID.Null);
-end;
-
 procedure TMainForm.ProjectSettingsMenuItemClick(Sender: TObject);
 begin
   OpenProjectSettings;
@@ -678,71 +741,18 @@ begin
   Project.GetDocument(TDocumentID.Root).ListDocuments(true);
 end;
 
-procedure TMainForm.StartupCheckProject(Data: PtrInt);
+procedure TMainForm.StartupAskForProject(Data: PtrInt);
 begin
-  if fProject = nil then
+  if OpenProjectDialog.Execute then
   begin
-    if OpenProjectDialog.Execute then
-    begin
+    OpenProject(LocalFile(OpenProjectDialog.FileName));
 
-      fProject := TProtectedStewProject.Create(LocalFile(OpenProjectDialog.FileName));
-
-    end
-    else
-    begin
-      Close;
-      Exit;
-    end;
-  end;
-
-  fProject.OnOpened:=@ProjectOpened;
-  fProject.OnPropertiesError:=@ProjectPropertiesError;
-  fProject.OnPropertiesLoaded:=@ProjectPropertiesLoaded;
-  fProject.OnPropertiesSaveConflicted:=@ProjectPropertiesSaveConflicted;
-  fProject.OnPropertiesSaved:=@ProjectPropertiesSaved;
-  fProject.OnPropertiesLoading:=@ProjectPropertiesLoading;
-  fProject.OnPropertiesSaving:=@ProjectPropertiesSaving;
-  fProject.OnDocumentPropertiesError:=@DocumentPropertiesError;
-  fProject.OnDocumentPropertiesLoaded:=@DocumentPropertiesLoaded;
-  fProject.OnDocumentPropertiesSaveConflicted:=@DocumentPropertiesSaveConflicted;
-  fProject.OnDocumentPropertiesSaved:=@DocumentPropertiesSaved;
-  fProject.OnDocumentPropertiesSaving:=@DocumentPropertiesSaving;
-  fProject.OnDocumentPropertiesLoading:=@DocumentPropertiesLoading;
-  fProject.OnDocumentAttachmentLoaded:=@DocumentAttachmentLoaded;
-  fProject.OnDocumentAttachmentError:=@DocumentAttachmentError;
-  fProject.OnDocumentAttachmentLoading:=@DocumentAttachmentLoading;
-  fProject.OnDocumentAttachmentSaving:=@DocumentAttachmentSaving;
-  fProject.OnDocumentAttachmentSaved:=@DocumentAttachmentSaved;
-  fProject.OnDocumentAttachmentSaveConflicted:=@DocumentAttachmentSaveConflicted;
-  fProject.OnDocumentsListed:=@DocumentsListed;
-  fProject.OnDocumentListError:=@DocumentListError;
-  fProject.OnDocumentCreated:=@DocumentCreated;
-  fProject.OnDocumentChanged:=@DocumentChanged;
-  fProject.OnDocumentRenameFailed:=@DocumentRenameFailed;
-  fProject.OnConfirmNewAttachment:=@DoConfirmNewAttachment;
-  fProject.OnChooseTemplate:=@DoChooseNewAttachmentTemplate;
-  fProject.OpenAtPath(@StartupIfProjectExists,@ProjectLoadFailed);
-
-end;
-
-procedure TMainForm.StartupIfProjectExists(aValue: Boolean);
-begin
-  if not aValue then
-  begin
-    // NMS: I decided that this should be done automatically, but I'll leave this
-    //      stuff here in case someone convinces me otherwise.
-    //if MessageDlg('There is no stew project at: ' + fProject.DiskPath.ID + LineEnding +
-    //           'Would you like to search for one in parent directories?' + LineEnding +
-    //           'You can create a new one if none are found.',mtConfirmation,mbYesNo,0) =
-    //   mrYes then
-    //begin;
-      fProject.OpenInParentDirectory(@StartupIfProjectParentDirectoryExists,@ProjectLoadFailed);
-
-    //end
-    //else
-    //  Close;
   end
-
+  else
+  begin
+    Close;
+    Exit;
+  end;
 end;
 
 procedure TMainForm.NotifyObservers(aAction: TMainFormAction; aDocument: TDocumentID);

@@ -15,7 +15,7 @@ type
   private
     fTempDir: String;
     fTestRootDir: TFile;
- public
+  public
     procedure SetupTest; override;
     procedure CleanupTest; override;
   published

@@ -5,35 +5,74 @@ unit test_stew_project;
 interface
 
 uses
-  Classes, SysUtils, test_registry;
+  Classes, SysUtils, test_registry, sys_file, sys_async;
 
 type
-  TProjectSpec = class(TTestSpec)
 
+  { TProjectSpec }
+
+  TProjectSpec = class(TTestSpec)
+  private
+    fTempDir: String;
+    fTestRootDir: TFile;
+    procedure Open_Project_1(Sender: TPromise);
+    procedure Open_Project_2(Sender: TPromise);
+    procedure Open_Project_3(Sender: TPromise);
+    procedure PromiseFailed(Sender: TPromise; aError: TPromiseException);
+  public
+    procedure SetupTest; override;
+    procedure CleanupTest; override;
+  published
+    procedure Test_Open_Project;
   end;
 
 {
-TODO: Like I did with the JSValue stuff. Consider just writing the new project
-object and writing tests against that. It will save me a lot of work.
-Or, rather, start rewriting the existing TProject one bit at a time, to fit with the
-new testing.
+TODO: I'm slowly converting the TStewProject over to the way I want it to be,
+and testing the new stuff as I do so (this is better than writing the tests and
+then rewriting them for the new things). As I complete each section, write a
+test, once it's working, go back to the GUI and refactor to use the changes.
+Then commit.
 
-TODO: Write tests for all of this:
+Overall changes, new code standards:
+- Properties need to be the JSValue stuff, and are loaded by Metadata objects.
+- All async stuff needs to be promises (except a few small things in the GUI layer).
+- Stop dealing with all of these events and convert to a browser style, also hiding the cache.
+  - Instead of events, the project broadcasts changes which can be responded to.
+    The broadcasts might include the actual promises so you can attach 'after' to
+    them.
+  - Instead of 'locking' documents before rename or move, a broadcast will be
+    sent out asking if the document can be moved. The user can then be asked
+    if that's okay. If anyone says "no" then it will fail.
+  - Instead of searching for the cache, etc. All calls to get data from the project
+    will return promises. The code will only deal with 'DocumentIDs', and call
+    methods on the *Project* like "GetSynopsis", etc. The project will check it's
+    cache, and if it's not found will go and get the data.
+  - There would also be parameters for "forcing" an update on most requests for
+    data:
+    - don't even check file system if in cache;
+    - check file age and update cache if changed;
+    - update whether the file has changed or is in cache or not.
+- broadcast events:
+  - In general, we don't need a broadcast event for a load. The objects that
+  need the data will load it when they need it (and if it's already there,
+  it will be loaded from the cache) and they will get promises. The only
+  broadcast events we need are if the data somehow changes, or if there is
+  some sort of error in filing (although this is only needed by the mainform,
+  so that may remain a separate event). So, only broadcast when data is written,
+  or some sort of check is made and the disk file has changed, so therefore the
+  data needs to be reloaded.
 
-* Various scenarios for opening a project
-  - project exists at directory
-  - project exists in parent directory, open there instead.
-  - project not found, so create a new project at initial directory.
-* List all documents in the root of the project (make sure they're in the correct order)
-* List some subdocuments
-* Refresh a list without listing all subdocuments.
-* Open up the project properties and check values
-* Make changes to project properties and make sure they get written to disk correctly.
-* Open up the properties and other data for a couple of different documents
-* Make changes to properties and other data, and make sure they are sent
-to disk appropriately (reload and re-read)
-* Create a new document inside another document
-* Lock some documents, and unlock.
+Sections:
+
+* Document listing:
+  - Test listing,
+  - Test listing of subdirectories
+  - Test 'refresh' of a listing so that it only relists what is already cached.
+* Project Properties
+ - Test Open up the project properties and check values
+ - Test Make changes to project properties and make sure they get written to disk correctly.
+* Create Document
+* Lock Documents? Not sure if we're going to need this...
 * Re-order a document and make sure it shows up in the appropriate place in the list
   - One that's not in the index to before one that's in the index
   - One that's in the index to before one that's in the index
@@ -124,26 +163,92 @@ public
 end;
 
 TODO: Once the tests are done, start converting Project over to new code standards:
-- Properties need to be the JSValue stuff
-- Async stuff needs to be promises.
-- Stop dealing with all of these events and convert to a browser style, also hiding the cache.
-  - Instead of events, the project broadcasts changes which can be responded to.
-    The broadcasts might include the actual promises so you can attach 'after' to
-    them.
-  - Instead of 'locking' documents before rename or move, a broadcast will be
-    sent out asking if the document can be moved. The user can then be asked
-    if that's okay. If anyone says "no" then it will fail.
-  - Instead of searching for the cache, etc. All calls to get data from the project
-    will return promises. The code will only deal with 'DocumentIDs', and call
-    methods on the *Project* like "GetSynopsis", etc. The project will check it's
-    cache, and if it's not found will go and get the data. There would also be
-    parameters for "forcing" an update: don't even check file system if in cache;
-    check file age and update if changed; update whether the file has changed or
-    is in cache or not.
 
 }
 
 implementation
+
+uses
+  gui_async, FileUtil, sys_localfile, stew_project;
+
+{ TProjectSpec }
+
+procedure TProjectSpec.PromiseFailed(Sender: TPromise; aError: TPromiseException
+  );
+begin
+  FailAsync(Sender.Tag,aError);
+end;
+
+procedure TProjectSpec.Open_Project_2(Sender: TPromise);
+var
+  lProject: TStewProject;
+begin
+  lProject := (Sender as TProjectPromise).Project;
+  try
+    Assert(lProject <> nil,'Project should have been opened in parent');
+    Assert(lProject.DiskPath = fTestRootDir,'Open in parent should have been opened at the correct path');
+  finally
+    lProject.Free;
+  end;
+  TStewProject.CreateNew(LocalFile(GetTempFileName('',''))).After(@Open_Project_3,@PromiseFailed).Tag := Sender.Tag;
+end;
+
+procedure TProjectSpec.Open_Project_3(Sender: TPromise);
+var
+  lProject: TStewProject;
+begin
+  lProject := (Sender as TProjectPromise).Project;
+  try
+    Assert(lProject <> nil,'New project should have been opened');
+    Assert(lProject.DiskPath <> fTestRootDir,'New project should have been opened at the correct path');
+  finally
+    lProject.Free;
+  end;
+  EndAsync(Sender.Tag);
+end;
+
+procedure TProjectSpec.Open_Project_1(Sender: TPromise);
+var
+  lProject: TStewProject;
+begin
+  lProject := (Sender as TProjectPromise).Project;
+  try
+    Assert(lProject <> nil,'Project should have been opened');
+    Assert(lProject.DiskPath = fTestRootDir,'Project should have been opened at the correct path');
+  finally
+    lProject.Free;
+  end;
+  TStewProject.OpenInParent(fTestRootDir.GetContainedFile('Notes')).After(@Open_Project_2,@PromiseFailed).Tag := Sender.Tag;
+
+end;
+
+procedure TProjectSpec.SetupTest;
+begin
+  inherited SetupTest;
+  SetAsyncCallQueuer(@gui_async.GUIQueueAsyncCall);
+  fTempDir := GetTempFileName('','');
+  CopyDirTree('../test-data/story/',IncludeTrailingPathDelimiter(fTempDir));
+  fTestRootDir := LocalFile(fTempDir);
+end;
+
+procedure TProjectSpec.CleanupTest;
+begin
+  DeleteDirectory(fTempDir,false);
+  RemoveAsyncCallQueuer(@gui_async.GUIQueueAsyncCall);
+  inherited CleanupTest;
+end;
+
+procedure TProjectSpec.Test_Open_Project;
+begin
+  TStewProject.Open(fTestRootDir).After(@Open_Project_1,@PromiseFailed).Tag := BeginAsync;
+{
+TODO: Test:
+* Various scenarios for opening a project
+  - project exists at directory
+  - project exists in parent directory, open there instead.
+  - project not found, so create a new project at initial directory.
+}
+end;
 
 end.
 

@@ -222,6 +222,46 @@ type
     procedure OrderDocument(aDoc: TDocumentMetadata; aPosition: TOrderDocumentPosition; aRelative: TDocumentMetadata); overload;
   end;
 
+  { TProjectPromise }
+
+  TProjectPromise = class(TPromise)
+  protected
+    fPath: TFile;
+    fProject: TStewProject;
+    procedure ResolveCreateProject(aPath: TFile);
+    procedure ProjectOpened(Sender: TPromise);
+  public
+    constructor Enqueue(aPath: TFile);
+    property Project: TStewProject read fProject;
+    property Path: TFile read FPath;
+  end;
+
+  { TProjectOpenAtPromise }
+
+  TProjectOpenAtPromise = class(TProjectPromise)
+  private
+    procedure FileExists(Sender: TPromise);
+  protected
+    procedure DoTask; override;
+  end;
+
+  { TProjectOpenInParentPromise }
+
+  TProjectOpenInParentPromise = class(TProjectPromise)
+  private
+    procedure FileExistsInParent(Sender: TPromise);
+    procedure FileExists(Sender: TPromise);
+  protected
+    procedure DoTask; override;
+  end;
+
+  { TProjectCreateAtPromise }
+
+  TProjectCreateAtPromise = class(TProjectPromise)
+  protected
+    procedure DoTask; override;
+  end;
+
   { TStewProject }
 
   TStewProject = class
@@ -288,15 +328,14 @@ type
     FOnPropertiesLoading: TNotifyEvent;
     fOnPropertiesSaving: TNotifyEvent;
     fProperties: TProjectProperties;
-    FOnOpened: TNotifyEvent;
     FOnPropertiesError: TExceptionMessageEvent;
     FOnPropertiesLoaded: TNotifyEvent;
     FOnPropertiesSaveConflicted: TNotifyEvent;
     FOnPropertiesSaved: TNotifyEvent;
     function GetIsOpened: Boolean;
     function GetProperties: TProjectProperties;
-    procedure OpenProjectProperties;
-    procedure DoOpened;
+    function OpenProjectProperties: TFileReadPromise;
+    function DoOpened: TFileReadPromise;
     procedure ProjectPropertiesLoading(Sender: TObject);
     procedure ProjectPropertiesSaving(Sender: TObject);
     procedure ProjectPropertiesLoaded(Sender: TObject);
@@ -305,13 +344,17 @@ type
     procedure ProjectPropertiesSaved(Sender: TObject);
     procedure ProjectPropertiesSaveFailed(Sender: TObject; aError: String);
   protected
-    // These events are protected. In general, the project itself handles
+    // NOTE: This is protected because project objects should be created
+    // async in order to check.
+    {%H-}constructor Create(const Path: TFile);
+  public
+    // TODO: Do I want these events protected?
+    // In general, the project itself handles
     // these events, and I want all UI code to handle these actions via the
     // MainForm observation API. By making these protected, I can control
     // this better (The form overrides this by creating a subclass of
     // this that can handle the events).
 
-    property OnOpened: TNotifyEvent read FOnOpened write fOnOpened;
     property OnPropertiesLoaded: TNotifyEvent read FOnPropertiesLoaded write fOnPropertiesLoaded;
     property OnPropertiesSaved: TNotifyEvent read FOnPropertiesSaved write fOnPropertiesSaved;
     property OnPropertiesError: TExceptionMessageEvent read FOnPropertiesError write fOnPropertiesError;
@@ -338,16 +381,16 @@ type
     property OnConfirmNewAttachment: TAttachmentConfirmationEvent read FOnConfirmNewAttachment write FOnConfirmNewAttachment;
     property OnChooseTemplate: TAttachmentChoiceEvent read FOnChooseTemplate write FOnChooseTemplate;
   public
-    constructor Create(const Path: TFile);
+    constructor Create;
     destructor Destroy; override;
     property DiskPath: TFile read fDisk;
     function GetDocument(const aDocumentID: TDocumentID): TDocumentMetadata;
-    procedure OpenAtPath(aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
-    procedure OpenInParentDirectory(aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
-    procedure OpenNewAtPath;
     property IsOpened: Boolean read GetIsOpened;
     function GetProjectName: String;
     property Properties: TProjectProperties read GetProperties;
+    class function Open(aPath: TFile): TProjectPromise;
+    class function OpenInParent(aPath: TFile): TProjectPromise;
+    class function CreateNew(aPath: TFile): TProjectPromise;
   end;
 
 
@@ -409,6 +452,90 @@ end;
 operator=(a: TDocumentID; b: TDocumentID): Boolean;
 begin
   result := CompareText(a.ID,b.ID) = 0;
+end;
+
+{ TProjectCreateAtPromise }
+
+procedure TProjectCreateAtPromise.DoTask;
+begin
+  ResolveCreateProject(Path);
+end;
+
+{ TProjectOpenInParentPromise }
+
+procedure TProjectOpenInParentPromise.FileExistsInParent(Sender: TPromise);
+begin
+  fProject := (Sender as TProjectOpenInParentPromise).Project;
+  Resolve;
+end;
+
+procedure TProjectOpenInParentPromise.FileExists(Sender: TPromise);
+var
+  lParent: TFile;
+begin
+  if ((Sender as TBooleanPromise).Answer) then
+  begin
+    ResolveCreateProject(Path);
+  end
+  else
+  begin
+    lParent := Path.Directory;
+    if lParent = Path then
+    begin
+      fProject := nil;
+      Resolve;
+    end
+    else
+    begin
+      TProjectOpenInParentPromise.Enqueue(lParent).After(@FileExistsInParent,@SubPromiseRejected);
+    end;
+  end;
+end;
+
+procedure TProjectOpenInParentPromise.DoTask;
+begin
+  TProjectProperties.GetPath(Path).CheckExistence.After(@FileExists,@SubPromiseRejected);
+end;
+
+{ TProjectPromise }
+
+procedure TProjectPromise.ProjectOpened(Sender: TPromise);
+begin
+  Resolve;
+end;
+
+procedure TProjectPromise.ResolveCreateProject(aPath: TFile);
+begin
+  fProject := TStewProject.Create(aPath);
+  fProject.DoOpened.After(@ProjectOpened,@SubPromiseRejected);
+end;
+
+constructor TProjectPromise.Enqueue(aPath: TFile);
+begin
+  fPath := aPath;
+  inherited Enqueue;
+end;
+
+{ TProjectOpenAtPromise }
+
+procedure TProjectOpenAtPromise.FileExists(Sender: TPromise);
+begin
+  if ((Sender as TBooleanPromise).Answer) then
+  begin
+    ResolveCreateProject(Path);
+  end
+  else
+  begin
+    fProject := nil;
+    Resolve;
+  end;
+end;
+
+procedure TProjectOpenAtPromise.DoTask;
+begin
+  // TODO: Once we move over to the new Properties format, just
+  // make this a 'read', and pass the data onto the project constructor.
+  TProjectProperties.GetPath(Path).CheckExistence.After(@FileExists,@SubPromiseRejected);
 end;
 
 { TDocumentID }
@@ -1531,7 +1658,7 @@ begin
     fOnPropertiesError(Self,aError);
 end;
 
-procedure TStewProject.OpenProjectProperties;
+function TStewProject.OpenProjectProperties: TFileReadPromise;
 var
   aProtectedProjectProperties: TProtectedProjectProperties;
 begin
@@ -1546,7 +1673,7 @@ begin
     aProtectedProjectProperties.OnFileSaveFailed:=@ProjectPropertiesSaveFailed;
     aProtectedProjectProperties.OnFileSaving:=@ProjectPropertiesSaving;
     aProtectedProjectProperties.OnFileLoading:=@ProjectPropertiesLoading;
-    fProperties.Load;
+    result := fProperties.Load;
   end;
   if fMetadataCache = nil then
   begin
@@ -1579,12 +1706,10 @@ begin
   result := fProperties <> nil;
 end;
 
-procedure TStewProject.DoOpened;
+function TStewProject.DoOpened: TFileReadPromise;
 begin
   // open and save project properties immediately, so that the file exists.
-  OpenProjectProperties;
-  if FOnOpened <> nil then
-    FOnOpened(Self);
+  result := OpenProjectProperties;
 end;
 
 constructor TStewProject.Create(const Path: TFile);
@@ -1592,6 +1717,11 @@ begin
   fDisk := Path;
   fMetadataCache := nil; // created on open.
   fProperties := nil;
+end;
+
+constructor TStewProject.Create;
+begin
+  raise Exception.Create('Please use one of the static functions ("Open...") to open a new project');
 end;
 
 destructor TStewProject.Destroy;
@@ -1644,12 +1774,6 @@ end;
 procedure TStewProject.TProjectExists.Enqueue;
 begin
   TProjectProperties.GetPath(fProject.fDisk).CheckExistence.After(@FileExistsCallback,@FileExistsFailed);
-end;
-
-procedure TStewProject.OpenAtPath(aCallback: TDeferredBooleanCallback;
-  aErrorback: TDeferredExceptionCallback);
-begin
-  TProjectExists.Create(Self,aCallback,aErrorback).Enqueue;
 end;
 
 { TSearchParentDirectories }
@@ -1706,20 +1830,24 @@ begin
 end;
 
 
-procedure TStewProject.OpenInParentDirectory(
-  aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
-begin
-  TSearchParentDirectories.Create(Self,fDisk,aCallback,aErrorback).Enqueue;
-end;
-
-procedure TStewProject.OpenNewAtPath;
-begin
-  DoOpened;
-end;
-
 function TStewProject.GetProjectName: String;
 begin
   result := fDisk.PacketName;
+end;
+
+class function TStewProject.Open(aPath: TFile): TProjectPromise;
+begin
+  result := TProjectOpenAtPromise.Enqueue(aPath);
+end;
+
+class function TStewProject.OpenInParent(aPath: TFile): TProjectPromise;
+begin
+  result := TProjectOpenInParentPromise.Enqueue(aPath);
+end;
+
+class function TStewProject.CreateNew(aPath: TFile): TProjectPromise;
+begin
+  result := TProjectCreateAtPromise.Enqueue(aPath);
 end;
 
 end.

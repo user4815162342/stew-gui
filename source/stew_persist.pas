@@ -148,7 +148,7 @@ type
   public
     constructor Create(aFile: TFile; aCreateDir: Boolean);
     destructor Destroy; override;
-    procedure Load;
+    function Load: TFileReadPromise;
     // set force to true to ignore conflicts. This is usually done after
     // an attempt to save fails due to a file time conflict and the user chooses
     // to save anyway.
@@ -556,14 +556,14 @@ begin
   inherited Destroy;
 end;
 
-procedure TJSONAsyncFileStoreContainer.Load;
+function TJSONAsyncFileStoreContainer.Load: TFileReadPromise;
 begin
   if fFilingState in [fsNotLoaded,fsLoaded,fsError,fsConflict] then
   begin
     fFilingState := fsLoading;
     if fOnFileLoading <> nil then
       fOnFileLoading(Self);
-    fFile.Read(TFileTextReader.Create).After(@FileLoaded,@FileLoadFailed);
+    result := fFile.Read(TFileTextReader.Create).After(@FileLoaded,@FileLoadFailed) as TFileReadPromise;
   end
   else if fFilingState = fsSaving then
      raise Exception.Create('Can''t load JSON data while saving.');

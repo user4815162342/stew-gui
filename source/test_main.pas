@@ -84,7 +84,8 @@ var
 implementation
 
 uses
-  test_test, test_sys_json, test_sys_async, test_sys_localfile, test_stew_properties;
+  test_test, test_sys_json, test_sys_async, test_sys_localfile, test_stew_properties,
+  test_stew_project;
 
 {$R *.lfm}
 
@@ -190,6 +191,7 @@ begin
     fRegistry.AddTests(TAsyncSpec);
     fRegistry.AddTests(TLocalFileSpec);
     fRegistry.AddTests(TPropertiesSpec);
+    fRegistry.AddTests(TProjectSpec);
   end;
 end;
 
