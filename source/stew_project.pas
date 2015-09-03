@@ -8,6 +8,119 @@ interface
 uses
   Classes, SysUtils, sys_file, sys_async, stew_properties, stew_types, contnrs;
 
+{
+TODO: Move the cache stuff into a caching file system (a generic that can wrap
+around another filesystem). Use a hashmap that uses the id as the lookup. For
+id's longer than length of shortstring (255, sizeof(shortstring) - 1), have a
+special item called something like Extended ID Data, it contains another hashmap
+that maps for items from the rest of the string.
+
+This will simplify the whole project layer greatly, I almost don't even need
+to keep track of project state here, I just go get the data from the filesystem,
+and it's up to the caller to provide a cached file system as the back end. Really,
+the file access is the big time hog, and almost all of the rest can be recalculated
+on demand.
+
+I do need a generic way to uncache data when I want to ensure it gets reloaded.
+This might be as simple as an 'uncache' method on TFileSystem that doesn't do
+anything unless the system is cached.
+
+-- Note: There are "two" caches. One is a cache of IDs by path, and one is a cache
+of data by id. Although, for local stuff, maybe I don't need a separate cache
+by path, since I can get the ID automatically, so maybe that path-cache is a
+separate thing used only by remote file systems dependent on a file ID.
+
+TODO: Next: Implement project properties, then test that, then implement document
+properties, then test that, then convert the GUI into using them both (since they both
+have an effect on the JSON Editor GUI control). Then, work on the other things.
+
+TODO: Revamp and simplify the cache stuff:
+
+TCachedData: TObject
+- a lot of other stuff that is stored on the cache currently will be moved into
+functionality on the project. For example, I don't need to store a link to the
+project owner, because with promises, the project can call it's own events
+when things are loaded. The Cache is going to be a lot "dumber". It's going to
+contain data and timestamps and file ages and that's it, no automatic loading,
+etc. The project itself is needed to do anything useful by adding and retrieving
+from the cache.
+
+TCachedDocument: TCachedItem
+- attachments: Hashmap of TCachedItem, named by descriptor and extension of the
+  document.
+  - the items are initialized to nil at first. This means that no attempts have
+    been made to load them. When attempts are made to load, they will be replaced
+    by TCachedLoadingPromise or TCachedListingPromise, which will eventually be
+    replaced by the result.
+  - only files which actually exist are added to the attachments when it
+    is loaded.
+  - the directory file, that contains other documents, is found at Hash string ""
+    (hopefully that's possible), and contains a TCachedDirectoryContents
+- Name: The "name" of the document (usually the basename of the file)
+- Get(name): Gets the attachment data at name.
+- Add(name,Attachment): Adds the attachment at name (usually occurs in a Listing)
+
+TCachedDirectoryRoot: TCachedItem
+- path: The TFile representing the directory.
+- documents: hashmap of TCachedDocument.
+
+TCachedProjectData: TCachedDirectoryContents
+- similar, but not quite the same as TCachedDocument, because it's attachments
+are at the root of the directory, and it is created automatically without going
+through the 'Loading' thing.
+- attachments: similar to attachments in TCachedDocument.
+
+TCachedLoadingPromise: TCacheItem
+- when something is 'loaded', this item is placed in there, so we're not actually
+keeping track of the loading state on the data. This item replaces itself with
+the correct item once it is loaded.
+- TPromise that is resolved once the load is completed. Then, we can just grab
+the promise off of the cached item if it's there.
+- This may also replace the properties after a save, since a load might happen
+immediately after the save to 'refresh', or it might be a way to know if the
+item is saved or not.
+
+TCachedListingPromise: TCacheItem
+- similar to TCachedLoadingPromise, this is put in place when we are listing the documents yet
+and don't have a TCachedItemContainer yet.
+- TPromise that is resolved once the listing is completed.
+
+TCachedFile: TCacheItem
+- Path: the TFile representing the file itself.
+- FileAge: The age of the file at last load.
+
+TCachedProperties: TCachedFile
+- stores a copy of the properties object for the document.
+
+TCachedSynopsis: TCachedFile
+- stores the text of the synopsis.
+
+TCachedProjectProperties: TCacheItem
+- stores a copy of the stew project properties for the project. Only really
+found at the top level.
+
+TODO: Opening the project, instead of checking for the stew properties and loading:
+- Do a listing on the project directory specified, as a directory.
+- Go through the returned "files", and if there is one named "_stew.json", that
+is the same as doing an existence check. We can then convert the listing into
+a TCachedProjectRoot, with the _stew being loaded as a TCachedProjectProperties.
+- Finally, once the properties data is loaded, create a TStewProject, passing
+in the file list and the properties data as parameters, and the project will
+then create the root cache data on it's own.
+
+TODO: Something I might add later, if I feel it's necessary. Loading should have a refresh mode, I think I've put this elsewhere:
+- retrieve-from-cache-only: if the file is not cached, load it, otherwise just
+  return the file data.
+- reload-if-modified: if the file on disk has been modified, load it, otherwise
+  just return the file data.
+- reload-if-stale: if the timestamp of the data is old (not sure how old this
+  would be, is it a constant? a parameter?) then reload. This might be better
+  done by clearing out old data instead.
+- reload-always: reload the file completely from disk, no matter what it's cache
+  status.
+
+}
+
 type
   { TDocumentID }
 
@@ -42,6 +155,8 @@ type
   TAttachmentChoiceEvent = procedure(Sender: TObject; Document: TDocumentID; AttachmentName: String; aChoices: TStringArray; var Answer: String; out Accepted: Boolean) of object;
 
   TOrderDocumentPosition = (odpBefore,odpAfter);
+
+  {TODO: Old cache stuff starts here. Get rid of it once I've gotten the new stuff in.}
 
   TDocumentMetadata = class;
 
@@ -132,6 +247,10 @@ type
   // -- I could just, periodically, remove any properties that are not marked
   // as modified. But it would be nicer to remove only those properties which
   // are not being modified in a tab.
+  // -- switching to a request/response system like a browser would solve this
+  // as well: if the data is in cache, return it, if not, load it, and don't
+  // keep pointers to the metadata objects either, just use the data and assume
+  // it may be deleted later.
   TDocumentMetadata = class
   strict private type
   // this allows me access to the protected events on Document Properties,
@@ -222,6 +341,137 @@ type
     procedure OrderDocument(aDoc: TDocumentMetadata; aPosition: TOrderDocumentPosition; aRelative: TDocumentMetadata); overload;
   end;
 
+
+  {TODO: New cache stuff starts here.}
+
+  { TCachedItem }
+
+  TCachedData = class(TObject)
+  private
+    fCreated: TDateTime;
+  public
+    constructor Create;
+    property Created: TDateTime read fCreated;
+  end;
+
+  { TCachedFileData }
+
+  TCachedFileData = class(TCachedData)
+  private
+    fPath: TFile;
+  public
+    constructor Create(const aPath: TFile);
+    property Path: TFile read fPath;
+  end;
+
+  TAttachmentArray = array of TCachedFileData;
+
+  { TCachedDocument }
+
+  TCachedDocument = class(TCachedData)
+  private
+    fAttachments: TFPHashObjectList;
+    fName: UTF8String;
+  public
+    constructor Create(const aName: UTF8String);
+    destructor Destroy; override;
+    function GetAttachment(const aDescriptor: UTF8String; aExtension: UTF8String): TCachedFileData;
+    procedure PutAttachment(const aDescriptor: UTF8String; aExtension: UTF8String; aValue: TCachedFileData);
+    function ListAttachments(const aDescriptor: UTF8String): TAttachmentArray;
+    property Attachments[const aDescriptor: UTF8String; aExtension: UTF8String]: TCachedFileData read GetAttachment write PutAttachment; default;
+    property Name: UTF8String read fName;
+  end;
+
+  TCachedDocumentArray = array of TCachedDocument;
+
+  { TCachedDirectory }
+
+  TCachedDirectory = class(TCachedFileData)
+  private
+    fDocuments: TFPHashObjectList;
+  public
+    constructor Create(const aPath: TFile);
+    destructor Destroy; override;
+    function GetDocument(const aName: UTF8String): TCachedDocument;
+    procedure PutDocument(const aName: UTF8String; aValue: TCachedDocument);
+    function ListDocumentNames: TStringArray;
+    function ListDocuments: TCachedDocumentArray;
+    property Documents[const aName: UTF8String]: TCachedDocument read GetDocument write PutDocument; default;
+  end;
+
+  { TCachedFilePromise }
+
+  TCachedFilePromise = class(TCachedFileData)
+  private
+    fPromise: TPromise;
+  public
+    constructor Create(const aPath: TFile; aPromise: TPromise);
+    property Promise: TPromise read fPromise;
+  end;
+
+  { TCachedProjectData }
+
+  TCachedProjectData = class(TCachedData)
+  private
+    // Basically, I'm wrapping a directory and an attachment list, since the
+    // project root keeps it's attachments alongside it's document contents, so
+    // it would be incorrect to call the directory itself an attachment.
+    // This is a sort of kludge, but I don't want to rewrite the code for
+    // these objects. A mixin would be better, but at least I only need one
+    // of these per application. I could use interfaces and implement them
+    // with internal objects, but this shouldn't have to be an interface
+    // because I don't care about type-compatibility with it.
+    fRootDirectory: TCachedDirectory;
+    fProjectAttachments: TCachedDocument;
+    function GetName: UTF8String;
+    function GetPath: TFile;
+  public
+    constructor Create(const aPath: TFile; const aName: UTF8String);
+    destructor Destroy; override;
+    function GetDocument(const aName: UTF8String): TCachedDocument;
+    procedure PutDocument(const aName: UTF8String; aValue: TCachedDocument);
+    function ListDocumentNames: TStringArray;
+    function ListDocuments: TCachedDocumentArray;
+    property Documents[const aName: UTF8String]: TCachedDocument read GetDocument write PutDocument; default;
+    function GetAttachment(const aDescriptor: UTF8String; aExtension: UTF8String): TCachedFileData;
+    procedure PutAttachment(const aDescriptor: UTF8String; aExtension: UTF8String; aValue: TCachedFileData);
+    function ListAttachments(const aDescriptor: UTF8String): TAttachmentArray;
+    property Attachments[const aDescriptor: UTF8String; aExtension: UTF8String]: TCachedFileData read GetAttachment write PutAttachment;
+    property Name: UTF8String read GetName;
+    property Path: TFile read GetPath;
+  end;
+
+  { TCachedAttachmentData }
+
+  generic TCachedAttachmentData<DataType> = class(TCachedFileData)
+  private
+    fData: DataType;
+  public
+    constructor Create(const aPath: TFile; aProperties: DataType);
+    property Data: DataType read fData;
+  end;
+
+  { TCachedAttachmentObject }
+
+  generic TCachedAttachmentObject<DataType> = class(specialize TCachedAttachmentData<DataType>)
+  public
+    // We own the data, so we have to destroy it. Since the superior generic can
+    // allow primitives, we have to override and create a new generic.
+    destructor Destroy; override;
+  end;
+
+
+  { TCachedDocumentProperties }
+
+  TCachedDocumentProperties = specialize TCachedAttachmentObject<TDocumentProperties2>;
+
+  { TCachedProjectProperties }
+
+  TCachedProjectProperties = specialize TCachedAttachmentObject<TProjectProperties2>;
+
+  TCachedSynopsis = specialize TCachedAttachmentData<UTF8String>;
+
+
   { TProjectPromise }
 
   TProjectPromise = class(TPromise)
@@ -271,36 +521,6 @@ type
     // but avoids making those events accessible from outside of the project,
     // which I don't want.
     TProtectedProjectProperties = class(TProjectProperties)
-    end;
-
-    { TProjectExists }
-
-    TProjectExists = class
-    private
-      fProject: TStewProject;
-      fCallback: TDeferredBooleanCallback;
-      fErrorback: TDeferredExceptionCallback;
-      procedure FileExistsCallback(aSender: TPromise);
-      procedure FileExistsFailed({%H-}aSender: TPromise; Error: String);
-    public
-      constructor Create(aProject: TStewProject; aCallback: TDeferredBooleanCallback;
-        aErrorback: TDeferredExceptionCallback);
-      procedure Enqueue;
-    end;
-
-    { TSearchParentDirectories }
-
-    TSearchParentDirectories = class
-    private
-      fProject: TStewProject;
-      fPath: TFile;
-      fCallback: TDeferredBooleanCallback;
-      fErrorback: TDeferredExceptionCallback;
-      procedure FileExistsCallback(aSender: TPromise);
-      procedure FileExistsFailed({%H-}aSender: TPromise; Data: String);
-    public
-      constructor Create(aProject: TStewProject; aPath: TFile; aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
-      procedure Enqueue;
     end;
 
   private
@@ -452,6 +672,208 @@ end;
 operator=(a: TDocumentID; b: TDocumentID): Boolean;
 begin
   result := CompareText(a.ID,b.ID) = 0;
+end;
+
+{ TCachedAttachmentObject }
+
+destructor TCachedAttachmentObject.Destroy;
+begin
+  FreeAndNil(fData);
+  inherited Destroy;
+end;
+
+{ TCachedAttachmentData }
+
+constructor TCachedAttachmentData.Create(const aPath: TFile;
+  aProperties: DataType);
+begin
+  inherited Create(aPath);
+  fData := aProperties;
+end;
+
+{ TCachedFilePromise }
+
+constructor TCachedFilePromise.Create(const aPath: TFile; aPromise: TPromise);
+begin
+  inherited Create(aPath);
+  fPromise := aPromise;
+end;
+
+{ TCachedProjectData }
+
+function TCachedProjectData.GetName: UTF8String;
+begin
+  result := fProjectAttachments.Name;
+end;
+
+function TCachedProjectData.GetPath: TFile;
+begin
+  result := fRootDirectory.Path;
+end;
+
+constructor TCachedProjectData.Create(const aPath: TFile; const aName: UTF8String);
+begin
+  inherited Create;
+  fRootDirectory := TCachedDirectory.Create(aPath);
+  fProjectAttachments := TCachedDocument.Create(aName);
+end;
+
+destructor TCachedProjectData.Destroy;
+begin
+  FreeAndNil(fProjectAttachments);
+  FreeAndNil(fRootDirectory);
+  inherited Destroy;
+end;
+
+function TCachedProjectData.GetDocument(const aName: UTF8String
+  ): TCachedDocument;
+begin
+  result := fRootDirectory.GetDocument(aName);
+end;
+
+procedure TCachedProjectData.PutDocument(const aName: UTF8String;
+  aValue: TCachedDocument);
+begin
+  fRootDirectory.PutDocument(aName,aValue);
+end;
+
+function TCachedProjectData.ListDocumentNames: TStringArray;
+begin
+  result := fRootDirectory.ListDocumentNames;
+end;
+
+function TCachedProjectData.ListDocuments: TCachedDocumentArray;
+begin
+  result := fRootDirectory.ListDocuments;
+end;
+
+function TCachedProjectData.GetAttachment(const aDescriptor: UTF8String;
+  aExtension: UTF8String): TCachedFileData;
+begin
+  result := fProjectAttachments.GetAttachment(aDescriptor,aExtension);
+end;
+
+procedure TCachedProjectData.PutAttachment(const aDescriptor: UTF8String;
+  aExtension: UTF8String; aValue: TCachedFileData);
+begin
+  fProjectAttachments.PutAttachment(aDescriptor,aExtension,aValue);
+end;
+
+function TCachedProjectData.ListAttachments(const aDescriptor: UTF8String
+  ): TAttachmentArray;
+begin
+  result := fProjectAttachments.ListAttachments(aDescriptor);
+end;
+
+{ TCachedDirectory }
+
+constructor TCachedDirectory.Create(const aPath: TFile);
+begin
+  inherited Create(aPath);
+  fDocuments := TFPHashObjectList.Create(true);
+end;
+
+destructor TCachedDirectory.Destroy;
+begin
+  FreeAndNil(fDocuments);
+  inherited Destroy;
+end;
+
+function TCachedDirectory.GetDocument(const aName: UTF8String): TCachedDocument;
+begin
+  result := fDocuments.Find(aName) as TCachedDocument;
+end;
+
+procedure TCachedDirectory.PutDocument(const aName: UTF8String;
+  aValue: TCachedDocument);
+begin
+  fDocuments.Add(aName,aValue);
+end;
+
+function TCachedDirectory.ListDocumentNames: TStringArray;
+var
+  i: Integer;
+begin
+  SetLength(result,fDocuments.Count);
+  for i := 0 to fDocuments.Count - 1 do
+  begin
+    result[i] := fDocuments.NameOfIndex(i);
+  end;
+end;
+
+function TCachedDirectory.ListDocuments: TCachedDocumentArray;
+var
+  i: Integer;
+begin
+  SetLength(result,fDocuments.Count);
+  for i := 0 to fDocuments.Count - 1 do
+  begin
+    result[i] := fDocuments.Items[i] as TCachedDocument;
+  end;
+end;
+
+{ TCachedFileData }
+
+constructor TCachedFileData.Create(const aPath: TFile);
+begin
+  inherited Create;
+  fPath := aPath;
+end;
+
+{ TCachedDocument }
+
+constructor TCachedDocument.Create(const aName: UTF8String);
+begin
+  inherited Create;
+  fName := aName;
+  fAttachments := TFPHashObjectList.Create(true);
+end;
+
+destructor TCachedDocument.Destroy;
+begin
+  FreeAndNil(fAttachments);
+  inherited Destroy;
+end;
+
+function TCachedDocument.GetAttachment(const aDescriptor: UTF8String;
+  aExtension: UTF8String): TCachedFileData;
+begin
+  result := fAttachments.Find(BuildFileName('',aDescriptor,aExtension,true)) as TCachedFileData;
+end;
+
+procedure TCachedDocument.PutAttachment(const aDescriptor: UTF8String;
+  aExtension: UTF8String; aValue: TCachedFileData);
+begin
+  fAttachments.Add(BuildFileName('',aDescriptor,aExtension,true),aValue);
+end;
+
+function TCachedDocument.ListAttachments(const aDescriptor: UTF8String
+  ): TAttachmentArray;
+var
+  l: Integer;
+  i: Integer;
+begin
+  l := 0;
+  SetLength(Result,l);
+  for i := 0 to fAttachments.Count - 1 do
+  begin
+    if ExcludeDescriptorDelimiter(ExtractFileDescriptor(fAttachments.NameOfIndex(i))) = aDescriptor then
+    begin
+      l := l + 1;
+      SetLength(Result,l);
+      Result[l - 1] := fAttachments[i] as TCachedFileData;
+    end;
+  end;
+
+
+end;
+
+{ TCachedItem }
+
+constructor TCachedData.Create;
+begin
+  inherited Create;
+  fCreated := Now;
 end;
 
 { TProjectCreateAtPromise }
@@ -1744,91 +2166,6 @@ begin
   else
      result := fMetadataCache.PutPath(aDocumentID.ID);
 end;
-
-{ TProjectExists }
-
-procedure TStewProject.TProjectExists.FileExistsCallback(aSender: TPromise);
-begin
-  if ((aSender as TBooleanPromise).Answer) then
-    fProject.DoOpened;
-  fCallback((aSender as TBooleanPromise).Answer);
-  Free;
-end;
-
-procedure TStewProject.TProjectExists.FileExistsFailed(aSender: TPromise;
-  Error: String);
-begin
-  fErrorback(Error);
-  Free;
-end;
-
-constructor TStewProject.TProjectExists.Create(aProject: TStewProject;
-  aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
-begin
-  inherited Create;
-  fProject := aProject;
-  fCallback := aCallback;
-  fErrorback := aErrorBack;
-end;
-
-procedure TStewProject.TProjectExists.Enqueue;
-begin
-  TProjectProperties.GetPath(fProject.fDisk).CheckExistence.After(@FileExistsCallback,@FileExistsFailed);
-end;
-
-{ TSearchParentDirectories }
-
-procedure TStewProject.TSearchParentDirectories.FileExistsFailed(
-  aSender: TPromise; Data: String);
-begin
-  fErrorback(Data);
-  Free;
-end;
-
-procedure TStewProject.TSearchParentDirectories.FileExistsCallback(
-  aSender: TPromise);
-var
-  aPath: TFile;
-begin
-  if ((aSender as TBooleanPromise).Answer) then
-  begin
-    fProject.fDisk := fPath;
-    fProject.DoOpened;
-    fCallback(true);
-  end
-  else
-  begin
-    aPath := fPath.Directory;
-    if aPath = fPath then
-    begin
-      fCallback(false);
-    end
-    else
-    begin
-      TSearchParentDirectories.Create(fProject,aPath,fCallback,fErrorback).Enqueue;
-//      fPath := aPath;
-//      fPath.CheckExistence(@FileExistsCallback,fErrorback);
-    end;
-  end;
-  Free;
-end;
-
-constructor TStewProject.TSearchParentDirectories.Create(aProject: TStewProject;
-  aPath: TFile; aCallback: TDeferredBooleanCallback;
-  aErrorback: TDeferredExceptionCallback);
-begin
-  inherited Create;
-  fProject := aProject;
-  fPath := aPath;
-  fCallback := aCallback;
-  fErrorback := aErrorback;
-end;
-
-procedure TStewProject.TSearchParentDirectories.Enqueue;
-begin
-  TProjectProperties.GetPath(fPath).CheckExistence.After(@FileExistsCallback,@FileExistsFailed);
-end;
-
 
 function TStewProject.GetProjectName: String;
 begin

@@ -51,6 +51,8 @@ type
 
   TTemplateListCallback = procedure(Data: TTemplateArray) of object;
 
+  TFileExistencePromise = class;
+
   TFileListPromise = class;
 
   TFileReader = class;
@@ -93,7 +95,7 @@ type
     property System: TFileSystemClass read fSystem;
     property ID: UTF8String read fID;
     function List: TFileListPromise;
-    function CheckExistence: TBooleanPromise;
+    function CheckExistence: TFileExistencePromise;
     // The 'Reader' is owned by the promise and destroyed when that is destroyed.
     function Read(aHandler: TFileReader): TFileReadPromise;
     // The 'Writer' is owned by the promise and destroyed when that is destroyed.
@@ -123,6 +125,7 @@ type
     function WithDifferentExtension(aExt: UTF8String): TFile;
     function WithDifferentDescriptorAndExtension(aDesc: UTF8String; aExt: UTF8String): TFile;
     function WithDifferentPacketName(aName: UTF8String): TFile;
+    function Contains(aFile: TFile): Boolean;
   end;
 
   TFileArray = array of TFile;
@@ -133,10 +136,12 @@ type
     fPath: TFile;
   protected
     fFiles: TFileArray;
+    fDoesNotExist: Boolean;
   public
     constructor Enqueue(aFile: TFile);
     property Files: TFileArray read fFiles;
     property Path: TFile read fPath;
+    property DoesNotExist: Boolean read fDoesNotExist;
   end;
 
   { TFileCheckExistencePromise }
@@ -261,7 +266,7 @@ type
     // called from TFile.
 
     class function ListFiles(aFile: TFile): TFileListPromise; virtual; abstract;
-    class function CheckFileExistence(aFile: TFile): TBooleanPromise; virtual; abstract;
+    class function CheckFileExistence(aFile: TFile): TFileExistencePromise; virtual; abstract;
     // The 'Reader' is owned by the promise and destroyed when that is destroyed.
     class function ReadFile(aFile: TFile; aHandler: TFileReader): TFileReadPromise; virtual; abstract;
     // The 'Writer' is owned by the promise and destroyed when that is destroyed.
@@ -278,10 +283,10 @@ type
     class function CreateFileFromTemplate(aFile: TFile; aTemplate: TTemplate): TFileCopyPromise; virtual; abstract;
 
     class function GetFileSystemClass: TFileSystemClass; virtual; abstract;
-    class function GetFile(ID: String): TFile;
   public
     // allows batch renames of multiple files.
     class function RenameFiles(aSource: TFileArray; aTarget: TFileArray): TFileRenamePromise; virtual; abstract;
+    class function GetFile(ID: String): TFile;
   end;
 
   { TFileList }
@@ -311,6 +316,19 @@ type
   public
     procedure Read(aData: TStream); override;
     property Data: UTF8String read fData;
+  end;
+
+  { TFileStreamReader }
+
+  TFileStreamReader = class(TFileReader)
+  private
+    fData: TMemoryStream;
+    fDataGrabbed: Boolean;
+  public
+    destructor Destroy; override;
+    procedure Read(aData: TStream); override;
+    property Stream: TMemoryStream read fData;
+    function TakeOwnershipOfStream: TMemoryStream;
   end;
 
   { TFileTextWriter }
@@ -346,6 +364,29 @@ implementation
 
 uses
   strutils, FileUtil;
+
+{ TFileStreamReader }
+
+destructor TFileStreamReader.Destroy;
+begin
+  if not fDataGrabbed then
+    FreeAndNil(fData);
+  inherited Destroy;
+end;
+
+procedure TFileStreamReader.Read(aData: TStream);
+begin
+  // we can "key" the data, because the reader and the stream are destroyed by the
+  // promise.
+  fData := TMemoryStream.Create;
+  fData.CopyFrom(aData,0);
+end;
+
+function TFileStreamReader.TakeOwnershipOfStream: TMemoryStream;
+begin
+  fDataGrabbed := true;
+  result := fData;
+end;
 
 { TFileTextWriter }
 
@@ -485,6 +526,7 @@ end;
 constructor TFileListPromise.Enqueue(aFile: TFile);
 begin
   fPath := aFile;
+  fDoesNotExist := true;
   inherited Enqueue;
 end;
 
@@ -588,7 +630,7 @@ begin
   result := fSystem.ListFiles(Self);
 end;
 
-function TFile.CheckExistence: TBooleanPromise;
+function TFile.CheckExistence: TFileExistencePromise;
 begin
   result := fSystem.CheckFileExistence(Self);
 
@@ -658,6 +700,24 @@ end;
 function TFile.WithDifferentPacketName(aName: UTF8String): TFile;
 begin
   result := Directory.GetContainedFile(aName,Descriptor,Extension,true);
+end;
+
+function TFile.Contains(aFile: TFile): Boolean;
+var
+  lChild: TFile;
+  lDirectory: TFile;
+begin
+  result := false;
+  lChild := aFile;
+  lDirectory := aFile.Directory;
+  while (lDirectory <> lChild) and (lChild.ID <> '') do
+  begin
+    result := lDirectory = Self;
+    if result then
+       break;
+    lChild := lDirectory;
+    lDirectory := lChild.Directory;
+  end;
 end;
 
 procedure TFile.OpenInEditor;

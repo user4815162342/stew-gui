@@ -7,25 +7,6 @@ interface
 uses
   Classes, SysUtils, test_registry, sys_file, sys_async;
 
-type
-
-  { TProjectSpec }
-
-  TProjectSpec = class(TTestSpec)
-  private
-    fTempDir: String;
-    fTestRootDir: TFile;
-    procedure Open_Project_1(Sender: TPromise);
-    procedure Open_Project_2(Sender: TPromise);
-    procedure Open_Project_3(Sender: TPromise);
-    procedure PromiseFailed(Sender: TPromise; aError: TPromiseException);
-  public
-    procedure SetupTest; override;
-    procedure CleanupTest; override;
-  published
-    procedure Test_Open_Project;
-  end;
-
 {
 TODO: I'm slowly converting the TStewProject over to the way I want it to be,
 and testing the new stuff as I do so (this is better than writing the tests and
@@ -56,23 +37,25 @@ Overall changes, new code standards:
   - In general, we don't need a broadcast event for a load. The objects that
   need the data will load it when they need it (and if it's already there,
   it will be loaded from the cache) and they will get promises. The only
-  broadcast events we need are if the data somehow changes, or if there is
-  some sort of error in filing (although this is only needed by the mainform,
-  so that may remain a separate event). So, only broadcast when data is written,
-  or some sort of check is made and the disk file has changed, so therefore the
-  data needs to be reloaded.
+  broadcast events we need are if the data somehow changes (or wants to change),
+  or if there is some sort of error in filing (although this is only needed by
+  the mainform, so that may remain a separate event). So, only broadcast when
+  data is written, or some sort of check is made and the disk file has changed,
+  so therefore the data needs to be reloaded.
 
 Sections:
 
+* Project Properties
+ - Test Open up the project properties and check values
+ - Test Make changes to project properties and make sure they get written to disk correctly.
+* Document Properties
+- Test Open up some document properties and check values
+- Test Make changes to document properties and make sure they get written to disk correctly.
+* Create Document
 * Document listing:
   - Test listing,
   - Test listing of subdirectories
   - Test 'refresh' of a listing so that it only relists what is already cached.
-* Project Properties
- - Test Open up the project properties and check values
- - Test Make changes to project properties and make sure they get written to disk correctly.
-* Create Document
-* Lock Documents? Not sure if we're going to need this...
 * Re-order a document and make sure it shows up in the appropriate place in the list
   - One that's not in the index to before one that's in the index
   - One that's in the index to before one that's in the index
@@ -82,6 +65,8 @@ Sections:
   - move to be a sibling of it's parent
   - move to be inside another folder that's a sibling of it's parent
   - move inside a sibling
+* Lock Documents? Or, instead, allowing denial of document renaming and moving
+  and other metadata something listening to a specific document might want.
 
 
 TStewProject:
@@ -165,6 +150,26 @@ end;
 TODO: Once the tests are done, start converting Project over to new code standards:
 
 }
+
+type
+
+  { TProjectSpec }
+
+  TProjectSpec = class(TTestSpec)
+  private
+    fTempDir: String;
+    fTestRootDir: TFile;
+    procedure Open_Project_1(Sender: TPromise);
+    procedure Open_Project_2(Sender: TPromise);
+    procedure Open_Project_3(Sender: TPromise);
+    procedure PromiseFailed(Sender: TPromise; aError: TPromiseException);
+  public
+    procedure SetupTest; override;
+    procedure CleanupTest; override;
+  published
+    procedure Test_Open_Project;
+  end;
+
 
 implementation
 

@@ -214,7 +214,7 @@ end;
 
 procedure TTestRegistry.StartTimer;
 begin
-  fTimer.Enabled := true;
+  //fTimer.Enabled := true;
 end;
 
 procedure TTestRegistry.StopTimer;

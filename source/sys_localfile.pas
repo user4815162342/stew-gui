@@ -5,7 +5,7 @@ unit sys_localfile;
 interface
 
 uses
-  Classes, SysUtils, sys_file, sys_async, FileUtil;
+  Classes, SysUtils, sys_file, FileUtil;
 
 type
 
@@ -55,7 +55,7 @@ type
 
   TLocalFileSystem = class(TFileSystem)
   protected
-    class function CheckFileExistence(aFile: TFile): TBooleanPromise; override;
+    class function CheckFileExistence(aFile: TFile): TFileExistencePromise; override;
     class function CopyFile(aSource: TFile; aTarget: TFile;
       aOptions: TFileCopyOptions): TFileCopyPromise; override;
     class function CreateFileFromTemplate(aFile: TFile; aTemplate: TTemplate): TFileCopyPromise;
@@ -77,6 +77,12 @@ type
 
   function LocalFile(aPath: TFilename): TFile;
 
+type
+  TCachedLocalFileSystem = class(TLocalFileSystem)
+  end;
+
+  function CachedLocalFile(aPath: TFilename): TFile;
+
 const
   // formats in something like ISO8601, but I also need to quote the
   // hyphens, because otherwise they will be replaced with locale
@@ -92,6 +98,11 @@ uses
 function LocalFile(aPath: TFilename): TFile;
 begin
   result := TLocalFileSystem.GetFile(aPath);
+end;
+
+function CachedLocalFile(aPath: TFilename): TFile;
+begin
+  result := TCachedLocalFileSystem.GetFile(aPath);
 end;
 
 { TLocalFileRenamePromise }
@@ -224,7 +235,7 @@ end;
 
 procedure TLocalFileExistsPromise.DoTask;
 begin
-  fAnswer := FileExists(Path.ID);
+  fAnswer := FileExists(Path.ID) or DirectoryExists(Path.ID);
   Resolve;
 end;
 
@@ -238,6 +249,7 @@ begin
   L := 0;
   if DirectoryExists(Path.ID) then
   begin
+    fDoesNotExist := false;
     if FindFirst(IncludeTrailingPathDelimiter(Path.ID) + '*',faDirectory,SR) = 0 then
     begin
       try
@@ -253,7 +265,9 @@ begin
         FindClose(SR);
       end;
     end;
-  end;
+  end
+  else
+    fDoesNotExist := not FileExists(Path.ID);
   fFiles := Answer;
   Resolve;
 end;
@@ -261,7 +275,7 @@ end;
 { TLocalFileSystem }
 
 class function TLocalFileSystem.CheckFileExistence(aFile: TFile
-  ): TBooleanPromise;
+  ): TFileExistencePromise;
 begin
   result := TLocalFileExistsPromise.Enqueue(aFile);
 end;

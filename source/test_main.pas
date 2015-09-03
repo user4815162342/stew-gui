@@ -11,28 +11,7 @@ uses
 type
 
   {
-  TODO: This testing is being done as part of a slight refactoring to make use
-  of TPromises and TJSValues. I will slowly be converting other code to work with
-  this in the GUI, and create test code as I do. The next steps:
-  1. Convert the various properties objects to make use of TJSObjects. And,
-  create tests to validate that they are working (so we can finally get rid of the
-  'backup files').
-  - all of these should be found in stew_properties and gui_config (this one
-  won't be tested, though). Although, since I'm getting rid of the ability to
-  load and save from within the object, some things will have to be changed in
-  stew_project as well -- the properties become a Metadata object like synopsis
-  (and these are probably moved into stew_persist).
-  - Also need to have "handlers"
-  for these things to work with the TFileReadPromise.
-  2. Create some tests to work with TStewProject opening, initializing and retrieving
-  data. This will require some test projects to work with. Don't create a *lot*
-  of tests, just basic operations. More tests will be added to this section as
-  bugs are reported in the GUI. This process should also involve moving those
-  things over to TPromises.
-  3. Convert the rest of the project stuff to make use of promises for various
-  things instead of a whole bunch of events (although events might remain there
-  yet for at least some cases where the application needs to know when data has
-  changed).
+  TODO: Working on upgrading stew project to new stuff. See test_stew_project.This testing is being done as part of a slight refactoring to make use
 
   TODO: Consider keeping a "log" (this would be an application setting)
   of "actions", and their responses in the StewProject option. That will, at least,
@@ -85,7 +64,7 @@ implementation
 
 uses
   test_test, test_sys_json, test_sys_async, test_sys_localfile, test_stew_properties,
-  test_stew_project;
+  test_stew_project, test_longstringmap, test_sys_filecache_local;
 
 {$R *.lfm}
 
@@ -190,6 +169,8 @@ begin
     fRegistry.AddTests(TJSONSpec);
     fRegistry.AddTests(TAsyncSpec);
     fRegistry.AddTests(TLocalFileSpec);
+    fRegistry.AddTests(TLongStringMapSpec);
+    fRegistry.AddTests(TLocalFileCacheSpec);
     fRegistry.AddTests(TPropertiesSpec);
     fRegistry.AddTests(TProjectSpec);
   end;

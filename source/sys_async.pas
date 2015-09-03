@@ -38,6 +38,39 @@ environments, you'll have to come up with your own alternative. See SetAsyncCall
 function for more information.
 }
 
+// FUTURE: Once Generics have better supported in Freepascal, make use
+// of them to avoid having to typecaste the promises in callbacks in order
+// to get the data.
+
+// FUTURE: Consider a slight refactoring of the Promises, to get rid
+// of the DoNotQueue functionality, which seems weird.
+// - A TPromise is just a deferred answer. It doesn't queue it's own data,
+//   with protected Resolve and Reject methods.
+// - A TDeferredTask is an abstract object that contains a TPromise of a specific
+//   type. It has a protected Resolve and Reject methods which automatically
+//   complete the TPromise. It will be able to call TPromise.Resolve because
+//   it's declared in the same unit. The TDeferredTask deletes itself once this
+//   happens, and the TPromise frees itself once all callbacks are called.
+// - A TQueuedTask is a TDeferredTask that queues a DoTask method, which can
+//   be inherited to Resolve/Reject the task. The constructor for this is
+//   called Enqueue.
+// - A TWaitingTask is a TDeferredTask that takes a promise and when that
+//   promise is resolved, calls it's DoTask method, which can be inherited
+//   to resolve/reject the task. The constructor for this
+//   is called WaitFor.
+//
+// This will add the following improvements:
+// - No need for DoNotQueue in the TPromise, or any of the async calling code.
+// - I can now produce the same exact TPromise type no matter what kind of Task
+//   is used to create it. So, no special TFileReadPromises that do different
+//   things, just different TFileReadTasks.
+// - It might remove the need for a separate TFileReader and TFileWriter in
+//   the file code, as we could simply specify a different type of TPromise
+//   for the different type of data (since the same TPromise is always used
+//   for the same thing, we can just pass the TPromise class to use in FileRead,
+//   and method delegate for retrieving the data for FileWrite.
+// - It's simpler to create a TThreadedTask to add to the hierarchy above,
+//   without, once again, having to add the DoNotQueue stuff in.
 uses
   Classes, SysUtils, fgl;
 
@@ -75,6 +108,7 @@ type
   //
   TPromise = class;
 
+
   // Since exceptions are freed after they are caught, or raised to the top,
   // we have to use strings to report errors. However, I wouldn't be against
   // using a structured type at some point. Just have to make it easy to
@@ -84,7 +118,7 @@ type
   TErrorbackList = specialize TFPGList<TErrorback>;
   TCallback = procedure(Sender: TPromise) of object;
   TCallbackList = specialize TFPGList<TCallback>;
-  TPromiseState = (psQueued,psResolving,psRejecting);
+  TPromiseState = (psInitialized,psQueued,psDoNotQueue,psResolving,psRejecting);
 
   // - To input data into a promise, one would simply create private variables
   // on a subclass and include these in parameters to an overridden Enqueue
@@ -96,11 +130,20 @@ type
     fCallbacks: TCallbackList;
     fErrorbacks: TErrorbackList;
     fError: TPromiseException;
-    fState: TPromiseState;
+    fState: TPromiseState; // should be initialized to psInitialized.
     fTag: Integer;
     procedure RunCallbacks;
     procedure RunErrorbacks;
   strict protected
+    // The following can be called from subclass constructors to avoid automatic
+    // queuing. This is useful in cases where the promise is resolved based on
+    // the result of an already existing promise, and no task is needed. In such
+    // a case we don't want to accidentally have everything resolved, then free
+    // the promise before RunQueuedTask is run, leading to access violations, etc.
+    procedure DoNotQueue;
+    // This can be called *after* DoNotQueue is called by a subclass constructor and
+    // the constructor has finished and *now* you want to queue.
+    procedure DoQueue;
     procedure DoTask; virtual; abstract;
     procedure RunQueuedTask; virtual;
     procedure Resolve;
@@ -108,6 +151,7 @@ type
     // Useful for chaining promises.. just add this function as the catch
     // to a subpromise and it will automatically reject this promise.
     procedure SubPromiseRejected(Sender: TPromise; aError: TPromiseException);
+    procedure SubPromiseResolved(Sender: TPromise);
   public
     constructor Enqueue;
     destructor Destroy; override;
@@ -232,6 +276,32 @@ begin
       Free;
 end;
 
+
+procedure TPromise.DoNotQueue;
+begin
+  if not (fState in [psQueued,psResolving,psRejecting]) then
+    fState := psDoNotQueue
+  else
+    raise Exception.Create('Oops, sorry, the promise has already been queued');
+end;
+
+procedure TPromise.DoQueue;
+begin
+  // Calling this from a state of psDoNotQueue is acceptible,
+  // as that only applies to *automatic* queuing.
+  if not (fState in [psQueued,psResolving,psRejecting]) then
+  begin
+    if AsyncCallQueuer <> nil then
+       AsyncCallQueuer(@RunQueuedTask)
+    else
+       raise Exception.Create('Async system is not set up');
+    fState := psQueued;
+  end
+  else
+     raise Exception.Create('Promise has already been queued');
+
+end;
+
 procedure TPromise.RunQueuedTask;
 begin
   try
@@ -244,7 +314,7 @@ end;
 
 procedure TPromise.Resolve;
 begin
-  if fState <> psQueued then
+  if fState in [psResolving,psRejecting] then
      raise Exception.Create('Promise already resolved');
   fState := psResolving;
   // we should know by now if the async system isn't setup, since that
@@ -265,18 +335,20 @@ begin
   Reject(aError);
 end;
 
+procedure TPromise.SubPromiseResolved(Sender: TPromise);
+begin
+  Resolve;
+end;
+
 constructor TPromise.Enqueue;
 begin
   inherited Create;
   fCallbacks := TCallbackList.Create;
   fErrorbacks := TErrorbackList.Create;
-  fState := psQueued;
-  // In a future version of FPC, this should work: fResult := default(OutputType);
   fError := '';
-  if AsyncCallQueuer <> nil then
-     AsyncCallQueuer(@RunQueuedTask)
-  else
-     raise Exception.Create('Async system is not set up');
+  // Sometimes, we don't want to actually queue it up. See DoNotQueue
+  if fState <> psDoNotQueue then
+    DoQueue;
 end;
 
 destructor TPromise.Destroy;
@@ -290,7 +362,7 @@ function TPromise.After(aCallback: TCallback; aErrorback: TErrorback): TPromise;
 begin
   result := Self;
   case fState of
-    psQueued, psResolving:
+    psQueued, psDoNotQueue, psResolving:
     begin
       if aCallback <> nil then
          fCallbacks.Add(aCallback);
