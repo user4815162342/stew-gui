@@ -138,7 +138,8 @@ type
     fFiles: TFileArray;
     fDoesNotExist: Boolean;
   public
-    constructor Enqueue(aFile: TFile);
+    constructor Create(aFile: TFile);
+    procedure SetAnswer(aFiles: TFileArray; aDoesNotExist: Boolean);
     property Files: TFileArray read fFiles;
     property Path: TFile read fPath;
     property DoesNotExist: Boolean read fDoesNotExist;
@@ -146,12 +147,18 @@ type
 
   { TFileCheckExistencePromise }
 
-  TFileExistencePromise = class(TBooleanPromise)
+  { TFileExistencePromise }
+
+  TFileExistencePromise = class(TPromise)
   private
     fPath: Tfile;
+  protected
+    fExists: Boolean;
   public
-    constructor Enqueue(aFile: TFile);
+    constructor Create(aFile: TFile);
+    procedure SetAnswer(aExists: Boolean);
     property Path: TFile read fPath;
+    property Exists: Boolean read fExists;
   end;
 
   { TFileReader }
@@ -166,14 +173,15 @@ type
   TFileReadPromise = class(TPromise)
   private
     fPath: Tfile;
-  protected
     fReader: TFileReader;
+  protected
     fAge: Longint;
     fDoesNotExist: Boolean;
   public
     // The 'Reader' is owned by the promise and destroyed when that is destroyed.
-    constructor Enqueue(aFile: TFile; aHandler: TFileReader);
+    constructor Create(aFile: TFile; aHandler: TFileReader);
     destructor Destroy; override;
+    procedure SetAnswer(aAge: Longint; aDoesNotExist: Boolean);
     property Path: TFile read FPath;
     property Reader: TFileReader read fReader;
     property Age: Longint read FAge;
@@ -190,18 +198,17 @@ type
   TFileWritePromise = class(TPromise)
   private
     fPath: Tfile;
-    fOptions: TFileWriteOptions;
     fWriter: TFileWriter;
   protected
     fAge: Longint;
     fIsConflict: Boolean;
   public
-    constructor Enqueue(aFile: TFile; aOptions: TFileWriteOptions; aFileAge: Longint; aWriter: TFileWriter); overload;
+    constructor Create(aFile: TFile; aWriter: TFileWriter); overload;
     destructor Destroy; override;
+    procedure SetAnswer(aAge: Longint; aIsConflict: Boolean);
     property Writer: TFileWriter read fWriter;
     property Path: TFile read fPath;
     property Age: Longint read fAge;
-    property Options: TFileWriteOptions read fOptions;
     property IsConflict: Boolean read fIsConflict;
   end;
 
@@ -211,13 +218,10 @@ type
   private
     fSource: TFile;
     fTarget: TFile;
-    fOptions: TFileCopyOptions;
   public
-    constructor Enqueue(aSource: TFile; aTarget: TFile; aOptions: TFileCopyOptions); overload;
-    constructor Enqueue(aSource: TFile; aTarget: TFile); overload;
+    constructor Create(aSource: TFile; aTarget: TFile);
     property Source: TFile read fSource;
     property Target: TFile read fTarget;
-    property Options: TFileCopyOptions read fOptions;
   end;
 
   { TFileRenamePromise }
@@ -227,7 +231,7 @@ type
     fSource: TFileArray;
     fTarget: TFileArray;
   public
-    constructor Enqueue(aSource: TFileArray; aTarget: TFileArray);
+    constructor Create(aSource: TFileArray; aTarget: TFileArray);
     property Source: TFileArray read fSource;
     property Target: TFileArray read fTarget;
   end;
@@ -240,7 +244,7 @@ type
   protected
     fTemplates: TTemplateArray;
   public
-    constructor Enqueue(aFile: TFile);
+    constructor Create(aFile: TFile);
     property Templates: TTemplateArray read fTemplates;
     property Path: TFile read fPath;
   end;
@@ -425,21 +429,22 @@ end;
 
 { TFileListTemplatesPromise }
 
-constructor TFileListTemplatesPromise.Enqueue(aFile: TFile);
+constructor TFileListTemplatesPromise.Create(aFile: TFile);
 begin
+  inherited Create;
   fPath := aFile;
-  inherited Enqueue;
 end;
 
 { TFileRenamePromise }
 
-constructor TFileRenamePromise.Enqueue(aSource: TFileArray;
+constructor TFileRenamePromise.Create(aSource: TFileArray;
   aTarget: TFileArray);
 var
   l: Integer;
   i: Integer;
   aSystem: TFileSystemClass;
 begin
+  inherited Create;
   aSystem := nil;
   l := Length(aSource);
   if l <> Length(aTarget) then
@@ -456,38 +461,28 @@ begin
     fSource[i] := aSource[i];
     fTarget[i] := aTarget[i];
   end;
-  inherited Enqueue;
 end;
 
 { TFileCopyPromise }
 
-constructor TFileCopyPromise.Enqueue(aSource: TFile; aTarget: TFile;
-  aOptions: TFileCopyOptions);
+constructor TFileCopyPromise.Create(aSource: TFile; aTarget: TFile);
 begin
+  inherited Create;
   if aTarget.System <> aSource.System then
      raise Exception.Create('Can''t copy files across file systems');
   fSource := aSource;
   fTarget := aTarget;
-  fOptions := aOptions;
-  inherited Enqueue;
-end;
-
-constructor TFileCopyPromise.Enqueue(aSource: TFile; aTarget: TFile);
-begin
-  Enqueue(aSource,aTarget,[]);
 end;
 
 { TFileWritePromise }
 
-constructor TFileWritePromise.Enqueue(aFile: TFile;
-  aOptions: TFileWriteOptions; aFileAge: Longint; aWriter: TFileWriter);
+constructor TFileWritePromise.Create(aFile: TFile;
+  aWriter: TFileWriter);
 begin
+  inherited Create;
   fIsConflict := false;
   fPath := aFile;
-  fOptions := aOptions;
-  fAge := aFileAge;
   fWriter := aWriter;
-  inherited Enqueue;
 end;
 
 destructor TFileWritePromise.Destroy;
@@ -496,15 +491,20 @@ begin
   inherited Destroy;
 end;
 
+procedure TFileWritePromise.SetAnswer(aAge: Longint; aIsConflict: Boolean);
+begin
+  fAge := aAge;
+  fIsConflict := aIsConflict;
+end;
+
 { TFileReadPromise }
 
-constructor TFileReadPromise.Enqueue(aFile: TFile;
+constructor TFileReadPromise.Create(aFile: TFile;
   aHandler: TFileReader);
 begin
+  inherited Create;
   fPath := aFile;
   fReader := aHandler;
-  inherited Enqueue;
-
 end;
 
 destructor TFileReadPromise.Destroy;
@@ -513,21 +513,39 @@ begin
   inherited Destroy;
 end;
 
+procedure TFileReadPromise.SetAnswer(aAge: Longint; aDoesNotExist: Boolean);
+begin
+  fAge := aAge;
+  fDoesNotExist := aDoesNotExist;
+end;
+
 { TFileCheckExistencePromise }
 
-constructor TFileExistencePromise.Enqueue(aFile: TFile);
+constructor TFileExistencePromise.Create(aFile: TFile);
 begin
+  inherited Create;
   fPath := aFile;
-  inherited Enqueue;
+end;
+
+procedure TFileExistencePromise.SetAnswer(aExists: Boolean);
+begin
+  fExists := aExists;
 end;
 
 { TFileListPromise }
 
-constructor TFileListPromise.Enqueue(aFile: TFile);
+constructor TFileListPromise.Create(aFile: TFile);
 begin
+  inherited Create;
   fPath := aFile;
   fDoesNotExist := true;
-  inherited Enqueue;
+end;
+
+procedure TFileListPromise.SetAnswer(aFiles: TFileArray; aDoesNotExist: Boolean
+  );
+begin
+  fFiles := aFiles;
+  fDoesNotExist := aDoesNotExist;
 end;
 
 { TFileList }

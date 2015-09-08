@@ -9,32 +9,44 @@ uses
 
 type
 
-  { TRunSimpleCommandPromise }
+  { TRunSimpleCommandTask }
 
-  TRunSimpleCommandPromise = class(TPromise)
+  TRunSimpleCommandTask = class(TQueuedTask)
   private
     fCmd: String;
     fArgs: Array of String;
-    fData: String;
   protected
     procedure DoTask; override;
+    function CreatePromise: TPromise; override;
   public
     constructor Enqueue(aCmd: String; const aArgs: array of string);
+  end;
+
+  TRunSimpleCommandPromise = class(TPromise)
+  private
+    fData: String;
+  public
     property Data: String read fData;
   end;
 
-  { TLocalFileListTemplatesFromOSPromise }
+  { TLocalFileListTemplatesFromOSTask }
 
-  TLocalFileListTemplatesFromOSPromise = class(TFileListTemplatesPromise)
+  TLocalFileListTemplatesFromOSTask = class(TQueuedTask)
+  protected type
+    TLocalFileListTemplatesPromise = class(TFileListTemplatesPromise);
   protected
+    fPath: Tfile;
   {$IFDEF Linux}
     procedure XdgUserDirDone(Sender: TPromise);
     procedure TemplateFilesListed(Sender: TPromise);
   {$ENDIF}
     procedure DoTask; override;
+    function CreatePromise: TPromise; override;
+  public
+    constructor Enqueue(aPath: TFile);
   end platform;
 
-function RunSimpleCommand(aCmd: String; const aArgs: array of string): TRunSimpleCommandPromise;
+function RunSimpleCommand(aCmd: String; const aArgs: array of string): TRunSimpleCommandTask;
 function CreateFileFromTemplate(aTemplate: TTemplate; aFile: TFile): TFileCopyPromise;
 procedure EditFile(aFile: TFile);
 procedure RunDetachedProcess(const aExecutable: String; aArgs: array of String);
@@ -99,9 +111,9 @@ begin
 end;
 
 function RunSimpleCommand(aCmd: String; const aArgs: array of string
-  ): TRunSimpleCommandPromise;
+  ): TRunSimpleCommandTask;
 begin
-  result := TRunSimpleCommandPromise.Enqueue(aCmd,aArgs);
+  result := TRunSimpleCommandTask.Enqueue(aCmd,aArgs);
 end;
 
 function CreateFileFromTemplate(aTemplate: TTemplate; aFile: TFile
@@ -149,9 +161,9 @@ begin
   end;
 end;
 
-{ TRunSimpleCommandPromise }
+{ TRunSimpleCommandTask }
 
-procedure TRunSimpleCommandPromise.DoTask;
+procedure TRunSimpleCommandTask.DoTask;
 var
   lApp: String;
   lOut: String;
@@ -162,7 +174,7 @@ begin
     lOut := '';
     if RunCommand(lApp,fArgs,lOut) then
     begin
-      fData := lOut;
+      (Promise as TRunSimpleCommandPromise).fData := lOut;
       Resolve;
     end
     else
@@ -172,7 +184,12 @@ begin
      raise Exception.Create('Command "' + fCmd + '" could not be found on your system');
 end;
 
-constructor TRunSimpleCommandPromise.Enqueue(aCmd: String;
+function TRunSimpleCommandTask.CreatePromise: TPromise;
+begin
+  result := TRunSimpleCommandPromise.Create;
+end;
+
+constructor TRunSimpleCommandTask.Enqueue(aCmd: String;
   const aArgs: array of string);
 var
   i: Integer;
@@ -191,9 +208,9 @@ begin
   inherited Enqueue;
 end;
 
-{ TLocalFileListTemplatesFromOSPromise }
+{ TLocalFileListTemplatesFromOSTask }
 
-procedure TLocalFileListTemplatesFromOSPromise.TemplateFilesListed(
+procedure TLocalFileListTemplatesFromOSTask.TemplateFilesListed(
   Sender: TPromise);
 var
   lAnswer: TTemplateArray;
@@ -203,7 +220,7 @@ var
   j: Integer;
   lData: TFileArray;
 begin
-  lExt := Path.Extension;
+  lExt := fPath.Extension;
   lData := (Sender as TFileListPromise).Files;
   l := Length(lData);
   j := 0;
@@ -217,11 +234,11 @@ begin
       j := j + 1;
     end;
   end;
-  fTemplates := lAnswer;
+  (Promise as TLocalFileListTemplatesPromise).fTemplates := lAnswer;
   Resolve;
 end;
 
-procedure TLocalFileListTemplatesFromOSPromise.XdgUserDirDone(Sender: TPromise);
+procedure TLocalFileListTemplatesFromOSTask.XdgUserDirDone(Sender: TPromise);
 var
   lTemplatePath: String;
 begin
@@ -229,7 +246,7 @@ begin
   LocalFile(lTemplatePath).List.After(@TemplateFilesListed,@SubPromiseRejected);
 end;
 
-procedure TLocalFileListTemplatesFromOSPromise.DoTask;
+procedure TLocalFileListTemplatesFromOSTask.DoTask;
 begin
 {$IFDEF Linux}
 { There are two possible ways to do this:
@@ -245,7 +262,7 @@ begin
 
 I think I know which way *I* want to do it, at least until we find out that it
 doesn't work. }
-  TRunSimpleCommandPromise.Enqueue('xdg-user-dir',['TEMPLATES']).After(@XdgUserDirDone,@SubPromiseRejected);
+  TRunSimpleCommandTask.Enqueue('xdg-user-dir',['TEMPLATES']).After(@XdgUserDirDone,@SubPromiseRejected);
 
 {$ELSE}
 {$ERROR Required code is not yet written for this platform.}
@@ -268,6 +285,17 @@ doesn't work. }
      - So, I think for the Mac, I have to create my own template directory
        anyway.}
 {$ENDIF}
+end;
+
+function TLocalFileListTemplatesFromOSTask.CreatePromise: TPromise;
+begin
+  result := TLocalFileListTemplatesPromise.Create(fPath);
+end;
+
+constructor TLocalFileListTemplatesFromOSTask.Enqueue(aPath: TFile);
+begin
+  fPath := aPath;
+  inherited Enqueue;
 end;
 
 end.

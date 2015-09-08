@@ -38,39 +38,65 @@ environments, you'll have to come up with your own alternative. See SetAsyncCall
 function for more information.
 }
 
+{
+Promises are a relatively old idea which have been popularized recently by async
+coding techniques in JavaScript. It is an attempt to solve the problem of returning
+data from asynchronous code (such as network requests). The basic idea is that
+the promise is returned from the initial call to the function, and can be hooked
+into by anything that needs to know this result. It is similar to the concept
+of attaching to an event on a network request that gets called when the request
+is resolved.
+
+Translating the concept of promises over from JavaScript to a static compiled
+language like pascal required a few tricks. Without closures, it is necessary
+to use classes as the mechanism used to make the async calls. Below, these
+are referred to as "TAsyncTasks". A TAsyncTask represents the input to an
+asynchronous function, and the code required to resolve the function. It's
+result is available as a Promise on the Task object.
+
+The TPromise itself is meant only to represent the output that results from such
+a task, and it contains ways that code can hook in to obtain these results once
+they are ready (or be notified of any errors in the processing itself). TPromises
+are kept separate from the TAsyncTasks themselves to maintain independence between
+the method and the result: there are many ways of getting the same result, and it
+shouldn't be necessary for the TPromise to know how it's data was retrieved.
+
+The asynchronicity of the TAsyncTask can be handled in any number of ways. Right
+now there are two options: TQueuedTask simply queues the action to happen later in
+an even loop. This causes the action to block when it's less likely to cause
+problems. TDeferredTask is set up to wait for another promise to return before
+it acts, this is useful for chaining tasks. At some point there may be a
+TThreadedTask available which would act in another thread, but that's not
+absolutely necessary with the scale of work we are expecting in this program.
+
+RULES
+=====
+* In order for a Task to be completed, "Resolve" or "Reject" *must* be called.
+If this does not happen, the task isr never finished, the promise is also never
+resolved, and code will *hang*.
+* Tasks are freed automatically by calls to Resolve and Reject. Do *not* keep
+tasks around anywhere, unless you are going to make absolutely sure that
+references to them are also removed upon completion. Do *not* attempt to free
+the task yourself, or access violations are likely.
+* Promises are also freed automatically once all of it's callbacks are called
+in resolve or reject. Follow the same rules as Tasks.
+* Due to static typing, it is impossible to control what type of Promise you
+are getting in the callbacks. Even once full generics are available in FreePascal,
+this is going to be difficult to do. So, you must *know* what type of Promise
+you are supposed to get back in the Sender parameter of a callback, and use
+the 'as' operator to convert and get the output data you need.
+* For simplicity, many promises allow public access to setting the answers.
+Although this does not prevent observers from changing it during their callback,
+this shouldn't be done. There is no guarantee of the order in which observers
+are called, so changing the answer may mess up the functionality of previous
+callers.
+
+}
+
 // FUTURE: Once Generics have better supported in Freepascal, make use
 // of them to avoid having to typecaste the promises in callbacks in order
 // to get the data.
 
-// FUTURE: Consider a slight refactoring of the Promises, to get rid
-// of the DoNotQueue functionality, which seems weird.
-// - A TPromise is just a deferred answer. It doesn't queue it's own data,
-//   with protected Resolve and Reject methods.
-// - A TDeferredTask is an abstract object that contains a TPromise of a specific
-//   type. It has a protected Resolve and Reject methods which automatically
-//   complete the TPromise. It will be able to call TPromise.Resolve because
-//   it's declared in the same unit. The TDeferredTask deletes itself once this
-//   happens, and the TPromise frees itself once all callbacks are called.
-// - A TQueuedTask is a TDeferredTask that queues a DoTask method, which can
-//   be inherited to Resolve/Reject the task. The constructor for this is
-//   called Enqueue.
-// - A TWaitingTask is a TDeferredTask that takes a promise and when that
-//   promise is resolved, calls it's DoTask method, which can be inherited
-//   to resolve/reject the task. The constructor for this
-//   is called WaitFor.
-//
-// This will add the following improvements:
-// - No need for DoNotQueue in the TPromise, or any of the async calling code.
-// - I can now produce the same exact TPromise type no matter what kind of Task
-//   is used to create it. So, no special TFileReadPromises that do different
-//   things, just different TFileReadTasks.
-// - It might remove the need for a separate TFileReader and TFileWriter in
-//   the file code, as we could simply specify a different type of TPromise
-//   for the different type of data (since the same TPromise is always used
-//   for the same thing, we can just pass the TPromise class to use in FileRead,
-//   and method delegate for retrieving the data for FileWrite.
-// - It's simpler to create a TThreadedTask to add to the hierarchy above,
-//   without, once again, having to add the DoNotQueue stuff in.
 uses
   Classes, SysUtils, fgl;
 
@@ -78,34 +104,6 @@ type
 
   { TPromise }
 
-  // TODO: Convert over to using this for all async code.
-  // Advantages:
-  // - chains of functionality are easier because I can *add* callbacks on.
-  // - I can just return the resulting object from the async function, and
-  // the caller can add it's own callbacks on.
-  // - I can even add callbacks on after the result is found, and these will
-  //   be automatically deferred.
-  // - I think it's easier to create then "TDeferredTask", because it's mostly just
-  //   a matter of extending the generic and overriding DoTask.
-  // - I think the system is more robust, and more flexible.
-  // - I'm deferring the callbacks as well here, so it should spread out code
-  //   even more.
-  //
-  // Some rules:
-  // The TPromise is freed automatically after all callbacks are called.
-  // - Don't keep a reference to this object, except as the result of a function.
-  //   That way, you won't be tempted to add something to the promise later.
-  // - You can add callbacks in the async functions themselves, through the sender
-  //   argument, and they'll be added to the list in order and called after all
-  //   of the other callbacks are done.
-  //
-  // - In order to chain data processing which changes the result value, just
-  //   create a new TPromise class that handles the new data types, implement
-  //   it's DoTask to do the processing, and queue that up with some callbacks.
-  // - remember that DoTask does not have to be synchronous. You can create further
-  //   async code that is triggered in DoTask and calls callbacks in the object,
-  //   and only resolves or rejects once you get there.
-  //
   TPromise = class;
 
 
@@ -120,11 +118,6 @@ type
   TCallbackList = specialize TFPGList<TCallback>;
   TPromiseState = (psInitialized,psResolving,psRejecting);
 
-  // - To input data into a promise, one would simply create private variables
-  // on a subclass and include these in parameters to an overridden Enqueue
-  // constructor.
-  // - To get output data from a promise, just use the 'as' operator on the
-  // Promise parameter of the callback event to get your subclass of promise.
   TPromise = class
   strict private
     fCallbacks: TCallbackList;
@@ -134,11 +127,6 @@ type
     fTag: Integer;
     procedure RunCallbacks;
     procedure RunErrorbacks;
-  strict protected
-    // Useful for chaining promises.. just add this function as the catch
-    // to a subpromise and it will automatically reject this promise.
-    procedure SubPromiseRejected(Sender: TPromise; aError: TPromiseException);
-    procedure SubPromiseResolved(Sender: TPromise);
   protected
     procedure Resolve;
     procedure Reject(aError: TPromiseException);
@@ -150,13 +138,6 @@ type
     property Tag: Integer read fTag write fTag;
   end;
 
-  TBooleanPromise = class(TPromise)
-  protected
-    fAnswer: Boolean;
-  public
-    property Answer: Boolean read fAnswer;
-  end;
-
   { TAsyncTask }
 
   TAsyncTask = class(TObject)
@@ -166,6 +147,10 @@ type
     procedure Resolve;
     procedure Reject(aError: TPromiseException);
     function CreatePromise: TPromise; virtual; abstract;
+    // Useful for chaining promises.. just add this function as the catch
+    // to a subpromise or subtask and it will automatically reject this promise.
+    procedure SubPromiseRejected(Sender: TPromise; aError: TPromiseException);
+    procedure SubPromiseResolved(Sender: TPromise);
   public
     constructor Create;
     function After(aCallback: TCallback; aErrorback: TErrorback = nil): TPromise;
@@ -194,7 +179,7 @@ type
     procedure InputPromiseRejected(Sender: TPromise; aError: TPromiseException);
   protected
     property InputPromise: TPromise read fInputPromise;
-    procedure DoTask; virtual; abstract;
+    procedure DoTask(Input: TPromise); virtual; abstract;
   public
     constructor Defer(aInputPromise: TPromise);
   end;
@@ -270,7 +255,7 @@ end;
 procedure TDeferredTask2.InputPromiseResolved(Sender: TPromise);
 begin
   try
-    DoTask;
+    DoTask(Sender);
   except
     on E: Exception do
       Reject(E.Message);
@@ -323,6 +308,17 @@ procedure TAsyncTask.Reject(aError: TPromiseException);
 begin
   fPromise.Reject(aError);
   Free;
+end;
+
+procedure TAsyncTask.SubPromiseRejected(Sender: TPromise;
+  aError: TPromiseException);
+begin
+  Reject(aError);
+end;
+
+procedure TAsyncTask.SubPromiseResolved(Sender: TPromise);
+begin
+  Resolve;
 end;
 
 constructor TAsyncTask.Create;
@@ -414,17 +410,6 @@ begin
      AsyncCallQueuer(@RunErrorbacks)
   else
      raise Exception.Create('Async system is not set up');
-end;
-
-procedure TPromise.SubPromiseRejected(Sender: TPromise;
-  aError: TPromiseException);
-begin
-  Reject(aError);
-end;
-
-procedure TPromise.SubPromiseResolved(Sender: TPromise);
-begin
-  Resolve;
 end;
 
 constructor TPromise.Create;

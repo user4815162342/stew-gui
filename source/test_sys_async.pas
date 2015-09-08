@@ -115,7 +115,7 @@ type
   TTestDeferredTask = class(TDeferredTask2)
   protected
     function CreatePromise: TPromise; override;
-    procedure DoTask; override;
+    procedure DoTask(Input: TPromise); override;
   public
     constructor Defer(aInputPromise: TPromise);
     destructor Destroy; override;
@@ -138,7 +138,7 @@ begin
   result := TTestPromise.Create;
 end;
 
-procedure TTestDeferredTask.DoTask;
+procedure TTestDeferredTask.DoTask(Input: TPromise);
 begin
   Resolve;
 end;

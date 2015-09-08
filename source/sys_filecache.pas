@@ -94,53 +94,66 @@ type
     property Age: Longint read fAge;
   end;
 
-  { TFileSystemCacheExistenceKnownPromise }
+  { TFileSystemCacheExistenceKnownTask }
 
-  TFileSystemCacheExistenceKnownPromise = class(TFileExistencePromise)
+  TFileSystemCacheExistenceKnownTask = class(TQueuedTask)
+  private
+     fFile: TFile;
   protected
      procedure DoTask; override;
+     function CreatePromise: TPromise; override;
   public
      constructor Enqueue(aFile: TFile; aData: TFileSystemCacheExists);
   end;
 
 
-  { TFileSystemCacheExistencePromisePromise }
+  { TFileSystemCacheExistenceDeferredTask }
 
-  TFileSystemCacheExistencePromisePromise = class(TFileExistencePromise)
+  TFileSystemCacheExistenceDeferredTask = class(TDeferredTask2)
   private
-    procedure PromiseResolved(Sender: TPromise);
+    fPath: TFile;
   protected
-    procedure DoTask; override;
+    procedure  DoTask(Input: TPromise); override;
+    function CreatePromise: TPromise; override;
   public
-     constructor Enqueue(aFile: TFile; aPromise: TFileReadPromise);
-     constructor Enqueue(aFile: TFile; aPromise: TFileListPromise);
+    constructor Defer(aFile: TFile; aPromise: TFileReadPromise);
+    constructor Defer(aFile: TFile; aPromise: TFileListPromise);
   end;
 
-  { TFileSystemCacheListKnownPromise }
+  { TFileSystemCacheListKnownTask }
 
-  TFileSystemCacheListKnownPromise = class(TFileListPromise)
+  TFileSystemCacheListKnownTask = class(TQueuedTask)
+  private
+    fFile: TFile;
   protected
     procedure DoTask; override;
+    function CreatePromise: TPromise; override;
   public
      constructor Enqueue(aFile: TFile; aData: TFileSystemCacheLists; aExistence: TFileSystemCacheExists);
   end;
 
-  { TFileSystemCacheReadPromisePromise }
+  { TFileSystemCacheReadDeferredTask }
 
-  TFileSystemCacheReadPromisePromise = class(TFileReadPromise)
+  TFileSystemCacheReadDeferredTask = class(TDeferredTask2)
   private
-    procedure PromiseResolved(Sender: TPromise);
+    fFile: TFile;
+    fReader: TFileReader;
   protected
-    procedure DoTask; override;
+    procedure DoTask(Input: TPromise); override;
+    function CreatePromise: TPromise; override;
   public
-    constructor Enqueue(aFile: TFile; aHandler: TFileReader; aPromise: TFileReadPromise);
+    constructor Defer(aFile: TFile; aHandler: TFileReader; aPromise: TFileReadPromise);
   end;
 
-  { TFileSystemCacheReadKnownPromise }
+  { TFileSystemCacheReadKnownTask }
 
-  TFileSystemCacheReadKnownPromise = class(TFileReadPromise)
+  TFileSystemCacheReadKnownTask = class(TQueuedTask)
+  private
+    fFile: TFile;
+    fReader: TFileReader;
   protected
     procedure DoTask; override;
+    function CreatePromise: TPromise; override;
   public
     constructor Enqueue(aFile: TFile; aHandler: TFileReader;
       aData: TFileSystemCacheContents; aExistence: TFileSystemCacheExists);
@@ -208,81 +221,91 @@ implementation
 
 { TFileSystemCacheReadPromiseKnown }
 
-procedure TFileSystemCacheReadKnownPromise.DoTask;
+procedure TFileSystemCacheReadKnownTask.DoTask;
 begin
   // we have all the data, just resolve
   Resolve;
 end;
 
-constructor TFileSystemCacheReadKnownPromise.Enqueue(aFile: TFile;
-  aHandler: TFileReader; aData: TFileSystemCacheContents; aExistence: TFileSystemCacheExists);
+function TFileSystemCacheReadKnownTask.CreatePromise: TPromise;
 begin
-  inherited Enqueue(aFile,aHandler);
-  fAge := aData.Age;
-  if aExistence <> nil then
-     fDoesNotExist := not aExistence.Exists
-  else
-     // there's a slim chance that it doesn't exist... but I can just guess.
-     fDoesNotExist := false;
-  Reader.Read(aData.Data);
+  result := TFileReadPromise.Create(fFile,fReader);
 end;
 
-{ TFileSystemCacheReadPromisePromise }
+constructor TFileSystemCacheReadKnownTask.Enqueue(aFile: TFile;
+  aHandler: TFileReader; aData: TFileSystemCacheContents; aExistence: TFileSystemCacheExists);
+begin
+  fFile := aFile;
+  fReader := aHandler;
+  inherited Enqueue;
+  (Promise as TFileReadPromise).Reader.Read(aData.Data);
+  (Promise as TFileReadPromise).SetAnswer(aData.Age,not aExistence.Exists);
+end;
 
-procedure TFileSystemCacheReadPromisePromise.PromiseResolved(Sender: TPromise);
+{ TFileSystemCacheReadDeferredTask }
+
+procedure TFileSystemCacheReadDeferredTask.DoTask(Input: TPromise);
+var
+  lPromise: TFileReadPromise;
+  lInput: TFileReadPromise;
+  lReader: TFileStreamReader;
+  lNewReader: TFileReader;
 begin
   // we don't "own" the stream here, so we just want the stream here.
-  Reader.Read(((Sender as TFileReadPromise).Reader as TFileStreamReader).Stream);
-  fDoesNotExist := (Sender as TFileReadPromise).DoesNotExist;
-  fAge := (Sender as TFileReadPromise).Age;
+  lPromise := Promise as TFileReadPromise;
+  lInput := Input as TFileReadPromise;
+  lReader := lInput.Reader as TFileStreamReader;
+  lNewReader := lPromise.Reader;
+  lNewReader.Read(lReader.Stream);
+
+  (Promise as TFileReadPromise).Reader.Read(((Input as TFileReadPromise).Reader as TFileStreamReader).Stream);
+  (Promise as TFileReadPromise).SetAnswer((Input as TFileReadPromise).Age,(Input as TFileReadPromise).DoesNotExist);
   Resolve;
 end;
 
-procedure TFileSystemCacheReadPromisePromise.DoTask;
+function TFileSystemCacheReadDeferredTask.CreatePromise: TPromise;
 begin
-  // do nothing, not queued...
+  result := TFileReadPromise.Create(fFile,fReader);
 end;
 
-constructor TFileSystemCacheReadPromisePromise.Enqueue(aFile: TFile;
+constructor TFileSystemCacheReadDeferredTask.Defer(aFile: TFile;
   aHandler: TFileReader; aPromise: TFileReadPromise);
 begin
-  // don't queue, the resolution depends on another promise alone
-  DoNotQueue;
-  inherited Enqueue(aFile,aHandler);
-  aPromise.After(@PromiseResolved,@SubPromiseRejected);
+  fFile := aFile;
+  fReader := aHandler;
+  inherited Defer(aPromise);
 end;
 
-{ TFileSystemCacheListKnownPromise }
+{ TFileSystemCacheListKnownTask }
 
-procedure TFileSystemCacheListKnownPromise.DoTask;
+procedure TFileSystemCacheListKnownTask.DoTask;
 begin
   // we have the data already, just resolve
   Resolve;
 end;
 
-constructor TFileSystemCacheListKnownPromise.Enqueue(aFile: TFile;
+function TFileSystemCacheListKnownTask.CreatePromise: TPromise;
+begin
+  result := TFileListPromise.Create(fFile);
+end;
+
+constructor TFileSystemCacheListKnownTask.Enqueue(aFile: TFile;
   aData: TFileSystemCacheLists; aExistence: TFileSystemCacheExists);
 begin
-  inherited Enqueue(aFile);
-  fFiles := aData.Files;
-  if aExistence <> nil then
-    fDoesNotExist := not aExistence.Exists
-  else
-  // there's a very small chance that we got nil here, but the chance is
-  // small enought that I can just guess.
-    fDoesNotExist := false;
+  fFile := aFile;
+  inherited Enqueue;
+  (Promise as TFileListPromise).SetAnswer(aData.Files,not aExistence.Exists);
 
 end;
 
-{ TFileSystemCacheExistencePromisePromise }
+{ TFileSystemCacheExistenceDeferredTask }
 
-procedure TFileSystemCacheExistencePromisePromise.PromiseResolved(
-  Sender: TPromise);
+procedure TFileSystemCacheExistenceDeferredTask.DoTask(Input: TPromise);
 begin
-  if Sender is TFileReadPromise then
-     fAnswer := not (Sender as TFileReadPromise).DoesNotExist
-  else if Sender is TFileListPromise then
-     fAnswer := not (Sender as TFileListPromise).DoesNotExist
+  if Input is TFileReadPromise then
+     (Promise as TFileExistencePromise).SetAnswer(not (Input as  TFileReadPromise).DoesNotExist)
+  else if Input is TFileListPromise then
+     (Promise as TFileExistencePromise).SetAnswer(not (Input as TFileListPromise).DoesNotExist)
   else
   begin
      // shouldn't happen if the constructor is taking care of things right.
@@ -292,41 +315,43 @@ begin
   Resolve;
 end;
 
-procedure TFileSystemCacheExistencePromisePromise.DoTask;
+function TFileSystemCacheExistenceDeferredTask.CreatePromise: TPromise;
 begin
-  // do nothing, not queued...
+  result := TFileExistencePromise.Create(fPath);
 end;
 
-constructor TFileSystemCacheExistencePromisePromise.Enqueue(aFile: TFile;
+constructor TFileSystemCacheExistenceDeferredTask.Defer(aFile: TFile;
   aPromise: TFileReadPromise);
 begin
-  // the resolution depends on the other promise...
-  DoNotQueue;
-  inherited Enqueue(aFile);
-  aPromise.After(@PromiseResolved,@SubPromiseRejected);
+  fPath := aFile;
+  inherited Defer(aPromise);
 end;
 
-constructor TFileSystemCacheExistencePromisePromise.Enqueue(aFile: TFile;
+constructor TFileSystemCacheExistenceDeferredTask.Defer(aFile: TFile;
   aPromise: TFileListPromise);
 begin
-  // the resolution depends on the other promise...
-  DoNotQueue;
-  inherited Enqueue(aFile);
-  aPromise.After(@PromiseResolved,@SubPromiseRejected);
+  fPath := aFile;
+  inherited Defer(aPromise);
 end;
 
-{ TFileSystemCacheExistenceKnownPromise }
+{ TFileSystemCacheExistenceKnownTask }
 
-procedure TFileSystemCacheExistenceKnownPromise.DoTask;
+procedure TFileSystemCacheExistenceKnownTask.DoTask;
 begin
   Resolve;
 end;
 
-constructor TFileSystemCacheExistenceKnownPromise.Enqueue(aFile: TFile;
+function TFileSystemCacheExistenceKnownTask.CreatePromise: TPromise;
+begin
+  result := TFileExistencePromise.Create(fFile);
+end;
+
+constructor TFileSystemCacheExistenceKnownTask.Enqueue(aFile: TFile;
   aData: TFileSystemCacheExists);
 begin
-  inherited Enqueue(aFile);
-  fAnswer := aData.Exists;
+  fFile := aFile;
+  inherited Enqueue;
+  (Promise as TFileExistencePromise).SetAnswer(aData.Exists);
 end;
 
 { TFileSystemCacheContents }
@@ -382,7 +407,7 @@ begin
   lExistsKey := ExistsKey(lFile);
   if fPromiseCache[lExistsKey] = Sender then
   begin
-    lAnswer := (Sender as TFileExistencePromise).Answer;
+    lAnswer := (Sender as TFileExistencePromise).Exists;
     fPromiseCache.Delete(lExistsKey);
     fDataCache[lExistsKey] := TFileSystemCacheExists.Create(lAnswer);
   end;
@@ -576,13 +601,13 @@ begin
           fPromiseCache[lExistsKey] := Result;
         end
         else
-          result := TFileSystemCacheExistenceKnownPromise.Enqueue(aFile,lCached as TFileSystemCacheExists);
+          result := TFileSystemCacheExistenceKnownTask.Enqueue(aFile,lCached as TFileSystemCacheExists).Promise as TFileExistencePromise;
       end
       else
-        result := TFileSystemCacheExistencePromisePromise.Enqueue(aFile,lCached as TFileListPromise);
+        result := TFileSystemCacheExistenceDeferredTask.Defer(aFile,lCached as TFileListPromise).Promise as TFileExistencePromise;
     end
     else
-      result := TFileSystemCacheExistencePromisePromise.Enqueue(aFile,lCached as TFileReadPromise);
+      result := TFileSystemCacheExistenceDeferredTask.Defer(aFile,lCached as TFileReadPromise).Promise as TFileExistencePromise;
   end
   else
      result := lCached as TFileExistencePromise;
@@ -609,7 +634,7 @@ begin
       fPromiseCache[lListKey] := Result;
     end
     else
-      result := TFileSystemCacheListKnownPromise.Enqueue(aFile,lCached as TFileSystemCacheLists, fDataCache[lExistsKey] as TFileSystemCacheExists);
+      result := TFileSystemCacheListKnownTask.Enqueue(aFile,lCached as TFileSystemCacheLists, fDataCache[lExistsKey] as TFileSystemCacheExists).Promise as TFileListPromise;
   end
   else
      result := lCached as TFileListPromise;
@@ -634,17 +659,17 @@ begin
       fPromiseCache[lContentsKey] := Result;
       // Now, wrap that in another promise that will do the reading
       // with the correct reader.
-      result := TFileSystemCacheReadPromisePromise.Enqueue(aFile,aHandler,result);
+      result := TFileSystemCacheReadDeferredTask.Defer(aFile,aHandler,result).Promise as TFileReadPromise;
     end
     else
-      result := TFileSystemCacheReadKnownPromise.Enqueue(aFile,aHandler,lCached as TFileSystemCacheContents, fDataCache[lExistsKey] as TFileSystemCacheExists);
+      result := TFileSystemCacheReadKnownTask.Enqueue(aFile,aHandler,lCached as TFileSystemCacheContents, fDataCache[lExistsKey] as TFileSystemCacheExists).Promise as TFileReadPromise;
   end
   else
   begin
     // the promise is directly from the file system and returns a stream.
     // So, we need to return a promise that wwill do the reading with
     // the correct reader.
-     result := TFileSystemCacheReadPromisePromise.Enqueue(aFile,aHandler,lCached as TFileReadPromise);
+     result := TFileSystemCacheReadDeferredTask.Defer(aFile,aHandler,lCached as TFileReadPromise).Promise as TFileReadPromise;
   end;
 end;
 

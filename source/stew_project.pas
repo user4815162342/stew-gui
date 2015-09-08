@@ -466,17 +466,30 @@ type
   protected
     fPath: TFile;
     fProject: TStewProject;
-    procedure ResolveCreateProject(aPath: TFile);
-    procedure ProjectOpened(Sender: TPromise);
   public
-    constructor Enqueue(aPath: TFile);
+    constructor Create(aPath: TFile);
+    procedure SetAnswer(aProject: TStewProject);
     property Project: TStewProject read fProject;
     property Path: TFile read FPath;
   end;
 
+  { TProjectOpenTask }
+
+  TProjectOpenTask = class(TQueuedTask)
+  protected
+    fPath: TFile;
+  protected
+    procedure ProjectOpened(Sender: TPromise);
+    procedure ResolveCreateProject(aPath: TFile);
+    function CreatePromise: TPromise; override;
+    property Path: TFile read fPath;
+  public
+    constructor Enqueue(aPath: Tfile);
+  end;
+
   { TProjectOpenAtPromise }
 
-  TProjectOpenAtPromise = class(TProjectPromise)
+  TProjectOpenAtPromise = class(TProjectOpenTask)
   private
     procedure FileExists(Sender: TPromise);
   protected
@@ -485,7 +498,7 @@ type
 
   { TProjectOpenInParentPromise }
 
-  TProjectOpenInParentPromise = class(TProjectPromise)
+  TProjectOpenInParentPromise = class(TProjectOpenTask)
   private
     procedure FileExistsInParent(Sender: TPromise);
     procedure FileExists(Sender: TPromise);
@@ -495,7 +508,7 @@ type
 
   { TProjectCreateAtPromise }
 
-  TProjectCreateAtPromise = class(TProjectPromise)
+  TProjectCreateAtPromise = class(TProjectOpenTask)
   protected
     procedure DoTask; override;
   end;
@@ -662,6 +675,33 @@ end;
 operator=(a: TDocumentPath; b: TDocumentPath): Boolean;
 begin
   result := CompareText(a.ID,b.ID) = 0;
+end;
+
+{ TProjectOpenTask }
+
+procedure TProjectOpenTask.ProjectOpened(Sender: TPromise);
+begin
+  Resolve;
+end;
+
+procedure TProjectOpenTask.ResolveCreateProject(aPath: TFile);
+var
+  lProject: TStewProject;
+begin
+  lProject := TStewProject.Create(aPath);
+  (Promise as TProjectPromise).SetAnswer(lProject);
+  lProject.DoOpened.After(@ProjectOpened,@SubPromiseRejected);
+end;
+
+function TProjectOpenTask.CreatePromise: TPromise;
+begin
+  result := TProjectPromise.Create(fPath);
+end;
+
+constructor TProjectOpenTask.Enqueue(aPath: Tfile);
+begin
+  fPath := aPath;
+  inherited Enqueue;
 end;
 
 { TCachedAttachmentObject }
@@ -877,7 +917,7 @@ end;
 
 procedure TProjectOpenInParentPromise.FileExistsInParent(Sender: TPromise);
 begin
-  fProject := (Sender as TProjectOpenInParentPromise).Project;
+  (Promise as TProjectPromise).SetAnswer((Sender as TProjectPromise).Project);
   Resolve;
 end;
 
@@ -885,7 +925,7 @@ procedure TProjectOpenInParentPromise.FileExists(Sender: TPromise);
 var
   lParent: TFile;
 begin
-  if ((Sender as TBooleanPromise).Answer) then
+  if ((Sender as TFileExistencePromise).Exists) then
   begin
     ResolveCreateProject(Path);
   end
@@ -894,7 +934,6 @@ begin
     lParent := Path.Directory;
     if lParent = Path then
     begin
-      fProject := nil;
       Resolve;
     end
     else
@@ -911,34 +950,27 @@ end;
 
 { TProjectPromise }
 
-procedure TProjectPromise.ProjectOpened(Sender: TPromise);
-begin
-  Resolve;
-end;
-
-procedure TProjectPromise.ResolveCreateProject(aPath: TFile);
-begin
-  fProject := TStewProject.Create(aPath);
-  fProject.DoOpened.After(@ProjectOpened,@SubPromiseRejected);
-end;
-
-constructor TProjectPromise.Enqueue(aPath: TFile);
+constructor TProjectPromise.Create(aPath: TFile);
 begin
   fPath := aPath;
-  inherited Enqueue;
+  inherited Create;
+end;
+
+procedure TProjectPromise.SetAnswer(aProject: TStewProject);
+begin
+  fProject := aProject;
 end;
 
 { TProjectOpenAtPromise }
 
 procedure TProjectOpenAtPromise.FileExists(Sender: TPromise);
 begin
-  if ((Sender as TBooleanPromise).Answer) then
+  if ((Sender as TFileExistencePromise).Exists) then
   begin
     ResolveCreateProject(Path);
   end
   else
   begin
-    fProject := nil;
     Resolve;
   end;
 end;
@@ -2164,17 +2196,17 @@ end;
 
 class function TStewProject.Open(aPath: TFile): TProjectPromise;
 begin
-  result := TProjectOpenAtPromise.Enqueue(aPath);
+  result := TProjectOpenAtPromise.Enqueue(aPath).Promise as TProjectPromise;
 end;
 
 class function TStewProject.OpenInParent(aPath: TFile): TProjectPromise;
 begin
-  result := TProjectOpenInParentPromise.Enqueue(aPath);
+  result := TProjectOpenInParentPromise.Enqueue(aPath).Promise as TProjectPromise;
 end;
 
 class function TStewProject.CreateNew(aPath: TFile): TProjectPromise;
 begin
-  result := TProjectCreateAtPromise.Enqueue(aPath);
+  result := TProjectCreateAtPromise.Enqueue(aPath).Promise as TProjectPromise;
 end;
 
 end.

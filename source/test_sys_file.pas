@@ -112,7 +112,7 @@ end;
 
 procedure TFileSpec.EmptyWriteCallback2(Sender: TPromise);
 begin
-  if (Sender as TFileExistencePromise).Answer then
+  if (Sender as TFileExistencePromise).Exists then
     EndAsync(Sender.Tag)
   else
     FailAsync(Sender.Tag,'Empty write did not create a file');
@@ -175,7 +175,7 @@ procedure TFileSpec.CheckExistenceCallback1(aSender: TPromise);
 var
   root: TFile;
 begin
-  if not (aSender as TBooleanPromise).Answer then
+  if not (aSender as TFileExistencePromise).Exists then
     FailAsync(aSender.Tag,'"_stew.json" should have existed in test data')
   else
   begin
@@ -187,7 +187,7 @@ end;
 
 procedure TFileSpec.CheckExistenceCallback2(aSender: TPromise);
 begin
-  if (aSender as TBooleanPromise).Answer then
+  if (aSender as TFileExistencePromise).Exists then
     FailAsync(aSender.Tag,'"_foo.bar" should not exist in test data.')
   else
     EndAsync(aSender.Tag);
@@ -347,7 +347,7 @@ end;
 
 procedure TFileSpec.RenameFileCallback2(aSender: TPromise);
 begin
-  if not (aSender as TBooleanPromise).Answer then
+  if not (aSender as TFileExistencePromise).Exists then
     FailAsync(aSender.Tag,'Renamed file does not exist')
   else
     EndAsync(aSender.Tag);
