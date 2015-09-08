@@ -9,104 +9,13 @@ uses
   Classes, SysUtils, sys_file, sys_async, stew_properties, stew_types, contnrs;
 
 {
-TODO: Move the cache stuff into a caching file system (a generic that can wrap
-around another filesystem). Use a hashmap that uses the id as the lookup. For
-id's longer than length of shortstring (255, sizeof(shortstring) - 1), have a
-special item called something like Extended ID Data, it contains another hashmap
-that maps for items from the rest of the string.
-
-This will simplify the whole project layer greatly, I almost don't even need
-to keep track of project state here, I just go get the data from the filesystem,
-and it's up to the caller to provide a cached file system as the back end. Really,
-the file access is the big time hog, and almost all of the rest can be recalculated
-on demand.
-
-I do need a generic way to uncache data when I want to ensure it gets reloaded.
-This might be as simple as an 'uncache' method on TFileSystem that doesn't do
-anything unless the system is cached.
-
--- Note: There are "two" caches. One is a cache of IDs by path, and one is a cache
-of data by id. Although, for local stuff, maybe I don't need a separate cache
-by path, since I can get the ID automatically, so maybe that path-cache is a
-separate thing used only by remote file systems dependent on a file ID.
+TODO: Although I have the file caching done so I don't really need to keep a
+cache of files, I still need to keep a "new" state, so that when I get a list
+of documents I can still return the ones that don't have anything saved yet.
 
 TODO: Next: Implement project properties, then test that, then implement document
 properties, then test that, then convert the GUI into using them both (since they both
-have an effect on the JSON Editor GUI control). Then, work on the other things.
-
-TODO: Revamp and simplify the cache stuff:
-
-TCachedData: TObject
-- a lot of other stuff that is stored on the cache currently will be moved into
-functionality on the project. For example, I don't need to store a link to the
-project owner, because with promises, the project can call it's own events
-when things are loaded. The Cache is going to be a lot "dumber". It's going to
-contain data and timestamps and file ages and that's it, no automatic loading,
-etc. The project itself is needed to do anything useful by adding and retrieving
-from the cache.
-
-TCachedDocument: TCachedItem
-- attachments: Hashmap of TCachedItem, named by descriptor and extension of the
-  document.
-  - the items are initialized to nil at first. This means that no attempts have
-    been made to load them. When attempts are made to load, they will be replaced
-    by TCachedLoadingPromise or TCachedListingPromise, which will eventually be
-    replaced by the result.
-  - only files which actually exist are added to the attachments when it
-    is loaded.
-  - the directory file, that contains other documents, is found at Hash string ""
-    (hopefully that's possible), and contains a TCachedDirectoryContents
-- Name: The "name" of the document (usually the basename of the file)
-- Get(name): Gets the attachment data at name.
-- Add(name,Attachment): Adds the attachment at name (usually occurs in a Listing)
-
-TCachedDirectoryRoot: TCachedItem
-- path: The TFile representing the directory.
-- documents: hashmap of TCachedDocument.
-
-TCachedProjectData: TCachedDirectoryContents
-- similar, but not quite the same as TCachedDocument, because it's attachments
-are at the root of the directory, and it is created automatically without going
-through the 'Loading' thing.
-- attachments: similar to attachments in TCachedDocument.
-
-TCachedLoadingPromise: TCacheItem
-- when something is 'loaded', this item is placed in there, so we're not actually
-keeping track of the loading state on the data. This item replaces itself with
-the correct item once it is loaded.
-- TPromise that is resolved once the load is completed. Then, we can just grab
-the promise off of the cached item if it's there.
-- This may also replace the properties after a save, since a load might happen
-immediately after the save to 'refresh', or it might be a way to know if the
-item is saved or not.
-
-TCachedListingPromise: TCacheItem
-- similar to TCachedLoadingPromise, this is put in place when we are listing the documents yet
-and don't have a TCachedItemContainer yet.
-- TPromise that is resolved once the listing is completed.
-
-TCachedFile: TCacheItem
-- Path: the TFile representing the file itself.
-- FileAge: The age of the file at last load.
-
-TCachedProperties: TCachedFile
-- stores a copy of the properties object for the document.
-
-TCachedSynopsis: TCachedFile
-- stores the text of the synopsis.
-
-TCachedProjectProperties: TCacheItem
-- stores a copy of the stew project properties for the project. Only really
-found at the top level.
-
-TODO: Opening the project, instead of checking for the stew properties and loading:
-- Do a listing on the project directory specified, as a directory.
-- Go through the returned "files", and if there is one named "_stew.json", that
-is the same as doing an existence check. We can then convert the listing into
-a TCachedProjectRoot, with the _stew being loaded as a TCachedProjectProperties.
-- Finally, once the properties data is loaded, create a TStewProject, passing
-in the file list and the properties data as parameters, and the project will
-then create the root cache data on it's own.
+have an effect on the JSON Editor GUI control). Then, work on the other actions.
 
 TODO: Something I might add later, if I feel it's necessary. Loading should have a refresh mode, I think I've put this elsewhere:
 - retrieve-from-cache-only: if the file is not cached, load it, otherwise just
@@ -121,13 +30,92 @@ TODO: Something I might add later, if I feel it's necessary. Loading should have
 
 }
 
-type
-  { TDocumentID }
+{
+// TODO: Converting to an 'observer' thing, where I have a list of functions which
+all get called at various events. I need to be able to handle the following types of
+events and associated properties. Most of these events are really only used for
+observers who are only slightly interested in the data. The objects which actually
+trigger the events to occur are going to get the promises to work with.
 
-  TDocumentID = record
+Maybe I should use error objects to handle the parameters, although then you have
+to "cast" them to the appropriate form to get any information from them. The other
+alternative, however, is having a separate list of delegates for each type of
+notification. Another alternative is to include parameters that are never used,
+which seems inefficient to me.
+
+Simple Notifications:
+(These notifications have no parameter but maybe that project that triggered it)
+=====================
+ProjectPropertiesChanged: - triggered after the projects properties are finished
+loading. Note that a 'save' will also cause a reload, leading to this event being
+triggered on a save as well.
+
+Simple Error Notifications:
+(These notifications will contain an error message. Do I really want these? The
+only things that are really vested in errors are usually the ones that initiated
+the activity first, and maybe the UI for reporting errors, the first can get them
+from the promise, the second can get them from a simpler event.)
+==========================
+ProjectPropertiesLoadError - triggered if an error occurrs while loading properties.
+ProjectPropertiesSaveError - triggered if an error ocurrs while saving properties.
+ProjectPropertiesSaveConflict - triggered if there is a conflict while saving properties.
+
+Cancellable Notifications:
+(These notifications will have a 'cancel' flag, that when turned on, will prevent
+an action from happening)
+==========================
+ProjectPropertiesChanging: - triggered when a request is made to save new project
+properties, or when the project properties are somehow uncached or forced to be
+reloaded. This can be used by, for example, the project properties editor to
+prevent the changes from occurring if the editor itself has changes that aren't
+saved.
+
+Document Notifications:
+(These notifications have a parameter indicating a specific document the event is triggered from)
+=======================
+DocumentListed
+DocumentCreated
+DocumentRenamed
+DocumentDisappeared (might occur if, on a listing, the document suddenly doesn't
+exist anymore, the editor can convert the document to "new" instead. This is
+going to be different from a potential DocumentDeleted, which would be
+cancellable.)
+
+Document Error Notifications:
+=============================
+DocumentListError
+DocumentRenameError
+
+Cancellable Document Notifications:
+===================================
+DocumentRenaming
+
+Attachment Notifications:
+(These notifications have a parameter indicating what document and attachment the event
+is related to)
+=========================
+AttachmentChanged
+AttachmentDisappeared
+
+Attachment Error Notifications:
+===============================
+AttachmentLoadError
+AttachmentSaveError
+AttachmentSaveConflict
+
+Cancellable Attachment Notifications:
+=====================================
+AttachmentChanging
+
+}
+
+type
+  { TDocumentPath }
+
+  TDocumentPath = record
   strict private
     fID: UTF8String;
-    function GetContainer: TDocumentID;
+    function GetContainer: TDocumentPath;
     function GetIsNull: Boolean;
     function GetIsSystem: Boolean;
     function GetName: UTF8String;
@@ -136,23 +124,23 @@ type
     property IsSystem: Boolean read GetIsSystem;
     property ID: String read fID;
     property Name: UTF8String read GetName;
-    property Container: TDocumentID read GetContainer;
-    function GetContainedDocument(aName: UTF8String): TDocumentID;
-    function Contains(aChild: TDocumentID): Boolean;
-    class function FromString(const aPath: UTF8String): TDocumentID; static;
-    const Root: TDocumentID = ( fID: '/');
-    const Null: TDocumentID = ( fID: '');
-    class function GetSystemDocument(aName: UTF8String): TDocumentID; static;
+    property Container: TDocumentPath read GetContainer;
+    function GetContainedDocument(aName: UTF8String): TDocumentPath;
+    function Contains(aChild: TDocumentPath): Boolean;
+    class function FromString(const aPath: UTF8String): TDocumentPath; static;
+    const Root: TDocumentPath = ( fID: '/');
+    const Null: TDocumentPath = ( fID: '');
+    class function GetSystemDocument(aName: UTF8String): TDocumentPath; static;
   end;
 
-  TDocumentList = array of TDocumentID;
+  TDocumentList = array of TDocumentPath;
 
-  TDocumentNotifyEvent = procedure(Sender: TObject; Document: TDocumentID) of object;
-  TDocumentExceptionEvent = procedure(Sender: TObject; Document: TDocumentID; Error: String) of object;
-  TAttachmentNotifyEvent = procedure(Sender: TObject; Document: TDocumentID; AttachmentName: String) of object;
-  TAttachmentExceptionEvent = procedure(Sender: TObject; Document: TDocumentID; AttachmentName: String; Error: String) of object;
-  TAttachmentConfirmationEvent = procedure(Sender: TObject; Document: TDocumentID; AttachmentName: String; out Answer: Boolean) of object;
-  TAttachmentChoiceEvent = procedure(Sender: TObject; Document: TDocumentID; AttachmentName: String; aChoices: TStringArray; var Answer: String; out Accepted: Boolean) of object;
+  TDocumentNotifyEvent = procedure(Sender: TObject; Document: TDocumentPath) of object;
+  TDocumentExceptionEvent = procedure(Sender: TObject; Document: TDocumentPath; Error: String) of object;
+  TAttachmentNotifyEvent = procedure(Sender: TObject; Document: TDocumentPath; AttachmentName: String) of object;
+  TAttachmentExceptionEvent = procedure(Sender: TObject; Document: TDocumentPath; AttachmentName: String; Error: String) of object;
+  TAttachmentConfirmationEvent = procedure(Sender: TObject; Document: TDocumentPath; AttachmentName: String; out Answer: Boolean) of object;
+  TAttachmentChoiceEvent = procedure(Sender: TObject; Document: TDocumentPath; AttachmentName: String; aChoices: TStringArray; var Answer: String; out Accepted: Boolean) of object;
 
   TOrderDocumentPosition = (odpBefore,odpAfter);
 
@@ -266,7 +254,7 @@ type
     // NOTE: This is a 'virtual' TFile, since the actual data is split
     // across multiple files.
     fDisk: TFile;
-    fID: TDocumentID;
+    fID: TDocumentPath;
     fFiles: TFileList;
     fContents: TFPHashObjectList;
     fProperties: TDocumentProperties;
@@ -313,7 +301,7 @@ type
     procedure DirectoryCreated;
   public
     constructor Create(aProject: TStewProject; aDiskPath: TFile;
-      aID: TDocumentID; aIsRoot: Boolean);
+      aID: TDocumentPath; aIsRoot: Boolean);
     destructor Destroy; override;
     property Properties: TDocumentProperties read fProperties;
     // This isn't a true recursive. It is more of a recursive refresh that doesn't
@@ -598,13 +586,15 @@ type
     property OnDocumentCreated: TDocumentNotifyEvent read FOnDocumentCreated write FOnDocumentCreated;
     property OnDocumentChanged: TDocumentNotifyEvent read FOnDocumentChanged write FOnDocumentChanged;
     property OnDocumentRenameFailed: TDocumentExceptionEvent read FOnDocumentRenameFailed write FOnDocumentRenameFailed;
+    // TODO: ConfirmNewAttachment and ChooseTemplate are not meant
+    // for the observers to see, they are meant for attaching the UI to.
     property OnConfirmNewAttachment: TAttachmentConfirmationEvent read FOnConfirmNewAttachment write FOnConfirmNewAttachment;
     property OnChooseTemplate: TAttachmentChoiceEvent read FOnChooseTemplate write FOnChooseTemplate;
   public
     constructor Create;
     destructor Destroy; override;
     property DiskPath: TFile read fDisk;
-    function GetDocument(const aDocumentID: TDocumentID): TDocumentMetadata;
+    function GetDocument(const aDocumentID: TDocumentPath): TDocumentMetadata;
     property IsOpened: Boolean read GetIsOpened;
     function GetProjectName: String;
     property Properties: TProjectProperties read GetProperties;
@@ -619,7 +609,7 @@ type
   function IncludeTrailingSlash(Const Path : UTF8String) : UTF8String;
   function ExcludeTrailingSlash(Const Path: UTF8String): UTF8String;
 
-  operator = (a: TDocumentID; b: TDocumentID): Boolean;
+  operator = (a: TDocumentPath; b: TDocumentPath): Boolean;
 
   const
     AlwaysForbiddenNameCharacters: set of char = [#0..#$1F,#$7F,'<','>',':','"','/','\','|','?','*','%','[',']','~','{','}',';'];
@@ -669,7 +659,7 @@ begin
     Delete(Result,1,1);
 end;
 
-operator=(a: TDocumentID; b: TDocumentID): Boolean;
+operator=(a: TDocumentPath; b: TDocumentPath): Boolean;
 begin
   result := CompareText(a.ID,b.ID) = 0;
 end;
@@ -960,9 +950,9 @@ begin
   TProjectProperties.GetPath(Path).CheckExistence.After(@FileExists,@SubPromiseRejected);
 end;
 
-{ TDocumentID }
+{ TDocumentPath }
 
-function TDocumentID.GetContainer: TDocumentID;
+function TDocumentPath.GetContainer: TDocumentPath;
 var
   i : longint;
 begin
@@ -981,18 +971,18 @@ begin
     result.fID := '/';
 end;
 
-function TDocumentID.GetIsNull: Boolean;
+function TDocumentPath.GetIsNull: Boolean;
 begin
   result := fID = '';
 end;
 
-function TDocumentID.GetIsSystem: Boolean;
+function TDocumentPath.GetIsSystem: Boolean;
 begin
   if Length(fID) > 0 then
     result := fID[1] = ':';
 end;
 
-function TDocumentID.GetName: UTF8String;
+function TDocumentPath.GetName: UTF8String;
 var
   i : longint;
 begin
@@ -1002,27 +992,27 @@ begin
   Result := Copy(fID, I + 1, MaxInt);
 end;
 
-function TDocumentID.GetContainedDocument(aName: UTF8String): TDocumentID;
+function TDocumentPath.GetContainedDocument(aName: UTF8String): TDocumentPath;
 begin
   result.fID := IncludeTrailingSlash(fID) + aName;
 end;
 
-function TDocumentID.Contains(aChild: TDocumentID): Boolean;
+function TDocumentPath.Contains(aChild: TDocumentPath): Boolean;
 var
-  aChildContainer: TDocumentID;
+  aChildContainer: TDocumentPath;
 begin
   aChildContainer := aChild.Container;
   result := (aChildContainer = Self) or // child's parent is this guy
-            ((aChildContainer <> TDocumentID.Root) and // child's parent is not root
+            ((aChildContainer <> TDocumentPath.Root) and // child's parent is not root
             Contains(aChildContainer)); // this guy is a parent of the child's parent
 end;
 
-class function TDocumentID.FromString(const aPath: UTF8String): TDocumentID;
+class function TDocumentPath.FromString(const aPath: UTF8String): TDocumentPath;
 begin
   result.fID := IncludeLeadingSlash(ExcludeTrailingSlash(aPath));
 end;
 
-class function TDocumentID.GetSystemDocument(aName: UTF8String): TDocumentID;
+class function TDocumentPath.GetSystemDocument(aName: UTF8String): TDocumentPath;
 begin
   result.fID := ':' + aName;
 end;
@@ -1505,8 +1495,8 @@ var
   i2: integer;
   index: TStrings;
 begin
-  s1 := TDocumentID.FromString(List[Index1]).Name;
-  s2 := TDocumentID.FromString(List[Index2]).Name;
+  s1 := TDocumentPath.FromString(List[Index1]).Name;
+  s2 := TDocumentPath.FromString(List[Index2]).Name;
   index := Properties.index;
   i1 := SimpleIndexOf(index,s1);
   i2 := SimpleIndexOf(index,s2);
@@ -1619,7 +1609,7 @@ begin
 end;
 
 constructor TDocumentMetadata.Create(aProject: TStewProject;
-  aDiskPath: TFile; aID: TDocumentID; aIsRoot: Boolean);
+  aDiskPath: TFile; aID: TDocumentPath; aIsRoot: Boolean);
 var
   aCached: TProtectedDocumentProperties;
 begin
@@ -1743,7 +1733,7 @@ begin
     SetLength(result,list.Count);
     for i := 0 to list.Count - 1 do
     begin
-      result[i] := TDocumentID.FromString(list[i]);
+      result[i] := TDocumentPath.FromString(list[i]);
     end;
   finally
     list.Free;
@@ -1831,7 +1821,7 @@ end;
 
 function TDocumentMetadata.GetParent: TDocumentMetadata;
 begin
-  if fID <> TDocumentID.Root then
+  if fID <> TDocumentPath.Root then
     result := fProject.GetDocument(fID.Container)
   else
     result := nil;
@@ -2030,12 +2020,12 @@ var
   aParent: TDocumentMetadata;
 begin
   fIsNew := false;
-  if not (fID = TDocumentID.Root) then
+  if not (fID = TDocumentPath.Root) then
   begin
     // Add the 'directory' name to the files.
     AddFile(fDisk);
     aParent := fProject.GetDocument(fID.Container);
-    if aParent.IsNew and not (aParent.fID = TDocumentID.Root) then
+    if aParent.IsNew and not (aParent.fID = TDocumentPath.Root) then
       aParent.DirectoryCreated;
   end;
   StateChanged;
@@ -2099,7 +2089,7 @@ begin
   end;
   if fMetadataCache = nil then
   begin
-    fMetadataCache := TDocumentMetadata.Create(Self,fDisk,TDocumentID.Root,true);
+    fMetadataCache := TDocumentMetadata.Create(Self,fDisk,TDocumentPath.Root,true);
   end;
 end;
 
@@ -2154,14 +2144,14 @@ begin
   inherited Destroy;
 end;
 
-function TStewProject.GetDocument(const aDocumentID: TDocumentID
+function TStewProject.GetDocument(const aDocumentID: TDocumentPath
   ): TDocumentMetadata;
 begin
   if fMetadataCache = nil then
      raise Exception.Create('Please open project first');
   if aDocumentID.IsNull then
      raise Exception.Create('Can''t retrieve a null document');
-  if aDocumentID = TDocumentID.Root then
+  if aDocumentID = TDocumentPath.Root then
     result := fMetadataCache
   else
      result := fMetadataCache.PutPath(aDocumentID.ID);
