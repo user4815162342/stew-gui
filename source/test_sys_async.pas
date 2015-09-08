@@ -48,34 +48,43 @@ type
 
   { TTestPromise }
   TTestPromise = class(TPromise)
+  public
+    constructor Create;
+    destructor Destroy; override;
+  end;
+
+  { TTestQueuedTask }
+
+  TTestQueuedTask = class(TQueuedTask)
+  public
     constructor Enqueue;
     destructor Destroy; override;
   end;
 
   { TTestPromiseResolve }
 
-  TTestPromiseResolve = class(TTestPromise)
+  TTestPromiseResolve = class(TTestQueuedTask)
   public
     procedure DoTask; override;
   end;
 
   { TTestPromiseReject }
 
-  TTestPromiseReject = class(TTestPromise)
+  TTestPromiseReject = class(TTestQueuedTask)
   public
     procedure DoTask; override;
   end;
 
   { TTestPromiseError }
 
-  TTestPromiseError = class(TTestPromise)
+  TTestPromiseError = class(TTestQueuedTask)
   public
     procedure DoTask; override;
   end;
 
   { TTestChainPromise }
 
-  TTestChainPromise = class(TTestPromise)
+  TTestChainPromise = class(TTestQueuedTask)
     procedure Fail(Sender: TPromise; aError: TPromiseException);
     procedure Success(Sender: TPromise);
   private
@@ -87,7 +96,7 @@ type
 
   { TTestDeferralOfPromise }
 
-  TTestDeferralOfPromise = class(TTestPromise)
+  TTestDeferralOfPromise = class(TTestQueuedTask)
   private
     FDone: Boolean;
   public
@@ -104,6 +113,20 @@ implementation
 
 uses
   gui_async;
+
+{ TTestQueuedTask }
+
+constructor TTestQueuedTask.Enqueue;
+begin
+  inherited Enqueue;
+  inc(gPromiseCounter)
+end;
+
+destructor TTestQueuedTask.Destroy;
+begin
+  Dec(gPromiseCounter);
+  inherited Destroy;
+end;
 
 { TTestDeferralOfPromise }
 
@@ -145,10 +168,10 @@ end;
 
 { TTestPromise }
 
-constructor TTestPromise.Enqueue;
+constructor TTestPromise.Create;
 begin
+  inherited Create;
   inc(gPromiseCounter);
-  inherited Enqueue;
 
 end;
 

@@ -118,7 +118,7 @@ type
   TErrorbackList = specialize TFPGList<TErrorback>;
   TCallback = procedure(Sender: TPromise) of object;
   TCallbackList = specialize TFPGList<TCallback>;
-  TPromiseState = (psInitialized,psQueued,psDoNotQueue,psResolving,psRejecting);
+  TPromiseState = (psInitialized,psResolving,psRejecting);
 
   // - To input data into a promise, one would simply create private variables
   // on a subclass and include these in parameters to an overridden Enqueue
@@ -135,25 +135,15 @@ type
     procedure RunCallbacks;
     procedure RunErrorbacks;
   strict protected
-    // The following can be called from subclass constructors to avoid automatic
-    // queuing. This is useful in cases where the promise is resolved based on
-    // the result of an already existing promise, and no task is needed. In such
-    // a case we don't want to accidentally have everything resolved, then free
-    // the promise before RunQueuedTask is run, leading to access violations, etc.
-    procedure DoNotQueue;
-    // This can be called *after* DoNotQueue is called by a subclass constructor and
-    // the constructor has finished and *now* you want to queue.
-    procedure DoQueue;
-    procedure DoTask; virtual; abstract;
-    procedure RunQueuedTask; virtual;
-    procedure Resolve;
-    procedure Reject(aError: TPromiseException);
     // Useful for chaining promises.. just add this function as the catch
     // to a subpromise and it will automatically reject this promise.
     procedure SubPromiseRejected(Sender: TPromise; aError: TPromiseException);
     procedure SubPromiseResolved(Sender: TPromise);
+  protected
+    procedure Resolve;
+    procedure Reject(aError: TPromiseException);
   public
-    constructor Enqueue;
+    constructor Create;
     destructor Destroy; override;
     function After(aCallback: TCallback; aErrorback: TErrorback = nil): TPromise;
     procedure Catch(aErrorback: TErrorback);
@@ -165,6 +155,48 @@ type
     fAnswer: Boolean;
   public
     property Answer: Boolean read fAnswer;
+  end;
+
+  { TAsyncTask }
+
+  TAsyncTask = class(TObject)
+  private
+    fPromise: TPromise;
+  protected
+    procedure Resolve;
+    procedure Reject(aError: TPromiseException);
+    function CreatePromise: TPromise; virtual; abstract;
+  public
+    constructor Create;
+    function After(aCallback: TCallback; aErrorback: TErrorback = nil): TPromise;
+    procedure Catch(aErrorback: TErrorback);
+    property Promise: TPromise read fPromise;
+  end;
+
+  { TQueuedTask }
+
+  TQueuedTask = class(TAsyncTask)
+  private
+    procedure RunQueuedTask;
+    procedure DoQueue;
+  protected
+    procedure DoTask; virtual; abstract;
+  public
+    constructor Enqueue;
+  end;
+
+  { TDeferredTask2 }
+
+  TDeferredTask2 = class(TAsyncTask)
+  private
+    fInputPromise: TPromise;
+    procedure InputPromiseResolved(Sender: TPromise);
+    procedure InputPromiseRejected(Sender: TPromise; aError: TPromiseException);
+  protected
+    property InputPromise: TPromise read fInputPromise;
+    procedure DoTask; virtual; abstract;
+  public
+    constructor WaitFor(aInputPromise: TPromise);
   end;
 
   // Use this one to create your own deferred code. Just override DoCallback to
@@ -227,6 +259,90 @@ begin
   AsyncCallQueuer := nil;
 end;
 
+{ TDeferredTask2 }
+
+procedure TDeferredTask2.InputPromiseRejected(Sender: TPromise;
+  aError: TPromiseException);
+begin
+  Reject(aError);
+end;
+
+procedure TDeferredTask2.InputPromiseResolved(Sender: TPromise);
+begin
+  try
+    DoTask;
+  except
+    on E: Exception do
+      Reject(E.Message);
+  end;
+end;
+
+constructor TDeferredTask2.WaitFor(aInputPromise: TPromise);
+begin
+  inherited Create;
+  fInputPromise := aInputPromise;
+  aInputPromise.After(@InputPromiseResolved,@InputPromiseRejected);
+
+end;
+
+{ TQueuedTask }
+
+procedure TQueuedTask.RunQueuedTask;
+begin
+  try
+    DoTask;
+  except
+    on E: Exception do
+      Reject(E.Message);
+  end;
+end;
+
+procedure TQueuedTask.DoQueue;
+begin
+  if AsyncCallQueuer <> nil then
+     AsyncCallQueuer(@RunQueuedTask)
+  else
+     raise Exception.Create('Async system is not set up');
+end;
+
+constructor TQueuedTask.Enqueue;
+begin
+  inherited Create;
+  DoQueue;
+end;
+
+{ TAsyncTask }
+
+procedure TAsyncTask.Resolve;
+begin
+  fPromise.Resolve;
+  Free;
+end;
+
+procedure TAsyncTask.Reject(aError: TPromiseException);
+begin
+  fPromise.Reject(aError);
+  Free;
+end;
+
+constructor TAsyncTask.Create;
+begin
+  inherited Create;
+  fPromise := CreatePromise;
+
+end;
+
+function TAsyncTask.After(aCallback: TCallback; aErrorback: TErrorback
+  ): TPromise;
+begin
+  result := fPromise.After(aCallback,aErrorback);
+end;
+
+procedure TAsyncTask.Catch(aErrorback: TErrorback);
+begin
+  fPromise.Catch(aErrorback);
+end;
+
 { GPromise }
 
 procedure TPromise.RunCallbacks;
@@ -277,41 +393,6 @@ begin
 end;
 
 
-procedure TPromise.DoNotQueue;
-begin
-  if not (fState in [psQueued,psResolving,psRejecting]) then
-    fState := psDoNotQueue
-  else
-    raise Exception.Create('Oops, sorry, the promise has already been queued');
-end;
-
-procedure TPromise.DoQueue;
-begin
-  // Calling this from a state of psDoNotQueue is acceptible,
-  // as that only applies to *automatic* queuing.
-  if not (fState in [psQueued,psResolving,psRejecting]) then
-  begin
-    if AsyncCallQueuer <> nil then
-       AsyncCallQueuer(@RunQueuedTask)
-    else
-       raise Exception.Create('Async system is not set up');
-    fState := psQueued;
-  end
-  else
-     raise Exception.Create('Promise has already been queued');
-
-end;
-
-procedure TPromise.RunQueuedTask;
-begin
-  try
-    DoTask;
-  except
-    on E: Exception do
-      Reject(E.Message);
-  end;
-end;
-
 procedure TPromise.Resolve;
 begin
   if fState in [psResolving,psRejecting] then
@@ -319,14 +400,20 @@ begin
   fState := psResolving;
   // we should know by now if the async system isn't setup, since that
   // is checked in the constructor.
-  AsyncCallQueuer(@RunCallbacks);
+  if AsyncCallQueuer <> nil then
+     AsyncCallQueuer(@RunCallbacks)
+  else
+     raise Exception.Create('Async system is not set up');
 end;
 
 procedure TPromise.Reject(aError: TPromiseException);
 begin
   fError := aError;
   fState := psRejecting;
-  AsyncCallQueuer(@RunErrorbacks);
+  if AsyncCallQueuer <> nil then
+     AsyncCallQueuer(@RunErrorbacks)
+  else
+     raise Exception.Create('Async system is not set up');
 end;
 
 procedure TPromise.SubPromiseRejected(Sender: TPromise;
@@ -340,15 +427,12 @@ begin
   Resolve;
 end;
 
-constructor TPromise.Enqueue;
+constructor TPromise.Create;
 begin
   inherited Create;
   fCallbacks := TCallbackList.Create;
   fErrorbacks := TErrorbackList.Create;
   fError := '';
-  // Sometimes, we don't want to actually queue it up. See DoNotQueue
-  if fState <> psDoNotQueue then
-    DoQueue;
 end;
 
 destructor TPromise.Destroy;
@@ -362,7 +446,7 @@ function TPromise.After(aCallback: TCallback; aErrorback: TErrorback): TPromise;
 begin
   result := Self;
   case fState of
-    psQueued, psDoNotQueue, psResolving:
+    psInitialized, psResolving:
     begin
       if aCallback <> nil then
          fCallbacks.Add(aCallback);
