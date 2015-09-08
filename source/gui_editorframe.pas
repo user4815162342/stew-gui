@@ -31,15 +31,15 @@ type
     ToolbarPanel: TPanel;
     procedure CloseButtonClick(Sender: TObject);
   private
-    fDocument: TDocumentID;
+    fDocument: TDocumentPath;
     { private declarations }
   protected
-    procedure SetDocument(AValue: TDocumentID); virtual;
+    procedure SetDocument(AValue: TDocumentPath); virtual;
   public
     { public declarations }
     constructor Create(TheOwner: TComponent); override;
     function CloseQuery: Boolean; virtual;
-    property Document: TDocumentID read fDocument write SetDocument;
+    property Document: TDocumentPath read fDocument write SetDocument;
   end;
 
   TEditorFrameClass = class of TEditorFrame;
@@ -58,7 +58,7 @@ begin
   MainForm.RequestTabClose(Self);
 end;
 
-procedure TEditorFrame.SetDocument(AValue: TDocumentID);
+procedure TEditorFrame.SetDocument(AValue: TDocumentPath);
 begin
   if fDocument <> AValue then
   begin
@@ -69,7 +69,7 @@ end;
 constructor TEditorFrame.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
-  fDocument := TDocumentID.Null;
+  fDocument := TDocumentPath.Null;
 end;
 
 function TEditorFrame.CloseQuery: Boolean;

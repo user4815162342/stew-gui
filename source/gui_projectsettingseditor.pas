@@ -72,7 +72,7 @@ type
     procedure DeleteCategoryButtonClick(Sender: TObject);
     procedure DeleteStatusButtonClick(Sender: TObject);
     procedure EditNotesButtonClick(Sender: TObject);
-    procedure ObserveMainForm(aAction: TMainFormAction; {%H-}aDocument: TDocumentID);
+    procedure ObserveMainForm(aAction: TMainFormAction; {%H-}aDocument: TDocumentPath);
     procedure RefreshButtonClick(Sender: TObject);
     procedure SaveButtonClick(Sender: TObject);
   private
@@ -219,7 +219,7 @@ begin
 end;
 
 procedure TProjectSettingsEditor.ObserveMainForm(aAction: TMainFormAction;
-  aDocument: TDocumentID);
+  aDocument: TDocumentPath);
 begin
   case aAction of
     mfaProjectPropertiesLoaded, mfaProjectPropertiesLoading, mfaProjectPropertiesSaved, mfaDocumentPropertiesSaving:
@@ -231,7 +231,7 @@ procedure TProjectSettingsEditor.EditNotesButtonClick(Sender: TObject);
 begin
   if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
   begin
-       MainForm.Project.GetDocument(TDocumentID.Root).Notes.OpenInEditor;
+       MainForm.Project.GetDocument(TDocumentPath.Root).Notes.OpenInEditor;
   end;
 
 end;

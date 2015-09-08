@@ -26,7 +26,7 @@ type
     procedure MoveDocumentUpButtonClick(Sender: TObject);
     procedure NewChildDocumentButtonClick(Sender: TObject);
     procedure NewSiblingDocumentButtonClick(Sender: TObject);
-    procedure ObserveMainForm(aAction: TMainFormAction; {%H-}aDocument: TDocumentID);
+    procedure ObserveMainForm(aAction: TMainFormAction; {%H-}aDocument: TDocumentPath);
     procedure ProjectExplorerCreateNodeClass(Sender: TCustomTreeView;
       var NodeClass: TTreeNodeClass);
     procedure ProjectExplorerCustomDrawItem(Sender: TCustomTreeView;
@@ -45,15 +45,15 @@ type
 
     TProjectInspectorNode = class(TTreeNode)
     private
-      FDocumentID: TDocumentID;
+      FDocumentID: TDocumentPath;
       fExpandOnList: Boolean;
       fIsLocked: Boolean;
       fIsNew: Boolean;
       FStatusColor: TColor;
-      procedure SetDocumentID(AValue: TDocumentID);
+      procedure SetDocumentID(AValue: TDocumentPath);
       procedure SetStatusColor(AValue: TColor);
     public
-      property DocumentID: TDocumentID read FDocumentID write SetDocumentID;
+      property DocumentID: TDocumentPath read FDocumentID write SetDocumentID;
       property ExpandOnList: Boolean read fExpandOnList write fExpandOnList;
       property StatusColor: TColor read FStatusColor write SetStatusColor;
       property IsNew: Boolean read fIsNew write fIsNew;
@@ -63,10 +63,10 @@ type
   private
     { private declarations }
     function GetProject: TStewProject;
-    procedure ReloadNodeForDocument(aDocument: TDocumentID);
+    procedure ReloadNodeForDocument(aDocument: TDocumentPath);
     procedure ReloadNode(aNode: TProjectInspectorNode; aProps: TProjectProperties);
-    function GetTreeNodeForDocument(aDocument: TDocumentID): TProjectInspectorNode;
-    procedure InitializeNode(aNode: TProjectInspectorNode; aDocument: TDocumentID;
+    function GetTreeNodeForDocument(aDocument: TDocumentPath): TProjectInspectorNode;
+    procedure InitializeNode(aNode: TProjectInspectorNode; aDocument: TDocumentPath;
       aProps: TProjectProperties);
     procedure UpdateCategoryGlyphs;
     procedure SetupControls;
@@ -88,7 +88,7 @@ uses
 
 { TProjectInspectorNode }
 
-procedure TProjectManager.TProjectInspectorNode.SetDocumentID(AValue: TDocumentID);
+procedure TProjectManager.TProjectInspectorNode.SetDocumentID(AValue: TDocumentPath);
 begin
   if FDocumentID <> AValue then
   begin
@@ -157,7 +157,7 @@ end;
 procedure TProjectManager.ProjectExplorerExpanding(Sender: TObject;
   Node: TTreeNode; var AllowExpansion: Boolean);
 var
-  Document: TDocumentID;
+  Document: TDocumentPath;
   aDoc: TDocumentMetadata;
 begin
 
@@ -219,7 +219,7 @@ begin
 end;
 
 procedure TProjectManager.ObserveMainForm(aAction: TMainFormAction;
-  aDocument: TDocumentID);
+  aDocument: TDocumentPath);
 begin
   case aAction of
     mfaDocumentsListed,mfaDocumentPropertiesLoaded,mfaDocumentPropertiesSaved,mfaDocumentChanged:
@@ -329,7 +329,7 @@ end;
 procedure TProjectManager.ProjectExplorerDblClick(Sender: TObject);
 var
   Node: TTreeNode;
-  Document: TDocumentID;
+  Document: TDocumentPath;
 begin
 
   Node := ProjectExplorer.Selected;
@@ -347,8 +347,8 @@ procedure TProjectManager.ProjectExplorerDragDrop(Sender, Source: TObject; X,
 var
   aDraggingNode: TProjectInspectorNode;
   aTargetNode: TProjectInspectorNode;
-  aDraggingDocID: TDocumentID;
-  aTargetDocID: TDocumentID;
+  aDraggingDocID: TDocumentPath;
+  aTargetDocID: TDocumentPath;
   aTargetDoc: TDocumentMetadata;
   aDraggingDoc: TDocumentMetadata;
 begin
@@ -363,7 +363,7 @@ begin
       if aTargetNode <> nil then
         aTargetDocID := aTargetNode.DocumentID
       else
-        aTargetDocID := TDocumentID.Root;
+        aTargetDocID := TDocumentPath.Root;
       aTargetDoc := MainForm.Project.GetDocument(aTargetDocID);
       aDraggingDoc:= MainForm.Project.GetDocument(aDraggingDocID);
       if aTargetDoc.ListingState <> lsListed then
@@ -401,7 +401,7 @@ begin
         aTargetDoc := MainForm.Project.GetDocument(aTargetNode.DocumentID)
       end
       else
-        aTargetDoc := MainForm.Project.GetDocument(TDocumentID.Root);
+        aTargetDoc := MainForm.Project.GetDocument(TDocumentPath.Root);
 
       if aTargetDoc.ListingState = lsNotListed then
         // list documents so we can retry very soon.
@@ -416,11 +416,11 @@ begin
   result := MainForm.Project;
 end;
 
-procedure TProjectManager.ReloadNodeForDocument(aDocument: TDocumentID);
+procedure TProjectManager.ReloadNodeForDocument(aDocument: TDocumentPath);
 var
   aNode: TProjectInspectorNode;
 begin
-  if aDocument <> TDocumentID.Root then
+  if aDocument <> TDocumentPath.Root then
   begin
      aNode := GetTreeNodeForDocument(aDocument);
      ReloadNode(aNode,nil);
@@ -456,7 +456,7 @@ begin
     end
     else
     begin
-      aDoc := MainForm.Project.GetDocument(TDocumentID.Root);
+      aDoc := MainForm.Project.GetDocument(TDocumentPath.Root);
       aChild := ProjectExplorer.Items.GetFirstNode as TProjectInspectorNode;
     end;
 
@@ -535,7 +535,7 @@ begin
 
 end;
 
-function TProjectManager.GetTreeNodeForDocument(aDocument: TDocumentID): TProjectInspectorNode;
+function TProjectManager.GetTreeNodeForDocument(aDocument: TDocumentPath): TProjectInspectorNode;
 begin
   result := ProjectExplorer.Items.GetFirstNode as TProjectInspectorNode;
   while result <> nil do
@@ -551,7 +551,7 @@ begin
 end;
 
 procedure TProjectManager.InitializeNode(aNode: TProjectInspectorNode;
-  aDocument: TDocumentID; aProps: TProjectProperties);
+  aDocument: TDocumentPath; aProps: TProjectProperties);
 var
   docData: TDocumentMetadata;
   docProps: TDocumentProperties;
@@ -738,7 +738,7 @@ end;
 procedure TProjectManager.CreateNewDocument(aChild: Boolean);
 var
   aNode: TProjectInspectorNode;
-  aDocument: TDocumentID;
+  aDocument: TDocumentPath;
   aName: String;
   aParent: TDocumentMetadata;
 begin
@@ -750,7 +750,7 @@ begin
     begin
       if not aChild then
         raise Exception.Create('Can''t add a sibling document without a selected node');
-      aDocument := TDocumentID.Root;
+      aDocument := TDocumentPath.Root;
     end
     else
       aDocument := aNode.DocumentID;

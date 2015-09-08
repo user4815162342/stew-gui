@@ -27,7 +27,7 @@ type
                      mfaDocumentSynopsisSaveConflicted,
                      mfaDocumentChanged,
                      mfaDocumentCreated);
-  TMainFormObserverHandler = procedure(aAction: TMainFormAction; aDocument: TDocumentID) of object;
+  TMainFormObserverHandler = procedure(aAction: TMainFormAction; aDocument: TDocumentPath) of object;
   TMainFormObserverList = specialize TFPGList<TMainFormObserverHandler>;
 
   { TMainForm }
@@ -50,30 +50,30 @@ type
     OpenProjectDialog: TSelectDirectoryDialog;
     procedure AboutMenuItemClick(Sender: TObject);
     procedure DoChooseNewAttachmentTemplate(Sender: TObject;
-      {%H-}Document: TDocumentID; AttachmentName: String; aChoices: TStringArray;
+      {%H-}Document: TDocumentPath; AttachmentName: String; aChoices: TStringArray;
       var Answer: String; out Accepted: Boolean);
-    procedure DoConfirmNewAttachment(Sender: TObject; {%H-}Document: TDocumentID;
+    procedure DoConfirmNewAttachment(Sender: TObject; {%H-}Document: TDocumentPath;
       AttachmentName: String; out Answer: Boolean);
-    procedure DocumentAttachmentLoading(Sender: TObject; Document: TDocumentID;
+    procedure DocumentAttachmentLoading(Sender: TObject; Document: TDocumentPath;
       AttachmentName: String);
     procedure DocumentAttachmentSaveConflicted(Sender: TObject;
-      Document: TDocumentID; AttachmentName: String);
-    procedure DocumentAttachmentSaved(Sender: TObject; Document: TDocumentID;
+      Document: TDocumentPath; AttachmentName: String);
+    procedure DocumentAttachmentSaved(Sender: TObject; Document: TDocumentPath;
       AttachmentName: String);
-    procedure DocumentAttachmentSaving(Sender: TObject; Document: TDocumentID;
+    procedure DocumentAttachmentSaving(Sender: TObject; Document: TDocumentPath;
       AttachmentName: String);
-    procedure DocumentChanged(Sender: TObject; Document: TDocumentID);
-    procedure DocumentCreated(Sender: TObject; Document: TDocumentID);
-    procedure DocumentListError(Sender: TObject; Document: TDocumentID;
+    procedure DocumentChanged(Sender: TObject; Document: TDocumentPath);
+    procedure DocumentCreated(Sender: TObject; Document: TDocumentPath);
+    procedure DocumentListError(Sender: TObject; Document: TDocumentPath;
       Error: String);
-    procedure DocumentPropertiesLoading(Sender: TObject; Document: TDocumentID);
-    procedure DocumentPropertiesSaving(Sender: TObject; Document: TDocumentID);
-    procedure DocumentRenameFailed(Sender: TObject; Document: TDocumentID;
+    procedure DocumentPropertiesLoading(Sender: TObject; Document: TDocumentPath);
+    procedure DocumentPropertiesSaving(Sender: TObject; Document: TDocumentPath);
+    procedure DocumentRenameFailed(Sender: TObject; Document: TDocumentPath;
       Error: String);
-    procedure DocumentsListed(Sender: TObject; Document: TDocumentID);
-    procedure DocumentAttachmentLoaded(Sender: TObject; Document: TDocumentID;
+    procedure DocumentsListed(Sender: TObject; Document: TDocumentPath);
+    procedure DocumentAttachmentLoaded(Sender: TObject; Document: TDocumentPath;
       Attachment: String);
-    procedure DocumentAttachmentError(Sender: TObject; Document: TDocumentID;
+    procedure DocumentAttachmentError(Sender: TObject; Document: TDocumentPath;
       Attachment: String; Error: String);
     procedure DocumentTabCloseRequested(Sender: TObject);
     procedure ExitMenuItemClick(Sender: TObject);
@@ -99,12 +99,12 @@ type
     fDocumentPane: TAlign;
     // FUTURE: Should be a hash list, so we can look things up by ID.
     fOpenDocuments: TObjectList;
-    procedure DocumentPropertiesError(Sender: TObject; Document: TDocumentID;
+    procedure DocumentPropertiesError(Sender: TObject; Document: TDocumentPath;
       Error: String);
-    procedure DocumentPropertiesLoaded(Sender: TObject; Document: TDocumentID);
+    procedure DocumentPropertiesLoaded(Sender: TObject; Document: TDocumentPath);
     procedure DocumentPropertiesSaveConflicted(Sender: TObject;
-      Document: TDocumentID);
-    procedure DocumentPropertiesSaved(Sender: TObject; Document: TDocumentID);
+      Document: TDocumentPath);
+    procedure DocumentPropertiesSaved(Sender: TObject; Document: TDocumentPath);
     function GetProject: TStewProject;
     procedure ProjectLoadFailed(E: String);
     procedure ProjectPropertiesError(Sender: TObject; aError: String);
@@ -119,14 +119,14 @@ type
     procedure AfterProjectCreateNew(Sender: TPromise);
     procedure ProjectOpenFailed(Sender: TPromise; Error: TPromiseException);
     procedure StartupAskForProject({%H-}Data: PtrInt);
-    procedure NotifyObservers(aAction: TMainFormAction; aDocument: TDocumentID);
+    procedure NotifyObservers(aAction: TMainFormAction; aDocument: TDocumentPath);
     procedure ReadUISettings;
     procedure WriteUISettings;
     procedure LayoutFrames;
   public
     { public declarations }
     property Project: TStewProject read GetProject;
-    function OpenDocument(aDocument: TDocumentID): TEditorFrame;
+    function OpenDocument(aDocument: TDocumentPath): TEditorFrame;
     procedure OpenPreferences;
     procedure OpenProjectSettings;
     procedure Observe(aObserver: TMainFormObserverHandler);
@@ -267,7 +267,7 @@ begin
 end;
 
 procedure TMainForm.DoChooseNewAttachmentTemplate(Sender: TObject;
-  Document: TDocumentID; AttachmentName: String; aChoices: TStringArray;
+  Document: TDocumentPath; AttachmentName: String; aChoices: TStringArray;
   var Answer: String; out Accepted: Boolean);
 begin
   Accepted := ChoiceQuery('There are multiple templates available for your new ' + AttachmentName + ' file.' + LineEnding +
@@ -275,7 +275,7 @@ begin
 end;
 
 procedure TMainForm.DoConfirmNewAttachment(Sender: TObject;
-  Document: TDocumentID; AttachmentName: String; out Answer: Boolean);
+  Document: TDocumentPath; AttachmentName: String; out Answer: Boolean);
 begin
   Answer :=
     MessageDlg('The ' + AttachmentName + ' file for this document does not exist.' + LineEnding +
@@ -283,7 +283,7 @@ begin
 end;
 
 procedure TMainForm.DocumentAttachmentLoading(Sender: TObject;
-  Document: TDocumentID; AttachmentName: String);
+  Document: TDocumentPath; AttachmentName: String);
 begin
   if AttachmentName = 'Synopsis' then
   begin
@@ -293,7 +293,7 @@ begin
 end;
 
 procedure TMainForm.DocumentAttachmentSaveConflicted(Sender: TObject;
-  Document: TDocumentID; AttachmentName: String);
+  Document: TDocumentPath; AttachmentName: String);
 begin
   if AttachmentName = 'Synopsis' then
   begin
@@ -303,7 +303,7 @@ begin
 end;
 
 procedure TMainForm.DocumentAttachmentSaved(Sender: TObject;
-  Document: TDocumentID; AttachmentName: String);
+  Document: TDocumentPath; AttachmentName: String);
 begin
   if AttachmentName = 'Synopsis' then
   begin
@@ -313,7 +313,7 @@ begin
 end;
 
 procedure TMainForm.DocumentAttachmentSaving(Sender: TObject;
-  Document: TDocumentID; AttachmentName: String);
+  Document: TDocumentPath; AttachmentName: String);
 begin
   if AttachmentName = 'Synopsis' then
   begin
@@ -322,18 +322,18 @@ begin
 
 end;
 
-procedure TMainForm.DocumentChanged(Sender: TObject; Document: TDocumentID);
+procedure TMainForm.DocumentChanged(Sender: TObject; Document: TDocumentPath);
 begin
   NotifyObservers(mfaDocumentChanged,Document);
 end;
 
-procedure TMainForm.DocumentCreated(Sender: TObject; Document: TDocumentID);
+procedure TMainForm.DocumentCreated(Sender: TObject; Document: TDocumentPath);
 begin
   NotifyObservers(mfaDocumentCreated,Document);
   OpenDocument(Document);
 end;
 
-procedure TMainForm.DocumentListError(Sender: TObject; Document: TDocumentID;
+procedure TMainForm.DocumentListError(Sender: TObject; Document: TDocumentPath;
   Error: String);
 begin
   ShowMessage('An error occurred while listing documents.' + LineEnding +
@@ -344,20 +344,20 @@ begin
 end;
 
 procedure TMainForm.DocumentPropertiesLoading(Sender: TObject;
-  Document: TDocumentID);
+  Document: TDocumentPath);
 begin
   NotifyObservers(mfaDocumentPropertiesLoading,Document);
 end;
 
 procedure TMainForm.DocumentPropertiesSaving(Sender: TObject;
-  Document: TDocumentID);
+  Document: TDocumentPath);
 begin
   NotifyObservers(mfaDocumentPropertiesSaving,Document);
 
 end;
 
 procedure TMainForm.DocumentRenameFailed(Sender: TObject;
-  Document: TDocumentID; Error: String);
+  Document: TDocumentPath; Error: String);
 begin
   ShowMessage('An error occurred while renaming a document properties.' + LineEnding +
               'The rename may be incomplete.' + LineEnding +
@@ -366,13 +366,13 @@ begin
               'You may want to restart the program, or wait and try your task again later');
 end;
 
-procedure TMainForm.DocumentsListed(Sender: TObject; Document: TDocumentID);
+procedure TMainForm.DocumentsListed(Sender: TObject; Document: TDocumentPath);
 begin
   NotifyObservers(mfaDocumentsListed,Document);
 end;
 
 procedure TMainForm.DocumentAttachmentLoaded(Sender: TObject;
-  Document: TDocumentID; Attachment: String);
+  Document: TDocumentPath; Attachment: String);
 begin
   if Attachment = 'Synopsis' then
   begin
@@ -381,7 +381,7 @@ begin
 end;
 
 procedure TMainForm.DocumentAttachmentError(Sender: TObject;
-  Document: TDocumentID; Attachment: String; Error: String);
+  Document: TDocumentPath; Attachment: String; Error: String);
 begin
   ShowMessage('An error occurred while saving or loading an attachment.' + LineEnding +
               'The document''s ID was ' + Document.ID + '.' + LineEnding +
@@ -391,7 +391,7 @@ begin
 end;
 
 procedure TMainForm.DocumentPropertiesError(Sender: TObject;
-  Document: TDocumentID; Error: String);
+  Document: TDocumentPath; Error: String);
 begin
   ShowMessage('An error occurred while saving or loading the document properties.' + LineEnding +
               'The document''s ID was ' + Document.ID + '.' + LineEnding +
@@ -400,13 +400,13 @@ begin
 end;
 
 procedure TMainForm.DocumentPropertiesLoaded(Sender: TObject;
-  Document: TDocumentID);
+  Document: TDocumentPath);
 begin
   NotifyObservers(mfaDocumentPropertiesLoaded,Document);
 end;
 
 procedure TMainForm.DocumentPropertiesSaveConflicted(Sender: TObject;
-  Document: TDocumentID);
+  Document: TDocumentPath);
 begin
    if MessageDlg('The document properties file has changed on the disk since the last time it was loaded.' + LineEnding +
              'Document ID: ' + Document.ID + LineEnding +
@@ -417,7 +417,7 @@ begin
 end;
 
 procedure TMainForm.DocumentPropertiesSaved(Sender: TObject;
-  Document: TDocumentID);
+  Document: TDocumentPath);
 begin
   NotifyObservers(mfaDocumentPropertiesSaved,Document);
 end;
@@ -619,12 +619,12 @@ end;
 
 procedure TMainForm.ProjectPropertiesLoading(Sender: TObject);
 begin
-  NotifyObservers(mfaProjectPropertiesLoading,TDocumentID.Null);
+  NotifyObservers(mfaProjectPropertiesLoading,TDocumentPath.Null);
 end;
 
 procedure TMainForm.ProjectPropertiesSaving(Sender: TObject);
 begin
-  NotifyObservers(mfaProjectPropertiesSaving,TDocumentID.Null);
+  NotifyObservers(mfaProjectPropertiesSaving,TDocumentPath.Null);
 
 end;
 
@@ -646,7 +646,7 @@ end;
 procedure TMainForm.ProjectPropertiesLoaded(Sender: TObject);
 begin
   Enabled := true;
-  NotifyObservers(mfaProjectPropertiesLoaded,TDocumentID.Null);
+  NotifyObservers(mfaProjectPropertiesLoaded,TDocumentPath.Null);
 end;
 
 procedure TMainForm.ProjectPropertiesSaveConflicted(Sender: TObject);
@@ -660,7 +660,7 @@ end;
 
 procedure TMainForm.ProjectPropertiesSaved(Sender: TObject);
 begin
-  NotifyObservers(mfaProjectPropertiesSaved,TDocumentID.Null);
+  NotifyObservers(mfaProjectPropertiesSaved,TDocumentPath.Null);
 end;
 
 procedure TMainForm.OpenProject(aPath: TFile);
@@ -708,7 +708,7 @@ begin
   fConfig.Save;
   Self.Caption := Application.Title + ' - ' + fProject.GetProjectName;
   Enabled := true;
-  with fProject.GetDocument(TDocumentID.Root) do
+  with fProject.GetDocument(TDocumentPath.Root) do
   begin
     Properties.Load;
     ListDocuments(false);
@@ -738,7 +738,7 @@ end;
 
 procedure TMainForm.RefreshProjectMenuItemClick(Sender: TObject);
 begin
-  Project.GetDocument(TDocumentID.Root).ListDocuments(true);
+  Project.GetDocument(TDocumentPath.Root).ListDocuments(true);
 end;
 
 procedure TMainForm.StartupAskForProject(Data: PtrInt);
@@ -755,7 +755,7 @@ begin
   end;
 end;
 
-procedure TMainForm.NotifyObservers(aAction: TMainFormAction; aDocument: TDocumentID);
+procedure TMainForm.NotifyObservers(aAction: TMainFormAction; aDocument: TDocumentPath);
 var
   i: Integer;
 begin
@@ -826,7 +826,7 @@ begin
 
 end;
 
-function TMainForm.OpenDocument(aDocument: TDocumentID): TEditorFrame;
+function TMainForm.OpenDocument(aDocument: TDocumentPath): TEditorFrame;
 var
   EditorClass: TEditorFrameClass;
   i: Integer;
@@ -855,9 +855,9 @@ begin
     // When I use a case statement here, it says Constant and CASE types do not match,
     // even though these *are* constants.
     // FUTURE: Some sort of 'class registry' might be useful here.
-    if aDocument = TDocumentID.GetSystemDocument(PreferencesDocumentID) then
+    if aDocument = TDocumentPath.GetSystemDocument(PreferencesDocumentID) then
       EditorClass := TApplicationPreferencesEditor
-    else if aDocument = TDocumentID.GetSystemDocument(ProjectSettingsDocumentID) then
+    else if aDocument = TDocumentPath.GetSystemDocument(ProjectSettingsDocumentID) then
       EditorClass := TProjectSettingsEditor
     else
        EditorClass := TDocumentEditor;
@@ -870,12 +870,12 @@ end;
 
 procedure TMainForm.OpenPreferences;
 begin
-  OpenDocument(TDocumentID.GetSystemDocument(PreferencesDocumentID));
+  OpenDocument(TDocumentPath.GetSystemDocument(PreferencesDocumentID));
 end;
 
 procedure TMainForm.OpenProjectSettings;
 begin
-  OpenDocument(TDocumentID.GetSystemDocument(ProjectSettingsDocumentID));
+  OpenDocument(TDocumentPath.GetSystemDocument(ProjectSettingsDocumentID));
 end;
 
 procedure TMainForm.Observe(aObserver: TMainFormObserverHandler);

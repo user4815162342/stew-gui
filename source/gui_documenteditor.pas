@@ -43,7 +43,7 @@ the file exists already. Or, we need to come up with a different way of doing th
     UserPropertiesPanel: TPanel;
     procedure EditNotesButtonClick(Sender: TObject);
     procedure EditPrimaryButtonClick(Sender: TObject);
-    procedure ObserveMainForm(aAction: TMainFormAction; aDocument: TDocumentID);
+    procedure ObserveMainForm(aAction: TMainFormAction; aDocument: TDocumentPath);
     procedure RefreshButtonClick(Sender: TObject);
     procedure SaveButtonClick(Sender: TObject);
     { private declarations }
@@ -51,7 +51,7 @@ the file exists already. Or, we need to come up with a different way of doing th
     procedure SetupControls;
   protected
     fUserPropertiesEditor: TJSONEditor;
-    procedure SetDocument(AValue: TDocumentID); override;
+    procedure SetDocument(AValue: TDocumentPath); override;
     procedure ShowPropertiesToUser;
     procedure WriteDataFromUser;
     procedure ShowSynopsisToUser;
@@ -156,7 +156,7 @@ begin
 end;
 
 procedure TDocumentEditor.ObserveMainForm(aAction: TMainFormAction;
-  aDocument: TDocumentID);
+  aDocument: TDocumentPath);
 begin
   case aAction of
     mfaDocumentPropertiesLoaded, mfaDocumentPropertiesSaved:
@@ -199,7 +199,7 @@ begin
   end;
 end;
 
-procedure TDocumentEditor.SetDocument(AValue: TDocumentID);
+procedure TDocumentEditor.SetDocument(AValue: TDocumentPath);
 var
   aName: String;
 begin
