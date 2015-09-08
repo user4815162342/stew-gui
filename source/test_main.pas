@@ -63,8 +63,8 @@ var
 implementation
 
 uses
-  test_test, test_sys_json, test_sys_async, test_sys_localfile, test_stew_properties,
-  test_stew_project, test_longstringmap, test_sys_filecache_local;
+  test_test, test_sys_json, test_sys_async{, test_sys_localfile, test_stew_properties,
+  test_stew_project, test_longstringmap, test_sys_filecache_local};
 
 {$R *.lfm}
 
@@ -168,11 +168,11 @@ begin
     // I want to control the order.
     fRegistry.AddTests(TJSONSpec);
     fRegistry.AddTests(TAsyncSpec);
-    fRegistry.AddTests(TLocalFileSpec);
-    fRegistry.AddTests(TLongStringMapSpec);
-    fRegistry.AddTests(TLocalFileCacheSpec);
-    fRegistry.AddTests(TPropertiesSpec);
-    fRegistry.AddTests(TProjectSpec);
+    //fRegistry.AddTests(TLocalFileSpec);
+    //fRegistry.AddTests(TLongStringMapSpec);
+    //fRegistry.AddTests(TLocalFileCacheSpec);
+    //fRegistry.AddTests(TPropertiesSpec);
+    //fRegistry.AddTests(TProjectSpec);
   end;
 end;
 

@@ -14,9 +14,11 @@ type
   TAsyncSpec = class(TTestSpec)
     procedure After_Callback_Error(Sender: TPromise);
     procedure After_Chain(Sender: TPromise);
+    procedure After_Deferred(Sender: TPromise);
     procedure After_Promise_Multiple_2(Sender: TPromise);
     procedure Catch_Callback_Error(Sender: TPromise; aError: TPromiseException);
     procedure Catch_Chain(Sender: TPromise; aError: TPromiseException);
+    procedure Catch_Deferred(Sender: TPromise; aError: TPromiseException);
     procedure Catch_Promise_Multiple(Sender: TPromise; aError: TPromiseException
       );
   private
@@ -44,6 +46,7 @@ type
     procedure Test_Callback_Error;
     procedure Test_Chains;
     procedure Test_Deferrance;
+    procedure Test_DeferredTask;
   end;
 
   { TTestPromise }
@@ -56,6 +59,8 @@ type
   { TTestQueuedTask }
 
   TTestQueuedTask = class(TQueuedTask)
+  protected
+    function CreatePromise: TPromise; override;
   public
     constructor Enqueue;
     destructor Destroy; override;
@@ -105,6 +110,18 @@ type
     property Done: Boolean read FDone;
   end;
 
+  { TTestDeferredTask }
+
+  TTestDeferredTask = class(TDeferredTask2)
+  protected
+    function CreatePromise: TPromise; override;
+    procedure DoTask; override;
+  public
+    constructor Defer(aInputPromise: TPromise);
+    destructor Destroy; override;
+  end;
+
+
   var
     gPromiseCounter: Integer = 0;
 
@@ -114,7 +131,36 @@ implementation
 uses
   gui_async;
 
+{ TTestDeferredTask }
+
+function TTestDeferredTask.CreatePromise: TPromise;
+begin
+  result := TTestPromise.Create;
+end;
+
+procedure TTestDeferredTask.DoTask;
+begin
+  Resolve;
+end;
+
+constructor TTestDeferredTask.Defer(aInputPromise: TPromise);
+begin
+  inherited Defer(aInputPromise);
+  Inc(gPromiseCounter);
+end;
+
+destructor TTestDeferredTask.Destroy;
+begin
+  Dec(gPromiseCounter);
+  inherited Destroy;
+end;
+
 { TTestQueuedTask }
+
+function TTestQueuedTask.CreatePromise: TPromise;
+begin
+  result := TTestPromise.Create;
+end;
 
 constructor TTestQueuedTask.Enqueue;
 begin
@@ -132,12 +178,14 @@ end;
 
 constructor TTestDeferralOfPromise.Enqueue;
 begin
+  inherited Enqueue;
   FDone := false;
 end;
 
 procedure TTestDeferralOfPromise.DoTask;
 begin
   FDone := true;
+  Resolve;
 end;
 
 { TTestChainPromise }
@@ -238,7 +286,7 @@ procedure TAsyncSpec.FinishCleanup(Data: PtrInt);
 begin
   RemoveAsyncCallQueuer(@gui_async.GUIQueueAsyncCall);
   if gPromiseCounter > 0 then
-     FailAsync(Data,IntToStr(gPromiseCounter) + ' promise(s) didn''t get freed')
+     FailAsync(Data,IntToStr(gPromiseCounter) + ' promise(s) or task(s) didn''t get freed')
   else
       EndAsync(Data);
 end;
@@ -259,6 +307,11 @@ begin
   EndAsync(fAsyncCode);
 end;
 
+procedure TAsyncSpec.After_Deferred(Sender: TPromise);
+begin
+  EndAsync(fAsyncCode);
+end;
+
 procedure TAsyncSpec.After_Promise_Multiple_2(Sender: TPromise);
 begin
   inc(fMultipleCount);
@@ -274,6 +327,12 @@ begin
 end;
 
 procedure TAsyncSpec.Catch_Chain(Sender: TPromise; aError: TPromiseException);
+begin
+  FailAsync(fAsyncCode,aError);
+end;
+
+procedure TAsyncSpec.Catch_Deferred(Sender: TPromise; aError: TPromiseException
+  );
 begin
   FailAsync(fAsyncCode,aError);
 end;
@@ -362,6 +421,12 @@ begin
   lPromise := TTestDeferralOfPromise.Enqueue;
   if lPromise.Done then
      raise Exception.Create('Promise functionality was not deferred');
+end;
+
+procedure TAsyncSpec.Test_DeferredTask;
+begin
+  fAsyncCode := BeginAsync;
+  TTestDeferredTask.Defer(TTestPromiseResolve.Enqueue.Promise).After(@After_Deferred,@Catch_Deferred);
 end;
 
 end.

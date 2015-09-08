@@ -196,7 +196,7 @@ type
     property InputPromise: TPromise read fInputPromise;
     procedure DoTask; virtual; abstract;
   public
-    constructor WaitFor(aInputPromise: TPromise);
+    constructor Defer(aInputPromise: TPromise);
   end;
 
   // Use this one to create your own deferred code. Just override DoCallback to
@@ -277,7 +277,7 @@ begin
   end;
 end;
 
-constructor TDeferredTask2.WaitFor(aInputPromise: TPromise);
+constructor TDeferredTask2.Defer(aInputPromise: TPromise);
 begin
   inherited Create;
   fInputPromise := aInputPromise;
