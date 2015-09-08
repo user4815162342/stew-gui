@@ -94,7 +94,7 @@ begin
     root := GetTestRootDir;
     root.GetContainedFile('bar').GetContainedFile('test.txt').Write([fwoCheckAge],
                                                                 fComplexFileAge,
-                                                                TFileTextWriter.Create('TEST2')).After(
+                                                                'TEST2').After(
                                                                 @ComplexWriteCallback4,
                                                                 @ComplexWriteConflict4).Tag := Sender.Tag;
   end
@@ -221,7 +221,7 @@ begin
     root := GetTestRootDir;
     root.GetContainedFile('bar').GetContainedFile('test.txt').Write([fwoCheckAge],
                                                                 fComplexFileAge - 1,
-                                                                TFileTextWriter.Create('TEST2')).After(
+                                                                'TEST2').After(
                                                                 @ComplexWriteCallback3,
                                                                 @ComplexWriteConflict3).Tag := aSender.Tag;
   end;
@@ -427,7 +427,7 @@ var
   root: TFile;
 begin
   root := GetTestRootDir;
-  root.GetContainedFile('foo.txt').Write(TFileTextWriter.Create('TEST')).After(@BasicWriteCallback,@PromiseError).Tag := BeginAsync;
+  root.GetContainedFile('foo.txt').Write('TEST').After(@BasicWriteCallback,@PromiseError).Tag := BeginAsync;
 
 end;
 
@@ -436,7 +436,7 @@ var
   root: TFile;
 begin
   root := GetTestRootDir;
-  root.GetContainedFile('empty.txt').Write(TFileTextWriter.Create('')).After(@EmptyWriteCallback,@PromiseError).Tag := BeginAsync;
+  root.GetContainedFile('empty.txt').Write('').After(@EmptyWriteCallback,@PromiseError).Tag := BeginAsync;
 
 end;
 
@@ -447,7 +447,7 @@ begin
   root := GetTestRootDir;
   root.GetContainedFile('bar').GetContainedFile('test.txt').Write([fwoCreateDir,fwoCheckAge],
                                                                   NewFileAge,
-                                                                  TFileTextWriter.Create('TEST')).After(
+                                                                  'TEST').After(
                                                                   @ComplexWriteCallback1,
                                                                   @ComplexWriteConflict1).Tag := BeginAsync;
 end;

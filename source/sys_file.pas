@@ -60,8 +60,6 @@ type
 
   TFileWriteOption = (fwoCreateDir, fwoCheckAge);
   TFileWriteOptions = set of TFileWriteOption;
-
-  TFileWriter = class;
   TFileWritePromise = class;
 
   TFileCopyOption = (fcoOverwrite, fcoCreateDir);
@@ -98,15 +96,21 @@ type
     function CheckExistence: TFileExistencePromise;
     // The 'Reader' is owned by the promise and destroyed when that is destroyed.
     function Read(aHandler: TFileReader): TFileReadPromise;
+    // The TFileWritePromise includes a 'Data' stream which can be used to write the
+    // data to be written into the file. Or, to write simple strings, use the
+    // overloads which take a text parameter at the end.
+    function Write: TFileWritePromise; overload;
     // The 'Writer' is owned by the promise and destroyed when that is destroyed.
-    function Write(aWriter: TFileWriter): TFileWritePromise; overload;
+    function Write(aOptions: TFileWriteOptions): TFileWritePromise; overload;
     // The 'Writer' is owned by the promise and destroyed when that is destroyed.
     function Write(aOptions: TFileWriteOptions;
-                    aWriter: TFileWriter): TFileWritePromise; overload;
+                    aFileAge: Longint): TFileWritePromise; overload;
+    function Write(aText: UTF8String): TFileWritePromise; overload;
+    // The 'Writer' is owned by the promise and destroyed when that is destroyed.
+    function Write(aOptions: TFileWriteOptions; aText: UTF8String): TFileWritePromise; overload;
     // The 'Writer' is owned by the promise and destroyed when that is destroyed.
     function Write(aOptions: TFileWriteOptions;
-                    aFileAge: Longint;
-                    aWriter: TFileWriter): TFileWritePromise; overload;
+                    aFileAge: Longint; aText: UTF8String): TFileWritePromise; overload;
     function CopyTo(aTarget: TFile; aFlags: TFileCopyOptions): TFileCopyPromise; overload;
     function CopyTo(aTarget: TFile): TFileCopyPromise; overload;
     function Rename(aTarget: TFile): TFileRenamePromise;
@@ -188,29 +192,28 @@ type
     property DoesNotExist: Boolean read fDoesNotExist;
   end;
 
-  TFileWriter = class
-  public
-    procedure Write(aTarget: TStream); virtual; abstract;
-  end;
-
   { TFileWritePromise }
 
   TFileWritePromise = class(TPromise)
   private
     fPath: Tfile;
-    fWriter: TFileWriter;
   protected
     fAge: Longint;
     fIsConflict: Boolean;
+    fStream: TStream;
+    function GetStream: TStream;
   public
-    constructor Create(aFile: TFile; aWriter: TFileWriter); overload;
+    constructor Create(aFile: TFile; aData: TStream); overload;
     destructor Destroy; override;
     procedure SetAnswer(aAge: Longint; aIsConflict: Boolean);
-    property Writer: TFileWriter read fWriter;
     property Path: TFile read fPath;
     property Age: Longint read fAge;
     property IsConflict: Boolean read fIsConflict;
+    property Data: TStream read GetStream;
+    procedure WriteString(aData: UTF8String);
   end;
+
+  { TFileWriteRequest }
 
   { TFileCopyPromise }
 
@@ -275,8 +278,7 @@ type
     class function ReadFile(aFile: TFile; aHandler: TFileReader): TFileReadPromise; virtual; abstract;
     // The 'Writer' is owned by the promise and destroyed when that is destroyed.
     class function WriteFile(aFile: TFile; aOptions: TFileWriteOptions;
-                        aFileAge: Longint;
-                        aWriter: tFileWriter): TFileWritePromise; virtual; abstract;
+                        aFileAge: Longint): TFileWritePromise; virtual; abstract;
     class function CopyFile(aSource: TFile; aTarget: TFile; aOptions: TFileCopyOptions): TFileCopyPromise; virtual; abstract;
     class function RenameFile(aSource: TFile; aTarget: TFile): TFileRenamePromise; virtual;
     class function GetDirectory(aFile: TFile): TFile; virtual; abstract;
@@ -335,16 +337,6 @@ type
     function TakeOwnershipOfStream: TMemoryStream;
   end;
 
-  { TFileTextWriter }
-
-  TFileTextWriter = class(TFileWriter)
-  private
-    fData: UTF8String;
-  public
-    constructor Create(aData: UTF8String);
-    procedure Write(aTarget: TStream); override;
-  end;
-
   const
     ExtensionDelimiter: Char = '.';
     DescriptorDelimiter: Char = '_';
@@ -369,6 +361,7 @@ implementation
 uses
   strutils, FileUtil;
 
+
 { TFileStreamReader }
 
 destructor TFileStreamReader.Destroy;
@@ -390,18 +383,6 @@ function TFileStreamReader.TakeOwnershipOfStream: TMemoryStream;
 begin
   fDataGrabbed := true;
   result := fData;
-end;
-
-{ TFileTextWriter }
-
-constructor TFileTextWriter.Create(aData: UTF8String);
-begin
-  fData := aData;
-end;
-
-procedure TFileTextWriter.Write(aTarget: TStream);
-begin
-  aTarget.Write(fData[1],Length(fData))
 end;
 
 { TFileTextHandler }
@@ -476,18 +457,24 @@ end;
 
 { TFileWritePromise }
 
-constructor TFileWritePromise.Create(aFile: TFile;
-  aWriter: TFileWriter);
+function TFileWritePromise.GetStream: TStream;
+begin
+  result := fStream;
+end;
+
+constructor TFileWritePromise.Create(aFile: TFile; aData: TStream);
 begin
   inherited Create;
   fIsConflict := false;
   fPath := aFile;
-  fWriter := aWriter;
+  fStream := aData;
+  if fStream = nil then
+    fStream := TMemoryStream.Create;
 end;
 
 destructor TFileWritePromise.Destroy;
 begin
-  FreeAndNil(fWriter);
+  FreeAndNil(fStream);
   inherited Destroy;
 end;
 
@@ -495,6 +482,19 @@ procedure TFileWritePromise.SetAnswer(aAge: Longint; aIsConflict: Boolean);
 begin
   fAge := aAge;
   fIsConflict := aIsConflict;
+end;
+
+procedure TFileWritePromise.WriteString(aData: UTF8String);
+var
+  lInput: TStringStream;
+begin
+  lInput := TStringStream.Create(aData);
+  try
+    Data.CopyFrom(lInput,0);
+  finally
+    lInput.Free;
+  end;
+
 end;
 
 { TFileReadPromise }
@@ -659,21 +659,46 @@ begin
   result := fSystem.ReadFile(Self,aHandler);
 end;
 
-function TFile.Write(aWriter: TFileWriter): TFileWritePromise;
+function TFile.Write: TFileWritePromise;
 begin
-  result := fSystem.WriteFile(Self,[],NewFileAge,aWriter);
+  result := fSystem.WriteFile(Self,[],NewFileAge);
 
 end;
 
-function TFile.Write(aOptions: TFileWriteOptions; aWriter: TFileWriter): TFileWritePromise;
+function TFile.Write(aOptions: TFileWriteOptions): TFileWritePromise;
 begin
-  result := fSystem.WriteFile(Self,aOptions,NewFileAge,aWriter);
+  result := fSystem.WriteFile(Self,aOptions,NewFileAge);
+end;
+
+function TFile.Write(aOptions: TFileWriteOptions; aFileAge: Longint
+  ): TFileWritePromise;
+begin
+  result := fSystem.WriteFile(Self,aOptions,aFileAge);
+end;
+
+function TFile.Write(aText: UTF8String): TFileWritePromise;
+begin
+  // Okay, this is slightly annoying. You'd think the class scope would have
+  // priority over the system procedure, so I wouldn't have to add the 'Self'.
+  // But, good thing I've got tests that picked this up.
+  result := Self.Write;
+  Result.WriteString(aText);
+end;
+
+function TFile.Write(aOptions: TFileWriteOptions; aText: UTF8String
+  ): TFileWritePromise;
+begin
+  result := Write(aOptions);
+  Result.WriteString(aText);
+
 end;
 
 function TFile.Write(aOptions: TFileWriteOptions; aFileAge: Longint;
-  aWriter: TFileWriter): TFileWritePromise;
+  aText: UTF8String): TFileWritePromise;
 begin
-  result := fSystem.WriteFile(Self,aOptions,aFileAge,aWriter);
+  result := Write(aOptions,aFileAge);
+  result.WriteString(aText);
+
 end;
 
 function TFile.CopyTo(aTarget: TFile; aFlags: TFileCopyOptions

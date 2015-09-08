@@ -74,12 +74,11 @@ type
     fPath: TFile;
     fOptions: TFileWriteOptions;
     fAge: Longint;
-    fWriter: TFileWriter;
   protected
     procedure DoTask; override;
     function CreatePromise: TPromise; override;
   public
-    constructor Enqueue(aFile: TFile; aOptions: TFileWriteOptions; aFileAge: Longint; aWriter: TFileWriter);
+    constructor Enqueue(aFile: TFile; aOptions: TFileWriteOptions; aFileAge: Longint);
   end;
 
   { TLocalFileCopyTask }
@@ -127,7 +126,7 @@ type
     class function ListFiles(aFile: TFile): TFile.TFileListPromise; override;
     class procedure OpenInEditor(aFile: TFile); override;
     class function ReadFile(aFile: TFile; aHandler: TFileReader): TFileReadPromise; override;
-    class function WriteFile(aFile: TFile; aOptions: TFileWriteOptions; aFileAge: Longint; aWriter: TFileWriter): TFileWritePromise; override;
+    class function WriteFile(aFile: TFile; aOptions: TFileWriteOptions; aFileAge: Longint): TFileWritePromise; override;
   public
     class function RenameFiles(aSource: TFileArray;
       aTarget: TFileArray): TFileRenamePromise; override;
@@ -279,7 +278,7 @@ begin
   stream := TFileStream.Create(fPath.ID,fmCreate or fmShareDenyWrite);
   try
     (Promise as TFileWritePromise).SetAnswer(FileAge(fPath.ID),false);
-    fWriter.Write(stream);
+    stream.CopyFrom((Promise as TFileWritePromise).Data,0);
   finally
     stream.Free;
   end;
@@ -289,16 +288,15 @@ end;
 
 function TLocalFileWriteTask.CreatePromise: TPromise;
 begin
-  result := TFileWritePromise.Create(fPath,fWriter);
+  result := TFileWritePromise.Create(fPath,TMemoryStream.Create);
 end;
 
 constructor TLocalFileWriteTask.Enqueue(aFile: TFile;
-  aOptions: TFileWriteOptions; aFileAge: Longint; aWriter: TFileWriter);
+  aOptions: TFileWriteOptions; aFileAge: Longint);
 begin
   fPath := aFile;
   fOptions := aOptions;
   fAge := aFileAge;
-  fWriter := aWriter;
   inherited Enqueue;
 end;
 
@@ -474,9 +472,9 @@ begin
 end;
 
 class function TLocalFileSystem.WriteFile(aFile: TFile;
-  aOptions: TFileWriteOptions; aFileAge: Longint; aWriter: TFileWriter): TFileWritePromise;
+  aOptions: TFileWriteOptions; aFileAge: Longint): TFileWritePromise;
 begin
-  result := TLocalFileWriteTask.Enqueue(aFile,aOptions,aFileAge,aWriter).Promise as TFileWritePromise;
+  result := TLocalFileWriteTask.Enqueue(aFile,aOptions,aFileAge).Promise as TFileWritePromise;
 end;
 
 end.

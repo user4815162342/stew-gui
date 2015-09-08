@@ -85,7 +85,7 @@ begin
     root := GetTestRootDir;
     fCache.WriteFile(root.GetContainedFile('bar').GetContainedFile('test.txt'),[fwoCheckAge],
                                                                 fComplexFileAge,
-                                                                TFileTextWriter.Create('TEST2')).After(
+                                                                'TEST2').After(
                                                                 @ComplexWriteCallback4,
                                                                 @ComplexWriteConflict4).Tag := Sender.Tag;
   end
@@ -210,7 +210,7 @@ begin
     root := GetTestRootDir;
     fCache.WriteFile(root.GetContainedFile('bar').GetContainedFile('test.txt'),[fwoCheckAge],
                                                                 fComplexFileAge - 1,
-                                                                TFileTextWriter.Create('TEST2')).After(
+                                                                'TEST2').After(
                                                                 @ComplexWriteCallback3,
                                                                 @ComplexWriteConflict3).Tag := aSender.Tag;
   end;
@@ -346,7 +346,7 @@ var
   root: TFile;
 begin
   root := GetTestRootDir;
-  fCache.WriteFile(root.GetContainedFile('foo.txt'),TFileTextWriter.Create('TEST')).After(@BasicWriteCallback,@PromiseError).Tag := BeginAsync;
+  fCache.WriteFile(root.GetContainedFile('foo.txt'),'TEST').After(@BasicWriteCallback,@PromiseError).Tag := BeginAsync;
 
 end;
 
@@ -355,7 +355,7 @@ var
   root: TFile;
 begin
   root := GetTestRootDir;
-  fCache.WriteFile(root.GetContainedFile('empty.txt'),TFileTextWriter.Create('')).After(@EmptyWriteCallback,@PromiseError).Tag := BeginAsync;
+  fCache.WriteFile(root.GetContainedFile('empty.txt'),'').After(@EmptyWriteCallback,@PromiseError).Tag := BeginAsync;
 
 end;
 
@@ -366,7 +366,7 @@ begin
   root := GetTestRootDir;
   fCache.WriteFile(root.GetContainedFile('bar').GetContainedFile('test.txt'),[fwoCreateDir,fwoCheckAge],
                                                                   NewFileAge,
-                                                                  TFileTextWriter.Create('TEST')).After(
+                                                                  'TEST').After(
                                                                   @ComplexWriteCallback1,
                                                                   @ComplexWriteConflict1).Tag := BeginAsync;
 end;

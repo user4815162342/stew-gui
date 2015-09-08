@@ -1187,7 +1187,7 @@ begin
   lData := (aSender as TFileListTemplatesPromise).Templates;
   if Length(lData) = 0 then
   // create a simple, basic, blank file.
-     GetDefaultFile.Write(TFileTextWriter.Create('')).After(@EditableFileWritten,@FileLoadFailed)
+     GetDefaultFile.Write('').After(@EditableFileWritten,@FileLoadFailed)
   else
   begin
     if Length(lData) > 1 then
@@ -1208,7 +1208,7 @@ begin
       // we're creating a blank file anyway, but in this case,
       // we know that we don't know what extension it is, so set
       // the extension to '.txt'.
-       GetDefaultFile.WithDifferentExtension('txt').Write(TFileTextWriter.Create('')).After(@EditableFileWritten,@FileLoadFailed)
+       GetDefaultFile.WithDifferentExtension('txt').Write('').After(@EditableFileWritten,@FileLoadFailed)
     else
        GetDefaultFile.CreateFromTemplate(aTemplate).After(@EditableFileReady,@FileLoadFailed);
   end;
@@ -1301,7 +1301,7 @@ begin
       lOptions := [];
       if not aForce then
         lOptions := lOptions + [fwoCheckAge];
-      aCandidates[0].Write(lOptions,fFileAge,TFileTextWriter.Create(fContents)).After(@FileSaved,@FileSaveConflictCheck);
+      aCandidates[0].Write(lOptions,fFileAge,fContents).After(@FileSaved,@FileSaveConflictCheck);
     end
     else if fFilingState = fsNotLoaded then
       raise Exception.Create('Can''t save attachment data when it has not yet been loaded')

@@ -588,7 +588,7 @@ begin
         lOptions := lOptions + [fwoCreateDir];
       if not aForce then
         lOptions := lOptions + [fwoCheckAge];
-      fFile.Write(lOptions,fFileAge,TFileTextWriter.Create(text)).After(@FileSaved,@FileSaveConflictCheck);
+      fFile.Write(lOptions,fFileAge,text).After(@FileSaved,@FileSaveConflictCheck);
 
     end
     else if fFilingState = fsNotLoaded then

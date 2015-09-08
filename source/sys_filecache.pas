@@ -187,10 +187,13 @@ type
     // Although I'm not actually caching the write, I want to make sure
     // that we "uncache" files after they are saved.
     function WriteFile(aFile: TFile; aOptions: TFileWriteOptions;
-      aFileAge: Longint; aWriter: tFileWriter): TFileWritePromise;
-    function WriteFile(aFile: TFile; aWriter: tFileWriter): TFileWritePromise;
+      aFileAge: Longint): TFileWritePromise;
+    function WriteFile(aFile: TFile): TFileWritePromise;
+    function WriteFile(aFile: TFile; aOptions: TFileWriteOptions): TFileWritePromise;
     function WriteFile(aFile: TFile; aOptions: TFileWriteOptions;
-      aWriter: tFileWriter): TFileWritePromise;
+      aFileAge: Longint; aText: UTF8String): TFileWritePromise;
+    function WriteFile(aFile: TFile; aText: UTF8String): TFileWritePromise;
+    function WriteFile(aFile: TFile; aOptions: TFileWriteOptions; aText: UTF8String): TFileWritePromise;
     function RenameFiles(aSource: TFileArray; aTarget: TFileArray): TFileRenamePromise;
     // Uncaches all data, promises and everything.
     // promises always check if they are the correct promise for the file
@@ -674,26 +677,47 @@ begin
 end;
 
 function TFileSystemCache.WriteFile(aFile: TFile; aOptions: TFileWriteOptions;
-  aFileAge: Longint; aWriter: tFileWriter): TFileWritePromise;
+  aFileAge: Longint): TFileWritePromise;
 begin
   // We don't need to cache the writes, but I want to 'clear' the cache
   // once it's written.
-  result := aFile.Write(aOptions,aFileAge,aWriter);
+  result := aFile.Write(aOptions,aFileAge);
   result.After(@FileWritten);
 end;
 
-function TFileSystemCache.WriteFile(aFile: TFile; aWriter: tFileWriter
-  ): TFileWritePromise;
+function TFileSystemCache.WriteFile(aFile: TFile): TFileWritePromise;
 begin
-  result := aFile.Write(aWriter);
+  result := aFile.Write;
+  result.After(@FileWritten);
+end;
+
+function TFileSystemCache.WriteFile(aFile: TFile; aOptions: TFileWriteOptions): TFileWritePromise;
+begin
+  result := aFile.Write(aOptions);
   result.After(@FileWritten);
 end;
 
 function TFileSystemCache.WriteFile(aFile: TFile; aOptions: TFileWriteOptions;
-  aWriter: tFileWriter): TFileWritePromise;
+  aFileAge: Longint; aText: UTF8String): TFileWritePromise;
 begin
-  result := aFile.Write(aOptions,aWriter);
-  result.After(@FileWritten);
+  result := WriteFile(aFile,aOptions,aFileAge);
+  result.WriteString(aText);
+end;
+
+function TFileSystemCache.WriteFile(aFile: TFile; aText: UTF8String
+  ): TFileWritePromise;
+begin
+  result := WriteFile(aFile);
+  result.WriteString(aText);
+
+end;
+
+function TFileSystemCache.WriteFile(aFile: TFile; aOptions: TFileWriteOptions;
+  aText: UTF8String): TFileWritePromise;
+begin
+  result := WriteFile(aFile,aOptions);
+  result.WriteString(aText);
+
 end;
 
 function TFileSystemCache.RenameFiles(aSource: TFileArray; aTarget: TFileArray
