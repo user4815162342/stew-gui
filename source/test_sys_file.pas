@@ -132,7 +132,7 @@ begin
   else
   begin
     root := GetTestRootDir;
-    root.GetContainedFile('foo.txt').Read(TFileTextReader.Create).After(@BasicWriteCallback2,@PromiseError).Tag := aSender.Tag;
+    root.GetContainedFile('foo.txt').Read.After(@BasicWriteCallback2,@PromiseError).Tag := aSender.Tag;
   end;
 end;
 
@@ -140,7 +140,7 @@ procedure TFileSpec.BasicWriteCallback2(aSender: TPromise);
 var
   lData: UTF8String;
 begin
-  lData := ((aSender as TFileReadPromise).Reader as TFileTextReader).Data;
+  lData := (aSender as TFileReadPromise).ReadString;
   if lData <> 'TEST' then
     FailAsync(aSender.Tag,'Data read from file did not match data written')
   else
@@ -202,7 +202,7 @@ begin
   else
   begin
     root := GetTestRootDir;
-    root.GetContainedFile('bar').GetContainedFile('test.txt').Read(TFileTextReader.Create).After(@ComplexWriteCallback2,@PromiseError).Tag := aSender.Tag;
+    root.GetContainedFile('bar').GetContainedFile('test.txt').Read.After(@ComplexWriteCallback2,@PromiseError).Tag := aSender.Tag;
   end;
 
 end;
@@ -213,7 +213,7 @@ var
   root: TFile;
 begin
   fComplexFileAge := (aSender as TFileReadPromise).Age;
-  lCheck := ((aSender as TFileReadPromise).Reader as TFileTextReader).Data;
+  lCheck := (aSender as TFileReadPromise).ReadString;
   if lCheck <> 'TEST' then
     FailAsync(aSender.Tag,'Data read from file did not match data written')
   else
@@ -261,7 +261,7 @@ var
   root: TFile;
 begin
   root := GetTestRootDir;
-  root.GetContainedFile('_stew.json').Read(TFileTextReader.Create).After(@CopyFileCallback2,@PromiseError).Tag := aSender.Tag;
+  root.GetContainedFile('_stew.json').Read.After(@CopyFileCallback2,@PromiseError).Tag := aSender.Tag;
 
 end;
 
@@ -269,14 +269,14 @@ procedure TFileSpec.CopyFileCallback2(aSender: TPromise);
 var
   root: TFile;
 begin
-  fCopyFileContents := ((aSender as TFileReadPromise).Reader as TFileTextReader).Data;
+  fCopyFileContents := (aSender as TFileReadPromise).ReadString;
   root := GetTestRootDir;
-  root.GetContainedFile('_stew.json.bak').Read(TFileTextReader.Create).After(@CopyFileCallback3,@PromiseError).Tag := aSender.Tag;
+  root.GetContainedFile('_stew.json.bak').Read.After(@CopyFileCallback3,@PromiseError).Tag := aSender.Tag;
 end;
 
 procedure TFileSpec.CopyFileCallback3(aSender: TPromise);
 begin
-  if ((aSender as TFileReadPromise).Reader as TFileTextReader).Data <> fCopyFileContents then
+  if (aSender as TFileReadPromise).ReadString <> fCopyFileContents then
     FailAsync(aSender.Tag,'Copied file did not contain the same contents')
   else
     EndAsync(aSender.Tag);
@@ -419,7 +419,7 @@ var
   root: TFile;
 begin
   root := GetTestRootDir;
-  root.GetContainedFile('_stew.json').Read(TFileTextReader.Create).After(@ReadTestCallback,@PromiseError).Tag := BeginAsync;
+  root.GetContainedFile('_stew.json').Read.After(@ReadTestCallback,@PromiseError).Tag := BeginAsync;
 end;
 
 procedure TFileSpec.Test_Basic_File_Writing;

@@ -40,31 +40,11 @@ type
   TLocalFileReadTask = class(TQueuedTask)
   private
     fPath: TFile;
-  // TODO: Is this getting deleted appropriately?
-  // I can probably just shift over to a TMemoryStream...
-  // Or, maybe, the only thing that gets the data is
-  // the primary caller, and for the rest the promise
-  // simply acts as a completion event.
-  // The Answer:
-  // - Behave like a usual network request/response paradigm:
-  // - The writer *request* involves writing to a stream already,
-  // even if it's buffered. WriteFile doesn't return a promise,
-  // it returns a request that the caller must send to get the promise.
-  // -  The Reader Response contains a stream which can be perused
-  // all you want. This would be the case with the resulting
-  // promise as well. The stream would get deleted as soon
-  // as all listeners are done responding to it. Alternately,
-  // only the caller would be able to read the data, and the
-  // listeners would only get to know if the reading is complete,
-  // just as you wouldn't have more than one request handler for
-  // a request (although the handler might be able to pipe it
-  // to others).
-    fReader: TFileReader;
   protected
     procedure DoTask; override;
     function CreatePromise: TPromise; override;
   public
-    constructor Enqueue(aFile: TFile; aHandler: TFileReader);
+    constructor Enqueue(aFile: TFile);
   end;
 
   { TLocalFileWriteTask }
@@ -125,7 +105,7 @@ type
     class function GetTemplatesFor(aFile: TFile): TFileListTemplatesPromise; override;
     class function ListFiles(aFile: TFile): TFile.TFileListPromise; override;
     class procedure OpenInEditor(aFile: TFile); override;
-    class function ReadFile(aFile: TFile; aHandler: TFileReader): TFileReadPromise; override;
+    class function ReadFile(aFile: TFile): TFileReadPromise; override;
     class function WriteFile(aFile: TFile; aOptions: TFileWriteOptions; aFileAge: Longint): TFileWritePromise; override;
   public
     class function RenameFiles(aSource: TFileArray;
@@ -305,36 +285,33 @@ end;
 procedure TLocalFileReadTask.DoTask;
 var
   lStream: TFileStream;
+  lDataString: UTf8String;
+  lDataStream: TStringStream;
 begin
   if FileExists(fPath.ID) then
   begin
     lStream := TFileStream.Create(fPath.ID,fmOpenRead or fmShareDenyWrite);
-    try
-      // get the age of the file now, while it's locked, to prevent certain
-      // race conditions
-      (Promise as TFileReadPromise).SetAnswer(FileAge(fPath.ID),False);
-      fReader.Read(lStream);
-    finally
-      lStream.Free;
-    end;
+    // get the age of the file now, while it's locked, to prevent certain
+    // race conditions
+    // Also, stream is now *owned* by the promise... It should still close
+    // relatively quickly though.
+    (Promise as TFileReadPromise).SetAnswer(lStream,FileAge(fPath.ID),False);
   end
   else
   begin
-    fReader.Read(nil);
-    (Promise as TFileReadPromise).SetAnswer(NewFileAge,true);
+    (Promise as TFileReadPromise).SetAnswer(nil,NewFileAge,true);
   end;
   Resolve;
 end;
 
 function TLocalFileReadTask.CreatePromise: TPromise;
 begin
-  result := TFileReadPromise.Create(fPath,fReader);
+  result := TFileReadPromise.Create(fPath);
 end;
 
-constructor TLocalFileReadTask.Enqueue(aFile: TFile; aHandler: TFileReader);
+constructor TLocalFileReadTask.Enqueue(aFile: TFile);
 begin
   fPath := aFile;
-  fReader := aHandler;
   inherited Enqueue;
 end;
 
@@ -449,7 +426,7 @@ begin
   result := TLocalFileListTemplatesFromOSTask.Enqueue(aFile).Promise as TFileListTemplatesPromise;
 end;
 
-class function TLocalFileSystem.ListFiles(aFile: TFile): TFileListPromise;
+class function TLocalFileSystem.ListFiles(aFile: TFile): TFile.TFileListPromise;
 begin
   result := TLocalFileListTask.Enqueue(aFile).Promise as TFileListPromise;
 end;
@@ -459,10 +436,9 @@ begin
   EditFile(aFile);
 end;
 
-class function TLocalFileSystem.ReadFile(aFile: TFile;
-  aHandler: TFileReader): TFileReadPromise;
+class function TLocalFileSystem.ReadFile(aFile: TFile): TFileReadPromise;
 begin
-  result := TLocalFileReadTask.Enqueue(aFile,aHandler).Promise as TFileReadPromise;
+  result := TLocalFileReadTask.Enqueue(aFile).Promise as TFileReadPromise;
 end;
 
 class function TLocalFileSystem.RenameFiles(aSource: TFileArray;

@@ -55,7 +55,6 @@ type
 
   TFileListPromise = class;
 
-  TFileReader = class;
   TFileReadPromise = class;
 
   TFileWriteOption = (fwoCreateDir, fwoCheckAge);
@@ -94,8 +93,12 @@ type
     property ID: UTF8String read fID;
     function List: TFileListPromise;
     function CheckExistence: TFileExistencePromise;
-    // The 'Reader' is owned by the promise and destroyed when that is destroyed.
-    function Read(aHandler: TFileReader): TFileReadPromise;
+    // The convertor is a procedure that converts the stream into whatever
+    // data format is actually required. The data is *not* available on the
+    // TFileReadPromise itself, the promise only reports when the reading
+    // is complete. If nil is passed, then the DataString property on the Promise
+    // should contain the contents of the file as a string.
+    function Read: TFileReadPromise;
     // The TFileWritePromise includes a 'Data' stream which can be used to write the
     // data to be written into the file. Or, to write simple strings, use the
     // overloads which take a text parameter at the end.
@@ -165,31 +168,28 @@ type
     property Exists: Boolean read fExists;
   end;
 
-  { TFileReader }
-
-  TFileReader = class
-  public
-    procedure Read(aData: TStream); virtual; abstract;
-  end;
-
   { TFileReadPromise }
 
   TFileReadPromise = class(TPromise)
   private
     fPath: Tfile;
-    fReader: TFileReader;
   protected
+    fDataString: UTF8String;
     fAge: Longint;
     fDoesNotExist: Boolean;
+    fStream: TStream;
   public
     // The 'Reader' is owned by the promise and destroyed when that is destroyed.
-    constructor Create(aFile: TFile; aHandler: TFileReader);
+    constructor Create(aFile: TFile);
     destructor Destroy; override;
-    procedure SetAnswer(aAge: Longint; aDoesNotExist: Boolean);
+    procedure SetAnswer(aStream: TStream; aAge: Longint;
+      aDoesNotExist: Boolean);
     property Path: TFile read FPath;
-    property Reader: TFileReader read fReader;
     property Age: Longint read FAge;
     property DoesNotExist: Boolean read fDoesNotExist;
+    // Keep in mind that the stream is destroyed with the promise...
+    property Data: TStream read fStream;
+    function ReadString: UTF8String;
   end;
 
   { TFileWritePromise }
@@ -201,7 +201,6 @@ type
     fAge: Longint;
     fIsConflict: Boolean;
     fStream: TStream;
-    function GetStream: TStream;
   public
     constructor Create(aFile: TFile; aData: TStream); overload;
     destructor Destroy; override;
@@ -209,7 +208,7 @@ type
     property Path: TFile read fPath;
     property Age: Longint read fAge;
     property IsConflict: Boolean read fIsConflict;
-    property Data: TStream read GetStream;
+    property Data: TStream read fStream;
     procedure WriteString(aData: UTF8String);
   end;
 
@@ -275,7 +274,7 @@ type
     class function ListFiles(aFile: TFile): TFileListPromise; virtual; abstract;
     class function CheckFileExistence(aFile: TFile): TFileExistencePromise; virtual; abstract;
     // The 'Reader' is owned by the promise and destroyed when that is destroyed.
-    class function ReadFile(aFile: TFile; aHandler: TFileReader): TFileReadPromise; virtual; abstract;
+    class function ReadFile(aFile: TFile): TFileReadPromise; virtual; abstract;
     // The 'Writer' is owned by the promise and destroyed when that is destroyed.
     class function WriteFile(aFile: TFile; aOptions: TFileWriteOptions;
                         aFileAge: Longint): TFileWritePromise; virtual; abstract;
@@ -314,29 +313,6 @@ type
     property Item[Index: Integer]: TFile read GetItem; default;
   end;
 
-  { TFileTextHandler }
-
-  TFileTextReader = class(TFileReader)
-  private
-    fData: UTF8String;
-  public
-    procedure Read(aData: TStream); override;
-    property Data: UTF8String read fData;
-  end;
-
-  { TFileStreamReader }
-
-  TFileStreamReader = class(TFileReader)
-  private
-    fData: TMemoryStream;
-    fDataGrabbed: Boolean;
-  public
-    destructor Destroy; override;
-    procedure Read(aData: TStream); override;
-    property Stream: TMemoryStream read fData;
-    function TakeOwnershipOfStream: TMemoryStream;
-  end;
-
   const
     ExtensionDelimiter: Char = '.';
     DescriptorDelimiter: Char = '_';
@@ -361,52 +337,6 @@ implementation
 uses
   strutils, FileUtil;
 
-
-{ TFileStreamReader }
-
-destructor TFileStreamReader.Destroy;
-begin
-  if not fDataGrabbed then
-    FreeAndNil(fData);
-  inherited Destroy;
-end;
-
-procedure TFileStreamReader.Read(aData: TStream);
-begin
-  // we can "key" the data, because the reader and the stream are destroyed by the
-  // promise.
-  fData := TMemoryStream.Create;
-  fData.CopyFrom(aData,0);
-end;
-
-function TFileStreamReader.TakeOwnershipOfStream: TMemoryStream;
-begin
-  fDataGrabbed := true;
-  result := fData;
-end;
-
-{ TFileTextHandler }
-
-procedure TFileTextReader.Read(aData: TStream);
-var
-  lTarget: TStringStream;
-begin
-  if aData <> nil then
-  begin
-
-    lTarget := TStringStream.Create('');
-    try
-      lTarget.CopyFrom(aData,0);
-      fData := lTarget.DataString;
-    finally
-      lTarget.Free;
-    end;
-
-  end
-  else
-    fData := '';
-
-end;
 
 { TFileListTemplatesPromise }
 
@@ -457,11 +387,6 @@ end;
 
 { TFileWritePromise }
 
-function TFileWritePromise.GetStream: TStream;
-begin
-  result := fStream;
-end;
-
 constructor TFileWritePromise.Create(aFile: TFile; aData: TStream);
 begin
   inherited Create;
@@ -499,24 +424,47 @@ end;
 
 { TFileReadPromise }
 
-constructor TFileReadPromise.Create(aFile: TFile;
-  aHandler: TFileReader);
+constructor TFileReadPromise.Create(aFile: TFile);
 begin
   inherited Create;
   fPath := aFile;
-  fReader := aHandler;
 end;
 
 destructor TFileReadPromise.Destroy;
 begin
-  FreeAndNil(fReader);
+  if fStream <> nil then
+    FreeAndNil(fStream);
   inherited Destroy;
 end;
 
-procedure TFileReadPromise.SetAnswer(aAge: Longint; aDoesNotExist: Boolean);
+procedure TFileReadPromise.SetAnswer(aStream: TStream; aAge: Longint; aDoesNotExist: Boolean);
 begin
+  fStream := aStream;
   fAge := aAge;
   fDoesNotExist := aDoesNotExist;
+end;
+
+function TFileReadPromise.ReadString: UTF8String;
+var
+  lTarget: TStringStream;
+begin
+  if fStream <> nil then
+  begin
+    if fStream is TStringStream then
+      result := (fStream as TStringStream).DataString
+    else
+    begin
+      lTarget := TStringStream.Create('');
+      try
+        lTarget.CopyFrom(fStream,0);
+        result := lTarget.DataString;
+      finally
+        lTarget.Free;
+      end;
+    end;
+  end
+
+
 end;
 
 { TFileCheckExistencePromise }
@@ -654,9 +602,9 @@ begin
 
 end;
 
-function TFile.Read(aHandler: TFileReader): TFileReadPromise;
+function TFile.Read: TFileReadPromise;
 begin
-  result := fSystem.ReadFile(Self,aHandler);
+  result := fSystem.ReadFile(Self);
 end;
 
 function TFile.Write: TFileWritePromise;

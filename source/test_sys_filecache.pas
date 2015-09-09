@@ -123,7 +123,7 @@ begin
   else
   begin
     root := GetTestRootDir;
-    fCache.ReadFile(root.GetContainedFile('foo.txt'),TFileTextReader.Create).After(@BasicWriteCallback2,@PromiseError).Tag := aSender.Tag;
+    fCache.ReadFile(root.GetContainedFile('foo.txt')).After(@BasicWriteCallback2,@PromiseError).Tag := aSender.Tag;
   end;
 end;
 
@@ -131,7 +131,7 @@ procedure TCacheSpec.BasicWriteCallback2(aSender: TPromise);
 var
   lData: UTF8String;
 begin
-  lData := ((aSender as TFileReadPromise).Reader as TFileTextReader).Data;
+  lData := (aSender as TFileReadPromise).ReadString;
   if lData <> 'TEST' then
     FailAsync(aSender.Tag,'Data read from file did not match data written')
   else
@@ -191,7 +191,7 @@ begin
   else
   begin
     root := GetTestRootDir;
-    fCache.ReadFile(root.GetContainedFile('bar').GetContainedFile('test.txt'),TFileTextReader.Create).After(@ComplexWriteCallback2,@PromiseError).Tag := aSender.Tag;
+    fCache.ReadFile(root.GetContainedFile('bar').GetContainedFile('test.txt')).After(@ComplexWriteCallback2,@PromiseError).Tag := aSender.Tag;
   end;
 
 end;
@@ -202,7 +202,7 @@ var
   root: TFile;
 begin
   fComplexFileAge := (aSender as TFileReadPromise).Age;
-  lCheck := ((aSender as TFileReadPromise).Reader as TFileTextReader).Data;
+  lCheck := (aSender as TFileReadPromise).ReadString;
   if lCheck <> 'TEST' then
     FailAsync(aSender.Tag,'Data read from file did not match data written')
   else
@@ -338,7 +338,7 @@ var
   root: TFile;
 begin
   root := GetTestRootDir;
-  fCache.ReadFile(root.GetContainedFile('_stew.json'),TFileTextReader.Create).After(@ReadTestCallback,@PromiseError).Tag := BeginAsync;
+  fCache.ReadFile(root.GetContainedFile('_stew.json')).After(@ReadTestCallback,@PromiseError).Tag := BeginAsync;
 end;
 
 procedure TCacheSpec.Test_Basic_File_Writing;

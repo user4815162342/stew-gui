@@ -85,12 +85,12 @@ type
 
   TFileSystemCacheContents = class(TFileSystemCacheData)
   private
-    fContents: TMemoryStream;
+    fContents: UTF8String;
     fAge: Longint;
   public
-    constructor Create(aData: TStream; aAge: Longint);
+    constructor Create(aContents: UTF8String; aAge: Longint);
     destructor Destroy; override;
-    property Data: TMemoryStream read fContents;
+    property Contents: UTF8String read fContents;
     property Age: Longint read fAge;
   end;
 
@@ -137,12 +137,11 @@ type
   TFileSystemCacheReadDeferredTask = class(TDeferredTask2)
   private
     fFile: TFile;
-    fReader: TFileReader;
   protected
     procedure DoTask(Input: TPromise); override;
     function CreatePromise: TPromise; override;
   public
-    constructor Defer(aFile: TFile; aHandler: TFileReader; aPromise: TFileReadPromise);
+    constructor Defer(aFile: TFile; aPromise: TFileReadPromise);
   end;
 
   { TFileSystemCacheReadKnownTask }
@@ -150,13 +149,11 @@ type
   TFileSystemCacheReadKnownTask = class(TQueuedTask)
   private
     fFile: TFile;
-    fReader: TFileReader;
   protected
     procedure DoTask; override;
     function CreatePromise: TPromise; override;
   public
-    constructor Enqueue(aFile: TFile; aHandler: TFileReader;
-      aData: TFileSystemCacheContents; aExistence: TFileSystemCacheExists);
+    constructor Enqueue(aFile: TFile; aData: TFileSystemCacheContents; aExistence: TFileSystemCacheExists);
   end;
 
   { TFileSystemCache }
@@ -183,7 +180,7 @@ type
     destructor Destroy; override;
     function CheckExistence(aFile: TFile): TFileExistencePromise;
     function ListFiles(aFile: TFile): TFileListPromise;
-    function ReadFile(aFile: TFile; aHandler: TFileReader): TFileReadPromise;
+    function ReadFile(aFile: TFile): TFileReadPromise;
     // Although I'm not actually caching the write, I want to make sure
     // that we "uncache" files after they are saved.
     function WriteFile(aFile: TFile; aOptions: TFileWriteOptions;
@@ -232,50 +229,36 @@ end;
 
 function TFileSystemCacheReadKnownTask.CreatePromise: TPromise;
 begin
-  result := TFileReadPromise.Create(fFile,fReader);
+  result := TFileReadPromise.Create(fFile);
 end;
 
-constructor TFileSystemCacheReadKnownTask.Enqueue(aFile: TFile;
-  aHandler: TFileReader; aData: TFileSystemCacheContents; aExistence: TFileSystemCacheExists);
+constructor TFileSystemCacheReadKnownTask.Enqueue(aFile: TFile; aData: TFileSystemCacheContents; aExistence: TFileSystemCacheExists);
 begin
   fFile := aFile;
-  fReader := aHandler;
   inherited Enqueue;
-  (Promise as TFileReadPromise).Reader.Read(aData.Data);
-  (Promise as TFileReadPromise).SetAnswer(aData.Age,not aExistence.Exists);
+  (Promise as TFileReadPromise).SetAnswer(TStringStream.Create(aData.Contents),aData.Age,not aExistence.Exists);
 end;
 
 { TFileSystemCacheReadDeferredTask }
 
 procedure TFileSystemCacheReadDeferredTask.DoTask(Input: TPromise);
-var
-  lPromise: TFileReadPromise;
-  lInput: TFileReadPromise;
-  lReader: TFileStreamReader;
-  lNewReader: TFileReader;
 begin
-  // we don't "own" the stream here, so we just want the stream here.
-  lPromise := Promise as TFileReadPromise;
-  lInput := Input as TFileReadPromise;
-  lReader := lInput.Reader as TFileStreamReader;
-  lNewReader := lPromise.Reader;
-  lNewReader.Read(lReader.Stream);
-
-  (Promise as TFileReadPromise).Reader.Read(((Input as TFileReadPromise).Reader as TFileStreamReader).Stream);
-  (Promise as TFileReadPromise).SetAnswer((Input as TFileReadPromise).Age,(Input as TFileReadPromise).DoesNotExist);
+  // I need to "clone" the data string here. It is, more than likely,
+  // an actual stream, but that stream is owned by the promise, and could
+  // be freed before this one is done. However, I can pass a TStringStream,
+  // since that's what's happening with the cached data anyway.
+  (Promise as TFileReadPromise).SetAnswer(TStringStream.Create((Input as TFileReadPromise).ReadString),(Input as TFileReadPromise).Age,(Input as TFileReadPromise).DoesNotExist);
   Resolve;
 end;
 
 function TFileSystemCacheReadDeferredTask.CreatePromise: TPromise;
 begin
-  result := TFileReadPromise.Create(fFile,fReader);
+  result := TFileReadPromise.Create(fFile);
 end;
 
-constructor TFileSystemCacheReadDeferredTask.Defer(aFile: TFile;
-  aHandler: TFileReader; aPromise: TFileReadPromise);
+constructor TFileSystemCacheReadDeferredTask.Defer(aFile: TFile; aPromise: TFileReadPromise);
 begin
   fFile := aFile;
-  fReader := aHandler;
   inherited Defer(aPromise);
 end;
 
@@ -359,18 +342,16 @@ end;
 
 { TFileSystemCacheContents }
 
-constructor TFileSystemCacheContents.Create(aData: TStream; aAge: Longint);
+constructor TFileSystemCacheContents.Create(aContents: UTF8String; aAge: Longint
+  );
 begin
   inherited Create;
-  fContents := TMemoryStream.Create;
-  if aData <> nil then
-    fContents.CopyFrom(aData,0);
+  fContents := aContents;
   fAge := aAge;
 end;
 
 destructor TFileSystemCacheContents.Destroy;
 begin
-  FreeAndNil(fContents);
   inherited Destroy;
 end;
 
@@ -475,7 +456,7 @@ procedure TFileSystemCache.FileRead(Sender: TPromise);
 var
   lFile: TFile;
   lExists: Boolean;
-  lStream: TStream;
+  lContents: UTF8String;
   lAge: Longint;
   lExistsKey: UTF8String;
   lContentsKey: UTF8String;
@@ -489,9 +470,8 @@ begin
     lExists := not (Sender as TFileReadPromise).DoesNotExist;
     fDataCache[lExistsKey] := TFileSystemCacheExists.Create(lExists);
     lAge := (Sender as TFileReadPromise).Age;
-    // we are actually going to take ownership of the stream for the contents.
-    lStream := ((Sender as TFileReadPromise).Reader as TFileStreamReader).TakeOwnershipOfStream;
-    fDataCache[lContentsKey] := TFileSystemCacheContents.Create(lStream,lAge);
+    lContents := (Sender as TFileReadPromise).ReadString;
+    fDataCache[lContentsKey] := TFileSystemCacheContents.Create(lContents,lAge);
   end;
   // otherwise, there must be a newer promise with better information...
 end;
@@ -643,7 +623,7 @@ begin
      result := lCached as TFileListPromise;
 end;
 
-function TFileSystemCache.ReadFile(aFile: TFile; aHandler: TFileReader): TFileReadPromise;
+function TFileSystemCache.ReadFile(aFile: TFile): TFileReadPromise;
 var
   lContentsKey: UTF8String;
   lExistsKey: UTF8String;
@@ -657,22 +637,22 @@ begin
     lCached := fDataCache[lContentsKey];
     if lCached = nil then
     begin
-      result := aFile.Read(TFileStreamReader.Create);
+      result := aFile.Read;
       result.After(@FileRead);
       fPromiseCache[lContentsKey] := Result;
       // Now, wrap that in another promise that will do the reading
       // with the correct reader.
-      result := TFileSystemCacheReadDeferredTask.Defer(aFile,aHandler,result).Promise as TFileReadPromise;
+      result := TFileSystemCacheReadDeferredTask.Defer(aFile,result).Promise as TFileReadPromise;
     end
     else
-      result := TFileSystemCacheReadKnownTask.Enqueue(aFile,aHandler,lCached as TFileSystemCacheContents, fDataCache[lExistsKey] as TFileSystemCacheExists).Promise as TFileReadPromise;
+      result := TFileSystemCacheReadKnownTask.Enqueue(aFile,lCached as TFileSystemCacheContents, fDataCache[lExistsKey] as TFileSystemCacheExists).Promise as TFileReadPromise;
   end
   else
   begin
     // the promise is directly from the file system and returns a stream.
     // So, we need to return a promise that wwill do the reading with
     // the correct reader.
-     result := TFileSystemCacheReadDeferredTask.Defer(aFile,aHandler,lCached as TFileReadPromise).Promise as TFileReadPromise;
+     result := TFileSystemCacheReadDeferredTask.Defer(aFile,lCached as TFileReadPromise).Promise as TFileReadPromise;
   end;
 end;
 
@@ -1004,7 +984,7 @@ begin
   begin
     lIndex := fShortStringMap.FindIndexOf(lBase);
     if lIndex > -1 then
-      fShortStringMap.Delete(fShortStringMap.FindIndexOf(lBase));
+      fShortStringMap.Delete(lIndex);
   end;
 end;
 

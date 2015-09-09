@@ -1110,7 +1110,7 @@ end;
 
 procedure TAttachmentMetadata.FileLoaded(aSender: TPromise);
 begin
-  FileLoaded(((aSender as TFileReadPromise).Reader as TFileTextReader).Data,(aSender as TFileReadPromise).Age);
+  FileLoaded((aSender as TFileReadPromise).ReadString,(aSender as TFileReadPromise).Age);
 
 end;
 
@@ -1263,7 +1263,7 @@ begin
       begin
         fFilingState := fsLoading;
         fDocument.AttachmentLoading(GetName);
-        aCandidates[0].Read(TFileTextReader.Create).After(@FileLoaded,@FileLoadFailed);
+        aCandidates[0].Read.After(@FileLoaded,@FileLoadFailed);
       end
     else
         raise Exception.Create('Too many ' + GetName + ' files');

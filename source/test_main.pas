@@ -121,7 +121,7 @@ end;
 
 procedure TMainForm.TestsCompleted(Sender: TObject);
 begin
-  Log('Tests Completed',mtInformation);
+  Log('Tests Completed',mtCustom);
   CancelButton.Enabled := false;
   RunButton.Enabled := true;
   RunTesterTestsButton.Enabled := true;
@@ -182,7 +182,7 @@ begin
   RunTesterTestsButton.Enabled := false;
   CancelButton.Enabled := true;
   InitRegistry(Data = 1);
-  Log('Starting Test',mtInformation);
+  Log('Starting Tests',mtCustom);
   fRegistry.Run;
 
 end;
@@ -202,6 +202,7 @@ begin
   // get the 'default' style
   if OutputMemo.GetTextAttributes(0,aStyle{%H-}) then
   begin
+    aStyle.Style:=[];
     case aType of
       mtError:
       begin
@@ -209,7 +210,13 @@ begin
         aStyle.Style := [fsBold];
       end;
       mtWarning:
+      begin
         aStyle.Color := clYellow;
+      end;
+      mtCustom:
+      begin
+        aStyle.Style := [fsBold];
+      end;
     end;
     OutputMemo.SetTextAttributes(i, j, aStyle);  //apply now
   end;
