@@ -1050,7 +1050,7 @@ end;
 
 procedure TStewProject.TProjectOpenInParentTask.DoTask;
 begin
-  TProjectProperties.GetPath(Path).CheckExistence.After(@FileExists,@SubPromiseRejected);
+  TProjectProperties2.GetPath(Path).CheckExistence.After(@FileExists,@SubPromiseRejected);
 end;
 
 { TProjectPromise }
@@ -1084,7 +1084,7 @@ procedure TStewProject.TProjectOpenAtPathTask.DoTask;
 begin
   // TODO: Once we move over to the new Properties format, just
   // make this a 'read', and pass the data onto the project constructor.
-  TProjectProperties.GetPath(Path).CheckExistence.After(@FileExists,@SubPromiseRejected);
+  TProjectProperties2.GetPath(Path).CheckExistence.After(@FileExists,@SubPromiseRejected);
 end;
 
 { TDocumentPath }
