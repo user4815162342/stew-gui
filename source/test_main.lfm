@@ -46,6 +46,7 @@ object MainForm: TMainForm
       Left = 209
       Top = 2
       Caption = 'Disable Time Outs'
+      Down = True
       Style = tbsCheck
     end
   end

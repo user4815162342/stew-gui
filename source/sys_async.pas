@@ -111,31 +111,35 @@ type
   // we have to use strings to report errors. However, I wouldn't be against
   // using a structured type at some point. Just have to make it easy to
   // copy an Exception into that structure.
-  TPromiseException = string;
-  TErrorback = procedure(Sender: TPromise; aError: TPromiseException) of object;
-  TErrorbackList = specialize TFPGList<TErrorback>;
-  TCallback = procedure(Sender: TPromise) of object;
-  TCallbackList = specialize TFPGList<TCallback>;
-  TPromiseState = (psInitialized,psResolving,psRejecting);
+  TPromiseError = string;
+  TPromiseRejectionListener = procedure(Sender: TPromise; aError: TPromiseError) of object;
+  TPromiseRejectionListenerList = specialize TFPGList<TPromiseRejectionListener>;
+  TPromiseResolutionListener = procedure(Sender: TPromise) of object;
+  TPromiseResolutionListenerList = specialize TFPGList<TPromiseResolutionListener>;
+  TPromiseState = (psIncomplete,psResolving,psRejecting);
 
   TPromise = class
   strict private
-    fCallbacks: TCallbackList;
-    fErrorbacks: TErrorbackList;
-    fError: TPromiseException;
-    fState: TPromiseState; // should be initialized to psInitialized.
+    fCallbacks: TPromiseResolutionListenerList;
+    fErrorbacks: TPromiseRejectionListenerList;
+    fError: TPromiseError;
+    fState: TPromiseState; // should be initialized to psIncomplete.
     fTag: Integer;
     procedure RunCallbacks;
     procedure RunErrorbacks;
   protected
     procedure Resolve;
-    procedure Reject(aError: TPromiseException);
+    procedure Reject(aError: TPromiseError);
   public
     constructor Create;
     destructor Destroy; override;
-    function After(aCallback: TCallback; aErrorback: TErrorback = nil): TPromise;
-    procedure Catch(aErrorback: TErrorback);
+    function After(aCallback: TPromiseResolutionListener; aErrorback: TPromiseRejectionListener = nil): TPromise;
+    procedure Catch(aErrorback: TPromiseRejectionListener);
     property Tag: Integer read fTag write fTag;
+    property State: TPromiseState read fState;
+    // FUTURE: With this property made public, I really don't need to have
+    // the RejectionListener require an error message.
+    property Error: TPromiseError read fError;
   end;
 
   { TAsyncTask }
@@ -145,16 +149,16 @@ type
     fPromise: TPromise;
   protected
     procedure Resolve;
-    procedure Reject(aError: TPromiseException);
+    procedure Reject(aError: TPromiseError);
     function CreatePromise: TPromise; virtual; abstract;
     // Useful for chaining promises.. just add this function as the catch
     // to a subpromise or subtask and it will automatically reject this promise.
-    procedure SubPromiseRejected(Sender: TPromise; aError: TPromiseException);
+    procedure SubPromiseRejected(Sender: TPromise; aError: TPromiseError);
     procedure SubPromiseResolved(Sender: TPromise);
   public
     constructor Create;
-    function After(aCallback: TCallback; aErrorback: TErrorback = nil): TPromise;
-    procedure Catch(aErrorback: TErrorback);
+    function After(aCallback: TPromiseResolutionListener; aErrorback: TPromiseRejectionListener = nil): TPromise;
+    procedure Catch(aErrorback: TPromiseRejectionListener);
     property Promise: TPromise read fPromise;
   end;
 
@@ -176,7 +180,7 @@ type
   private
     fInputPromise: TPromise;
     procedure InputPromiseResolved(Sender: TPromise);
-    procedure InputPromiseRejected(Sender: TPromise; aError: TPromiseException);
+    procedure InputPromiseRejected(Sender: TPromise; aError: TPromiseError);
   protected
     property InputPromise: TPromise read fInputPromise;
     procedure DoTask(Input: TPromise); virtual; abstract;
@@ -272,7 +276,7 @@ end;
 { TDeferredTask2 }
 
 procedure TDeferredTask2.InputPromiseRejected(Sender: TPromise;
-  aError: TPromiseException);
+  aError: TPromiseError);
 begin
   Reject(aError);
 end;
@@ -329,14 +333,14 @@ begin
   Free;
 end;
 
-procedure TAsyncTask.Reject(aError: TPromiseException);
+procedure TAsyncTask.Reject(aError: TPromiseError);
 begin
   fPromise.Reject(aError);
   Free;
 end;
 
 procedure TAsyncTask.SubPromiseRejected(Sender: TPromise;
-  aError: TPromiseException);
+  aError: TPromiseError);
 begin
   Reject(aError);
 end;
@@ -353,13 +357,13 @@ begin
 
 end;
 
-function TAsyncTask.After(aCallback: TCallback; aErrorback: TErrorback
+function TAsyncTask.After(aCallback: TPromiseResolutionListener; aErrorback: TPromiseRejectionListener
   ): TPromise;
 begin
   result := fPromise.After(aCallback,aErrorback);
 end;
 
-procedure TAsyncTask.Catch(aErrorback: TErrorback);
+procedure TAsyncTask.Catch(aErrorback: TPromiseRejectionListener);
 begin
   fPromise.Catch(aErrorback);
 end;
@@ -368,7 +372,7 @@ end;
 
 procedure TPromise.RunCallbacks;
 var
-  lCallback: TCallback;
+  lCallback: TPromiseResolutionListener;
 begin
   if fCallbacks.Count > 0 then
   begin;
@@ -392,7 +396,7 @@ end;
 
 procedure TPromise.RunErrorbacks;
 var
-  lCallback: TErrorback;
+  lCallback: TPromiseRejectionListener;
 begin
   if fErrorbacks.Count > 0 then
   begin;
@@ -427,7 +431,7 @@ begin
      raise Exception.Create('Async system is not set up');
 end;
 
-procedure TPromise.Reject(aError: TPromiseException);
+procedure TPromise.Reject(aError: TPromiseError);
 begin
   fError := aError;
   fState := psRejecting;
@@ -440,8 +444,8 @@ end;
 constructor TPromise.Create;
 begin
   inherited Create;
-  fCallbacks := TCallbackList.Create;
-  fErrorbacks := TErrorbackList.Create;
+  fCallbacks := TPromiseResolutionListenerList.Create;
+  fErrorbacks := TPromiseRejectionListenerList.Create;
   fError := '';
 end;
 
@@ -452,11 +456,11 @@ begin
   inherited Destroy;
 end;
 
-function TPromise.After(aCallback: TCallback; aErrorback: TErrorback): TPromise;
+function TPromise.After(aCallback: TPromiseResolutionListener; aErrorback: TPromiseRejectionListener): TPromise;
 begin
   result := Self;
   case fState of
-    psInitialized, psResolving:
+    psIncomplete, psResolving:
     begin
       if aCallback <> nil then
          fCallbacks.Add(aCallback);
@@ -470,7 +474,7 @@ begin
   end;
 end;
 
-procedure TPromise.Catch(aErrorback: TErrorback);
+procedure TPromise.Catch(aErrorback: TPromiseRejectionListener);
 begin
   After(nil,aErrorback);
 end;

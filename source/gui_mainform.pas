@@ -117,7 +117,7 @@ type
     procedure AfterProjectOpen(Sender: TPromise);
     procedure AfterProjectOpenInParent(Sender: TPromise);
     procedure AfterProjectCreateNew(Sender: TPromise);
-    procedure ProjectOpenFailed(Sender: TPromise; Error: TPromiseException);
+    procedure ProjectOpenFailed(Sender: TPromise; Error: TPromiseError);
     procedure StartupAskForProject({%H-}Data: PtrInt);
     procedure NotifyObservers(aAction: TMainFormAction; aDocument: TDocumentPath);
     procedure ReadUISettings;
@@ -257,8 +257,7 @@ begin
 
 end;
 
-procedure TMainForm.ProjectOpenFailed(Sender: TPromise; Error: TPromiseException
-  );
+procedure TMainForm.ProjectOpenFailed(Sender: TPromise; Error: TPromiseError);
 begin
   ShowMessage('The project couldn''t be loaded.' + LineEnding +
               'The error message was: ' + Error + LineEnding +

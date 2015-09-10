@@ -11,7 +11,7 @@ uses
   sys_async, test_sys_json, sys_json, stew_types, sys_file, test_sys_file,
   sys_localfile, sys_os, sys_filecache, test_sys_localfile, test_sys_filecache,
   gui_async, stew_project, test_sys_filecache_local, test_stew_project,
-  stew_properties, test_stew_properties;
+  stew_properties, test_stew_properties, test_longstringmap;
 
 {$R *.res}
 

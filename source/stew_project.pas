@@ -31,81 +31,113 @@ TODO: Something I might add later, if I feel it's necessary. Loading should have
 }
 
 {
-// TODO: Converting to an 'observer' thing, where I have a list of functions which
-all get called at various events. I need to be able to handle the following types of
-events and associated properties. Most of these events are really only used for
-observers who are only slightly interested in the data. The objects which actually
-trigger the events to occur are going to get the promises to work with.
 
-Maybe I should use error objects to handle the parameters, although then you have
-to "cast" them to the appropriate form to get any information from them. The other
-alternative, however, is having a separate list of delegates for each type of
-notification. Another alternative is to include parameters that are never used,
-which seems inefficient to me.
+TODO: Events: Instead of having a separate event for each type of thing, create
+a list that observers can add and remove themselves from. These are
+method pointers, the method signature looking something like:
 
-Simple Notifications:
-(These notifications have no parameter but maybe that project that triggered it)
+TProjectObserver = procedure(Sender: TProject; Event: TProjectEvent) of object;
+
+Most of the events are emitted when the OnActivity and OnError events occur in the
+file system cache. The promises returned are processed to determine the action
+and the file it occurs on, and this is converted to document/attachment info
+based on name, descriptor and extension for creating the event.
+
+There are a few events which are emitted by the project itself based on other
+evidence, because the events aren't knowable to the file cache.
+
+The TProjectEvent object will have a flag indicating the type, for use in
+case statements, but the data it contains will depend on the class, although
+the same class is used for various types.
+
+It will also have a boolean flag 'IsError', since this is an important distinction
+that might need to be filtered out.
+
+The classes of events are:
+
+TProjectEvent: This is a simple notification, no parameters are necessary because
+the only data of importance is the project itself.
 =====================
-ProjectPropertiesChanged: - triggered after the projects properties are finished
-loading. Note that a 'save' will also cause a reload, leading to this event being
-triggered on a save as well.
+ProjectPropertiesLoading: - triggered when a call is made to load the project
+                            properties. UI can disable or indicate progress.
+ProjectPropertiesSaving: - triggered when a call is made to save the properties.
+                           UI can indicate progress.
+ProjectPropertiesSaved: - triggered when a property save is finished. UI can indicate
+                          progress, or trigger a reload to get the new data.
+ProjectPropertiesSaveConflict - triggered if there is a conflict while saving properties.
+                          While this is technically an error, it requires no error
+                          message, so it is still a basic notification.
 
-Simple Error Notifications:
-(These notifications will contain an error message. Do I really want these? The
-only things that are really vested in errors are usually the ones that initiated
-the activity first, and maybe the UI for reporting errors, the first can get them
-from the promise, the second can get them from a simpler event.)
+TProjectPropertiesLoaded (TProjectEvent):
+Adds the project properties that were loaded, for reference
+==============================
+ProjectPropertiesLoaded: - triggered when a property load is
+                           finished. UI can indicate progress, update controls or
+                           check for data conflicts.
+
+TProjectError (TProjectEvent):
+These notifications will contain an error message. These are mostly useful for
+reporting errors, but occasionally UI needs to be enabled to indicate completion
+of activity.
 ==========================
 ProjectPropertiesLoadError - triggered if an error occurrs while loading properties.
 ProjectPropertiesSaveError - triggered if an error ocurrs while saving properties.
-ProjectPropertiesSaveConflict - triggered if there is a conflict while saving properties.
 
-Cancellable Notifications:
-(These notifications will have a 'cancel' flag, that when turned on, will prevent
-an action from happening)
-==========================
-ProjectPropertiesChanging: - triggered when a request is made to save new project
-properties, or when the project properties are somehow uncached or forced to be
-reloaded. This can be used by, for example, the project properties editor to
-prevent the changes from occurring if the editor itself has changes that aren't
-saved.
+TDocumentEvent (TProjectEvent):
+Contains a Document property which indicates the TDocumentPath this is relevant to.
+=======================
+DocumentListing - matching opposite is a TDocumentListedEvent.
+DocumentCreated
+DocumentDisappeared - might occur if, on a listing, the document suddenly doesn't
+exist anymore, the editor can convert the document to "new" instead. This is
+going to be different from a potential DocumentDeleted, which would and should be
+cancellable. This is actually an error.
 
-Document Notifications:
-(These notifications have a parameter indicating a specific document the event is triggered from)
+TDocumentRenameEvent (TDocumentEvent)
+contains a second document property to indicate what the rename was too
+=======================
+DocumentRenaming
+DocumentRenamed
+
+TDocumentListedEvent (TDocumentEvent)
+contains a list of files returned from listing the event
 =======================
 DocumentListed
-DocumentCreated
-DocumentRenamed
-DocumentDisappeared (might occur if, on a listing, the document suddenly doesn't
-exist anymore, the editor can convert the document to "new" instead. This is
-going to be different from a potential DocumentDeleted, which would be
-cancellable.)
 
-Document Error Notifications:
+TDocumentError (TDocumentEvent)
+Adds an Error message.
 =============================
 DocumentListError
+
+TDocumentRenameError (TDocumentRenameEvent)
+==============================
 DocumentRenameError
 
-Cancellable Document Notifications:
-===================================
-DocumentRenaming
-
-Attachment Notifications:
-(These notifications have a parameter indicating what document and attachment the event
-is related to)
+TAttachmentEvent (TDocumentEvent)
+Adds an 'Attachment' property, which is an enum indicating which attachments
+are involved here. Also an extension property in case there are "multiple" extensions.
 =========================
-AttachmentChanged
-AttachmentDisappeared
+AttachmentLoading
+AttachmentSaving
+AttachmentSaved
+AttachmentDisappeared (See DocumentDisappeared)
+AttachmentSaveConflict
+AttachmentEditing - This doesn't have a corresponding AttachmentEdited because
+we have no universal way of knowing when a document is done being edited. Some
+processes return after launching a separate editor for the editor window, some
+processes don't lock files while they're being edited, or lock them in some
+non-standard way that only they know about.
 
-Attachment Error Notifications:
+TAttachmentLoaded (TAttachmentEvent):
+-- Actually a different type depending on the type of attachment
+========================
+AttachmentLoaded
+
+TAttachmentError (TAttachmentEvent)
+Adds an error message on.
 ===============================
 AttachmentLoadError
 AttachmentSaveError
-AttachmentSaveConflict
-
-Cancellable Attachment Notifications:
-=====================================
-AttachmentChanging
 
 }
 
@@ -135,6 +167,7 @@ type
 
   TDocumentList = array of TDocumentPath;
 
+  // TODO: These are old events, which are going to be gone when I've got things figured out.
   TDocumentNotifyEvent = procedure(Sender: TObject; Document: TDocumentPath) of object;
   TDocumentExceptionEvent = procedure(Sender: TObject; Document: TDocumentPath; Error: String) of object;
   TAttachmentNotifyEvent = procedure(Sender: TObject; Document: TDocumentPath; AttachmentName: String) of object;
@@ -168,7 +201,7 @@ type
     procedure FileLoadFailed({%H-}aSender: TPromise; Data: String);
     // TODO: Get rid of this once we're using promises everywhere...
     procedure FileLoadFailedNonPromise(Data: String);
-    procedure FileSaveConflictCheck(aSender: TPromise; aData: TPromiseException);
+    procedure FileSaveConflictCheck(aSender: TPromise; aData: TPromiseError);
     procedure FileSaveConflicted({%H-}aFileAge: Longint);
     procedure FileSaved(aSender: TPromise);
     procedure FileSaveFailed(Data: String);
@@ -639,7 +672,7 @@ type
     function GetProjectName: String;
     property Properties: TProjectProperties read GetProperties;
 
-    function ReadProjectProperties: TProjectPropertiesPromise;
+    function ReadProjectProperties(aForceRefresh: Boolean = false): TProjectPropertiesPromise;
     function WriteProjectProperties(aProperties: TProjectProperties2): TPromise;
     class function Open(aPath: TFile): TProjectPromise;
     class function OpenInParent(aPath: TFile): TProjectPromise;
@@ -1210,7 +1243,7 @@ begin
 end;
 
 procedure TAttachmentMetadata.FileSaveConflictCheck(aSender: TPromise;
-  aData: TPromiseException);
+  aData: TPromiseError);
 begin
   if (aSender as TFileWritePromise).IsConflict then
      FileSaveConflicted((aSender as TFileWritePromise).Age)
@@ -2269,11 +2302,16 @@ begin
   result := fDisk.PacketName;
 end;
 
-function TStewProject.ReadProjectProperties: TProjectPropertiesPromise;
+function TStewProject.ReadProjectProperties(aForceRefresh: Boolean
+  ): TProjectPropertiesPromise;
 var
+  lPropFile: TFile;
   lReadFile: TFileReadPromise;
 begin
-  lReadFile := fCache.ReadFile(TProjectProperties2.GetPath(fDisk));
+  lPropFile := TProjectProperties2.GetPath(fDisk);
+  if aForceRefresh then
+    fCache.Uncache(lPropFile);
+  lReadFile := fCache.ReadFile(lPropFile);
   result := TReadProjectPropertiesTask.Defer(lReadFile).Promise as TProjectPropertiesPromise;
 end;
 

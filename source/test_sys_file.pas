@@ -14,7 +14,7 @@ type
   TFileSpec = class(TTestSpec)
     procedure EmptyWriteCallback(Sender: TPromise);
     procedure EmptyWriteCallback2(Sender: TPromise);
-    procedure PromiseError(aSender: TPromise; aError: TPromiseException);
+    procedure PromiseError(aSender: TPromise; aError: TPromiseError);
     procedure BasicWriteCallback(aSender: TPromise);
     procedure BasicWriteCallback2(aSender: TPromise);
     procedure BatchRenameCallback1(aSender: TPromise);
@@ -26,7 +26,7 @@ type
     procedure ComplexWriteCallback3({%H-}aSender: TPromise);
     procedure ComplexWriteCallback4({%H-}aSender: TPromise);
     procedure ComplexWriteConflict1(aSender: TPromise; aData: String);
-    procedure ComplexWriteConflict3(Sender: TPromise; aError: TPromiseException);
+    procedure ComplexWriteConflict3(Sender: TPromise; aError: TPromiseError);
     procedure ComplexWriteConflict4(aSender: TPromise; aData: String);
     procedure CopyFileCallback({%H-}aSender: TPromise);
     procedure CopyFileCallback2(aSender: TPromise);
@@ -84,7 +84,7 @@ const
   );
 
 procedure TFileSpec.ComplexWriteConflict3(Sender: TPromise;
-  aError: TPromiseException);
+  aError: TPromiseError);
 var
   root: TFile;
 begin
@@ -118,7 +118,7 @@ begin
     FailAsync(Sender.Tag,'Empty write did not create a file');
 end;
 
-procedure TFileSpec.PromiseError(aSender: TPromise; aError: TPromiseException);
+procedure TFileSpec.PromiseError(aSender: TPromise; aError: TPromiseError);
 begin
   FailAsync(aSender.Tag,aError);
 end;

@@ -39,6 +39,14 @@ const NewFileAge: Longint = -1;
   // extensions. We just have to provide a file age when differentiating with the
   // user.
 
+  // TODO: I'm currently using FileAge to check whether a file has been modified.
+  // Unfortunately, it only has a precision of one second, so it's not accurate.
+  // There are numerous better ways to deal with this, but as this is meant for a manual
+  // interface, I doubt I'm going to need more precision. Still, I would like to
+  // fix this sometime, especially if the platform handles nanosecond precision
+  // on file times, or even better some sort of magic number which indicates if
+  // the file is different.
+
 type
 
   // Used when creating new files. The ID is system-specific.
@@ -210,6 +218,7 @@ type
     property IsConflict: Boolean read fIsConflict;
     property Data: TStream read fStream;
     procedure WriteString(aData: UTF8String);
+    function ReadString: UTF8String;
   end;
 
   { TFileWriteRequest }
@@ -419,6 +428,28 @@ begin
   finally
     lInput.Free;
   end;
+
+end;
+
+function TFileWritePromise.ReadString: UTF8String;
+var
+  lTarget: TStringStream;
+begin
+  if fStream <> nil then
+  begin
+    if fStream is TStringStream then
+      result := (fStream as TStringStream).DataString
+    else
+    begin
+      lTarget := TStringStream.Create('');
+      try
+        lTarget.CopyFrom(fStream,0);
+        result := lTarget.DataString;
+      finally
+        lTarget.Free;
+      end;
+    end;
+  end
 
 end;
 

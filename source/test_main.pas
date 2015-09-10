@@ -44,6 +44,8 @@ type
       const aMessage: String);
     procedure TestFailed(const {%H-}aSender: TObject; const aTestName: String;
       const aMessage: String);
+    procedure TestMessage(const {%H-}aSender: TObject; const aTestName: String;
+      const aMessage: String);
     procedure TestsCancelled(Sender: TObject);
     procedure TestsCompleted(Sender: TObject);
     procedure TestsException(Sender: TObject; E: Exception);
@@ -57,6 +59,7 @@ type
     procedure StartTests({%H-}Data: PtrInt);
   public
     { public declarations }
+    procedure AddMessage(const aMessage: String; aType: TMsgDlgType);
     procedure Log(const aMessage: String; aType: TMsgDlgType);
   end;
 
@@ -117,6 +120,12 @@ begin
   Log(aTestName + ' FAILED: ' + aMessage,mtError);
 end;
 
+procedure TMainForm.TestMessage(const aSender: TObject;
+  const aTestName: String; const aMessage: String);
+begin
+  AddMessage(' ---------> ' + aTestName + ': ' + aMessage,mtInformation);
+end;
+
 procedure TMainForm.TestsCancelled(Sender: TObject);
 begin
   Log('User Cancelled Tests',mtWarning);
@@ -160,6 +169,7 @@ begin
     fRegistry.OnException:=@TestsException;
     fRegistry.OnAsyncStarted:=@TestStarted;
     fRegistry.OnAlert:=@TestAlert;
+    fRegistry.OnMessage:=@TestMessage;
     fRegistry.Timeout := 5000;
   end;
   fRegistry.ClearTests;
@@ -193,18 +203,16 @@ begin
 
 end;
 
-procedure TMainForm.Log(const aMessage: String; aType: TMsgDlgType);
+procedure TMainForm.AddMessage(const aMessage: String; aType: TMsgDlgType);
 var
   i, j: integer;
   aStyle: TFontParams;
-  lMessage: String;
 begin
-  lMessage := FormatDateTime('yyyy"-"mm"-"dd" "hh":"mm":"ss',Now) + ': ' + aMessage;
   i := Length(OutputMemo.Lines.Text);
   if Length(LineEnding) = 2 then
     {%H-}i := i - - OutputMemo.Lines.Count;// cr as #10#13 is counted only once so subtract it once
-  j := Length(lMessage) + 1; // +1 to make the cr the same format
-  OutputMemo.Lines.Add(lMessage);
+  j := Length(aMessage) + 1; // +1 to make the cr the same format
+  OutputMemo.Lines.Add(aMessage);
   // get the 'default' style
   if OutputMemo.GetTextAttributes(0,aStyle{%H-}) then
   begin
@@ -229,6 +237,11 @@ begin
   end;
   // move log down so we can watch results...
   OutputMemo.SelStart := i + j;
+end;
+
+procedure TMainForm.Log(const aMessage: String; aType: TMsgDlgType);
+begin
+  AddMessage(FormatDateTime('yyyy"-"mm"-"dd" "hh":"mm":"ss',Now) + ': ' + aMessage,aType);
 end;
 
 initialization

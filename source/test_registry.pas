@@ -36,10 +36,12 @@ type
     procedure FailAsync(aTestID: Integer; const aMessage: String);
     // I know there's an assert function in pascal, but that is only
     // compiled when a certain switch is on.
+    procedure AssertAsync(aCondition: Boolean; aError: String; aTestID: Integer);
     procedure Assert(aCondition: Boolean; aError: String);
     procedure SetupTest; virtual;
     procedure CleanupTest; virtual;
     procedure Alert(aMessage: String);
+    procedure Report(aMessage: String);
   public
     constructor Create(aRegistry: TTestRegistry);
   end;
@@ -58,6 +60,7 @@ type
     FOnException: TExceptionEvent;
     FOnFailed: TTestMessageEvent;
     fOnAlert: TTestMessageEvent;
+    fOnMessage: TTestMessageEvent;
     FOnSucceeded: TTestEvent;
     fOwnedTestSpecs: TObjectList;
     fTestNames: TStringList;
@@ -74,6 +77,7 @@ type
     procedure SetOnException(AValue: TExceptionEvent);
     procedure SetOnFailed(AValue: TTestMessageEvent);
     procedure SetOnAlert(AValue: TTestMessageEvent);
+    procedure SetOnReport(AValue: TTestMessageEvent);
     procedure SetOnSucceeded(AValue: TTestEvent);
     procedure SetTimeout(AValue: Cardinal);
   protected
@@ -89,6 +93,7 @@ type
     procedure TestException(Sender: TObject; E: Exception);
     procedure TestTimedout(Sender: TObject);
     procedure Alert(aMessage: String);
+    procedure Report(aMessage: String);
   public
     constructor Create;
     destructor Destroy; override;
@@ -101,6 +106,7 @@ type
     property OnSucceeded: TTestEvent read FOnSucceeded write SetOnSucceeded;
     property OnFailed: TTestMessageEvent read FOnFailed write SetOnFailed;
     property OnAlert: TTestMessageEvent read fOnAlert write SetOnAlert;
+    property OnMessage: TTestMessageEvent read fOnMessage write SetOnReport;
     property OnAsyncStarted: TTestEvent read FOnAsyncStarted write SetOnAsyncStarted;
     property OnCompleted: TNotifyEvent read fOnCompleted write SetOnCompleted;
     property OnCancelled: TNotifyEvent read FOnCancelled write SetOnCancelled;
@@ -162,6 +168,13 @@ begin
   fRegistry.TestFailed(aTestID,aMessage);
 end;
 
+procedure TTestSpec.AssertAsync(aCondition: Boolean; aError: String; aTestID: Integer
+  );
+begin
+  if not aCondition then
+     FailAsync(aTestID,aError);
+end;
+
 procedure TTestSpec.Assert(aCondition: Boolean; aError: String);
 begin
   if not aCondition then
@@ -181,6 +194,12 @@ end;
 procedure TTestSpec.Alert(aMessage: String);
 begin
   fRegistry.Alert(aMessage);
+end;
+
+procedure TTestSpec.Report(aMessage: String);
+begin
+  fRegistry.Report(aMessage);
+
 end;
 
 constructor TTestSpec.Create(aRegistry: TTestRegistry);
@@ -295,6 +314,12 @@ begin
     fOnAlert(Self,fTestNames[fCurrent],aMessage);
 end;
 
+procedure TTestRegistry.Report(aMessage: String);
+begin
+  if fOnMessage<>nil then
+    fOnMessage(Self,fTestNames[fCurrent],aMessage);
+end;
+
 function TTestRegistry.GetTimeout: Cardinal;
 begin
   result := fTimer.Interval;
@@ -322,6 +347,12 @@ procedure TTestRegistry.SetOnAlert(AValue: TTestMessageEvent);
 begin
   if fOnAlert=AValue then Exit;
   fOnAlert:=AValue;
+end;
+
+procedure TTestRegistry.SetOnReport(AValue: TTestMessageEvent);
+begin
+  if fOnMessage=AValue then Exit;
+  fOnMessage:=AValue;
 end;
 
 procedure TTestRegistry.SetOnSucceeded(AValue: TTestEvent);

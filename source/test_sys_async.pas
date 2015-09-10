@@ -16,10 +16,10 @@ type
     procedure After_Chain(Sender: TPromise);
     procedure After_Deferred(Sender: TPromise);
     procedure After_Promise_Multiple_2(Sender: TPromise);
-    procedure Catch_Callback_Error(Sender: TPromise; aError: TPromiseException);
-    procedure Catch_Chain(Sender: TPromise; aError: TPromiseException);
-    procedure Catch_Deferred(Sender: TPromise; aError: TPromiseException);
-    procedure Catch_Promise_Multiple(Sender: TPromise; aError: TPromiseException
+    procedure Catch_Callback_Error(Sender: TPromise; aError: TPromiseError);
+    procedure Catch_Chain(Sender: TPromise; aError: TPromiseError);
+    procedure Catch_Deferred(Sender: TPromise; aError: TPromiseError);
+    procedure Catch_Promise_Multiple(Sender: TPromise; aError: TPromiseError
       );
   private
     fAsyncCode: Integer;
@@ -29,11 +29,11 @@ type
     procedure After_Promise_Basics_Rejected(Sender: TPromise);
     procedure After_Promise_Multiple_1(Sender: TPromise);
     procedure Catch_Promise_Basics_Errored(Sender: TPromise;
-      {%H-}aError: TPromiseException);
+      {%H-}aError: TPromiseError);
     procedure Catch_Promise_Basics_Rejected(Sender: TPromise;
-      {%H-}aError: TPromiseException);
+      {%H-}aError: TPromiseError);
     procedure Catch_Promise_Basics_Resolved(Sender: TPromise;
-      {%H-}aError: TPromiseException);
+      {%H-}aError: TPromiseError);
     procedure FinishCleanup(Data: PtrInt);
   public
     procedure SetupTest; override;
@@ -90,7 +90,7 @@ type
   { TTestChainPromise }
 
   TTestChainPromise = class(TTestQueuedTask)
-    procedure Fail(Sender: TPromise; aError: TPromiseException);
+    procedure Fail(Sender: TPromise; aError: TPromiseError);
     procedure Success(Sender: TPromise);
   private
     fCount: Integer;
@@ -190,7 +190,7 @@ end;
 
 { TTestChainPromise }
 
-procedure TTestChainPromise.Fail(Sender: TPromise; aError: TPromiseException);
+procedure TTestChainPromise.Fail(Sender: TPromise; aError: TPromiseError);
 begin
   Reject(aError);
 end;
@@ -265,19 +265,19 @@ begin
 end;
 
 procedure TAsyncSpec.Catch_Promise_Basics_Errored(Sender: TPromise;
-  aError: TPromiseException);
+  aError: TPromiseError);
 begin
   EndAsync(fAsyncCode);
 end;
 
 procedure TAsyncSpec.Catch_Promise_Basics_Rejected(Sender: TPromise;
-  aError: TPromiseException);
+  aError: TPromiseError);
 begin
   EndAsync(fAsyncCode);
 end;
 
 procedure TAsyncSpec.Catch_Promise_Basics_Resolved(Sender: TPromise;
-  aError: TPromiseException);
+  aError: TPromiseError);
 begin
   FailAsync(fAsyncCode,'Promise resolved should not have been rejected');
 end;
@@ -320,25 +320,25 @@ begin
 end;
 
 procedure TAsyncSpec.Catch_Callback_Error(Sender: TPromise;
-  aError: TPromiseException);
+  aError: TPromiseError);
 begin
   Assert(aError = 'This callback raises an error','The promise should have been rejected here');
   EndAsync(fAsyncCode);
 end;
 
-procedure TAsyncSpec.Catch_Chain(Sender: TPromise; aError: TPromiseException);
+procedure TAsyncSpec.Catch_Chain(Sender: TPromise; aError: TPromiseError);
 begin
   FailAsync(fAsyncCode,aError);
 end;
 
-procedure TAsyncSpec.Catch_Deferred(Sender: TPromise; aError: TPromiseException
+procedure TAsyncSpec.Catch_Deferred(Sender: TPromise; aError: TPromiseError
   );
 begin
   FailAsync(fAsyncCode,aError);
 end;
 
 procedure TAsyncSpec.Catch_Promise_Multiple(Sender: TPromise;
-  aError: TPromiseException);
+  aError: TPromiseError);
 begin
   FailAsync(fAsyncCode,aError);
 end;

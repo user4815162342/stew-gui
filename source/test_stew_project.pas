@@ -9,12 +9,8 @@ uses
 
 {
 TODO:
-- Project Properties almost done:
-  - I need to use the FileAge thing... perhaps when saving or loading
-    I can look for it in the cache.
-  - Need to "force refresh" on opening project properties and other things
-  - Need to allow cancelling of saving project properties (and refreshing for that matter)
-  - Need some events to indicate what's going on.
+- Need to start getting events going
+- Need events for the project.
 - Need Document Lists (starting with the root level) read
 - Need Document Properties read/write
 - Need Document Synopsis read/write
@@ -23,6 +19,10 @@ TODO:
   - also make sure it shows up in lists after created.
 - Need *Shift* Document up and down
 - Need Move Document between folders.
+  - I don't *really* need to prevent a move if something's being edited when a
+    request is made to move. I should be able to just automatically change the
+    documentpath to the new one. However, if I'm renaming *over* another file,
+    that might be a problem, but I don't think I should allow that.
 
 TODO: I'm slowly converting the TStewProject over to the way I want it to be,
 and testing the new stuff as I do so (this is better than writing the tests and
@@ -181,7 +181,7 @@ type
     procedure Open_Project_1(Sender: TPromise);
     procedure Open_Project_2(Sender: TPromise);
     procedure Open_Project_3(Sender: TPromise);
-    procedure PromiseFailed(Sender: TPromise; aError: TPromiseException);
+    procedure PromiseFailed(Sender: TPromise; aError: TPromiseError);
     procedure Project_Properties_1(Sender: TPromise);
     procedure Project_Properties_2(Sender: TPromise);
   public
@@ -200,7 +200,7 @@ uses
 
 { TProjectSpec }
 
-procedure TProjectSpec.PromiseFailed(Sender: TPromise; aError: TPromiseException
+procedure TProjectSpec.PromiseFailed(Sender: TPromise; aError: TPromiseError
   );
 begin
   if fProject <> nil then
@@ -214,8 +214,8 @@ var
 begin
   lProject := (Sender as TProjectPromise).Project;
   try
-    Assert(lProject <> nil,'Project should have been opened in parent');
-    Assert(lProject.DiskPath = fTestRootDir,'Open in parent should have been opened at the correct path');
+    AssertAsync(lProject <> nil,'Project should have been opened in parent',Sender.Tag);
+    AssertAsync(lProject.DiskPath = fTestRootDir,'Open in parent should have been opened at the correct path',Sender.Tag);
   finally
     lProject.Free;
   end;
@@ -228,8 +228,8 @@ var
 begin
   lProject := (Sender as TProjectPromise).Project;
   try
-    Assert(lProject <> nil,'New project should have been opened');
-    Assert(lProject.DiskPath <> fTestRootDir,'New project should have been opened at the correct path');
+    AssertAsync(lProject <> nil,'New project should have been opened',Sender.Tag);
+    AssertAsync(lProject.DiskPath <> fTestRootDir,'New project should have been opened at the correct path',Sender.Tag);
   finally
     lProject.Free;
   end;
@@ -248,17 +248,17 @@ var
 begin
   lProps := (Sender as TProjectPropertiesPromise).Properties;
   // yes, these are taken directly from the test_stew_properties.
-  Assert(Length(lProps.Categories.keys) > 0,'Combination of parsing and GetPath should have gotten some data');
-  Assert((lProps.Categories.Get('Chapter') as TCategoryDefinition2).PublishTitleLevel = 0,'Project category definitions should work');
-  Assert(lProps.Categories.hasOwnProperty('Scene'),'Project categories should work');
-  Assert(lProps.DefaultCategory = 'Chapter','Project default category should work');
-  Assert(lProps.DefaultDocExtension = 'txt','Project default doc extension should work');
-  Assert(lProps.DefaultNotesExtension = 'txt','Project default notes extension should work');
-  Assert(lProps.DefaultStatus = 'Unwritten','Project default status should work');
-  Assert(lProps.DefaultThumbnailExtension = 'png','Project default thumbnail extension should work');
-  Assert((lProps.Statuses.Get('Unwritten') as TStatusDefinition2).Color = clRed,'Project statuses should work');
+  AssertAsync(Length(lProps.Categories.keys) > 0,'Combination of parsing and GetPath should have gotten some data',Sender.Tag);
+  AssertAsync((lProps.Categories.Get('Chapter') as TCategoryDefinition2).PublishTitleLevel = 0,'Project category definitions should work',Sender.Tag);
+  AssertAsync(lProps.Categories.hasOwnProperty('Scene'),'Project categories should work',Sender.Tag);
+  AssertAsync(lProps.DefaultCategory = 'Chapter','Project default category should work',Sender.Tag);
+  AssertAsync(lProps.DefaultDocExtension = 'txt','Project default doc extension should work',Sender.Tag);
+  AssertAsync(lProps.DefaultNotesExtension = 'txt','Project default notes extension should work',Sender.Tag);
+  AssertAsync(lProps.DefaultStatus = 'Unwritten','Project default status should work',Sender.Tag);
+  AssertAsync(lProps.DefaultThumbnailExtension = 'png','Project default thumbnail extension should work',Sender.Tag);
+  AssertAsync((lProps.Statuses.Get('Unwritten') as TStatusDefinition2).Color = clRed,'Project statuses should work',Sender.Tag);
   lProps.DefaultDocExtension := '.doc';
-  Assert(lProps.DefaultDocExtension = 'doc','Default doc extension should trim off the "." when assigning');
+  AssertAsync(lProps.DefaultDocExtension = 'doc','Default doc extension should trim off the "." when assigning',Sender.Tag);
 
   // now, test changing some things and writing it out.
   lProps.DefaultCategory := 'Tome';
@@ -273,7 +273,7 @@ end;
 
 procedure TProjectSpec.Project_Properties_4(Sender: TPromise);
 begin
-  Assert((Sender as TProjectPropertiesPromise).Properties.DefaultCategory = 'Tome','Changes should have been saved');
+  AssertAsync((Sender as TProjectPropertiesPromise).Properties.DefaultCategory = 'Tome','Changes should have been saved',Sender.Tag);
   EndAsync(Sender.Tag);
 end;
 
@@ -283,8 +283,8 @@ var
 begin
   lProject := (Sender as TProjectPromise).Project;
   try
-    Assert(lProject <> nil,'Project should have been opened');
-    Assert(lProject.DiskPath = fTestRootDir,'Project should have been opened at the correct path');
+    AssertAsync(lProject <> nil,'Project should have been opened',Sender.Tag);
+    AssertAsync(lProject.DiskPath = fTestRootDir,'Project should have been opened at the correct path',Sender.Tag);
   finally
     lProject.Free;
   end;

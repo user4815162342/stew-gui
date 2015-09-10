@@ -8,6 +8,32 @@ uses
   Classes, SysUtils, sys_file, contnrs, stew_types, sys_async;
 
 type
+{
+TODO: Actually, a lot of the following notifications can be done by the file cache
+instead, and they should. If we do them in the project, then we can easily have
+two people loading something at the same time and thereby get double events. This
+would be prevented by keeping filing state for everything, but then we'd have to
+keep a cache of this state anyway. However, the cache already keeps the state,
+so if the notifications come out of that, then it's okay. The project just
+has to translate the file notifications into document notifications:
+* fileloading
+* fileloaded
+* filesaving
+* filesaved
+* filesaveconflict
+* filesaveerror
+* fileloaderror
+* filerenaming
+* filerenamed
+* filerenameerror
+* filelisting
+* filelisted
+* filelisterror
+
+-- This can be two events: OnActivity and OnError, and straight basic events
+as well, since I don't intend on the file cache being shared.
+
+}
 
   TLongStringMapIteratorCallback = procedure(aKey: UTF8String; aValue: TObject) of object;
 
@@ -167,6 +193,8 @@ type
 
   TFileSystemCache = class(TObject)
   private
+    fOnActivity: TPromiseResolutionListener;
+    fOnError: TPromiseRejectionListener;
     fSystem: TFileSystemClass;
     fPromiseCache: TLongStringMap;
     fDataCache: TLongStringMap;
@@ -175,6 +203,14 @@ type
     procedure FileListed(Sender: TPromise);
     procedure FilesRenamed(Sender: TPromise);
     procedure FileWritten(Sender: TPromise);
+    procedure FileExistenceCheckError(Sender: TPromise;
+      {%H-}aError: TPromiseError);
+    procedure FileListError(Sender: TPromise; {%H-}aError: TPromiseError);
+    procedure FileReadError(Sender: TPromise; {%H-}aError: TPromiseError);
+    procedure FileWriteError(Sender: TPromise; {%H-}aError: TPromiseError);
+    procedure FilesRenameError(Sender: TPromise; {%H-}aError: TPromiseError);
+    procedure ReportActivity(Event: TPromise);
+    procedure ReportError(Event: TPromise; Error: TPromiseError);
   public
     constructor Create(aSystem: TFileSystemClass);
     destructor Destroy; override;
@@ -186,6 +222,9 @@ type
     function WriteFile(aFile: TFile; aCreateDir: Boolean = false): TFileWritePromise;
     function WriteFile(aFile: TFile; aText: UTF8String; aCreateDir: Boolean = false): TFileWritePromise;
     function RenameFiles(aSource: TFileArray; aTarget: TFileArray): TFileRenamePromise;
+    function IsWriting(aFile: TFile): Boolean;
+    function IsReading(aFile: TFile): Boolean;
+    function IsListing(aFile: TFile): Boolean;
     // Uncaches all data, promises and everything.
     // promises always check if they are the correct promise for the file
     // before they do anything, so if the promises are left lying around
@@ -197,8 +236,11 @@ type
     procedure Uncache(aFiles: TFileArray; aRecursive: Boolean = false); overload;
     // Uncaches files older than a certain TDataTime.
     procedure Uncache(aAsOf: TDateTime); overload;
+    property OnActivity: TPromiseResolutionListener read fOnActivity write fOnActivity;
+    property OnError: TPromiseRejectionListener read fOnError write fOnError;
     class function ExistsKey(aFile: TFile): UTF8String;
     class function ContentsKey(aFile: TFile): UTF8String;
+    class function SavingKey(aFile: TFile): UTF8String;
     class function ListKey(aFile: TFile): UTF8String;
     class function FileForKey(aKey: UTF8String; aSystem: TFileSystemClass): TFile;
     class procedure DeleteKeysWhichRepresentContainedFiles(aCache: TLongStringMap;
@@ -207,6 +249,7 @@ type
       ListIdentifier = '?list';
       ContentsIdentifier = '?contents';
       ExistsIdentifier = '?exists';
+      SavingIdentifier = '?contents-saving';
   end;
 
 
@@ -388,6 +431,7 @@ begin
     lAnswer := (Sender as TFileExistencePromise).Exists;
     fPromiseCache.Delete(lExistsKey);
     fDataCache[lExistsKey] := TFileSystemCacheExists.Create(lAnswer);
+    ReportActivity(Sender);
   end;
   // otherwise, there must be a newer promise with better information...
 end;
@@ -410,6 +454,7 @@ begin
     fPromiseCache.Delete(lListKey);
     fDataCache[lExistsKey] := TFileSystemCacheExists.Create(lExists);
     fDataCache[lListKey] := TFileSystemCacheLists.Create(lList);
+    ReportActivity(Sender);
   end;
   // otherwise, there must be a newer promise with better information...
 end;
@@ -436,14 +481,146 @@ begin
     lList[l + i] := lSource[i];
   end;
   Uncache(lList,true);
-
-
+  ReportActivity(Sender);
 
 end;
 
 procedure TFileSystemCache.FileWritten(Sender: TPromise);
+var
+  lFile: TFile;
+  lContents: UTF8String;
+  lAge: Longint;
+  lExistsKey: UTF8String;
+  lContentsKey: UTF8String;
+  lSavingKey: UTF8String;
 begin
-  Uncache((Sender as TFileWritePromise).Path,false);
+  lFile := (Sender as TFileWritePromise).Path;
+  lExistsKey := ExistsKey(lFile);
+  lContentsKey := ContentsKey(lFile);
+  lSavingKey := SavingKey(lFile);
+  if fPromiseCache[lSavingKey] = Sender then
+  begin
+    fPromiseCache.Delete(lSavingKey);
+    fDataCache[lExistsKey] := TFileSystemCacheExists.Create(true);
+    lAge := (Sender as TFileWritePromise).Age;
+    lContents := (Sender as TFileWritePromise).ReadString;
+    fDataCache[lContentsKey] := TFileSystemCacheContents.Create(lContents,lAge);
+    // otherwise, there must be a newer promise with better information...
+    ReportActivity(Sender);
+  end;
+end;
+
+procedure TFileSystemCache.FileExistenceCheckError(Sender: TPromise;
+  aError: TPromiseError);
+var
+  lFile: TFile;
+  lExistsKey: UTF8String;
+begin
+  lFile := (Sender as TFileExistencePromise).Path;
+  lExistsKey := ExistsKey(lFile);
+  if fPromiseCache[lExistsKey] = Sender then
+  begin
+    fPromiseCache.Delete(lExistsKey);
+    fDataCache.Delete(lExistsKey);
+    ReportError(Sender,aError);
+  end;
+end;
+
+procedure TFileSystemCache.FileListError(Sender: TPromise;
+  aError: TPromiseError);
+var
+  lFile: TFile;
+  lExistsKey: UTF8String;
+  lListKey: UTF8String;
+begin
+  lFile := (Sender as TFileListPromise).Path;
+  lExistsKey := ExistsKey(lFile);
+  lListKey := ListKey(lFile);
+  if fPromiseCache[lListKey] = Sender then
+  begin
+    // clear out the promise, and all the data we have from this list.
+    fPromiseCache.Delete(lListKey);
+    fDataCache.Delete(lListKey);
+    fDataCache.Delete(lExistsKey);
+    ReportError(Sender,aError);
+  end;
+end;
+
+procedure TFileSystemCache.FileReadError(Sender: TPromise;
+  aError: TPromiseError);
+var
+  lFile: TFile;
+  lExistsKey: UTF8String;
+  lContentsKey: UTF8String;
+begin
+  lFile := (Sender as TFileReadPromise).Path;
+  lExistsKey := ExistsKey(lFile);
+  lContentsKey := ContentsKey(lFile);
+  if fPromiseCache[lContentsKey] = Sender then
+  begin
+    // clear out everything in the cache to force a refresh.
+    fPromiseCache.Delete(lContentsKey);
+    fDataCache.Delete(lExistsKey);
+    fDataCache.Delete(lContentsKey);
+    ReportError(Sender,aError);
+  end;
+end;
+
+procedure TFileSystemCache.FileWriteError(Sender: TPromise;
+  aError: TPromiseError);
+var
+  lFile: TFile;
+  lSavingKey: UTF8String;
+begin
+  lFile := (Sender as TFileWritePromise).Path;
+  lSavingKey := SavingKey(lFile);
+  if fPromiseCache[lSavingKey] = Sender then
+  begin
+    fPromiseCache.Delete(lSavingKey);
+    // don't delete the other stuff, reads might work just fine.
+    ReportError(Sender,aError);
+  end;
+end;
+
+procedure TFileSystemCache.FilesRenameError(Sender: TPromise;
+  aError: TPromiseError);
+var
+  l: Integer;
+  i: Integer;
+  lSource: TFileArray;
+  lList: TFileArray;
+begin
+  // The error might have just been partial, leaving the file system in
+  // an unknown state, so we still need to uncache, just like if the promise
+  // succeeded.
+  lSource := (Sender as TFileRenamePromise).Source;
+  l := Length(lSource);
+  SetLength(lList,l+l);
+  for i := 0 to l - 1 do
+  begin
+    lList[i] := lSource[i];
+  end;
+  lSource := (Sender as TFileRenamePromise).Source;
+  for i := 0 to l - 1 do
+  begin
+    lList[l + i] := lSource[i];
+  end;
+  Uncache(lList,true);
+  ReportError(Sender,aError);
+
+end;
+
+procedure TFileSystemCache.ReportActivity(Event: TPromise);
+begin
+  if fOnActivity <> nil then
+    fOnActivity(Event);
+end;
+
+procedure TFileSystemCache.ReportError(Event: TPromise; Error: TPromiseError);
+begin
+  if fOnError <> nil then
+    fOnError(Event,Error);
+
 end;
 
 procedure TFileSystemCache.FileRead(Sender: TPromise);
@@ -466,6 +643,7 @@ begin
     lAge := (Sender as TFileReadPromise).Age;
     lContents := (Sender as TFileReadPromise).ReadString;
     fDataCache[lContentsKey] := TFileSystemCacheContents.Create(lContents,lAge);
+    ReportActivity(Sender);
   end;
   // otherwise, there must be a newer promise with better information...
 end;
@@ -478,6 +656,11 @@ end;
 class function TFileSystemCache.ContentsKey(aFile: TFile): UTF8String;
 begin
   result := aFile.ID + ContentsIdentifier;
+end;
+
+class function TFileSystemCache.SavingKey(aFile: TFile): UTF8String;
+begin
+  result := aFile.ID + SavingIdentifier;
 end;
 
 class function TFileSystemCache.ListKey(aFile: TFile): UTF8String;
@@ -574,8 +757,9 @@ begin
         if lCached = nil then
         begin
           result := aFile.CheckExistence;
-          result.After(@FileExistenceChecked);
+          result.After(@FileExistenceChecked,@FileExistenceCheckError);
           fPromiseCache[lExistsKey] := Result;
+          ReportActivity(Result);
         end
         else
           result := TFileSystemCacheExistenceKnownTask.Enqueue(aFile,lCached as TFileSystemCacheExists).Promise as TFileExistencePromise;
@@ -589,13 +773,13 @@ begin
   else
      result := lCached as TFileExistencePromise;
 
-
 end;
 
 function TFileSystemCache.ListFiles(aFile: TFile): TFileListPromise;
 var
   lListKey: UTF8String;
   lExistsKey: UTF8String;
+  lSavingKey: UTF8String;
   lCached: TObject;
 begin
   lListKey := ListKey(aFile);
@@ -606,9 +790,13 @@ begin
     lCached := fDataCache[lListKey];
     if lCached = nil then
     begin
+      lSavingKey:= SavingKey(aFile);
+      if fPromiseCache.Has(lSavingKey) then
+         raise Exception.Create('File ID ' + aFile.ID + ' can''t be listed while being saved');
       result := aFile.List;
-      result.After(@FileListed);
+      result.After(@FileListed,@FileListError);
       fPromiseCache[lListKey] := Result;
+      ReportActivity(Result);
     end
     else
       result := TFileSystemCacheListKnownTask.Enqueue(aFile,lCached as TFileSystemCacheLists, fDataCache[lExistsKey] as TFileSystemCacheExists).Promise as TFileListPromise;
@@ -622,6 +810,7 @@ var
   lContentsKey: UTF8String;
   lExistsKey: UTF8String;
   lCached: TObject;
+  lSavingKey: UTF8String;
 begin
   lContentsKey := ContentsKey(aFile);
   lExistsKey := ExistsKey(aFile);
@@ -631,9 +820,13 @@ begin
     lCached := fDataCache[lContentsKey];
     if lCached = nil then
     begin
+      lSavingKey:= SavingKey(aFile);
+      if fPromiseCache.Has(lSavingKey) then
+         raise Exception.Create('File ID ' + aFile.ID + ' can''t be loaded while being saved');
       result := aFile.Read;
-      result.After(@FileRead);
+      result.After(@FileRead,@FileReadError);
       fPromiseCache[lContentsKey] := Result;
+      ReportActivity(Result);
       // Now, wrap that in another promise that will do the reading
       // with the correct reader.
       result := TFileSystemCacheReadDeferredTask.Defer(aFile,result).Promise as TFileReadPromise;
@@ -653,14 +846,18 @@ end;
 function TFileSystemCache.WriteFile(aFile: TFile; aCreateDir: Boolean
   ): TFileWritePromise;
 var
+  lSavingKey: UTF8String;
   lContentKey: UTF8String;
   lOldData: TFileSystemCacheContents;
   lOptions: TFileWriteOptions;
   lAge: LongInt;
 begin
-  // We don't need to cache the writes, but I want to 'clear' the cache
-  // once it's written.
+  lSavingKey := SavingKey(aFile);
+  if fPromiseCache.Has(lSavingKey) then
+     raise Exception.Create('File ID ' + aFile.ID + ' is already being saved');
   lContentKey := ContentsKey(aFile);
+  if fPromiseCache.Has(lContentKey) then
+     raise Exception.Create('File ID ' + aFile.ID + ' can''t be saved while loading');
   lOldData := fDataCache[lContentKey] as TFileSystemCacheContents;
   if lOldData <> nil then
   begin
@@ -675,7 +872,9 @@ begin
   if aCreateDir then
     lOptions := lOptions + [fwoCreateDir];
   result := aFile.Write(lOptions,lAge);
-  result.After(@FileWritten);
+  result.After(@FileWritten,@FileWriteError);
+  fPromiseCache[lSavingKey] := Result;
+  ReportActivity(Result);
 end;
 
 function TFileSystemCache.WriteFile(aFile: TFile; aText: UTF8String;
@@ -691,7 +890,23 @@ begin
   // I don't need to cache these, but I need to clear the cache once
   // their all renamed (those files and all contained files)
   result := fSystem.RenameFiles(aSource,aTarget);
-  result.After(@FilesRenamed);
+  result.After(@FilesRenamed,@FilesRenameError);
+  ReportActivity(Result);
+end;
+
+function TFileSystemCache.IsWriting(aFile: TFile): Boolean;
+begin
+  result := fPromiseCache.Has(SavingKey(aFile));
+end;
+
+function TFileSystemCache.IsReading(aFile: TFile): Boolean;
+begin
+  result := fPromiseCache.Has(ContentsKey(aFile));
+end;
+
+function TFileSystemCache.IsListing(aFile: TFile): Boolean;
+begin
+  result := fPromiseCache.Has(ListKey(aFile));
 end;
 
 procedure TFileSystemCache.Uncache;

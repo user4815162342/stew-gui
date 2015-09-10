@@ -15,7 +15,7 @@ type
   private
     procedure EmptyWriteCallback(Sender: TPromise);
     procedure EmptyWriteCallback2(Sender: TPromise);
-    procedure PromiseError(aSender: TPromise; aError: TPromiseException);
+    procedure PromiseError(aSender: TPromise; aError: TPromiseError);
     procedure BasicWriteCallback(aSender: TPromise);
     procedure BasicWriteCallback2(aSender: TPromise);
     procedure BatchRenameCallback1(aSender: TPromise);
@@ -29,10 +29,12 @@ type
     procedure ComplexWriteCallback3({%H-}aSender: TPromise);
     procedure ComplexWriteCallback4({%H-}aSender: TPromise);
     procedure ComplexWriteConflict1(aSender: TPromise; aData: String);
-    procedure ComplexWriteConflict3(Sender: TPromise; aError: TPromiseException);
+    procedure ComplexWriteConflict3(Sender: TPromise; aError: TPromiseError);
     procedure ComplexWriteConflict4(aSender: TPromise; aData: String);
     procedure ListFilesCallback(aSender: TPromise);
     procedure ReadTestCallback(aSender: TPromise);
+    procedure CacheActivity(Sender: TPromise);
+    procedure CacheError(Sender: TPromise; aError: TPromiseError);
   private
     fComplexFileAge: Longint;
     fCache: TFileSystemCache;
@@ -77,7 +79,7 @@ const
   );
 
 procedure TCacheSpec.ComplexWriteConflict3(Sender: TPromise;
-  aError: TPromiseException);
+  aError: TPromiseError);
 var
   lFile: TFile;
 begin
@@ -97,6 +99,7 @@ var
   lFile: TFile;
 begin
   lFile := GetTestRootDir.GetContainedFile('bar').GetContainedFile('test.txt');
+  AssertAsync(not fCache.IsWriting(lFile),'File should not be being written to [1]',Sender.Tag);
   fCache.WriteFile(lFile,'TEST2').After(
                   @ComplexWriteCallback3,
                   @ComplexWriteConflict3).Tag := Sender.Tag;
@@ -109,10 +112,24 @@ var
 begin
   lFile := GetTestRootDir.GetContainedFile('bar').GetContainedFile('test.txt');
   // should have worked correctly
+  AssertAsync(not fCache.IsWriting(lFile),'File should not be being written to [2]',Sender.Tag);
   fCache.WriteFile(lFile,'TEST2').After(
                   @ComplexWriteCallback4,
                   @ComplexWriteConflict4).Tag := Sender.Tag;
 
+end;
+
+procedure TCacheSpec.CacheActivity(Sender: TPromise);
+begin
+  if Sender.State = psIncomplete then
+    Report(Sender.ClassName + ' Starting')
+  else
+    Report(Sender.ClassName + ' Complete');
+end;
+
+procedure TCacheSpec.CacheError(Sender: TPromise; aError: TPromiseError);
+begin
+  Report(Sender.ClassName + ' Error: ' + aError);
 end;
 
 procedure TCacheSpec.EmptyWriteCallback(Sender: TPromise);
@@ -131,21 +148,22 @@ begin
     FailAsync(Sender.Tag,'Empty write did not create a file');
 end;
 
-procedure TCacheSpec.PromiseError(aSender: TPromise; aError: TPromiseException);
+procedure TCacheSpec.PromiseError(aSender: TPromise; aError: TPromiseError);
 begin
   FailAsync(aSender.Tag,aError);
 end;
 
 procedure TCacheSpec.BasicWriteCallback(aSender: TPromise);
 var
-  root: TFile;
+  lFile: TFile;
 begin
   if (aSender as TFileWritePromise).Age = NewFileAge then
     FailAsync(aSender.Tag,'Basic writing returned a "new" file age')
   else
   begin
-    root := GetTestRootDir;
-    fCache.ReadFile(root.GetContainedFile('foo.txt')).After(@BasicWriteCallback2,@PromiseError).Tag := aSender.Tag;
+    lFile := GetTestRootDir.GetContainedFile('foo.txt');
+    AssertAsync(not fCache.IsWriting(lFile),'Cache should not report file as being written',aSender.Tag);
+    fCache.ReadFile(lFile).After(@BasicWriteCallback2,@PromiseError).Tag := aSender.Tag;
   end;
 end;
 
@@ -320,6 +338,8 @@ begin
     end;
   end;
 
+  AssertAsync(not fCache.IsListing((aSender as TFileListPromise).Path),'Cache should no longer report file as being listed',aSender.Tag);
+
   EndAsync(aSender.Tag);
 
 end;
@@ -331,7 +351,10 @@ begin
   else if (aSender as TFileReadPromise).Age = NewFileAge then
     FailAsync(aSender.Tag,'Read test returned "new" file')
   else
+  begin
+    AssertAsync(not fCache.IsReading((aSender as TFileReadPromise).Path),'File should not be reported as being read',aSender.Tag);
     EndAsync(aSender.Tag);
+  end;
 end;
 
 
@@ -340,6 +363,8 @@ begin
   inherited SetupTest;
   SetAsyncCallQueuer(@gui_async.GUIQueueAsyncCall);
   fCache := TFileSystemCache.Create(GetFileSystem);
+  fCache.OnActivity:=@CacheActivity;
+  fCache.OnError:=@CacheError;
 end;
 
 procedure TCacheSpec.CleanupTest;
@@ -355,6 +380,7 @@ var
 begin
   root := GetTestRootDir;
   fCache.ListFiles(root).After(@ListFilesCallback,@PromiseError).Tag := BeginAsync;
+  Assert(fCache.IsListing(root),'Cache should report that a file is being listed');
 end;
 
 procedure TCacheSpec.Test_Check_Existence;
@@ -369,19 +395,21 @@ end;
 
 procedure TCacheSpec.Test_Read_File;
 var
-  root: TFile;
+  lFile: TFile;
 begin
-  root := GetTestRootDir;
-  fCache.ReadFile(root.GetContainedFile('_stew.json')).After(@ReadTestCallback,@PromiseError).Tag := BeginAsync;
+  lFile := GetTestRootDir.GetContainedFile('_stew.json');
+  fCache.ReadFile(lFile).After(@ReadTestCallback,@PromiseError).Tag := BeginAsync;
+  Assert(fCache.IsReading(lFile),'File should report as being read');
+
 end;
 
 procedure TCacheSpec.Test_Basic_File_Writing;
 var
-  root: TFile;
+  lFile: TFile;
 begin
-  root := GetTestRootDir;
-  fCache.WriteFile(root.GetContainedFile('foo.txt'),'TEST').After(@BasicWriteCallback,@PromiseError).Tag := BeginAsync;
-
+  lFile := GetTestRootDir.GetContainedFile('foo.txt');
+  fCache.WriteFile(lFile,'TEST').After(@BasicWriteCallback,@PromiseError).Tag := BeginAsync;
+  Assert(fCache.IsWriting(lFile),'Cache should report file as being read');
 end;
 
 procedure TCacheSpec.Test_Empty_File_Writing;

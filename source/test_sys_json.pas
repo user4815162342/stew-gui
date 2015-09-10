@@ -282,12 +282,12 @@ begin
   TJSNumber.CreateBoolean(true).Free;
   TJSBoolean.CreateString('x').Free;
   TJSBoolean.CreateNumber(2).Free;
-  assert(TJSValue.Null.AsNumber = 0,'Null should be 0');
-  assert(TJSValue.Null.AsString = 'null','Null should be "null"');
-  assert(TJSValue.Null.AsBoolean = false,'Null should be false');
-  assert(TJSValue.Undefined.AsNumber = 0,'Undefined should be 0');
-  assert(TJSValue.Undefined.AsString = 'undefined','Undefined should be "undefined"');
-  assert(TJSValue.Undefined.AsBoolean = false,'Undefined should be false');
+  Assert(TJSValue.Null.AsNumber = 0,'Null should be 0');
+  Assert(TJSValue.Null.AsString = 'null','Null should be "null"');
+  Assert(TJSValue.Null.AsBoolean = false,'Null should be false');
+  Assert(TJSValue.Undefined.AsNumber = 0,'Undefined should be 0');
+  Assert(TJSValue.Undefined.AsString = 'undefined','Undefined should be "undefined"');
+  Assert(TJSValue.Undefined.AsBoolean = false,'Undefined should be false');
 end;
 
 procedure TJSONSpec.Test_parsing;
@@ -302,13 +302,13 @@ begin
   try
     lObject1 := FromJSON(lFile1);
     try
-       assert(lObject1.Get('glossary').Get('GlossDiv').Get('GlossList').Get('GlossEntry').get('GlossDef').get('GlossSeeAlso').get(1).AsString = 'XML','Data should have parsed correctly');
+       Assert(lObject1.Get('glossary').Get('GlossDiv').Get('GlossList').Get('GlossEntry').get('GlossDef').get('GlossSeeAlso').get(1).AsString = 'XML','Data should have parsed correctly');
 
        lFile2 := TFileStream.Create('../test-data/json-parse-test.json',fmOpenRead + fmShareDenyNone);
        try
           // make sure this all works with a descendant of jsobject as well.
           lObject2 := FromJSON(TTestObject,lFile2);
-          assert(lObject2.DeepEquals(lObject1),'Objects parsed from the same file should be deep equals');
+          Assert(lObject2.DeepEquals(lObject1),'Objects parsed from the same file should be deep equals');
        finally
          lFile2.Free;
        end;
@@ -345,15 +345,15 @@ begin
     // these "number" != null checks are in here because of an early bug found
     // using this test. I don't want the error to happen again, so I'm testing for
     // it here to avoid having it creeping up again.
-    assert(lObject1.Get('number') <> TJSValue.Null,'"number" property should not be null.');
+    Assert(lObject1.Get('number') <> TJSValue.Null,'"number" property should not be null.');
 
     lJSON := ToJSON(lObject1);
-    assert(Pos('"number":null',lJSON) = 0,'"number" property should not have been written as null.');
+    Assert(Pos('"number":null',lJSON) = 0,'"number" property should not have been written as null.');
 
     lObject2 := FromJSON(lJSON);
     try
-      assert(lObject2.Get('number') <> TJSValue.Null,'"number" property should not be null.');
-      assert(lObject2.DeepEquals(lObject1),'Object created from the JSON serialized from another object should be deep equals with that other object');
+      Assert(lObject2.Get('number') <> TJSValue.Null,'"number" property should not be null.');
+      Assert(lObject2.DeepEquals(lObject1),'Object created from the JSON serialized from another object should be deep equals with that other object');
     finally
       lObject2.Free;
     end;
@@ -371,8 +371,8 @@ begin
     a := TJSString.CreateString('bar');
     try
       Assign(a);
-      assert(AsString = a.AsString,'assigned values should be the same.');
-      assert(DeepEquals(a),'assigned values should be deep equal.');
+      Assert(AsString = a.AsString,'assigned values should be the same.');
+      Assert(DeepEquals(a),'assigned values should be deep equal.');
     finally
       a.Free;
     end;
@@ -385,8 +385,8 @@ begin
     a := TJSNumber.CreateNumber(42.42);
     try
       Assign(a);
-      assert(AsNumber = a.AsNumber,'assigned values should be the same.');
-      assert(DeepEquals(a),'assigned values should be deep equal.');
+      Assert(AsNumber = a.AsNumber,'assigned values should be the same.');
+      Assert(DeepEquals(a),'assigned values should be deep equal.');
     finally
       a.Free;
     end;
@@ -399,8 +399,8 @@ begin
     a := TJSBoolean.CreateBoolean(false);
     try
       Assign(a);
-      assert(AsBoolean = a.AsBoolean,'assigned values should be the same.');
-      assert(DeepEquals(a),'assigned values should be deep equal.');
+      Assert(AsBoolean = a.AsBoolean,'assigned values should be the same.');
+      Assert(DeepEquals(a),'assigned values should be deep equal.');
     finally
       a.Free;
     end;
@@ -413,9 +413,9 @@ begin
     a := TJSNumber.CreateNumber(42);
     try
       Assign(a);
-      assert(AsString = a.AsString,'assigned values should be the same.');
-      assert(AsString = '42','Assigning number to string should be the same as assigning the string value of that number');
-      assert(not DeepEquals(a),'assigned values should not be deep equal.');
+      Assert(AsString = a.AsString,'assigned values should be the same.');
+      Assert(AsString = '42','Assigning number to string should be the same as assigning the string value of that number');
+      Assert(not DeepEquals(a),'assigned values should not be deep equal.');
     finally
       a.Free;
     end;
@@ -435,15 +435,15 @@ begin
         Put('string2','bar');
       end;
       Assign(a);
-      assert(DeepEquals(a),'assigned values should be deep equal.');
+      Assert(DeepEquals(a),'assigned values should be deep equal.');
     finally
       a.Free;
     end;
 
     a := Clone;
     try
-      assert(a is TJSObject,'cloned object should be the same class');
-      assert(DeepEquals(a),'cloned object should be deep equals with the original');
+      Assert(a is TJSObject,'cloned object should be the same class');
+      Assert(DeepEquals(a),'cloned object should be deep equals with the original');
     finally
       a.Free;
     end;
