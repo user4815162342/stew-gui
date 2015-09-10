@@ -285,8 +285,6 @@ end;
 procedure TLocalFileReadTask.DoTask;
 var
   lStream: TFileStream;
-  lDataString: UTf8String;
-  lDataStream: TStringStream;
 begin
   if FileExists(fPath.ID) then
   begin
@@ -295,6 +293,7 @@ begin
     // race conditions
     // Also, stream is now *owned* by the promise... It should still close
     // relatively quickly though.
+
     (Promise as TFileReadPromise).SetAnswer(lStream,FileAge(fPath.ID),False);
   end
   else

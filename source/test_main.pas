@@ -11,7 +11,7 @@ uses
 type
 
   {
-  TODO: Working on upgrading stew project to new stuff. See test_stew_project.This testing is being done as part of a slight refactoring to make use
+  TODO: Working on upgrading stew project to new stuff. See test_stew_project.
 
   TODO: Consider keeping a "log" (this would be an application setting)
   of "actions", and their responses in the StewProject option. That will, at least,
@@ -32,6 +32,8 @@ type
     CancelButton: TToolButton;
     CloseButton: TToolButton;
     RunTesterTestsButton: TToolButton;
+    MainStatusBar: TStatusBar;
+    TimeoutCheckButton: TToolButton;
     procedure CancelButtonClick(Sender: TObject);
     procedure CloseButtonClick(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -50,6 +52,7 @@ type
   private
     { private declarations }
     fRegistry: TTestRegistry;
+    fErrorCount: Integer;
     procedure InitRegistry(aTestTester: Boolean);
     procedure StartTests({%H-}Data: PtrInt);
   public
@@ -122,6 +125,7 @@ end;
 procedure TMainForm.TestsCompleted(Sender: TObject);
 begin
   Log('Tests Completed',mtCustom);
+  MainStatusBar.SimpleText := 'Found ' + IntToStr(fErrorCount) + ' Errors';
   CancelButton.Enabled := false;
   RunButton.Enabled := true;
   RunTesterTestsButton.Enabled := true;
@@ -183,7 +187,9 @@ begin
   CancelButton.Enabled := true;
   InitRegistry(Data = 1);
   Log('Starting Tests',mtCustom);
-  fRegistry.Run;
+  MainStatusBar.SimpleText := 'Running Tests...';
+  fErrorCount := 0;
+  fRegistry.Run(TimeoutCheckButton.Down);
 
 end;
 
@@ -208,6 +214,7 @@ begin
       begin
         aStyle.Color := clRed;
         aStyle.Style := [fsBold];
+        inc(fErrorCount);
       end;
       mtWarning:
       begin

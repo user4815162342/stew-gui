@@ -184,6 +184,19 @@ type
     constructor Defer(aInputPromise: TPromise);
   end;
 
+  { TNotifyOnPromiseResolvedTask }
+
+  // This is a simple task that returns a simple, undecorated
+  // promise when another promise returns, so you can hide
+  // the data on that original promise from the caller.
+  TNotifyOnPromiseResolvedTask = class(TDeferredTask2)
+  protected
+    procedure DoTask({%H-}Input: TPromise); override;
+    function CreatePromise: TPromise; override;
+  end;
+
+  // TODO: Should be able to get rid of the following...
+
   // Use this one to create your own deferred code. Just override DoCallback to
   // complete the functionality.
 
@@ -242,6 +255,18 @@ begin
   if AsyncCallQueuer <> aQueuer then
     raise Exception.Create('To avoid conflicts, please don''t unset the async queuer method without access to the original pointer.');
   AsyncCallQueuer := nil;
+end;
+
+{ TNotifyOnPromiseResolvedTask }
+
+procedure TNotifyOnPromiseResolvedTask.DoTask(Input: TPromise);
+begin
+  Resolve;
+end;
+
+function TNotifyOnPromiseResolvedTask.CreatePromise: TPromise;
+begin
+  result := TPromise.Create;
 end;
 
 { TDeferredTask2 }

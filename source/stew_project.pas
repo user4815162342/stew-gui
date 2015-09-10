@@ -6,7 +6,7 @@ unit stew_project;
 interface
 
 uses
-  Classes, SysUtils, sys_file, sys_async, stew_properties, stew_types, contnrs;
+  Classes, SysUtils, sys_file, sys_async, stew_properties, stew_types, contnrs, sys_filecache;
 
 {
 TODO: Although I have the file caching done so I don't really need to keep a
@@ -463,7 +463,7 @@ type
   { TProjectPromise }
 
   TProjectPromise = class(TPromise)
-  protected
+  private
     fPath: TFile;
     fProject: TStewProject;
   public
@@ -473,44 +473,15 @@ type
     property Path: TFile read FPath;
   end;
 
-  { TProjectOpenTask }
+  { TProjectPropertiesPromise }
 
-  TProjectOpenTask = class(TQueuedTask)
-  protected
-    fPath: TFile;
-  protected
-    procedure ProjectOpened(Sender: TPromise);
-    procedure ResolveCreateProject(aPath: TFile);
-    function CreatePromise: TPromise; override;
-    property Path: TFile read fPath;
+  TProjectPropertiesPromise = class(TPromise)
+  private
+    fProperties: TProjectProperties2;
   public
-    constructor Enqueue(aPath: Tfile);
-  end;
-
-  { TProjectOpenAtPromise }
-
-  TProjectOpenAtPromise = class(TProjectOpenTask)
-  private
-    procedure FileExists(Sender: TPromise);
-  protected
-    procedure DoTask; override;
-  end;
-
-  { TProjectOpenInParentPromise }
-
-  TProjectOpenInParentPromise = class(TProjectOpenTask)
-  private
-    procedure FileExistsInParent(Sender: TPromise);
-    procedure FileExists(Sender: TPromise);
-  protected
-    procedure DoTask; override;
-  end;
-
-  { TProjectCreateAtPromise }
-
-  TProjectCreateAtPromise = class(TProjectOpenTask)
-  protected
-    procedure DoTask; override;
+    destructor Destroy; override;
+    procedure LoadAnswer(aStream: TStream);
+    property Properties: TProjectProperties2 read fProperties;
   end;
 
   { TStewProject }
@@ -521,11 +492,67 @@ type
     // this allows me access to the protected events on Project Properties,
     // but avoids making those events accessible from outside of the project,
     // which I don't want.
+    // TODO: Get rid of this eventually.
     TProtectedProjectProperties = class(TProjectProperties)
+    end;
+
+    { TProjectOpenTask }
+
+    TProjectOpenTask = class(TQueuedTask)
+    protected
+      fPath: TFile;
+    protected
+      procedure ProjectOpened(Sender: TPromise);
+      procedure ResolveCreateProject(aPath: TFile);
+      function CreatePromise: TPromise; override;
+      property Path: TFile read fPath;
+    public
+      constructor Enqueue(aPath: Tfile);
+    end;
+
+    { TProjectOpenAtPathTask }
+
+    TProjectOpenAtPathTask = class(TProjectOpenTask)
+    private
+      procedure FileExists(Sender: TPromise);
+    protected
+      procedure DoTask; override;
+    end;
+
+    { TProjectOpenInParentTask }
+
+    TProjectOpenInParentTask = class(TProjectOpenTask)
+    private
+      procedure FileExistsInParent(Sender: TPromise);
+      procedure FileExists(Sender: TPromise);
+    protected
+      procedure DoTask; override;
+    end;
+
+    { TProjectCreateNewTask }
+
+    TProjectCreateNewTask = class(TProjectOpenTask)
+    protected
+      procedure DoTask; override;
+    end;
+
+    { TReadProjectPropertiesTask }
+
+    TReadProjectPropertiesTask = class(TDeferredTask2)
+    protected
+      procedure DoTask(Input: TPromise); override;
+      function CreatePromise: TPromise; override;
+    public
+      constructor Defer(aPromise: TFileReadPromise);
     end;
 
   private
     fDisk: TFile;
+    fCache: TFileSystemCache;
+
+    // TODO: A lot of the rest are going away once everything's moved over
+    // to updated promises and jsvalues.
+
     fMetadataCache: TDocumentMetadata;
     FOnChooseTemplate: TAttachmentChoiceEvent;
     FOnConfirmNewAttachment: TAttachmentConfirmationEvent;
@@ -611,6 +638,9 @@ type
     property IsOpened: Boolean read GetIsOpened;
     function GetProjectName: String;
     property Properties: TProjectProperties read GetProperties;
+
+    function ReadProjectProperties: TProjectPropertiesPromise;
+    function WriteProjectProperties(aProperties: TProjectProperties2): TPromise;
     class function Open(aPath: TFile): TProjectPromise;
     class function OpenInParent(aPath: TFile): TProjectPromise;
     class function CreateNew(aPath: TFile): TProjectPromise;
@@ -630,6 +660,9 @@ type
 
 
 implementation
+
+uses
+  sys_json;
 
 function IncludeLeadingSlash(const Path: UTF8String): UTF8String;
 Var
@@ -677,28 +710,67 @@ begin
   result := CompareText(a.ID,b.ID) = 0;
 end;
 
+{ TProjectPropertiesPromise }
+
+destructor TProjectPropertiesPromise.Destroy;
+begin
+  FreeAndNil(fProperties);
+  inherited Destroy;
+end;
+
+procedure TProjectPropertiesPromise.LoadAnswer(aStream: TStream);
+begin
+  if aStream <> nil then
+    fProperties := FromJSON(TProjectProperties2,aStream) as TProjectProperties2
+  else
+    fProperties := TProjectProperties2.Create;
+end;
+
+{ TStewProject.TReadProjectPropertiesTask }
+
+procedure TStewProject.TReadProjectPropertiesTask.DoTask(Input: TPromise);
+begin
+  if not (Input as TFileReadPromise).DoesNotExist then
+     (Promise as TProjectPropertiesPromise).LoadAnswer((Input as TFileReadPromise).Data)
+  else
+     (Promise as TProjectPropertiesPromise).LoadAnswer(nil);
+  Resolve;
+end;
+
+function TStewProject.TReadProjectPropertiesTask.CreatePromise: TPromise;
+begin
+  result := TProjectPropertiesPromise.Create;
+end;
+
+constructor TStewProject.TReadProjectPropertiesTask.Defer(aPromise: TFileReadPromise);
+begin
+  inherited Defer(aPromise);
+end;
+
 { TProjectOpenTask }
 
-procedure TProjectOpenTask.ProjectOpened(Sender: TPromise);
+procedure TStewProject.TProjectOpenTask.ProjectOpened(Sender: TPromise);
 begin
   Resolve;
 end;
 
-procedure TProjectOpenTask.ResolveCreateProject(aPath: TFile);
+procedure TStewProject.TProjectOpenTask.ResolveCreateProject(aPath: TFile);
 var
   lProject: TStewProject;
 begin
   lProject := TStewProject.Create(aPath);
   (Promise as TProjectPromise).SetAnswer(lProject);
+  // TODO: Once we move to the new system there really is no need
+  // to call this anymore.
   lProject.DoOpened.After(@ProjectOpened,@SubPromiseRejected);
 end;
 
-function TProjectOpenTask.CreatePromise: TPromise;
+function TStewProject.TProjectOpenTask.CreatePromise: TPromise;
 begin
   result := TProjectPromise.Create(fPath);
 end;
 
-constructor TProjectOpenTask.Enqueue(aPath: Tfile);
+constructor TStewProject.TProjectOpenTask.Enqueue(aPath: Tfile);
 begin
   fPath := aPath;
   inherited Enqueue;
@@ -906,22 +978,22 @@ begin
   fCreated := Now;
 end;
 
-{ TProjectCreateAtPromise }
+{ TProjectCreateNewTask }
 
-procedure TProjectCreateAtPromise.DoTask;
+procedure TStewProject.TProjectCreateNewTask.DoTask;
 begin
   ResolveCreateProject(Path);
 end;
 
-{ TProjectOpenInParentPromise }
+{ TProjectOpenInParentTask }
 
-procedure TProjectOpenInParentPromise.FileExistsInParent(Sender: TPromise);
+procedure TStewProject.TProjectOpenInParentTask.FileExistsInParent(Sender: TPromise);
 begin
   (Promise as TProjectPromise).SetAnswer((Sender as TProjectPromise).Project);
   Resolve;
 end;
 
-procedure TProjectOpenInParentPromise.FileExists(Sender: TPromise);
+procedure TStewProject.TProjectOpenInParentTask.FileExists(Sender: TPromise);
 var
   lParent: TFile;
 begin
@@ -938,12 +1010,12 @@ begin
     end
     else
     begin
-      TProjectOpenInParentPromise.Enqueue(lParent).After(@FileExistsInParent,@SubPromiseRejected);
+      TProjectOpenInParentTask.Enqueue(lParent).After(@FileExistsInParent,@SubPromiseRejected);
     end;
   end;
 end;
 
-procedure TProjectOpenInParentPromise.DoTask;
+procedure TStewProject.TProjectOpenInParentTask.DoTask;
 begin
   TProjectProperties.GetPath(Path).CheckExistence.After(@FileExists,@SubPromiseRejected);
 end;
@@ -961,9 +1033,9 @@ begin
   fProject := aProject;
 end;
 
-{ TProjectOpenAtPromise }
+{ TProjectOpenAtPathTask }
 
-procedure TProjectOpenAtPromise.FileExists(Sender: TPromise);
+procedure TStewProject.TProjectOpenAtPathTask.FileExists(Sender: TPromise);
 begin
   if ((Sender as TFileExistencePromise).Exists) then
   begin
@@ -975,7 +1047,7 @@ begin
   end;
 end;
 
-procedure TProjectOpenAtPromise.DoTask;
+procedure TStewProject.TProjectOpenAtPathTask.DoTask;
 begin
   // TODO: Once we move over to the new Properties format, just
   // make this a 'read', and pass the data onto the project constructor.
@@ -2158,7 +2230,9 @@ end;
 
 constructor TStewProject.Create(const Path: TFile);
 begin
+  inherited Create;
   fDisk := Path;
+  fCache := TFileSystemCache.Create(fDisk.System);
   fMetadataCache := nil; // created on open.
   fProperties := nil;
 end;
@@ -2170,6 +2244,7 @@ end;
 
 destructor TStewProject.Destroy;
 begin
+  FreeAndNil(fCache);
   FreeAndNil(fMetadataCache);
   if fProperties <> nil then
     fProperties.Free;
@@ -2194,19 +2269,37 @@ begin
   result := fDisk.PacketName;
 end;
 
+function TStewProject.ReadProjectProperties: TProjectPropertiesPromise;
+var
+  lReadFile: TFileReadPromise;
+begin
+  lReadFile := fCache.ReadFile(TProjectProperties2.GetPath(fDisk));
+  result := TReadProjectPropertiesTask.Defer(lReadFile).Promise as TProjectPropertiesPromise;
+end;
+
+function TStewProject.WriteProjectProperties(aProperties: TProjectProperties2
+  ): TPromise;
+var
+  lWriteFile: TFileWritePromise;
+begin
+  lWriteFile := fCache.WriteFile(TProjectProperties2.GetPath(fDisk));
+  ToJSON(aProperties,lWriteFile.Data,'  ');
+  result := TNotifyOnPromiseResolvedTask.Defer(lWriteFile).Promise;
+end;
+
 class function TStewProject.Open(aPath: TFile): TProjectPromise;
 begin
-  result := TProjectOpenAtPromise.Enqueue(aPath).Promise as TProjectPromise;
+  result := TProjectOpenAtPathTask.Enqueue(aPath).Promise as TProjectPromise;
 end;
 
 class function TStewProject.OpenInParent(aPath: TFile): TProjectPromise;
 begin
-  result := TProjectOpenInParentPromise.Enqueue(aPath).Promise as TProjectPromise;
+  result := TProjectOpenInParentTask.Enqueue(aPath).Promise as TProjectPromise;
 end;
 
 class function TStewProject.CreateNew(aPath: TFile): TProjectPromise;
 begin
-  result := TProjectCreateAtPromise.Enqueue(aPath).Promise as TProjectPromise;
+  result := TProjectCreateNewTask.Enqueue(aPath).Promise as TProjectPromise;
 end;
 
 end.

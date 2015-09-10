@@ -66,6 +66,7 @@ type
     fRunning: Boolean;
     fCurrent: Integer;
     fTimer: TTimer;
+    fDisableTimeOuts: Boolean;
     function GetTimeout: Cardinal;
     procedure SetOnAsyncStarted(AValue: TTestEvent);
     procedure SetOnCancelled(AValue: TNotifyEvent);
@@ -95,7 +96,7 @@ type
     procedure AddTests(aClass: TTestSpecClass);
     procedure AddTests(aObject: TTestSpec);
     procedure ClearTests;
-    procedure Run;
+    procedure Run(aDisableTimeOuts: Boolean);
     procedure Cancel;
     property OnSucceeded: TTestEvent read FOnSucceeded write SetOnSucceeded;
     property OnFailed: TTestMessageEvent read FOnFailed write SetOnFailed;
@@ -214,7 +215,8 @@ end;
 
 procedure TTestRegistry.StartTimer;
 begin
- // TODO: fTimer.Enabled := true;
+  if not fDisableTimeOuts then
+     fTimer.Enabled := true;
 end;
 
 procedure TTestRegistry.StopTimer;
@@ -462,11 +464,12 @@ begin
   fTests.Clear;
 end;
 
-procedure TTestRegistry.Run;
+procedure TTestRegistry.Run(aDisableTimeOuts: Boolean);
 begin
   fCancelled := false;
   fCurrent := -1;
   fRunning := true;
+  fDisableTimeOuts := aDisableTimeOuts;
   QueueNextTest;
 end;
 

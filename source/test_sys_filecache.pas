@@ -24,6 +24,8 @@ type
     procedure CheckExistenceCallback2(aSender: TPromise);
     procedure ComplexWriteCallback1(aSender: TPromise);
     procedure ComplexWriteCallback2(aSender: TPromise);
+    procedure ComplexWriteCallback2a(Sender: TPromise);
+    procedure ComplexWriteCallback3a(Sender: TPromise);
     procedure ComplexWriteCallback3({%H-}aSender: TPromise);
     procedure ComplexWriteCallback4({%H-}aSender: TPromise);
     procedure ComplexWriteConflict1(aSender: TPromise; aData: String);
@@ -77,20 +79,40 @@ const
 procedure TCacheSpec.ComplexWriteConflict3(Sender: TPromise;
   aError: TPromiseException);
 var
-  root: TFile;
+  lFile: TFile;
 begin
   if (Sender as TFileWritePromise).IsConflict then
   begin
-    // should have worked correctly
-    root := GetTestRootDir;
-    fCache.WriteFile(root.GetContainedFile('bar').GetContainedFile('test.txt'),[fwoCheckAge],
-                                                                fComplexFileAge,
-                                                                'TEST2').After(
-                                                                @ComplexWriteCallback4,
-                                                                @ComplexWriteConflict4).Tag := Sender.Tag;
+    // refresh the thing so it works
+    lFile := GetTestRootDir.GetContainedFile('bar').GetContainedFile('test.txt');
+    fCache.Uncache(lFile);
+    fCache.ReadFile(lFile).After(@ComplexWriteCallback3a,@PromiseError).Tag := Sender.Tag;
   end
   else
     PromiseError(Sender,aError);
+end;
+
+procedure TCacheSpec.ComplexWriteCallback2a(Sender: TPromise);
+var
+  lFile: TFile;
+begin
+  lFile := GetTestRootDir.GetContainedFile('bar').GetContainedFile('test.txt');
+  fCache.WriteFile(lFile,'TEST2').After(
+                  @ComplexWriteCallback3,
+                  @ComplexWriteConflict3).Tag := Sender.Tag;
+
+end;
+
+procedure TCacheSpec.ComplexWriteCallback3a(Sender: TPromise);
+var
+  lFile: TFile;
+begin
+  lFile := GetTestRootDir.GetContainedFile('bar').GetContainedFile('test.txt');
+  // should have worked correctly
+  fCache.WriteFile(lFile,'TEST2').After(
+                  @ComplexWriteCallback4,
+                  @ComplexWriteConflict4).Tag := Sender.Tag;
+
 end;
 
 procedure TCacheSpec.EmptyWriteCallback(Sender: TPromise);
@@ -194,7 +216,9 @@ begin
     fCache.ReadFile(root.GetContainedFile('bar').GetContainedFile('test.txt')).After(@ComplexWriteCallback2,@PromiseError).Tag := aSender.Tag;
   end;
 
+
 end;
+
 
 procedure TCacheSpec.ComplexWriteCallback2(aSender: TPromise);
 var
@@ -208,11 +232,21 @@ begin
   else
   begin
     root := GetTestRootDir;
-    fCache.WriteFile(root.GetContainedFile('bar').GetContainedFile('test.txt'),[fwoCheckAge],
-                                                                fComplexFileAge - 1,
-                                                                'TEST2').After(
-                                                                @ComplexWriteCallback3,
-                                                                @ComplexWriteConflict3).Tag := aSender.Tag;
+    // Basically, I'm trying to see what happens if a write occurrs outside
+    // of the cache, and we try to write again with a different file time.
+
+    // FileAge, which I'm using to determine whether a file has been modified,
+    // apparently only has a precision of one second. So, I need to delay at
+    // least one second to make sure the write occurs one second after the
+    // last one. This is a kludgy and bad way of doing this, but I don't want
+    // to write a timer. (A better way might also be to have a more precise
+    // file change checking).
+    Sleep(1000);
+
+    // write from outside the cache in order the file age to mismatch.
+    root.GetContainedFile('bar').GetContainedFile('test.txt').Write('TEST2').After(
+                                                                @ComplexWriteCallback2a,
+                                                                @PromiseError).Tag := aSender.Tag;
   end;
 
 end;
@@ -364,11 +398,11 @@ var
   root: TFile;
 begin
   root := GetTestRootDir;
-  fCache.WriteFile(root.GetContainedFile('bar').GetContainedFile('test.txt'),[fwoCreateDir,fwoCheckAge],
-                                                                  NewFileAge,
-                                                                  'TEST').After(
+  fCache.WriteFile(root.GetContainedFile('bar').GetContainedFile('test.txt'),
+                                                                  'TEST',true).After(
                                                                   @ComplexWriteCallback1,
                                                                   @ComplexWriteConflict1).Tag := BeginAsync;
+
 end;
 
 procedure TCacheSpec.Test_File_Batch_Renaming;

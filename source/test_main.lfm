@@ -31,7 +31,7 @@ object MainForm: TMainForm
       OnClick = CancelButtonClick
     end
     object CloseButton: TToolButton
-      Left = 209
+      Left = 326
       Top = 2
       Caption = 'Close'
       OnClick = CloseButtonClick
@@ -42,15 +42,28 @@ object MainForm: TMainForm
       Caption = 'Test Tester...'
       OnClick = RunTesterTestsButtonClick
     end
+    object TimeoutCheckButton: TToolButton
+      Left = 209
+      Top = 2
+      Caption = 'Disable Time Outs'
+      Style = tbsCheck
+    end
   end
   object OutputMemo: TRichMemo
     Left = 0
-    Height = 379
+    Height = 359
     Top = 26
     Width = 485
     Align = alClient
     HideSelection = False
     TabOrder = 1
     ZoomFactor = 1
+  end
+  object MainStatusBar: TStatusBar
+    Left = 0
+    Height = 20
+    Top = 385
+    Width = 485
+    Panels = <>
   end
 end

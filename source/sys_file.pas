@@ -433,7 +433,9 @@ end;
 destructor TFileReadPromise.Destroy;
 begin
   if fStream <> nil then
+  begin
     FreeAndNil(fStream);
+  end;
   inherited Destroy;
 end;
 

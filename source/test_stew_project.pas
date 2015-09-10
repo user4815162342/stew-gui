@@ -5,9 +5,25 @@ unit test_stew_project;
 interface
 
 uses
-  Classes, SysUtils, test_registry, sys_file, sys_async;
+  Classes, SysUtils, test_registry, sys_file, sys_async, stew_project;
 
 {
+TODO:
+- Project Properties almost done:
+  - I need to use the FileAge thing... perhaps when saving or loading
+    I can look for it in the cache.
+  - Need to "force refresh" on opening project properties and other things
+  - Need to allow cancelling of saving project properties (and refreshing for that matter)
+  - Need some events to indicate what's going on.
+- Need Document Lists (starting with the root level) read
+- Need Document Properties read/write
+- Need Document Synopsis read/write
+- Need Edit Document Attachment
+- Need Create Document
+  - also make sure it shows up in lists after created.
+- Need *Shift* Document up and down
+- Need Move Document between folders.
+
 TODO: I'm slowly converting the TStewProject over to the way I want it to be,
 and testing the new stuff as I do so (this is better than writing the tests and
 then rewriting them for the new things). As I complete each section, write a
@@ -156,31 +172,39 @@ type
   { TProjectSpec }
 
   TProjectSpec = class(TTestSpec)
+    procedure Project_Properties_3(Sender: TPromise);
+    procedure Project_Properties_4(Sender: TPromise);
   private
     fTempDir: String;
     fTestRootDir: TFile;
+    fProject: TStewProject;
     procedure Open_Project_1(Sender: TPromise);
     procedure Open_Project_2(Sender: TPromise);
     procedure Open_Project_3(Sender: TPromise);
     procedure PromiseFailed(Sender: TPromise; aError: TPromiseException);
+    procedure Project_Properties_1(Sender: TPromise);
+    procedure Project_Properties_2(Sender: TPromise);
   public
     procedure SetupTest; override;
     procedure CleanupTest; override;
   published
     procedure Test_Open_Project;
+    procedure Test_Project_Properties;
   end;
 
 
 implementation
 
 uses
-  gui_async, FileUtil, sys_localfile, stew_project;
+  gui_async, FileUtil, sys_localfile, stew_properties, Graphics;
 
 { TProjectSpec }
 
 procedure TProjectSpec.PromiseFailed(Sender: TPromise; aError: TPromiseException
   );
 begin
+  if fProject <> nil then
+    FreeAndNil(fProject);
   FailAsync(Sender.Tag,aError);
 end;
 
@@ -212,6 +236,47 @@ begin
   EndAsync(Sender.Tag);
 end;
 
+procedure TProjectSpec.Project_Properties_1(Sender: TPromise);
+begin
+  fProject := (Sender as TProjectPromise).Project;
+  fProject.ReadProjectProperties.After(@Project_Properties_2,@PromiseFailed).Tag := Sender.Tag;
+end;
+
+procedure TProjectSpec.Project_Properties_2(Sender: TPromise);
+var
+  lProps: TProjectProperties2;
+begin
+  lProps := (Sender as TProjectPropertiesPromise).Properties;
+  // yes, these are taken directly from the test_stew_properties.
+  Assert(Length(lProps.Categories.keys) > 0,'Combination of parsing and GetPath should have gotten some data');
+  Assert((lProps.Categories.Get('Chapter') as TCategoryDefinition2).PublishTitleLevel = 0,'Project category definitions should work');
+  Assert(lProps.Categories.hasOwnProperty('Scene'),'Project categories should work');
+  Assert(lProps.DefaultCategory = 'Chapter','Project default category should work');
+  Assert(lProps.DefaultDocExtension = 'txt','Project default doc extension should work');
+  Assert(lProps.DefaultNotesExtension = 'txt','Project default notes extension should work');
+  Assert(lProps.DefaultStatus = 'Unwritten','Project default status should work');
+  Assert(lProps.DefaultThumbnailExtension = 'png','Project default thumbnail extension should work');
+  Assert((lProps.Statuses.Get('Unwritten') as TStatusDefinition2).Color = clRed,'Project statuses should work');
+  lProps.DefaultDocExtension := '.doc';
+  Assert(lProps.DefaultDocExtension = 'doc','Default doc extension should trim off the "." when assigning');
+
+  // now, test changing some things and writing it out.
+  lProps.DefaultCategory := 'Tome';
+  fProject.WriteProjectProperties(lProps).After(@Project_Properties_3,@PromiseFailed).Tag := Sender.Tag;
+end;
+
+procedure TProjectSpec.Project_Properties_3(Sender: TPromise);
+begin
+  // re-read it to see if the data changed.
+  fProject.ReadProjectProperties.After(@Project_Properties_4,@PromiseFailed).Tag := Sender.Tag;
+end;
+
+procedure TProjectSpec.Project_Properties_4(Sender: TPromise);
+begin
+  Assert((Sender as TProjectPropertiesPromise).Properties.DefaultCategory = 'Tome','Changes should have been saved');
+  EndAsync(Sender.Tag);
+end;
+
 procedure TProjectSpec.Open_Project_1(Sender: TPromise);
 var
   lProject: TStewProject;
@@ -238,6 +303,8 @@ end;
 
 procedure TProjectSpec.CleanupTest;
 begin
+  if fProject <> nil then
+    FreeAndNil(fProject);
   DeleteDirectory(fTempDir,false);
   RemoveAsyncCallQueuer(@gui_async.GUIQueueAsyncCall);
   inherited CleanupTest;
@@ -246,13 +313,13 @@ end;
 procedure TProjectSpec.Test_Open_Project;
 begin
   TStewProject.Open(fTestRootDir).After(@Open_Project_1,@PromiseFailed).Tag := BeginAsync;
-{
-TODO: Test:
-* Various scenarios for opening a project
-  - project exists at directory
-  - project exists in parent directory, open there instead.
-  - project not found, so create a new project at initial directory.
-}
+end;
+
+procedure TProjectSpec.Test_Project_Properties;
+begin
+  if fProject <> nil then
+    FreeAndNil(fProject);
+  TStewProject.Open(fTestRootDir).After(@Project_Properties_1,@PromiseFailed).Tag := BeginAsync;
 end;
 
 end.

@@ -183,14 +183,8 @@ type
     function ReadFile(aFile: TFile): TFileReadPromise;
     // Although I'm not actually caching the write, I want to make sure
     // that we "uncache" files after they are saved.
-    function WriteFile(aFile: TFile; aOptions: TFileWriteOptions;
-      aFileAge: Longint): TFileWritePromise;
-    function WriteFile(aFile: TFile): TFileWritePromise;
-    function WriteFile(aFile: TFile; aOptions: TFileWriteOptions): TFileWritePromise;
-    function WriteFile(aFile: TFile; aOptions: TFileWriteOptions;
-      aFileAge: Longint; aText: UTF8String): TFileWritePromise;
-    function WriteFile(aFile: TFile; aText: UTF8String): TFileWritePromise;
-    function WriteFile(aFile: TFile; aOptions: TFileWriteOptions; aText: UTF8String): TFileWritePromise;
+    function WriteFile(aFile: TFile; aCreateDir: Boolean = false): TFileWritePromise;
+    function WriteFile(aFile: TFile; aText: UTF8String; aCreateDir: Boolean = false): TFileWritePromise;
     function RenameFiles(aSource: TFileArray; aTarget: TFileArray): TFileRenamePromise;
     // Uncaches all data, promises and everything.
     // promises always check if they are the correct promise for the file
@@ -198,9 +192,9 @@ type
     // after being uncached, they won't effect anything.
     procedure Uncache; overload;
     // Uncaches specified file and all contained files.
-    procedure Uncache(aFile: TFile; aRecursive: Boolean); overload;
+    procedure Uncache(aFile: TFile; aRecursive: Boolean = false); overload;
     // Uncaches a list of files and all contained files...
-    procedure Uncache(aFiles: TFileArray; aRecursive: Boolean); overload;
+    procedure Uncache(aFiles: TFileArray; aRecursive: Boolean = false); overload;
     // Uncaches files older than a certain TDataTime.
     procedure Uncache(aAsOf: TDateTime); overload;
     class function ExistsKey(aFile: TFile): UTF8String;
@@ -656,48 +650,39 @@ begin
   end;
 end;
 
-function TFileSystemCache.WriteFile(aFile: TFile; aOptions: TFileWriteOptions;
-  aFileAge: Longint): TFileWritePromise;
+function TFileSystemCache.WriteFile(aFile: TFile; aCreateDir: Boolean
+  ): TFileWritePromise;
+var
+  lContentKey: UTF8String;
+  lOldData: TFileSystemCacheContents;
+  lOptions: TFileWriteOptions;
+  lAge: LongInt;
 begin
   // We don't need to cache the writes, but I want to 'clear' the cache
   // once it's written.
-  result := aFile.Write(aOptions,aFileAge);
+  lContentKey := ContentsKey(aFile);
+  lOldData := fDataCache[lContentKey] as TFileSystemCacheContents;
+  if lOldData <> nil then
+  begin
+    lAge := lOldData.Age;
+    lOptions := [fwoCheckAge]
+  end
+  else
+  begin
+    lAge := NewFileAge;
+    lOptions := [];
+  end;
+  if aCreateDir then
+    lOptions := lOptions + [fwoCreateDir];
+  result := aFile.Write(lOptions,lAge);
   result.After(@FileWritten);
 end;
 
-function TFileSystemCache.WriteFile(aFile: TFile): TFileWritePromise;
+function TFileSystemCache.WriteFile(aFile: TFile; aText: UTF8String;
+  aCreateDir: Boolean): TFileWritePromise;
 begin
-  result := aFile.Write;
-  result.After(@FileWritten);
-end;
-
-function TFileSystemCache.WriteFile(aFile: TFile; aOptions: TFileWriteOptions): TFileWritePromise;
-begin
-  result := aFile.Write(aOptions);
-  result.After(@FileWritten);
-end;
-
-function TFileSystemCache.WriteFile(aFile: TFile; aOptions: TFileWriteOptions;
-  aFileAge: Longint; aText: UTF8String): TFileWritePromise;
-begin
-  result := WriteFile(aFile,aOptions,aFileAge);
+  result := WriteFile(aFile,aCreateDir);
   result.WriteString(aText);
-end;
-
-function TFileSystemCache.WriteFile(aFile: TFile; aText: UTF8String
-  ): TFileWritePromise;
-begin
-  result := WriteFile(aFile);
-  result.WriteString(aText);
-
-end;
-
-function TFileSystemCache.WriteFile(aFile: TFile; aOptions: TFileWriteOptions;
-  aText: UTF8String): TFileWritePromise;
-begin
-  result := WriteFile(aFile,aOptions);
-  result.WriteString(aText);
-
 end;
 
 function TFileSystemCache.RenameFiles(aSource: TFileArray; aTarget: TFileArray
