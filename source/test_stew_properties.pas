@@ -175,7 +175,7 @@ var
   lStream: TFileStream;
   lProps: TProjectProperties2;
 begin
-  lStream := TFileStream.Create(TProjectProperties2.GetPath(fTestRootDir).ID,fmOpenRead);
+  lStream := TFileStream.Create(fTestRootDir.GetContainedFile('','stew','json',true).ID,fmOpenRead);
   try
     lProps := FromJSON(TProjectProperties2,lStream) as TProjectProperties2;
     try

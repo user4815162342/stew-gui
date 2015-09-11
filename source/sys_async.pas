@@ -184,6 +184,7 @@ type
   protected
     property InputPromise: TPromise read fInputPromise;
     procedure DoTask(Input: TPromise); virtual; abstract;
+    procedure HandleError({%H-}Input: TPromise; {%H-}Error: TPromiseError); virtual;
   public
     constructor Defer(aInputPromise: TPromise);
   end;
@@ -278,7 +279,17 @@ end;
 procedure TDeferredTask2.InputPromiseRejected(Sender: TPromise;
   aError: TPromiseError);
 begin
-  Reject(aError);
+  try
+    HandleError(Sender,aError);
+  finally
+    Reject(aError);
+  end;
+end;
+
+procedure TDeferredTask2.HandleError(Input: TPromise; Error: TPromiseError);
+begin
+  // do nothing. A subclass can fill in information on the promise to
+  // indicate more information about the error.
 end;
 
 procedure TDeferredTask2.InputPromiseResolved(Sender: TPromise);

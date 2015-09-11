@@ -10,7 +10,10 @@ uses
 {
 TODO:
 - Need to start getting events going
-- Need events for the project.
+  - still need to *test* the project events somehow.
+    - I Wonder if I could add some 'ToString' to the event objects and
+      then just compare the string against an array of strings in the
+      expected order.
 - Need Document Lists (starting with the root level) read
 - Need Document Properties read/write
 - Need Document Synopsis read/write

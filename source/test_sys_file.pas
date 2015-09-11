@@ -67,7 +67,7 @@ uses
 { TFileSpec }
 
 const
-  ExpectedFileNamesInList: array[0..11] of String = (
+  ExpectedFileNamesInList: array[0..12] of String = (
   'Chapter 1_properties.json',
   'Chapter 1.txt',
   'Chapter 3_properties.json',
@@ -76,7 +76,7 @@ const
   '_properties.json',
   'Chapter 1_synopsis.txt',
   'Chapter 2_properties.json',
-
+  'Chapter 1_notes.txt',
   'Chapter 4_properties.json',
   'Epilogue_properties.json',
   'Notes_properties.json',

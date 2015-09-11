@@ -282,7 +282,6 @@ type
     function CreateStringValue(aKey: UTF8String; aRequestType: TJSValueClass;
       aValue: UTF8String): TJSValue; override; overload;
   public
-    class function GetPath(aFolderPath: TFile): TFile;
     property DefaultDocExtension: UTF8String read GetDefaultDocExtension write SetDefaultDocExtension;
     property DefaultThumbnailExtension: UTF8String read GetDefaultThumbnailExtension write SetDefaultThumbnailExtension;
     property DefaultNotesExtension: UTF8String read GetDefaultNotesExtension write SetDefaultNotesExtension;
@@ -293,9 +292,6 @@ type
   end;
 
   const
-    ProjectPropertiesDescriptor = 'stew';
-    DocumentPropertiesDescriptor = 'properties';
-    PropertiesExtension = 'json';
     UserKey = 'user';
     CategoriesKey = 'categories';
     StatusesKey = 'statuses';
@@ -437,11 +433,6 @@ begin
   else
     Result:=inherited CreateStringValue(aKey, aRequestType, aValue);
   end;
-end;
-
-class function TProjectProperties2.GetPath(aFolderPath: TFile): TFile;
-begin
-  result := aFolderPath.GetContainedFile('',ProjectPropertiesDescriptor,PropertiesExtension,false);
 end;
 
 { TKeywordDefinitions2 }
