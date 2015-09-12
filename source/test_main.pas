@@ -13,6 +13,32 @@ type
   {
   TODO: Working on upgrading stew project to new stuff. See test_stew_project.
 
+  TODO: Consider some renaming and refactoring:
+  - I know the whole 'T' prefix is old hat with Pascal, but it does get a little
+  old after a while. I would like to consider changing *my* classes, at least the
+  ones that don't descend from the LCL, to get rid of all such prefixes. I'm not
+  stuck on this, though. *At least, we could get rid of them on inner classes,
+  see below*. Right now, however, I've got a list of the following 'prefixes'
+  which I make use of:
+    "T": Indicates a type
+    "G": Indicates a generic (This is non-standard, but I feel like there needs
+         to be a difference between a TList and a GList<ContainerType>
+         -- I should probably come up with a prefix for the type argument of
+            a generic.
+    "g": Indicates a global variable (yes, it could get confused with "G", but
+         I rarely use global variables, I'm more likely to
+    "f": Indicates a private member variable (field) of a class, record, etc.
+    - The main reason for this one is to avoid naming conflicts, because of
+      Pascal's case-insensitivity. In C-based languages, I can use a lower case
+      to indicate the field and an upper-case to indicate the property.
+    "a": Indicates an argument variable in a function/procedure/method.
+    "l": Indicates a local variable in a function/procedure/method.
+  - I would also like to consider making use of nested types to simplify some of
+  the very long names. For instance, all of those TDoThisAndThatAndThenSomethingElseTasks,
+  combined with similar Promises. Instead of TFileCacheReadFileTask, I could make
+  a TReadFileTask class that's an inner type on TFileCache. Or TFileReadTask
+  into TFile.ReadTask, for that matter.
+
   TODO: Consider keeping a "log" (this would be an application setting)
   of "actions", and their responses in the StewProject option. That will, at least,
   make it easier to debug and reproduce errors, if we can get users to reproduce

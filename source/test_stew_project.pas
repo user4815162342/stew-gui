@@ -9,14 +9,13 @@ uses
 
 {
 TODO:
-- Need to start getting events going
-  - still need to *test* the project events somehow.
-    - I Wonder if I could add some 'ToString' to the event objects and
-      then just compare the string against an array of strings in the
-      expected order.
-- Need Document Lists (starting with the root level) read
+- As we go through, make sure we're supporting the non-file events with
+  each thing.
 - Need Document Properties read/write
+- Need Document Lists (starting with the root level) read
+  - will require the document properties in order to do the sorting.
 - Need Document Synopsis read/write
+- Need Document IsDirectory (see below)
 - Need Edit Document Attachment
 - Need Create Document
   - also make sure it shows up in lists after created.
@@ -26,6 +25,25 @@ TODO:
     request is made to move. I should be able to just automatically change the
     documentpath to the new one. However, if I'm renaming *over* another file,
     that might be a problem, but I don't think I should allow that.
+
+TODO: An Idea to help out with the project tree building: Part of the
+file existence check, and the listing, involves calls to DirectoryExists.
+It shouldn't take much more to add a 'IsDirectory' property onto the
+Existence check in the file system cache. I can then easily report, with
+some quick check existence stuff, whether a given document has a directory
+attachment, and therefore be able to easily mark it as expandable in the
+project tree view, without having to guess. It does require doing a check
+existence on every document, but that's something that might be useful
+anyway.
+-- Basically, all this does is add a IsDirectory(Document) method, task
+and promise to the Project, and a little bit of infrastructure in the
+CheckExistence file routines to get this information.
+
+
+
+TODO: Once TStewProject is ready and tested, start deprecating the old stuff,
+and recompile the GUI. Use the deprecated hints to help figure out where things
+need to be fixed.
 
 TODO: I'm slowly converting the TStewProject over to the way I want it to be,
 and testing the new stuff as I do so (this is better than writing the tests and
@@ -172,21 +190,26 @@ TODO: Once the tests are done, start converting Project over to new code standar
 
 type
 
+  TProjectEventArray = array of String;
   { TProjectSpec }
 
   TProjectSpec = class(TTestSpec)
-    procedure Project_Properties_3(Sender: TPromise);
-    procedure Project_Properties_4(Sender: TPromise);
   private
     fTempDir: String;
     fTestRootDir: TFile;
     fProject: TStewProject;
+    fProjectEvents: TProjectEventArray;
+    procedure ClearProjectEvents;
+    function VerifyProjectEvents(aExpected: array of String; aTestID: Integer): Boolean;
+    procedure ObserveProject(Sender: TStewProject; Event: TProjectEvent);
     procedure Open_Project_1(Sender: TPromise);
     procedure Open_Project_2(Sender: TPromise);
     procedure Open_Project_3(Sender: TPromise);
     procedure PromiseFailed(Sender: TPromise; aError: TPromiseError);
     procedure Project_Properties_1(Sender: TPromise);
     procedure Project_Properties_2(Sender: TPromise);
+    procedure Project_Properties_3(Sender: TPromise);
+    procedure Project_Properties_4(Sender: TPromise);
   public
     procedure SetupTest; override;
     procedure CleanupTest; override;
@@ -242,6 +265,8 @@ end;
 procedure TProjectSpec.Project_Properties_1(Sender: TPromise);
 begin
   fProject := (Sender as TProjectPromise).Project;
+  ClearProjectEvents;
+  fProject.AddObserver(@ObserveProject);
   fProject.ReadProjectProperties.After(@Project_Properties_2,@PromiseFailed).Tag := Sender.Tag;
 end;
 
@@ -268,6 +293,50 @@ begin
   fProject.WriteProjectProperties(lProps).After(@Project_Properties_3,@PromiseFailed).Tag := Sender.Tag;
 end;
 
+procedure TProjectSpec.ClearProjectEvents;
+begin
+  SetLength(fProjectEvents,0);
+end;
+
+function TProjectSpec.VerifyProjectEvents(aExpected: array of String;
+  aTestID: Integer): Boolean;
+var
+  i: Integer;
+begin
+  result := true;
+  for i := 0 to Length(aExpected) - 1 do
+  begin
+    if i >= Length(fProjectEvents) then
+    begin
+      FailAsync(aTestID,'Not enough events reported');
+      result := false;
+      Exit;
+    end;
+    if fProjectEvents[i] <> aExpected[i] then
+    begin
+      FailAsync(aTestID,'Expected event: "' + aExpected[i] + '" received: "' + fProjectEvents[i] + '"');
+      result := false;
+      Exit;
+    end;
+  end;
+  if i < Length(fProjectEvents) - 1 then
+  begin
+    FailAsync(aTestID,'More events were observed than expected');
+    result := false;
+  end;
+
+end;
+
+procedure TProjectSpec.ObserveProject(Sender: TStewProject; Event: TProjectEvent);
+var
+  l: Integer;
+begin
+  l := Length(fProjectEvents);
+  SetLength(fProjectEvents,l + 1);
+  fProjectEvents[l] := Event.GetDescription;
+  Report(fProjectEvents[l]);
+end;
+
 procedure TProjectSpec.Project_Properties_3(Sender: TPromise);
 begin
   // re-read it to see if the data changed.
@@ -277,6 +346,13 @@ end;
 procedure TProjectSpec.Project_Properties_4(Sender: TPromise);
 begin
   AssertAsync((Sender as TProjectPropertiesPromise).Properties.DefaultCategory = 'Tome','Changes should have been saved',Sender.Tag);
+  if not VerifyProjectEvents(['<LoadingProjectPropertiesFile>',
+                              '<ProjectPropertiesFileLoaded>',
+                              '<ProjectPropertiesDataReceived>',
+                              '<SavingProjectPropertiesFile>',
+                              '<ProjectPropertiesFileSaved>',
+                              '<ProjectPropertiesDataReceived>'],Sender.Tag) then
+    Exit;
   EndAsync(Sender.Tag);
 end;
 

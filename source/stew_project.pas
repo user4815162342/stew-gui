@@ -187,26 +187,113 @@ type
   // errors such as parsing data, indicates saving conflicts, etc. and are handled by
   // the initial promises themselves. UI error reporting *should* be done for the second
   // one only, as it is global, but the other might be important to watch for as well.
-  TProjectAction = (paLoadingProjectProperties, paProjectPropertiesLoaded, paProjectPropertiesDataReceived, paProjectPropertiesFileLoadingFailed, paProjectPropertiesLoadingFailed,
-                    paSavingProjectProperties, paProjectPropertiesSaved, paProjectPropertiesSavingFailed, paProjectPropertiesSaveConflictOccurred, paProjectPropertiesFileSavingFailed,
-                    paListingDocuments, paDocumentsListed, paDocumentListDataReceived, paDocumentsListingFailed, paDocumentsFileListingFailed,
-                    paDocumentCreated, paDocumentDisappeared,
-                    paRenamingDocument, paDocumentRenamed, paDocumentRenameFailed, paDocumentFileRenameFailed,
-                    paLoadingAttachment, paAttachmentLoaded, paAttachmentDataReceived, paAttachmentLoadFailed, paAttachmentFileLoadFailed,
-                    paSavingAttachment, paAttachmentSaved, paAttachmentSaveFailed, paAttachmentSaveConflictOccurred, paAttachmentFileSaveFailed,
-                    paAttachmentDisappeared, paEditingAttachment);
+  TProjectEventKind = (
+  // The "File" events indicate actual file-based activity. These are necessary
+  // to:
+  //  - enable/disable UI elements, since certain file activities can't happen
+  //    at the same time for the same file. For example, the same file can't
+  //    be saved while loading, and vice versa. The same file can't be saved
+  //    a separate time while it's saving either.
+  //  - alert to more low-level errors in the file system. The "Failed" file
+  //    events will only occurr if there is an error while the cache is going
+  //    against the file system. The non-file versions of these events will
+  //    include errors in parsing and the like. The non-file versions should be
+  //    used for reporting errors in the UI.
+     paLoadingProjectPropertiesFile,
+     paProjectPropertiesFileLoaded,
+     paProjectPropertiesFileLoadingFailed,
+     paSavingProjectPropertiesFile,
+     paProjectPropertiesFileSaved,
+     paProjectPropertiesFileSavingFailed,
+     paListingDocumentFiles,
+     paDocumentFilesListed,
+     paDocumentsFileListingFailed,
+     paLoadingAttachmentFile,
+     paAttachmentFileLoaded,
+     paAttachmentFileLoadingFailed,
+     paSavingAttachmentFile,
+     paAttachmentFileSaved,
+     paAttachmentFileSavingFailed,
+  // There is no corresponding RenamingFile or FileRenamed, because these can't
+  // easily be mapped to documents, and the actual document renaming is probably
+  // much more useful. But, we still want the low-level error message sometimes.
+     paDocumentFileRenameFailed,
+  // The non-file events indicate activity at the project context itself. These
+  // *always* happen when a method is called on the project, whereas the file
+  // events only occur if the cache actually has to go against the file system.
+  // Also, the DataReceived event provides the actual data, whereas the FileLoaded
+  // event only contains a notification that the loading is complete.
+  // These should be used to indicate progress.
+  // Note that there are generally no 'begging' actions here (i.e. AttachmentSaving)
+  // because these things are not very useful or informative.
+     paProjectPropertiesDataReceived,
+     paProjectPropertiesLoadingFailed,
+     paProjectPropertiesSavingFailed,
+     paProjectPropertiesSaveConflictOccurred,
+     paDocumentListDataReceived,
+     paDocumentsListingFailed,
+     paDocumentCreated,
+     paDocumentDisappeared,
+     paRenamingDocument,
+     paDocumentRenamed,
+     paDocumentRenamingFailed,
+     paAttachmentDataReceived,
+     paAttachmentLoadingFailed,
+     paAttachmentSavingFailed,
+     paAttachmentSaveConflictOccurred,
+     paAttachmentDisappeared,
+     paEditingAttachment);
 
   { TProjectEvent }
 
   TProjectEvent = class(TObject)
   private
-    fAction: TProjectAction;
+    fAction: TProjectEventKind;
     fIsError: Boolean;
   public
-    constructor Create(aAction: TProjectAction);
-    property Action: TProjectAction read fAction;
+    constructor Create(aAction: TProjectEventKind);
+    property Action: TProjectEventKind read fAction;
     property IsError: Boolean read fIsError;
+    function GetDescription: UTF8String; virtual;
+    const
+      EventKindStrings: array[TProjectEventKind] of UTF8String =
+    ('LoadingProjectPropertiesFile',
+     'ProjectPropertiesFileLoaded',
+     'ProjectPropertiesFileLoadingFailed',
+     'SavingProjectPropertiesFile',
+     'ProjectPropertiesFileSaved',
+     'ProjectPropertiesFileSavingFailed',
+     'ListingDocumentFiles',
+     'DocumentFilesListed',
+     'DocumentsFileListingFailed',
+     'LoadingAttachmentFile',
+     'AttachmentFileLoaded',
+     'AttachmentFileLoadingFailed',
+     'SavingAttachmentFile',
+     'AttachmentFileSaved',
+     'AttachmentFileSavingFailed',
+     'DocumentFileRenameFailed',
+     'ProjectPropertiesDataReceived',
+     'ProjectPropertiesLoadingFailed',
+     'ProjectPropertiesSavingFailed',
+     'ProjectPropertiesSaveConflictOccurred',
+     'DocumentListDataReceived',
+     'DocumentsListingFailed',
+     'DocumentCreated',
+     'DocumentDisappeared',
+     'RenamingDocument',
+     'DocumentRenamed',
+     'DocumentRenamingFailed',
+     'AttachmentDataReceived',
+     'AttachmentLoadingFailed',
+     'AttachmentSavingFailed',
+     'AttachmentSaveConflictOccurred',
+     'AttachmentDisappeared',
+     'EditingAttachment');
+
   end;
+
+
 
   TStewProject = class;
 
@@ -229,7 +316,8 @@ type
   private
     fError: TPromiseError;
   public
-    constructor Create(aAction: TProjectAction; aError: TPromiseError);
+    constructor Create(aAction: TProjectEventKind; aError: TPromiseError);
+    function GetDescription: UTF8String; override;
   end;
 
   { TDocumentEvent }
@@ -238,8 +326,9 @@ type
   private
     fDocument: TDocumentPath;
   public
-    constructor Create(aAction: TProjectAction; aDocument: TDocumentPath);
+    constructor Create(aAction: TProjectEventKind; aDocument: TDocumentPath);
     property Document: TDocumentPath read fDocument;
+    function GetDescription: UTF8String; override;
   end;
 
   { TDocumentListedEvent }
@@ -252,6 +341,7 @@ type
   public
     constructor Create(aDocument: TDocumentPath; aList: TDocumentArray);
     property List: TDocumentArray read FList;
+    function GetDescription: UTF8String; override;
   end;
 
   { TDocumentError }
@@ -260,9 +350,10 @@ type
   private
     fError: TPromiseError;
   public
-    constructor Create(aAction: TProjectAction; aDocument: TDocumentPath;
+    constructor Create(aAction: TProjectEventKind; aDocument: TDocumentPath;
        aError: TPromiseError);
     property Error: TPromiseError read fError;
+    function GetDescription: UTF8String; override;
   end;
 
   { TDocumentRenameEvent }
@@ -271,9 +362,10 @@ type
   private
     fNewDocument: TDocumentPath;
   public
-    constructor Create(aAction: TProjectAction; aDocument: TDocumentPath;
+    constructor Create(aAction: TProjectEventKind; aDocument: TDocumentPath;
       aNewDocument: TDocumentPath);
     property NewDocument: TDocumentPath read fNewDocument;
+    function GetDescription: UTF8String; override;
   end;
 
   { TDocumentRenameErrorEvent }
@@ -282,9 +374,10 @@ type
   private
     fError: TPromiseError;
   public
-    constructor Create(aAction: TProjectAction; aDocument: TDocumentPath;
+    constructor Create(aAction: TProjectEventKind; aDocument: TDocumentPath;
        aNewDocument: TDocumentPath; aError: TPromiseError);
     property Error: TPromiseError read fError;
+    function GetDescription: UTF8String; override;
   end;
 
   // TODO: What else?
@@ -305,14 +398,27 @@ type
   private
     fAttachment: TAttachment;
   public
-    constructor Create(aAction: TProjectAction; aDocument: TDocumentPath;
+    constructor Create(aAction: TProjectEventKind; aDocument: TDocumentPath;
        aAttachment: TAttachment);
     property Attachment: TAttachmentKind read fAttachment.Kind;
     property Extension: UTF8String read fAttachment.Extension;
     property Descriptor: UTF8String read fAttachment.Descriptor;
+    function GetDescription: UTF8String; override;
+    const
+      AttachmentKindStrings: array[TAttachmentKind] of UTF8String =
+    ('unknown',
+     'primary',
+     'properties',
+     'notes',
+     'thumbnail',
+     'synopsis',
+     'backup'
+    );
   end;
 
   { TDocumentPropertiesDataReceived }
+
+  { TDocumentPropertiesDataReceivedEvent }
 
   TDocumentPropertiesDataReceivedEvent = class(TAttachmentEvent)
   private
@@ -330,6 +436,7 @@ type
   public
     constructor Create(aDocument: TDocumentPath; aSynopsis: UTF8String);
     property Synopsis: UTF8String read fSynopsis;
+    function GetDescription: UTF8String; override;
   end;
 
   { TAttachmentError }
@@ -338,9 +445,10 @@ type
   private
     fError: TPromiseError;
   public
-    constructor Create(aAction: TProjectAction; aDocument: TDocumentPath;
+    constructor Create(aAction: TProjectEventKind; aDocument: TDocumentPath;
        aAttachment: TAttachment; aError: TPromiseError);
     property Error: TPromiseError read fError;
+    function GetDescription: UTF8String; override;
   end;
 
   // TODO: These are old events, which are going to be gone when I've got things figured out.
@@ -698,9 +806,44 @@ type
     property IsConflict: Boolean read fIsConflict;
   end;
 
+  { TWriteAttachmentPromise }
+
+  TWriteAttachmentPromise = class(TPromise)
+  private
+    fIsConflict: Boolean;
+    fDocument: TDocumentPath;
+    fAttachment: TAttachment;
+  public
+    constructor Create(aDocument: TDocumentPath; aAttachment: TAttachment);
+    property IsConflict: Boolean read fIsConflict;
+    property Document: TDocumentPath read fDocument;
+    property Kind: TAttachmentKind read fAttachment.Kind;
+    property Descriptor: UTF8String read fAttachment.Descriptor;
+    property Extension: UTF8String read fAttachment.Extension;
+  end;
+
+  { TDocumentPropertiesPromise }
+
+  TDocumentPropertiesPromise = class(TPromise)
+  private
+    fProperties: TDocumentProperties2;
+    fDocument: TDocumentPath;
+    procedure LoadAnswer(aStream: TStream);
+  public
+    constructor Create(aDocument: TDocumentPath);
+    destructor Destroy; override;
+    property Properties: TDocumentProperties2 read fProperties;
+    property Document: TDocumentPath read fDocument;
+  end;
+
   { TStewProject }
 
   TStewProject = class
+    procedure DocumentPropertiesDataReceived(Sender: TPromise);
+    procedure DocumentPropertiesReadError(Sender: TPromise;
+      aError: TPromiseError);
+    procedure DocumentPropertiesWriteError(Sender: TPromise;
+      aError: TPromiseError);
   strict private type
 
     // this allows me access to the protected events on Project Properties,
@@ -750,16 +893,6 @@ type
       procedure DoTask; override;
     end;
 
-    { TReadProjectPropertiesTask }
-
-    TReadProjectPropertiesTask = class(TDeferredTask2)
-    protected
-      procedure DoTask(Input: TPromise); override;
-      function CreatePromise: TPromise; override;
-    public
-      constructor Defer(aPromise: TFileReadPromise);
-    end;
-
     { TWriteProjectPropertiesTask }
 
     TWriteProjectPropertiesTask = class(TDeferredTask2)
@@ -770,6 +903,47 @@ type
     public
       constructor Defer(aPromise: TFileWritePromise);
     end;
+
+    { TReadProjectPropertiesTask }
+
+    TReadProjectPropertiesTask = class(TDeferredTask2)
+    protected
+      procedure DoTask(Input: TPromise); override;
+      function CreatePromise: TPromise; override;
+    public
+      constructor Defer(aPromise: TFileReadPromise);
+    end;
+
+    { TWriteAttachmentTask }
+
+    TWriteAttachmentTask = class(TDeferredTask2)
+    private
+      fDocument: TDocumentPath;
+      fAttachment: TAttachment;
+    protected
+      procedure HandleError(Input: TPromise; Error: TPromiseError); override;
+      procedure DoTask({%H-}Input: TPromise); override;
+      function CreatePromise: TPromise; override;
+    public
+      constructor Defer(aDocument: TDocumentPath; aAttachment: TAttachment; aPromise: TFileWritePromise);
+      property Document: TDocumentPath read fDocument;
+      property Kind: TAttachmentKind read fAttachment.Kind;
+      property Descriptor: UTF8String read fAttachment.Descriptor;
+      property Extension: UTF8String read fAttachment.Extension;
+    end;
+
+    { TReadDocumentPropertiesTask }
+
+    TReadDocumentPropertiesTask = class(TDeferredTask2)
+    private
+      fDocument: TDocumentPath;
+    protected
+      procedure DoTask(Input: TPromise); override;
+      function CreatePromise: TPromise; override;
+    public
+      constructor Defer(aDocument: TDocumentPath; aPromise: TFileReadPromise);
+    end;
+
 
   private
     fDisk: TFile;
@@ -872,8 +1046,13 @@ type
     function GetProjectName: String;
     property Properties: TProjectProperties read GetProperties;
 
+    function ReadDocumentProperties(aDocument: TDocumentPath; aForceRefresh: Boolean = false): TDocumentPropertiesPromise;
+    function WriteDocumentProperties(aDocument: TDocumentPath; aProperties: TDocumentProperties2): TWriteAttachmentPromise;
     function ReadProjectProperties(aForceRefresh: Boolean = false): TProjectPropertiesPromise;
-    function WriteProjectProperties(aProperties: TProjectProperties2): TPromise;
+    function WriteProjectProperties(aProperties: TProjectProperties2
+      ): TWriteProjectPropertiesPromise;
+
+
     procedure AddObserver(aObserver: TProjectObserver);
     procedure RemoveObserver(aObserver: TProjectObserver);
     class function Open(aPath: TFile): TProjectPromise;
@@ -881,9 +1060,11 @@ type
     class function CreateNew(aPath: TFile): TProjectPromise;
     // utility functions used internally, but here for your pleasure since they
     // don't change anything.
-    function TranslateFileToDocument(aFile: TFile): TDocumentPath; inline;
-    function TranslateFileToAttachment(aFile: TFile): TAttachment; inline;
+    class function TranslateFileToDocument(aBasePath: TFile; aFile: TFile): TDocumentPath;
+    class function TranslateFileToAttachment(aBasePath: TFile; aFile: TFile): TAttachment;
+    class function TranslateDocumentAttachmentToFile(aBasePath: TFile; aDocument: TDocumentPath; aDescriptor: UTF8String; aExtension: UTF8String): TFile;
     class function GetProjectPropertiesPath(aFile: TFile): TFile;
+    class function GetDocumentPropertiesPath(aProjectPath: TFile; aDocument: TDocumentPath): TFile;
     const
       ProjectPropertiesDescriptor = 'stew';
       DocumentPropertiesDescriptor = 'properties';
@@ -959,6 +1140,16 @@ begin
   result := CompareText(a.ID,b.ID) = 0;
 end;
 
+{ TWriteAttachmentPromise }
+
+constructor TWriteAttachmentPromise.Create(aDocument: TDocumentPath;
+  aAttachment: TAttachment);
+begin
+  inherited Create;
+  fDocument := aDocument;
+  fAttachment := aAttachment;
+end;
+
 { TStewProject.TWriteProjectPropertiesTask }
 
 procedure TStewProject.TWriteProjectPropertiesTask.HandleError(Input: TPromise;
@@ -984,6 +1175,78 @@ begin
   inherited Defer(aPromise);
 end;
 
+{ TDocumentPropertiesPromise }
+
+procedure TDocumentPropertiesPromise.LoadAnswer(aStream: TStream);
+begin
+  if aStream <> nil then
+    fProperties := FromJSON(TDocumentProperties2,aStream) as TDocumentProperties2
+  else
+    fProperties := TDocumentProperties2.Create;
+end;
+
+constructor TDocumentPropertiesPromise.Create(aDocument: TDocumentPath);
+begin
+  inherited Create;
+  fDocument := aDocument;
+end;
+
+destructor TDocumentPropertiesPromise.Destroy;
+begin
+  FreeAndNil(fProperties);
+  inherited Destroy;
+end;
+
+{ TStewProject.TReadDocumentPropertiesTask }
+
+procedure TStewProject.TReadDocumentPropertiesTask.DoTask(Input: TPromise);
+begin
+  if not (Input as TFileReadPromise).DoesNotExist then
+     (Promise as TDocumentPropertiesPromise).LoadAnswer((Input as TFileReadPromise).Data)
+  else
+     (Promise as TDocumentPropertiesPromise).LoadAnswer(nil);
+  Resolve;
+end;
+
+function TStewProject.TReadDocumentPropertiesTask.CreatePromise: TPromise;
+begin
+  result := TDocumentPropertiesPromise.Create(fDocument);
+end;
+
+constructor TStewProject.TReadDocumentPropertiesTask.Defer(
+  aDocument: TDocumentPath; aPromise: TFileReadPromise);
+begin
+  fDocument := aDocument;
+  inherited Defer(aPromise);
+end;
+
+{ TStewProject.TWriteAttachmentTask }
+
+procedure TStewProject.TWriteAttachmentTask.HandleError(Input: TPromise;
+  Error: TPromiseError);
+begin
+  inherited HandleError(Input, Error);
+  (Promise as TWriteAttachmentPromise).fIsConflict := (Input as TFileWritePromise).IsConflict;
+end;
+
+procedure TStewProject.TWriteAttachmentTask.DoTask(Input: TPromise);
+begin
+  Resolve;
+end;
+
+function TStewProject.TWriteAttachmentTask.CreatePromise: TPromise;
+begin
+  result := TWriteAttachmentPromise.Create(fDocument,fAttachment);
+end;
+
+constructor TStewProject.TWriteAttachmentTask.Defer(aDocument: TDocumentPath;
+  aAttachment: TAttachment; aPromise: TFileWritePromise);
+begin
+  fDocument := aDocument;
+  fAttachment := aAttachment;
+  inherited Defer(aPromise);
+end;
+
 { TAttachment }
 
 class function TAttachment.Make(aKind: TAttachmentKind;
@@ -996,11 +1259,16 @@ end;
 
 { TAttachmentError }
 
-constructor TAttachmentError.Create(aAction: TProjectAction;
+constructor TAttachmentError.Create(aAction: TProjectEventKind;
   aDocument: TDocumentPath; aAttachment: TAttachment; aError: TPromiseError);
 begin
   inherited Create(aAction,aDocument,aAttachment);
   fError := aError;
+end;
+
+function TAttachmentError.GetDescription: UTF8String;
+begin
+  Result:=inherited GetDescription + ' "' + fError + '"';
 end;
 
 { TDocumentSynopsisDataReceived }
@@ -1010,6 +1278,11 @@ constructor TDocumentSynopsisDataReceived.Create(aDocument: TDocumentPath;
 begin
   inherited Create(paAttachmentDataReceived,aDocument,TAttachment.Make(atSynopsis,TStewProject.DocumentSynopsisDescriptor,TStewProject.DocumentSynopsisExtension));
   fSynopsis := aSynopsis;
+end;
+
+function TDocumentSynopsisDataReceived.GetDescription: UTF8String;
+begin
+  Result:=inherited GetDescription + ' "' + fSynopsis + '"';
 end;
 
 { TDocumentPropertiesDataReceived }
@@ -1022,20 +1295,30 @@ end;
 
 { TAttachmentEvent }
 
-constructor TAttachmentEvent.Create(aAction: TProjectAction;
+constructor TAttachmentEvent.Create(aAction: TProjectEventKind;
   aDocument: TDocumentPath; aAttachment: TAttachment);
 begin
   inherited Create(aAction,aDocument);
   fAttachment := aAttachment;
 end;
 
+function TAttachmentEvent.GetDescription: UTF8String;
+begin
+  Result:=inherited GetDescription + ' <' + AttachmentKindStrings[fAttachment.Kind] + '> "_' + fAttachment.Descriptor + '.' + fAttachment.Extension + '"';
+end;
+
 { TDocumentError }
 
-constructor TDocumentError.Create(aAction: TProjectAction;
+constructor TDocumentError.Create(aAction: TProjectEventKind;
   aDocument: TDocumentPath; aError: TPromiseError);
 begin
   inherited Create(aAction,aDocument);
   fError := aError;
+end;
+
+function TDocumentError.GetDescription: UTF8String;
+begin
+  Result:=inherited GetDescription + ' "' + fError + '"';
 end;
 
 { TDocumentListedEvent }
@@ -1048,40 +1331,86 @@ begin
 
 end;
 
+function TDocumentListDataReceivedEvent.GetDescription: UTF8String;
+var
+  i: Integer;
+begin
+  Result:=inherited GetDescription;
+  result := result + ' [';
+  for i := 0 to Length(fList) - 1 do
+  begin
+    if i > 0 then
+      result := result + ',';
+    if not (fList[i] = TDocumentPath.Null) then
+       result := result + ' ' + fList[i].ID
+    else
+       result := result + ' <BLANK DOCUMENT PATH>'
+  end;
+  result := result + ']';
+end;
+
 { TDocumentRenameErrorEvent }
 
-constructor TDocumentRenameErrorEvent.Create(aAction: TProjectAction;
+constructor TDocumentRenameErrorEvent.Create(aAction: TProjectEventKind;
   aDocument: TDocumentPath; aNewDocument: TDocumentPath; aError: TPromiseError);
 begin
   inherited Create(aAction,aDocument,aNewDocument);
   fError := aError;
 end;
 
+function TDocumentRenameErrorEvent.GetDescription: UTF8String;
+begin
+  Result:=inherited GetDescription + ' "' + fError + '"';
+end;
+
 { TDocumentRenameEvent }
 
-constructor TDocumentRenameEvent.Create(aAction: TProjectAction;
+constructor TDocumentRenameEvent.Create(aAction: TProjectEventKind;
   aDocument: TDocumentPath; aNewDocument: TDocumentPath);
 begin
   inherited Create(aAction,aDocument);
   fNewDocument := aNewDocument;
 end;
 
+function TDocumentRenameEvent.GetDescription: UTF8String;
+begin
+  Result:=inherited GetDescription;
+  if not (fNewDocument = TDocumentPath.Null) then
+    result := result + ' TO: ' + fNewDocument.ID
+  else
+     result := result + ' TO: <BLANK DOCUMENT PATH>';
+end;
+
 { TDocumentEvent }
 
-constructor TDocumentEvent.Create(aAction: TProjectAction;
+constructor TDocumentEvent.Create(aAction: TProjectEventKind;
   aDocument: TDocumentPath);
 begin
   inherited Create(aAction);
   fDocument := aDocument;
 end;
 
+function TDocumentEvent.GetDescription: UTF8String;
+begin
+  Result:=inherited GetDescription;
+  if not (fDocument = TDocumentPath.Null) then
+    result := result + ' ' + fDocument.ID
+  else
+     result := result + ' <BLANK DOCUMENT PATH>';
+end;
+
 { TProjectError }
 
-constructor TProjectError.Create(aAction: TProjectAction; aError: TPromiseError
+constructor TProjectError.Create(aAction: TProjectEventKind; aError: TPromiseError
   );
 begin
   inherited Create(aAction);
   fError := aError;
+end;
+
+function TProjectError.GetDescription: UTF8String;
+begin
+  Result:=inherited GetDescription + ' "' + fError + '"';
 end;
 
 { TProjectPropertiesDataReceivedEvent }
@@ -1095,7 +1424,7 @@ end;
 
 { TProjectEvent }
 
-constructor TProjectEvent.Create(aAction: TProjectAction);
+constructor TProjectEvent.Create(aAction: TProjectEventKind);
 begin
   inherited Create;
   fAction := aAction;
@@ -1103,10 +1432,17 @@ begin
                     paProjectPropertiesSavingFailed, paProjectPropertiesSaveConflictOccurred, paProjectPropertiesFileSavingFailed,
                     paDocumentsListingFailed, paDocumentsFileListingFailed,
                     paDocumentDisappeared,
-                    paDocumentRenameFailed,
-                    paAttachmentLoadFailed, paAttachmentFileLoadFailed,
-                    paAttachmentSaveFailed, paAttachmentSaveConflictOccurred, paAttachmentFileSaveFailed,
+                    paDocumentRenamingFailed,
+                    paAttachmentLoadingFailed, paAttachmentFileLoadingFailed,
+                    paAttachmentSavingFailed, paAttachmentSaveConflictOccurred, paAttachmentFileSavingFailed,
                     paAttachmentDisappeared];
+end;
+
+function TProjectEvent.GetDescription: UTF8String;
+begin
+  result := '<' + EventKindStrings[fAction] + '>';
+  if fIsError then
+    result := '<ERROR> ' + result;
 end;
 
 { TProjectPropertiesPromise }
@@ -2638,18 +2974,18 @@ var
     if Sender.Path = GetProjectPropertiesPath(fDisk) then
     begin
         if Sender.State = psIncomplete then
-           ReportEvent(TProjectEvent.Create(paLoadingProjectProperties))
+           ReportEvent(TProjectEvent.Create(paLoadingProjectPropertiesFile))
         else
-           ReportEvent(TProjectEvent.Create(paProjectPropertiesLoaded));
+           ReportEvent(TProjectEvent.Create(paProjectPropertiesFileLoaded));
     end
     else
     begin
-      lDocument := TranslateFileToDocument(Sender.Path);
-      lAttachment := TranslateFileToAttachment(Sender.Path);
+      lDocument := TranslateFileToDocument(fDisk,Sender.Path);
+      lAttachment := TranslateFileToAttachment(fDisk,Sender.Path);
       if Sender.State = psIncomplete then
-         ReportEvent(TAttachmentEvent.Create(paLoadingAttachment,lDocument,lAttachment))
+         ReportEvent(TAttachmentEvent.Create(paLoadingAttachmentFile,lDocument,lAttachment))
       else
-         ReportEvent(TAttachmentEvent.Create(paAttachmentLoaded,lDocument,lAttachment))
+         ReportEvent(TAttachmentEvent.Create(paAttachmentFileLoaded,lDocument,lAttachment))
     end;
   end;
 
@@ -2658,18 +2994,18 @@ var
     if Sender.Path = GetProjectPropertiesPath(fDisk)  then
     begin
         if Sender.State = psIncomplete then
-           ReportEvent(TProjectEvent.Create(paSavingProjectProperties))
+           ReportEvent(TProjectEvent.Create(paSavingProjectPropertiesFile))
         else
-           ReportEvent(TProjectEvent.Create(paProjectPropertiesSaved));
+           ReportEvent(TProjectEvent.Create(paProjectPropertiesFileSaved));
     end
     else
     begin
-      lAttachment := TranslateFileToAttachment(Sender.Path);
-      lDocument := TranslateFileToDocument(Sender.Path);
+      lAttachment := TranslateFileToAttachment(fDisk,Sender.Path);
+      lDocument := TranslateFileToDocument(fDisk,Sender.Path);
       if Sender.State = psIncomplete then
-         ReportEvent(TAttachmentEvent.Create(paSavingAttachment,lDocument,lAttachment))
+         ReportEvent(TAttachmentEvent.Create(paSavingAttachmentFile,lDocument,lAttachment))
       else
-         ReportEvent(TAttachmentEvent.Create(paAttachmentSaved,lDocument,lAttachment))
+         ReportEvent(TAttachmentEvent.Create(paAttachmentFileSaved,lDocument,lAttachment))
     end;
   end;
 
@@ -2677,12 +3013,12 @@ var
   begin
    if not (Sender.Path = GetProjectPropertiesPath(fDisk)) then
     begin
-      lAttachment := TranslateFileToAttachment(Sender.Path);
-      lDocument := TranslateFileToDocument(Sender.Path);
+      lAttachment := TranslateFileToAttachment(fDisk,Sender.Path);
+      lDocument := TranslateFileToDocument(fDisk,Sender.Path);
       if Sender.State = psIncomplete then
-         ReportEvent(TDocumentEvent.Create(paListingDocuments,lDocument))
+         ReportEvent(TDocumentEvent.Create(paListingDocumentFiles,lDocument))
       else
-         ReportEvent(TDocumentEvent.Create(paDocumentsListed,lDocument))
+         ReportEvent(TDocumentEvent.Create(paDocumentFilesListed,lDocument))
     end;
     // else, its an attempt to "list" the directory contents of a file. I'm
     // not worried about this.
@@ -2724,9 +3060,9 @@ var
     end
     else
     begin
-      lDocument := TranslateFileToDocument(Sender.Path);
-      lAttachment := TranslateFileToAttachment(Sender.Path);
-      ReportEvent(TAttachmentError.Create(paAttachmentFileLoadFailed,lDocument,lAttachment,aError));
+      lDocument := TranslateFileToDocument(fDisk,Sender.Path);
+      lAttachment := TranslateFileToAttachment(fDisk,Sender.Path);
+      ReportEvent(TAttachmentError.Create(paAttachmentFileLoadingFailed,lDocument,lAttachment,aError));
     end;
   end;
 
@@ -2738,9 +3074,9 @@ var
     end
     else
     begin
-      lAttachment := TranslateFileToAttachment(Sender.Path);
-      lDocument := TranslateFileToDocument(Sender.Path);
-      ReportEvent(TAttachmentError.Create(paAttachmentFileSaveFailed,lDocument,lAttachment,aError));
+      lAttachment := TranslateFileToAttachment(fDisk,Sender.Path);
+      lDocument := TranslateFileToDocument(fDisk,Sender.Path);
+      ReportEvent(TAttachmentError.Create(paAttachmentFileSavingFailed,lDocument,lAttachment,aError));
     end;
   end;
 
@@ -2748,7 +3084,7 @@ var
   begin
    if not (Sender.Path = GetProjectPropertiesPath(fDisk)) then
     begin
-      lDocument := TranslateFileToDocument(Sender.Path);
+      lDocument := TranslateFileToDocument(fDisk,Sender.Path);
       ReportEvent(TDocumentError.Create(paDocumentsFileListingFailed,lDocument,aError));
     end;
     // else, its an attempt to "list" the directory contents of a file. I'm
@@ -2790,10 +3126,42 @@ end;
 procedure TStewProject.ProjectPropertiesWriteError(Sender: TPromise;
   aError: TPromiseError);
 begin
-  if (Sender as TWriteProjectPropertiesPromise).IsConflict then
+  if (Sender as TWriteAttachmentPromise).IsConflict then
      ReportEvent(TProjectEvent.Create(paProjectPropertiesSaveConflictOccurred))
   else
      ReportEvent(TProjectError.Create(paProjectPropertiesSavingFailed,aError));
+end;
+
+procedure TStewProject.DocumentPropertiesDataReceived(Sender: TPromise);
+begin
+  ReportEvent(TDocumentPropertiesDataReceivedEvent.Create(
+                (Sender as TDocumentPropertiesPromise).Document,
+                (Sender as TDocumentPropertiesPromise).Properties));
+end;
+
+procedure TStewProject.DocumentPropertiesReadError(Sender: TPromise;
+  aError: TPromiseError);
+begin
+  ReportEvent(TAttachmentError.Create(paAttachmentDataReceived,
+                                      (Sender as TDocumentPropertiesPromise).Document,
+                                      TAttachment.Make(atProperties,
+                                          DocumentPropertiesDescriptor,
+                                          PropertiesExtension),
+                                      aError));
+end;
+
+procedure TStewProject.DocumentPropertiesWriteError(Sender: TPromise;
+  aError: TPromiseError);
+begin
+  if (Sender as TWriteAttachmentPromise).IsConflict then
+     ReportEvent(TAttachmentEvent.Create(paAttachmentSaveConflictOccurred,
+                                         (Sender as TWriteAttachmentPromise).Document,
+                                         (Sender as TWriteAttachmentPromise).fAttachment))
+  else
+     ReportEvent(TAttachmentError.Create(paAttachmentSavingFailed,
+                                         (Sender as TWriteAttachmentPromise).Document,
+                                         (Sender as TWriteAttachmentPromise).fAttachment,
+                                         aError));
 end;
 
 function TStewProject.GetIsOpened: Boolean;
@@ -2852,6 +3220,35 @@ begin
   result := fDisk.PacketName;
 end;
 
+function TStewProject.ReadDocumentProperties(aDocument: TDocumentPath;
+  aForceRefresh: Boolean): TDocumentPropertiesPromise;
+var
+  lPropFile: TFile;
+  lReadFile: TFileReadPromise;
+begin
+  lPropFile := GetDocumentPropertiesPath(fDisk,aDocument);
+  if aForceRefresh then
+    fCache.Uncache(lPropFile);
+  lReadFile := fCache.ReadFile(lPropFile);
+  result := TReadDocumentPropertiesTask.Defer(aDocument,lReadFile).Promise as TDocumentPropertiesPromise;
+  // we need to report the data that was received, and if an error occurred.
+  result.After(@DocumentPropertiesDataReceived,@DocumentPropertiesReadError);
+end;
+
+function TStewProject.WriteDocumentProperties(aDocument: TDocumentPath;
+  aProperties: TDocumentProperties2): TWriteAttachmentPromise;
+var
+  lWriteFile: TFileWritePromise;
+begin
+  lWriteFile := fCache.WriteFile(GetDocumentPropertiesPath(fDisk,aDocument));
+  ToJSON(aProperties,lWriteFile.Data,'  ');
+  result := TWriteAttachmentTask.Defer(aDocument,
+                                       TAttachment.Make(atProperties,DocumentPropertiesDescriptor,PropertiesExtension),
+                                       lWriteFile).Promise as TWriteAttachmentPromise;
+  // we only need to catch to make sure the error is reported.
+  result.Catch(@DocumentPropertiesWriteError);
+end;
+
 function TStewProject.ReadProjectProperties(aForceRefresh: Boolean
   ): TProjectPropertiesPromise;
 var
@@ -2868,13 +3265,13 @@ begin
 end;
 
 function TStewProject.WriteProjectProperties(aProperties: TProjectProperties2
-  ): TPromise;
+  ): TWriteProjectPropertiesPromise;
 var
   lWriteFile: TFileWritePromise;
 begin
   lWriteFile := fCache.WriteFile(GetProjectPropertiesPath(fDisk));
   ToJSON(aProperties,lWriteFile.Data,'  ');
-  result := TWriteProjectPropertiesTask.Defer(lWriteFile).Promise;
+  result := TWriteProjectPropertiesTask.Defer(lWriteFile).Promise as TWriteProjectPropertiesPromise;
   // we only need to catch to make sure the error is reported.
   result.Catch(@ProjectPropertiesWriteError);
 end;
@@ -2909,7 +3306,14 @@ begin
   result := aFile.GetContainedFile('',ProjectPropertiesDescriptor,PropertiesExtension,false);
 end;
 
-function TStewProject.TranslateFileToDocument(aFile: TFile): TDocumentPath;
+class function TStewProject.GetDocumentPropertiesPath(aProjectPath: TFile;
+  aDocument: TDocumentPath): TFile;
+begin
+  result := TranslateDocumentAttachmentToFile(aProjectPath,aDocument,DocumentPropertiesDescriptor,PropertiesExtension);
+end;
+
+class function TStewProject.TranslateFileToDocument(aBasePath: TFile;
+  aFile: TFile): TDocumentPath;
 
 // I feel like this could be converted to tail recursion somehow but
 // I don't have time to try to figure that out, and it's probably not
@@ -2917,7 +3321,7 @@ function TStewProject.TranslateFileToDocument(aFile: TFile): TDocumentPath;
 
   function Translate(aFile: TFile): TDocumentPath;
   begin
-    if aFile = fDisk then
+    if aFile = aBasePath then
     begin
        result := TDocumentPath.Root;
     end
@@ -2929,7 +3333,7 @@ function TStewProject.TranslateFileToDocument(aFile: TFile): TDocumentPath;
   end;
 
 begin
-  if fDisk.Contains(aFile) then
+  if aBasePath.Contains(aFile) then
     // We want to be able to handle documents that are contained within
     // attachments, for future compatbility, so we are not looking at just
     // the packetname for the rest of the path, but we are for here,
@@ -2940,10 +3344,11 @@ begin
 
 end;
 
-function TStewProject.TranslateFileToAttachment(aFile: TFile): TAttachment;
+class function TStewProject.TranslateFileToAttachment(aBasePath: TFile;
+  aFile: TFile): TAttachment;
 begin
   result := TAttachment.Make(atUnknown,'','');
-  if fDisk.Contains(aFile) then
+  if aBasePath.Contains(aFile) then
   begin
     begin
       result.Extension := aFile.Extension;
@@ -2968,6 +3373,24 @@ begin
     end;
   end
   // else we're actually not at all interested in this file...
+end;
+
+class function TStewProject.TranslateDocumentAttachmentToFile(aBasePath: TFile;
+  aDocument: TDocumentPath; aDescriptor: UTF8String; aExtension: UTF8String
+  ): TFile;
+  function BuildPath(aFile: TFile; aDocument: TDocumentPath): TFile;
+  begin
+    if aDocument = TDocumentPath.Root then
+      result := aFile
+    else
+      result := BuildPath(aFile,aDocument.Container).GetContainedFile(aDocument.Name);
+  end;
+begin
+  if aDocument = TDocumentPath.Root then
+    result := aBasePath.GetContainedFile('',aDescriptor,aExtension,true)
+  else
+    result := BuildPath(aBasePath,aDocument.Container).WithDifferentDescriptorAndExtension(aDescriptor,aExtension);
+
 end;
 
 end.

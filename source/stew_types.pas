@@ -91,8 +91,71 @@ type
 
   end;
 
+  { GSimpleArray }
+
+  // TODO: Just a proof of concept. It simplifies a lot of the common
+  // things I do with dynamic arrays here, and it shouldn't take up anymore
+  // space. I can also add some other utilities onto this, like pop and
+  // push to turn it into a stack (and alternatively shift/unshift)
+  // I could however, start to make use of this instead of the other dynamic
+  // arrays.
+  generic GSimpleArray<ItemType> = record
+  public type
+    ArrayType = array of ItemType;
+  private
+    fItems: ArrayType;
+    function GetItem(Index: Integer): ItemType; inline;
+    function GetCount: Integer; inline;
+    procedure SetItem(Index: Integer; AValue: ItemType); inline;
+    procedure SetCount(AValue: Integer); inline;
+  public
+    procedure Add(Item: ItemType); inline;
+    property Count: Integer read GetCount write SetCount;
+    property Items[Index: Integer]: ItemType read GetItem write SetItem; default;
+  end;
+
+  TSimpleStringArray = specialize GSimpleArray<UTF8String>;
+
 
 implementation
+
+{ GSimpleList }
+
+function GSimpleArray.GetItem(Index: Integer): ItemType;
+begin
+  if (Index >= 0) and (Index < Count) then
+    result := fItems[Index]
+  else
+    raise Exception.Create('Invalid index');
+end;
+
+function GSimpleArray.GetCount: Integer;
+begin
+  result := Length(fItems);
+end;
+
+procedure GSimpleArray.SetItem(Index: Integer; AValue: ItemType);
+begin
+  if (Index >= 0) then
+  begin
+    if Index >= Count then
+      Count := Index + 1;
+    fItems[Index] := aValue;
+  end
+  else
+    raise Exception.Create('Invalid index');
+end;
+
+procedure GSimpleArray.SetCount(AValue: Integer);
+begin
+  SetLength(fItems,AValue);
+end;
+
+procedure GSimpleArray.Add(Item: ItemType);
+begin
+  Items[Count] := Item;
+
+end;
 
 { TEZSortStringList }
 
