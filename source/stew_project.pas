@@ -1394,7 +1394,7 @@ function TDocumentEvent.GetDescription: UTF8String;
 begin
   Result:=inherited GetDescription;
   if not (fDocument = TDocumentPath.Null) then
-    result := result + ' ' + fDocument.ID
+    result := result + ' "' + fDocument.ID + '"'
   else
      result := result + ' <BLANK DOCUMENT PATH>';
 end;
@@ -3389,7 +3389,7 @@ begin
   if aDocument = TDocumentPath.Root then
     result := aBasePath.GetContainedFile('',aDescriptor,aExtension,true)
   else
-    result := BuildPath(aBasePath,aDocument.Container).WithDifferentDescriptorAndExtension(aDescriptor,aExtension);
+    result := BuildPath(aBasePath,aDocument.Container).GetContainedFile(aDocument.Name,aDescriptor,aExtension,true);
 
 end;
 

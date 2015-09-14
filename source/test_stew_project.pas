@@ -11,15 +11,19 @@ uses
 TODO:
 - As we go through, make sure we're supporting the non-file events with
   each thing.
-- Need Document Properties read/write
 - Need Document Lists (starting with the root level) read
-  - will require the document properties in order to do the sorting.
+  - make sure this is sorted according to the index of the properties...
 - Need Document Synopsis read/write
 - Need Document IsDirectory (see below)
+  - include a test where we list documents and then check for this value
+    on each one.
 - Need Edit Document Attachment
+  - not absolutely sure we need to test this, although I suppose we're testing
+    it at another point where we're getting the xdg-open error.
 - Need Create Document
   - also make sure it shows up in lists after created.
 - Need *Shift* Document up and down
+  - and, again, test the listing after...
 - Need Move Document between folders.
   - I don't *really* need to prevent a move if something's being edited when a
     request is made to move. I should be able to just automatically change the
@@ -38,6 +42,11 @@ anyway.
 -- Basically, all this does is add a IsDirectory(Document) method, task
 and promise to the Project, and a little bit of infrastructure in the
 CheckExistence file routines to get this information.
+
+TODO: While we're at that, when we do a file list, the cache should automatically
+store the fact that each of those files exist. If we're doing a directory checking,
+we can either return a list of records and statuses, or just return two sets of
+lists: one for file and one for folders.
 
 
 
@@ -194,6 +203,10 @@ type
   { TProjectSpec }
 
   TProjectSpec = class(TTestSpec)
+    procedure Document_Properties_1(Sender: TPromise);
+    procedure Document_Properties_2(Sender: TPromise);
+    procedure Document_Properties_3(Sender: TPromise);
+    procedure Document_Properties_4(Sender: TPromise);
   private
     fTempDir: String;
     fTestRootDir: TFile;
@@ -216,6 +229,7 @@ type
   published
     procedure Test_Open_Project;
     procedure Test_Project_Properties;
+    procedure Test_Document_Properties;
   end;
 
 
@@ -291,6 +305,54 @@ begin
   // now, test changing some things and writing it out.
   lProps.DefaultCategory := 'Tome';
   fProject.WriteProjectProperties(lProps).After(@Project_Properties_3,@PromiseFailed).Tag := Sender.Tag;
+end;
+
+procedure TProjectSpec.Document_Properties_1(Sender: TPromise);
+var
+  lDocument: TDocumentPath;
+begin
+  fProject := (Sender as TProjectPromise).Project;
+  ClearProjectEvents;
+  fProject.AddObserver(@ObserveProject);
+  lDocument := TDocumentPath.Root.GetContainedDocument('Chapter 1');
+  fProject.ReadDocumentProperties(lDocument).After(@Document_Properties_2,@PromiseFailed).Tag := Sender.Tag;
+end;
+
+procedure TProjectSpec.Document_Properties_2(Sender: TPromise);
+var
+  lProps: TDocumentProperties2;
+  lDocument: TDocumentPath;
+begin
+  lProps := (Sender as TDocumentPropertiesPromise).Properties;
+  lDocument := (Sender as TDocumentPropertiesPromise).Document;
+  AssertAsync(lProps.Category = 'Chapter','Category should return correct value',Sender.Tag);
+  AssertAsync(lProps.Status = 'Unwritten','Status should return correct value',Sender.Tag);
+  AssertAsync(lProps.Title = 'The Cottage','Title should return correct value',Sender.Tag);
+  AssertAsync(lProps.Publish = false,'Publish should return correct value',Sender.Tag);
+  AssertAsync(lProps.Index.Length = 0,'Index should return correct value',Sender.Tag);
+  AssertAsync(lProps.User.Get('place').AsString = 'Jen''s Lakeside Cottage','User properties should return correct values',Sender.Tag);
+
+  lProps.Title := 'The Cottage Not in the Woods';
+  fProject.WriteDocumentProperties(lDocument,lProps).After(@Document_Properties_3,@PromiseFailed).Tag := Sender.Tag;
+end;
+
+procedure TProjectSpec.Document_Properties_3(Sender: TPromise);
+begin
+  // re-read it to see if the data changed.
+  fProject.ReadDocumentProperties((Sender as TWriteAttachmentPromise).Document).After(@Document_Properties_4,@PromiseFailed).Tag := Sender.Tag;
+end;
+
+procedure TProjectSpec.Document_Properties_4(Sender: TPromise);
+begin
+  AssertAsync((Sender as TDocumentPropertiesPromise).Properties.Title = 'The Cottage Not in the Woods','Changes should have been saved',Sender.Tag);
+  if not VerifyProjectEvents(['<LoadingAttachmentFile> "/Chapter 1" <properties> "_properties.json"',
+                              '<AttachmentFileLoaded> "/Chapter 1" <properties> "_properties.json"',
+                              '<AttachmentDataReceived> "/Chapter 1" <properties> "_properties.json"',
+                              '<SavingAttachmentFile> "/Chapter 1" <properties> "_properties.json"',
+                              '<AttachmentFileSaved> "/Chapter 1" <properties> "_properties.json"',
+                              '<AttachmentDataReceived> "/Chapter 1" <properties> "_properties.json"'],Sender.Tag) then
+    Exit;
+  EndAsync(Sender.Tag);
 end;
 
 procedure TProjectSpec.ClearProjectEvents;
@@ -399,6 +461,13 @@ begin
   if fProject <> nil then
     FreeAndNil(fProject);
   TStewProject.Open(fTestRootDir).After(@Project_Properties_1,@PromiseFailed).Tag := BeginAsync;
+end;
+
+procedure TProjectSpec.Test_Document_Properties;
+begin
+  if fProject <> nil then
+    FreeAndNil(fProject);
+  TStewProject.Open(fTestRootDir).After(@Document_Properties_1,@PromiseFailed).Tag := BeginAsync;
 end;
 
 end.
