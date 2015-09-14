@@ -289,7 +289,7 @@ var
   lFound: Boolean;
   lData: TFileArray;
 begin
-  if (aSender as TFileListPromise).DoesNotExist then
+  if not (aSender as TFileListPromise).IsFolder then
   begin
     FailAsync(aSender.Tag,'Expected list results to indicate that the directory exists');
     exit;

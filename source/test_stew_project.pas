@@ -11,17 +11,17 @@ uses
 TODO:
 - As we go through, make sure we're supporting the non-file events with
   each thing.
-- Need Document Lists (starting with the root level) read
-  - make sure this is sorted according to the index of the properties...
-- Need Document Synopsis read/write
-- Need Document IsDirectory (see below)
-  - include a test where we list documents and then check for this value
-    on each one.
+- Need to 'cache' the file lists in the file system cache as an existence check.
+  This requires the file list to have two separate lists, a folder list and a file
+  list.
 - Need Edit Document Attachment
   - not absolutely sure we need to test this, although I suppose we're testing
     it at another point where we're getting the xdg-open error.
 - Need Create Document
-  - also make sure it shows up in lists after created.
+  - also make sure it shows up in lists after created:
+    - on a list files, it must show up even if there's no backing file yet.
+    - on an isFolder check on it's parent, true must be returned, even if
+      it's not actually a folder.
 - Need *Shift* Document up and down
   - and, again, test the listing after...
 - Need Move Document between folders.
@@ -203,10 +203,6 @@ type
   { TProjectSpec }
 
   TProjectSpec = class(TTestSpec)
-    procedure Document_Properties_1(Sender: TPromise);
-    procedure Document_Properties_2(Sender: TPromise);
-    procedure Document_Properties_3(Sender: TPromise);
-    procedure Document_Properties_4(Sender: TPromise);
   private
     fTempDir: String;
     fTestRootDir: TFile;
@@ -223,20 +219,36 @@ type
     procedure Project_Properties_2(Sender: TPromise);
     procedure Project_Properties_3(Sender: TPromise);
     procedure Project_Properties_4(Sender: TPromise);
+    procedure Document_Properties_1(Sender: TPromise);
+    procedure Document_Properties_2(Sender: TPromise);
+    procedure Document_Properties_3(Sender: TPromise);
+    procedure Document_Properties_4(Sender: TPromise);
+    procedure Document_List_1(Sender: TPromise);
+    procedure Document_List_2(Sender: TPromise);
+    procedure Document_Syn_1(Sender: TPromise);
+    procedure Document_Syn_2(Sender: TPromise);
+    procedure Document_Syn_3(Sender: TPromise);
+    procedure Document_Syn_4(Sender: TPromise);
+    procedure Document_IsFolder_1(Sender: TPromise);
+    procedure Document_IsFolder_2(Sender: TPromise);
   public
     procedure SetupTest; override;
     procedure CleanupTest; override;
   published
+    procedure Test_DocumentPath;
     procedure Test_Open_Project;
     procedure Test_Project_Properties;
     procedure Test_Document_Properties;
+    procedure Test_Document_List;
+    procedure Test_Document_Synopsis;
+    procedure Test_Document_IsFolder;
   end;
 
 
 implementation
 
 uses
-  gui_async, FileUtil, sys_localfile, stew_properties, Graphics;
+  gui_async, FileUtil, sys_localfile, stew_properties, Graphics, stew_types;
 
 { TProjectSpec }
 
@@ -355,6 +367,111 @@ begin
   EndAsync(Sender.Tag);
 end;
 
+procedure TProjectSpec.Document_List_1(Sender: TPromise);
+var
+  lDocument: TDocumentPath;
+begin
+  fProject := (Sender as TProjectPromise).Project;
+  ClearProjectEvents;
+  fProject.AddObserver(@ObserveProject);
+  lDocument := TDocumentPath.Root;
+  fProject.ListDocumentsInFolder(lDocument).After(@Document_List_2,@PromiseFailed).Tag := Sender.Tag;
+end;
+
+procedure TProjectSpec.Document_List_2(Sender: TPromise);
+var
+  lDocuments: TDocumentArray;
+  l: Integer;
+begin
+  lDocuments := (Sender as TDocumentListPromise).List;
+  l := Length(lDocuments);
+  AssertAsync(l = 7,'Document list should return 7 items',Sender.Tag);
+  AssertAsync(lDocuments[0].Name = 'Chapter 1','Document list should return and be correctly sorted',Sender.Tag);
+  AssertAsync(lDocuments[1].Name = 'Chapter 2','Document list should return and be correctly sorted',Sender.Tag);
+  AssertAsync(lDocuments[2].Name = 'Chapter 3','Document list should return and be correctly sorted',Sender.Tag);
+  AssertAsync(lDocuments[3].Name = 'Chapter 4','Document list should return and be correctly sorted',Sender.Tag);
+  AssertAsync(lDocuments[4].Name = 'Chapter 5','Document list should return and be correctly sorted',Sender.Tag);
+  AssertAsync(lDocuments[5].Name = 'Epilogue','Document list should return and be correctly sorted',Sender.Tag);
+  AssertAsync(lDocuments[6].Name = 'Notes','Document list should return and be correctly sorted',Sender.Tag);
+  VerifyProjectEvents([
+'<ListingDocumentFiles> "/"',
+'<DocumentFilesListed> "/"',
+'<LoadingAttachmentFile> "/" <properties> "_properties.json"',
+'<AttachmentFileLoaded> "/" <properties> "_properties.json"',
+'<AttachmentDataReceived> "/" <properties> "_properties.json"',
+'<DocumentListDataReceived> "/" [ /Chapter 1, /Chapter 2, /Chapter 3, /Chapter 4, /Chapter 5, /Epilogue, /Notes]'
+  ],Sender.Tag);
+  EndAsync(Sender.Tag);
+
+end;
+
+procedure TProjectSpec.Document_Syn_1(Sender: TPromise);
+var
+  lDocument: TDocumentPath;
+begin
+  fProject := (Sender as TProjectPromise).Project;
+  ClearProjectEvents;
+  fProject.AddObserver(@ObserveProject);
+  lDocument := TDocumentPath.Root.GetContainedDocument('Chapter 1');
+  fProject.ReadDocumentSynopsis(lDocument).After(@Document_Syn_2,@PromiseFailed).Tag := Sender.Tag;
+end;
+
+procedure TProjectSpec.Document_Syn_2(Sender: TPromise);
+var
+  lSyn: UTF8String;
+  lDocument: TDocumentPath;
+begin
+  lSyn := (Sender as TDocumentSynopsisPromise).Synopsis;
+  lDocument := (Sender as TDocumentSynopsisPromise).Document;
+  AssertAsync(lSyn = 'Jack confesses to his friends that he''s actually a werewolf. While Jen and Joe are completely surprised, Jane responds to the news in a rather unexpected manner.','Synopsis must be read correctly',Sender.Tag);
+  lSyn := 'Jack confesses. Jen and Joe are suprised. Jane responds.';
+  fProject.WriteDocumentSynopsis(lDocument,lSyn).After(@Document_Syn_3,@PromiseFailed).Tag := Sender.Tag;
+end;
+
+procedure TProjectSpec.Document_Syn_3(Sender: TPromise);
+begin
+  // re-read it to see if the data changed.
+  fProject.ReadDocumentSynopsis((Sender as TWriteAttachmentPromise).Document).After(@Document_Syn_4,@PromiseFailed).Tag := Sender.Tag;
+end;
+
+procedure TProjectSpec.Document_Syn_4(Sender: TPromise);
+var
+  lSyn: UTF8String;
+begin
+  lSyn := (Sender as TDocumentSynopsisPromise).Synopsis;
+  AssertAsync(lSyn = 'Jack confesses. Jen and Joe are suprised. Jane responds.','Changes should have been saved',Sender.Tag);
+  if not VerifyProjectEvents(['<LoadingAttachmentFile> "/Chapter 1" <synopsis> "_synopsis.txt"',
+                              '<AttachmentFileLoaded> "/Chapter 1" <synopsis> "_synopsis.txt"',
+                              '<AttachmentDataReceived> "/Chapter 1" <synopsis> "_synopsis.txt"',
+                              '<SavingAttachmentFile> "/Chapter 1" <synopsis> "_synopsis.txt"',
+                              '<AttachmentFileSaved> "/Chapter 1" <synopsis> "_synopsis.txt"',
+                              '<AttachmentDataReceived> "/Chapter 1" <synopsis> "_synopsis.txt"'],Sender.Tag) then
+    Exit;
+  EndAsync(Sender.Tag);
+end;
+
+procedure TProjectSpec.Document_IsFolder_1(Sender: TPromise);
+var
+  lDocument: TDocumentPath;
+begin
+  fProject := (Sender as TProjectPromise).Project;
+  ClearProjectEvents;
+  fProject.AddObserver(@ObserveProject);
+  lDocument := TDocumentPath.Root.GetContainedDocument('Notes');
+  fProject.IsDocumentAFolder(lDocument).After(@Document_IsFolder_2,@PromiseFailed).Tag := Sender.Tag;
+end;
+
+procedure TProjectSpec.Document_IsFolder_2(Sender: TPromise);
+begin
+  AssertAsync((Sender as TDocumentIsFolderPromise).IsFolder,'Document should be a folder',Sender.Tag);
+  VerifyProjectEvents([
+'<CheckingDocumentFile> "/Notes"',
+'<DocumentFileChecked> "/Notes"'
+  ],Sender.Tag);
+  EndAsync(Sender.Tag);
+
+end;
+
 procedure TProjectSpec.ClearProjectEvents;
 begin
   SetLength(fProjectEvents,0);
@@ -451,6 +568,32 @@ begin
   inherited CleanupTest;
 end;
 
+procedure TProjectSpec.Test_DocumentPath;
+var
+  lPath: TDocumentPath;
+  lSplit: TStringArray;
+begin
+  lPath := TDocumentPath.Root;
+  lSplit := lPath.Split;
+  Assert(Length(lSplit) = 0,'Split of root should be 0');
+  lPath := TDocumentPath.Root.GetContainedDocument('Foo');
+  lSplit := lPath.Split;
+  Assert(Length(lSplit) = 1,'Split of single path should be 1');
+  Assert(lSplit[0] = 'Foo','Split should work right [1]');
+  lPath := TDocumentPath.Root.GetContainedDocument('Foo').GetContainedDocument('Bar');
+  lSplit := lPath.Split;
+  Assert(Length(lSplit) = 2,'Split should work right [2]');
+  Assert(lSplit[0] = 'Foo','Split should work right [3]');
+  Assert(lSplit[1] = 'Bar','Split should work right [4]');
+  lPath := TDocumentPath.Root.GetContainedDocument('Foo').GetContainedDocument('Bar').GetContainedDocument('Fooze');
+  lSplit := lPath.Split;
+  Assert(Length(lSplit) = 3,'Split should work right [5]');
+  Assert(lSplit[0] = 'Foo','Split should work right [6]');
+  Assert(lSplit[1] = 'Bar','Split should work right [7]');
+  Assert(lSplit[2] = 'Fooze','Split should work right [8]');
+
+end;
+
 procedure TProjectSpec.Test_Open_Project;
 begin
   TStewProject.Open(fTestRootDir).After(@Open_Project_1,@PromiseFailed).Tag := BeginAsync;
@@ -468,6 +611,27 @@ begin
   if fProject <> nil then
     FreeAndNil(fProject);
   TStewProject.Open(fTestRootDir).After(@Document_Properties_1,@PromiseFailed).Tag := BeginAsync;
+end;
+
+procedure TProjectSpec.Test_Document_List;
+begin
+  if fProject <> nil then
+    FreeAndNil(fProject);
+  TStewProject.Open(fTestRootDir).After(@Document_List_1,@PromiseFailed).Tag := BeginAsync;
+end;
+
+procedure TProjectSpec.Test_Document_Synopsis;
+begin
+  if fProject <> nil then
+    FreeAndNil(fProject);
+  TStewProject.Open(fTestRootDir).After(@Document_Syn_1,@PromiseFailed).Tag := BeginAsync;
+end;
+
+procedure TProjectSpec.Test_Document_IsFolder;
+begin
+  if fProject <> nil then
+    FreeAndNil(fProject);
+  TStewProject.Open(fTestRootDir).After(@Document_IsFolder_1,@PromiseFailed).Tag := BeginAsync;
 end;
 
 end.

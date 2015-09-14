@@ -305,7 +305,7 @@ var
   lFound: Boolean;
   lData: TFileArray;
 begin
-  if (aSender as TFileListPromise).DoesNotExist then
+  if not (aSender as TFileListPromise).IsFolder then
   begin
     FailAsync(aSender.Tag,'Expected list results to indicate that the directory exists');
     exit;
@@ -346,7 +346,7 @@ end;
 
 procedure TCacheSpec.ReadTestCallback(aSender: TPromise);
 begin
-  if (aSender as TFileReadPromise).DoesNotExist then
+  if not (aSender as TFileReadPromise).Exists then
     FailAsync(aSender.Tag,'Read test did not return any data')
   else if (aSender as TFileReadPromise).Age = NewFileAge then
     FailAsync(aSender.Tag,'Read test returned "new" file')

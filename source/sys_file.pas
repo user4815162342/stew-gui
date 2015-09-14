@@ -6,7 +6,7 @@ unit sys_file;
 interface
 
 uses
-  Classes, SysUtils, sys_async;
+  Classes, SysUtils, sys_async, stew_types;
 
 const NewFileAge: Longint = -1;
 
@@ -141,9 +141,11 @@ type
     function WithDifferentDescriptorAndExtension(aDesc: UTF8String; aExt: UTF8String): TFile;
     function WithDifferentPacketName(aName: UTF8String): TFile;
     function Contains(aFile: TFile): Boolean;
+    function SplitPath(aBasePath: TFile): TStringArray;
   end;
 
   TFileArray = array of TFile;
+
   { TFileListPromise }
 
   TFileListPromise = class(TPromise)
@@ -151,13 +153,16 @@ type
     fPath: TFile;
   protected
     fFiles: TFileArray;
-    fDoesNotExist: Boolean;
+    fExists: Boolean;
+    fIsFolder: Boolean;
   public
     constructor Create(aFile: TFile);
-    procedure SetAnswer(aFiles: TFileArray; aDoesNotExist: Boolean);
+    procedure SetAnswer(aFiles: TFileArray; aExists: Boolean; aIsFolder: Boolean
+      );
     property Files: TFileArray read fFiles;
     property Path: TFile read fPath;
-    property DoesNotExist: Boolean read fDoesNotExist;
+    property Exists: Boolean read fExists;
+    property IsFolder: Boolean read fIsFolder;
   end;
 
   { TFileCheckExistencePromise }
@@ -169,11 +174,13 @@ type
     fPath: Tfile;
   protected
     fExists: Boolean;
+    fIsFolder: Boolean;
   public
     constructor Create(aFile: TFile);
-    procedure SetAnswer(aExists: Boolean);
+    procedure SetAnswer(aExists: Boolean; aIsFolder: Boolean);
     property Path: TFile read fPath;
     property Exists: Boolean read fExists;
+    property IsFolder: Boolean read fIsFolder;
   end;
 
   { TFileReadPromise }
@@ -181,20 +188,24 @@ type
   TFileReadPromise = class(TPromise)
   private
     fPath: Tfile;
+    function GetDoesNotExist: Boolean;
   protected
     fDataString: UTF8String;
     fAge: Longint;
-    fDoesNotExist: Boolean;
+    fExists: Boolean;
+    fIsFolder: Boolean;
     fStream: TStream;
   public
     // The 'Reader' is owned by the promise and destroyed when that is destroyed.
     constructor Create(aFile: TFile);
     destructor Destroy; override;
     procedure SetAnswer(aStream: TStream; aAge: Longint;
-      aDoesNotExist: Boolean);
+      aExists: Boolean; aIsFolder: Boolean);
     property Path: TFile read FPath;
     property Age: Longint read FAge;
-    property DoesNotExist: Boolean read fDoesNotExist;
+    property DoesNotExist: Boolean read GetDoesNotExist; deprecated;
+    property Exists: Boolean read fExists;
+    property IsFolder: Boolean read fIsFolder;
     // Keep in mind that the stream is destroyed with the promise...
     property Data: TStream read fStream;
     function ReadString: UTF8String;
@@ -295,6 +306,7 @@ type
     class procedure OpenInEditor(aFile: TFile); virtual; abstract;
     class function GetTemplatesFor(aFile: TFile): TFileListTemplatesPromise; virtual; abstract;
     class function CreateFileFromTemplate(aFile: TFile; aTemplate: TTemplate): TFileCopyPromise; virtual; abstract;
+    class function SplitPath(aFile: TFile; aBasePath: TFile): TStringArray; virtual; abstract;
 
     class function GetFileSystemClass: TFileSystemClass; virtual; abstract;
   public
@@ -345,7 +357,6 @@ implementation
 
 uses
   strutils, FileUtil;
-
 
 { TFileListTemplatesPromise }
 
@@ -455,6 +466,11 @@ end;
 
 { TFileReadPromise }
 
+function TFileReadPromise.GetDoesNotExist: Boolean;
+begin
+  result := not fExists;
+end;
+
 constructor TFileReadPromise.Create(aFile: TFile);
 begin
   inherited Create;
@@ -470,11 +486,13 @@ begin
   inherited Destroy;
 end;
 
-procedure TFileReadPromise.SetAnswer(aStream: TStream; aAge: Longint; aDoesNotExist: Boolean);
+procedure TFileReadPromise.SetAnswer(aStream: TStream; aAge: Longint;
+  aExists: Boolean; aIsFolder: Boolean);
 begin
   fStream := aStream;
   fAge := aAge;
-  fDoesNotExist := aDoesNotExist;
+  fExists := aExists;
+  fIsFolder := aIsFolder;
 end;
 
 function TFileReadPromise.ReadString: UTF8String;
@@ -508,9 +526,10 @@ begin
   fPath := aFile;
 end;
 
-procedure TFileExistencePromise.SetAnswer(aExists: Boolean);
+procedure TFileExistencePromise.SetAnswer(aExists: Boolean; aIsFolder: Boolean);
 begin
   fExists := aExists;
+  fIsFolder := aIsFolder;
 end;
 
 { TFileListPromise }
@@ -519,14 +538,16 @@ constructor TFileListPromise.Create(aFile: TFile);
 begin
   inherited Create;
   fPath := aFile;
-  fDoesNotExist := true;
+  fExists := false;
+  fIsFolder := false;
 end;
 
-procedure TFileListPromise.SetAnswer(aFiles: TFileArray; aDoesNotExist: Boolean
-  );
+procedure TFileListPromise.SetAnswer(aFiles: TFileArray; aExists: Boolean;
+  aIsFolder: Boolean);
 begin
   fFiles := aFiles;
-  fDoesNotExist := aDoesNotExist;
+  fExists := aExists;
+  fIsFolder := aIsFolder;
 end;
 
 { TFileList }
@@ -742,6 +763,11 @@ begin
     lChild := lDirectory;
     lDirectory := lChild.Directory;
   end;
+end;
+
+function TFile.SplitPath(aBasePath: TFile): TStringArray;
+begin
+  result := fSystem.SplitPath(Self,aBasePath);
 end;
 
 procedure TFile.OpenInEditor;

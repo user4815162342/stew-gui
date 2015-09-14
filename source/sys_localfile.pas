@@ -5,7 +5,7 @@ unit sys_localfile;
 interface
 
 uses
-  Classes, SysUtils, sys_file, sys_async, FileUtil;
+  Classes, SysUtils, sys_file, sys_async, FileUtil, stew_types;
 
 type
 
@@ -107,18 +107,13 @@ type
     class procedure OpenInEditor(aFile: TFile); override;
     class function ReadFile(aFile: TFile): TFileReadPromise; override;
     class function WriteFile(aFile: TFile; aOptions: TFileWriteOptions; aFileAge: Longint): TFileWritePromise; override;
+    class function SplitPath(aFile: TFile; aBasePath: TFile): TStringArray; override;
   public
     class function RenameFiles(aSource: TFileArray;
       aTarget: TFileArray): TFileRenamePromise; override;
   end;
 
   function LocalFile(aPath: TFilename): TFile;
-
-type
-  TCachedLocalFileSystem = class(TLocalFileSystem)
-  end;
-
-  function CachedLocalFile(aPath: TFilename): TFile;
 
 const
   // formats in something like ISO8601, but I also need to quote the
@@ -135,11 +130,6 @@ uses
 function LocalFile(aPath: TFilename): TFile;
 begin
   result := TLocalFileSystem.GetFile(aPath);
-end;
-
-function CachedLocalFile(aPath: TFilename): TFile;
-begin
-  result := TCachedLocalFileSystem.GetFile(aPath);
 end;
 
 { TLocalFileRenameTask }
@@ -285,8 +275,10 @@ end;
 procedure TLocalFileReadTask.DoTask;
 var
   lStream: TFileStream;
+  lIsDir: Boolean;
 begin
-  if FileExists(fPath.ID) then
+  lIsDir := DirectoryExists(fPath.ID);
+  if (not lIsDir) and FileExists(fPath.ID) then
   begin
     lStream := TFileStream.Create(fPath.ID,fmOpenRead or fmShareDenyWrite);
     // get the age of the file now, while it's locked, to prevent certain
@@ -294,11 +286,11 @@ begin
     // Also, stream is now *owned* by the promise... It should still close
     // relatively quickly though.
 
-    (Promise as TFileReadPromise).SetAnswer(lStream,FileAge(fPath.ID),False);
+    (Promise as TFileReadPromise).SetAnswer(lStream,FileAge(fPath.ID),true,false);
   end
   else
   begin
-    (Promise as TFileReadPromise).SetAnswer(nil,NewFileAge,true);
+    (Promise as TFileReadPromise).SetAnswer(nil,NewFileAge,false,lIsDir);
   end;
   Resolve;
 end;
@@ -317,8 +309,13 @@ end;
 { TLocalFileExistsTask }
 
 procedure TLocalFileExistsTask.DoTask;
+var
+  lExists: Boolean;
+  lIsFolder: Boolean;
 begin
-  (Promise as TFileExistencePromise).SetAnswer(FileExists(fPath.ID) or DirectoryExists(fPath.ID));
+  lIsFolder := DirectoryExists(fPath.ID);
+  lExists := FileExists(fPath.ID) or lIsFolder;
+  (Promise as TFileExistencePromise).SetAnswer(lExists,lIsFolder);
   Resolve;
 end;
 
@@ -358,10 +355,10 @@ begin
         FindClose(SR);
       end;
     end;
-    (Promise as TFileListPromise).SetAnswer(lAnswer,false)
+    (Promise as TFileListPromise).SetAnswer(lAnswer,true,true)
   end
   else
-    (Promise as TFileListPromise).SetAnswer(lAnswer,not FileExists(fPath.ID));
+    (Promise as TFileListPromise).SetAnswer(lAnswer,FileExists(fPath.ID),false);
   Resolve;
 end;
 
@@ -450,6 +447,31 @@ class function TLocalFileSystem.WriteFile(aFile: TFile;
   aOptions: TFileWriteOptions; aFileAge: Longint): TFileWritePromise;
 begin
   result := TLocalFileWriteTask.Enqueue(aFile,aOptions,aFileAge).Promise as TFileWritePromise;
+end;
+
+class function TLocalFileSystem.SplitPath(aFile: TFile; aBasePath: TFile
+  ): TStringArray;
+var
+  lList: TStringArray;
+  i: Integer;
+  l: Integer;
+  lFile: TFile;
+begin
+  l := 0;
+  lFile := aFile;
+  while (lFile <> aBasePath) and (lFile.ID <> '') do
+  begin
+    SetLength(lList,l + 1);
+    lList[l] := lFile.BaseName;
+    inc(l);
+    lFile := lFile.Directory;
+  end;
+  // now reverse it...
+  SetLength(result,l);
+  for i := 0 to l - 1 do
+  begin
+    result[i] := lList[(l - 1) - i];
+  end;
 end;
 
 end.

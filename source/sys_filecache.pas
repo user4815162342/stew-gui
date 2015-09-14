@@ -92,9 +92,11 @@ as well, since I don't intend on the file cache being shared.
   TFileSystemCacheExists = class(TFileSystemCacheData)
   private
     fExists: Boolean;
+    fIsFolder: Boolean;
   public
-    constructor Create(aExists: Boolean);
+    constructor Create(aExists: Boolean; aIsFolder: Boolean);
     property Exists: Boolean read fExists;
+    property IsFolder: Boolean read fIsFolder;
   end;
 
   { TFileSystemCacheLists }
@@ -273,7 +275,7 @@ constructor TFileSystemCacheReadKnownTask.Enqueue(aFile: TFile; aData: TFileSyst
 begin
   fFile := aFile;
   inherited Enqueue;
-  (Promise as TFileReadPromise).SetAnswer(TStringStream.Create(aData.Contents),aData.Age,not aExistence.Exists);
+  (Promise as TFileReadPromise).SetAnswer(TStringStream.Create(aData.Contents),aData.Age,aExistence.Exists,aExistence.IsFolder);
 end;
 
 { TFileSystemCacheReadDeferredTask }
@@ -284,7 +286,7 @@ begin
   // an actual stream, but that stream is owned by the promise, and could
   // be freed before this one is done. However, I can pass a TStringStream,
   // since that's what's happening with the cached data anyway.
-  (Promise as TFileReadPromise).SetAnswer(TStringStream.Create((Input as TFileReadPromise).ReadString),(Input as TFileReadPromise).Age,(Input as TFileReadPromise).DoesNotExist);
+  (Promise as TFileReadPromise).SetAnswer(TStringStream.Create((Input as TFileReadPromise).ReadString),(Input as TFileReadPromise).Age,(Input as TFileReadPromise).Exists,(Input as TFileReadPromise).IsFolder);
   Resolve;
 end;
 
@@ -317,7 +319,7 @@ constructor TFileSystemCacheListKnownTask.Enqueue(aFile: TFile;
 begin
   fFile := aFile;
   inherited Enqueue;
-  (Promise as TFileListPromise).SetAnswer(aData.Files,not aExistence.Exists);
+  (Promise as TFileListPromise).SetAnswer(aData.Files,aExistence.Exists,aExistence.IsFolder);
 
 end;
 
@@ -326,9 +328,9 @@ end;
 procedure TFileSystemCacheExistenceDeferredTask.DoTask(Input: TPromise);
 begin
   if Input is TFileReadPromise then
-     (Promise as TFileExistencePromise).SetAnswer(not (Input as  TFileReadPromise).DoesNotExist)
+     (Promise as TFileExistencePromise).SetAnswer((Input as TFileReadPromise).Exists,(Input as TFileReadPromise).IsFolder)
   else if Input is TFileListPromise then
-     (Promise as TFileExistencePromise).SetAnswer(not (Input as TFileListPromise).DoesNotExist)
+     (Promise as TFileExistencePromise).SetAnswer((Input as TFileListPromise).Exists,(Input as TFileListPromise).IsFolder)
   else
   begin
      // shouldn't happen if the constructor is taking care of things right.
@@ -374,7 +376,7 @@ constructor TFileSystemCacheExistenceKnownTask.Enqueue(aFile: TFile;
 begin
   fFile := aFile;
   inherited Enqueue;
-  (Promise as TFileExistencePromise).SetAnswer(aData.Exists);
+  (Promise as TFileExistencePromise).SetAnswer(aData.Exists,aData.IsFolder);
 end;
 
 { TFileSystemCacheContents }
@@ -402,10 +404,11 @@ end;
 
 { TFileSystemCacheExists }
 
-constructor TFileSystemCacheExists.Create(aExists: Boolean);
+constructor TFileSystemCacheExists.Create(aExists: Boolean; aIsFolder: Boolean);
 begin
   inherited Create;
   fExists := aExists;
+  fIsFolder := aIsFolder;
 end;
 
 { TFileSystemCacheData }
@@ -421,16 +424,18 @@ end;
 procedure TFileSystemCache.FileExistenceChecked(Sender: TPromise);
 var
   lFile: TFile;
-  lAnswer: Boolean;
+  lExists: Boolean;
+  lIsFolder: Boolean;
   lExistsKey: UTF8String;
 begin
   lFile := (Sender as TFileExistencePromise).Path;
   lExistsKey := ExistsKey(lFile);
   if fPromiseCache[lExistsKey] = Sender then
   begin
-    lAnswer := (Sender as TFileExistencePromise).Exists;
+    lExists := (Sender as TFileExistencePromise).Exists;
+    lIsFolder:= (Sender as TFileExistencePromise).IsFolder;
     fPromiseCache.Delete(lExistsKey);
-    fDataCache[lExistsKey] := TFileSystemCacheExists.Create(lAnswer);
+    fDataCache[lExistsKey] := TFileSystemCacheExists.Create(lExists,lIsFolder);
     ReportActivity(Sender);
   end;
   // otherwise, there must be a newer promise with better information...
@@ -442,6 +447,7 @@ var
   lExists: Boolean;
   lList: TFileArray;
   lExistsKey: UTF8String;
+  lIsFolder: Boolean;
   lListKey: UTF8String;
 begin
   lFile := (Sender as TFileListPromise).Path;
@@ -449,10 +455,11 @@ begin
   lListKey := ListKey(lFile);
   if fPromiseCache[lListKey] = Sender then
   begin
-    lExists := not (Sender as TFileListPromise).DoesNotExist;
+    lExists := (Sender as TFileListPromise).Exists;
+    lIsFolder := (Sender as TFileListPromise).IsFolder;
     lList := (Sender as TFileListPromise).Files;
     fPromiseCache.Delete(lListKey);
-    fDataCache[lExistsKey] := TFileSystemCacheExists.Create(lExists);
+    fDataCache[lExistsKey] := TFileSystemCacheExists.Create(lExists,lIsFolder);
     fDataCache[lListKey] := TFileSystemCacheLists.Create(lList);
     ReportActivity(Sender);
   end;
@@ -501,7 +508,7 @@ begin
   if fPromiseCache[lSavingKey] = Sender then
   begin
     fPromiseCache.Delete(lSavingKey);
-    fDataCache[lExistsKey] := TFileSystemCacheExists.Create(true);
+    fDataCache[lExistsKey] := TFileSystemCacheExists.Create(true,false);
     lAge := (Sender as TFileWritePromise).Age;
     lContents := (Sender as TFileWritePromise).ReadString;
     fDataCache[lContentsKey] := TFileSystemCacheContents.Create(lContents,lAge);
@@ -627,6 +634,7 @@ procedure TFileSystemCache.FileRead(Sender: TPromise);
 var
   lFile: TFile;
   lExists: Boolean;
+  lIsFolder: Boolean;
   lContents: UTF8String;
   lAge: Longint;
   lExistsKey: UTF8String;
@@ -638,8 +646,9 @@ begin
   if fPromiseCache[lContentsKey] = Sender then
   begin
     fPromiseCache.Delete(lContentsKey);
-    lExists := not (Sender as TFileReadPromise).DoesNotExist;
-    fDataCache[lExistsKey] := TFileSystemCacheExists.Create(lExists);
+    lExists := (Sender as TFileReadPromise).Exists;
+    lIsFolder:=(Sender as TFileReadPromise).IsFolder;
+    fDataCache[lExistsKey] := TFileSystemCacheExists.Create(lExists,lIsFolder);
     lAge := (Sender as TFileReadPromise).Age;
     lContents := (Sender as TFileReadPromise).ReadString;
     fDataCache[lContentsKey] := TFileSystemCacheContents.Create(lContents,lAge);

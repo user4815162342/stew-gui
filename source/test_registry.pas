@@ -214,7 +214,6 @@ procedure TTestRegistry.RunNextTest(Data: PtrInt);
 var
   lTest: TTest;
 begin
-  fCurrent := fCurrent + 1;
   if not fCancelled and (fCurrent < fTests.Count) then
   begin
     lTest := fTests[fCurrent];
@@ -377,12 +376,13 @@ end;
 
 procedure TTestRegistry.EndAsync(aTestID: Integer);
 begin
-  fIsAsync := false;
+  // TestSucceeded should check against current and isasync etc.
   TestSucceeded(aTestID);
 end;
 
 procedure TTestRegistry.QueueNextTest;
 begin
+  fCurrent := fCurrent + 1;
   Application.QueueAsyncCall(@RunNextTest,0)
 end;
 

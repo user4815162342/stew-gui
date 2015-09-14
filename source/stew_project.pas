@@ -159,6 +159,7 @@ type
     property Container: TDocumentPath read GetContainer;
     function GetContainedDocument(aName: UTF8String): TDocumentPath;
     function Contains(aChild: TDocumentPath): Boolean;
+    function Split: TStringArray;
     class function FromString(const aPath: UTF8String): TDocumentPath; static;
     const Root: TDocumentPath = ( fID: '/');
     const Null: TDocumentPath = ( fID: '');
@@ -208,6 +209,9 @@ type
      paListingDocumentFiles,
      paDocumentFilesListed,
      paDocumentsFileListingFailed,
+     paCheckingDocumentFile,
+     paDocumentFileChecked,
+     paDocumentFileCheckingFailed,
      paLoadingAttachmentFile,
      paAttachmentFileLoaded,
      paAttachmentFileLoadingFailed,
@@ -232,6 +236,7 @@ type
      paProjectPropertiesSaveConflictOccurred,
      paDocumentListDataReceived,
      paDocumentsListingFailed,
+     paDocumentFolderCheckFailed,
      paDocumentCreated,
      paDocumentDisappeared,
      paRenamingDocument,
@@ -266,6 +271,9 @@ type
      'ListingDocumentFiles',
      'DocumentFilesListed',
      'DocumentsFileListingFailed',
+     'CheckingDocumentFile',
+     'DocumentFileChecked',
+     'DocumentFileCheckingFailed',
      'LoadingAttachmentFile',
      'AttachmentFileLoaded',
      'AttachmentFileLoadingFailed',
@@ -279,6 +287,7 @@ type
      'ProjectPropertiesSaveConflictOccurred',
      'DocumentListDataReceived',
      'DocumentsListingFailed',
+     'DocumentFolderCheckFailed',
      'DocumentCreated',
      'DocumentDisappeared',
      'RenamingDocument',
@@ -389,7 +398,13 @@ type
     Kind: TAttachmentKind;
     Descriptor: UTF8String;
     Extension: UTF8String;
-    class function Make(aKind: TAttachmentKind; aDescriptor: UTF8String; aExtension: UTF8String): TAttachment; static;
+    class function MakeUnknown(aDescriptor: UTF8String; aExtension: UTF8String): TAttachment; static;
+    class function MakePrimary(aExtension: UTF8String): TAttachment; static;
+    class function MakeProperties: TAttachment; static;
+    class function MakeNotes(aExtension: UTF8String): TAttachment; static;
+    class function MakeThumbnail(aExtension: UTF8String): TAttachment; static;
+    class function MakeSynopsis: TAttachment; static;
+    class function MakeBackup(aDescriptor: UTF8String; aExtension: UTF8String): TAttachment; static;
   end;
 
   { TAttachmentEvent }
@@ -436,7 +451,6 @@ type
   public
     constructor Create(aDocument: TDocumentPath; aSynopsis: UTF8String);
     property Synopsis: UTF8String read fSynopsis;
-    function GetDescription: UTF8String; override;
   end;
 
   { TAttachmentError }
@@ -836,14 +850,46 @@ type
     property Document: TDocumentPath read fDocument;
   end;
 
+  { TDocumentSynopsisPromise }
+
+  TDocumentSynopsisPromise = class(TPromise)
+  private
+    fSynopsis: UTF8String;
+    fDocument: TDocumentPath;
+    procedure LoadAnswer(aText: UTF8String);
+  public
+    constructor Create(aDocument: TDocumentPath);
+    property Synopsis: UTF8String read fSynopsis;
+    property Document: TDocumentPath read fDocument;
+  end;
+
+  { TDocumentListPromise }
+
+  TDocumentListPromise = class(TPromise)
+  private
+    fDocument: TDocumentPath;
+    fList: TDocumentArray;
+  public
+    constructor Create(aDocument: TDocumentPath);
+    property Document: TDocumentPath read fDocument;
+    property List: TDocumentArray read fList;
+  end;
+
+  { TDocumentIsFolderPromise }
+
+  TDocumentIsFolderPromise = class(TPromise)
+  private
+    fDocument: TDocumentPath;
+    fIsFolder: Boolean;
+  public
+    constructor Create(aDocument: TDocumentPath);
+    property Document: TDocumentPath read fDocument;
+    property IsFolder: Boolean read fIsFolder;
+  end;
+
   { TStewProject }
 
   TStewProject = class
-    procedure DocumentPropertiesDataReceived(Sender: TPromise);
-    procedure DocumentPropertiesReadError(Sender: TPromise;
-      aError: TPromiseError);
-    procedure DocumentPropertiesWriteError(Sender: TPromise;
-      aError: TPromiseError);
   strict private type
 
     // this allows me access to the protected events on Project Properties,
@@ -944,6 +990,48 @@ type
       constructor Defer(aDocument: TDocumentPath; aPromise: TFileReadPromise);
     end;
 
+    { TReadDocumentSynopsisTask }
+
+    TReadDocumentSynopsisTask = class(TDeferredTask2)
+    private
+      fDocument: TDocumentPath;
+    protected
+      procedure DoTask(Input: TPromise); override;
+      function CreatePromise: TPromise; override;
+    public
+      constructor Defer(aDocument: TDocumentPath; aPromise: TFileReadPromise);
+    end;
+
+    { TListDocumentsInFolderTask }
+
+    TListDocumentsInFolderTask = class(TDeferredTask2)
+    private
+      fProject: TStewProject;
+      fDocument: TDocumentPath;
+      fFiles: TFileArray;
+      fIndex: TStringList;
+    protected
+      procedure DoTask(Input: TPromise); override;
+      function CreatePromise: TPromise; override;
+      procedure PropertiesReceived(Sender: TPromise);
+      function SortDocuments(List: TStringList; Index1, Index2: Integer
+        ): Integer;
+    public
+      constructor Defer(aDocument: TDocumentPath; aProject: TStewProject; aPromise: TFileListPromise);
+      destructor Destroy; override;
+    end;
+
+    { TIsDocumentAFolderTask }
+
+    TIsDocumentAFolderTask = class(TDeferredTask2)
+    private
+      fDocument: TDocumentPath;
+    protected
+      procedure DoTask(Input: TPromise); override;
+      function CreatePromise: TPromise; override;
+    public
+      constructor Defer(aDocument: TDocumentPath; aPromise: TFileExistencePromise);
+    end;
 
   private
     fDisk: TFile;
@@ -998,6 +1086,17 @@ type
     procedure ProjectPropertiesDataReceived(Sender: TPromise);
     procedure ProjectPropertiesReadError(Sender: TPromise; aError: TPromiseError);
     procedure ProjectPropertiesWriteError(Sender: TPromise; aError: TPromiseError);
+    procedure DocumentListError(Sender: TPromise; aError: TPromiseError);
+    procedure DocumentListReceived(Sender: TPromise);
+    procedure DocumentPropertiesDataReceived(Sender: TPromise);
+    procedure DocumentPropertiesReadError(Sender: TPromise;
+      aError: TPromiseError);
+    procedure AttachmentWriteError(Sender: TPromise;
+      aError: TPromiseError);
+    procedure DocumentSynopsisDataReceived(Sender: TPromise);
+    procedure DocumentSynopsisReadError(Sender: TPromise; aError: TPromiseError
+      );
+    procedure DocumentIsFolderError(Sender: TPromise; aError: TPromiseError);
   protected
     // NOTE: This is protected because project objects should be created
     // async in order to check.
@@ -1046,6 +1145,10 @@ type
     function GetProjectName: String;
     property Properties: TProjectProperties read GetProperties;
 
+    function IsDocumentAFolder(aDocument: TDocumentPath; aForceRefresh: Boolean = false): TDocumentIsFolderPromise;
+    function ListDocumentsInFolder(aDocument: TDocumentPath; aForceRefresh: Boolean = false): TDocumentListPromise;
+    function ReadDocumentSynopsis(aDocument: TDocumentPath; aForceRefresh: Boolean = false): TDocumentSynopsisPromise;
+    function WriteDocumentSynopsis(aDocument: TDocumentPath; aSynopsis: UTF8String): TWriteAttachmentPromise;
     function ReadDocumentProperties(aDocument: TDocumentPath; aForceRefresh: Boolean = false): TDocumentPropertiesPromise;
     function WriteDocumentProperties(aDocument: TDocumentPath; aProperties: TDocumentProperties2): TWriteAttachmentPromise;
     function ReadProjectProperties(aForceRefresh: Boolean = false): TProjectPropertiesPromise;
@@ -1065,6 +1168,8 @@ type
     class function TranslateDocumentAttachmentToFile(aBasePath: TFile; aDocument: TDocumentPath; aDescriptor: UTF8String; aExtension: UTF8String): TFile;
     class function GetProjectPropertiesPath(aFile: TFile): TFile;
     class function GetDocumentPropertiesPath(aProjectPath: TFile; aDocument: TDocumentPath): TFile;
+    class function GetDocumentSynopsisPath(aProjectPath: TFile; aDocument: TDocumentPath): TFile;
+    class function GetDocumentFolderPath(aProjectPath: TFile; aDocument: TDocumentPath): TFile;
     const
       ProjectPropertiesDescriptor = 'stew';
       DocumentPropertiesDescriptor = 'properties';
@@ -1140,6 +1245,207 @@ begin
   result := CompareText(a.ID,b.ID) = 0;
 end;
 
+{ TDocumentIsFolderPromise }
+
+constructor TDocumentIsFolderPromise.Create(aDocument: TDocumentPath);
+begin
+  inherited Create;
+  fDocument := aDocument;
+end;
+
+{ TStewProject.TIsDocumentAFolderTask }
+
+procedure TStewProject.TIsDocumentAFolderTask.DoTask(Input: TPromise);
+begin
+  (Promise as TDocumentIsFolderPromise).fIsFolder := (Input as TFileExistencePromise).IsFolder;
+  Resolve;
+end;
+
+function TStewProject.TIsDocumentAFolderTask.CreatePromise: TPromise;
+begin
+  result := TDocumentIsFolderPromise.Create(fDocument);
+end;
+
+constructor TStewProject.TIsDocumentAFolderTask.Defer(aDocument: TDocumentPath;
+  aPromise: TFileExistencePromise);
+begin
+  fDocument := aDocument;
+  inherited Defer(aPromise);
+end;
+
+{ TDocumentSynopsisPromise }
+
+procedure TDocumentSynopsisPromise.LoadAnswer(aText: UTF8String);
+begin
+  fSynopsis := aText;
+end;
+
+constructor TDocumentSynopsisPromise.Create(aDocument: TDocumentPath);
+begin
+  inherited Create;
+  fDocument := aDocument;
+end;
+
+{ TStewProject.TReadDocumentSynopsisTask }
+
+procedure TStewProject.TReadDocumentSynopsisTask.DoTask(Input: TPromise);
+begin
+  if (Input as TFileReadPromise).Exists and not (Input as TFileReadPromise).IsFolder then
+     (Promise as TDocumentSynopsisPromise).LoadAnswer((Input as TFileReadPromise).ReadString)
+  else
+     (Promise as TDocumentSynopsisPromise).LoadAnswer('');
+  Resolve;
+end;
+
+function TStewProject.TReadDocumentSynopsisTask.CreatePromise: TPromise;
+begin
+  result := TDocumentSynopsisPromise.Create(fDocument);
+
+end;
+
+constructor TStewProject.TReadDocumentSynopsisTask.Defer(
+  aDocument: TDocumentPath; aPromise: TFileReadPromise);
+begin
+  fDocument := aDocument;
+  inherited Defer(aPromise);
+
+end;
+
+{ TDocumentListPromise }
+
+constructor TDocumentListPromise.Create(aDocument: TDocumentPath);
+begin
+  inherited Create;
+  fDocument := aDocument;
+end;
+
+{ TStewProject.TListDocumentsInFolderTask }
+
+procedure TStewProject.TListDocumentsInFolderTask.PropertiesReceived(
+  Sender: TPromise);
+var
+  lProps: TDocumentProperties2;
+  lList: TEZSortStringList;
+  lDocuments: TDocumentArray;
+  lDocument: TDocumentPath;
+  l: Integer;
+  i: Integer;
+begin
+  try
+    fIndex.Clear;
+    lProps := (Sender as TDocumentPropertiesPromise).Properties;
+    l := lProps.Index.Length;
+    for i := 0 to l - 1 do
+    begin
+      fIndex.Add(lProps.Index.Get(i).AsString);
+    end;
+
+    // FUTURE: I should be able to do this in less steps, for example
+    // without translating to strings. But that will require me to write
+    // my own sorting procedure.
+    SetLength(lDocuments,0);
+
+    lList := TEZSortStringList.Create;
+    try
+      // start out with them sorted, so we can keep the documents unique.
+      lList.Sorted := true;
+      lList.Duplicates:=dupIgnore;
+      lList.CaseSensitive:=false;
+
+      // now, start adding the files as documents...
+      l := Length(fFiles);
+      for i := 0 to l - 1 do
+      begin
+        lDocument := TranslateFileToDocument(fProject.fDisk,fFiles[i]);
+        if lDocument.Name <> '' then
+          // hide the documents made from folder attachments such
+          // as _stew.json and _properties.json in the root.
+          lList.Add(lDocument.ID);
+      end;
+
+      // we should just have an item for each document now. Now,
+      // we have to change the sorting to sort by index.
+      lList.Sorted := false;
+      lList.OnEZSort:=@SortDocuments;
+      lList.EZSort;
+      l := lList.Count;
+      SetLength(lDocuments,l);
+      for i := 0 to l - 1 do
+      begin
+        lDocuments[i] := TDocumentPath.FromString(lList[i]);
+      end;
+    finally
+      lList.Free;
+    end;
+
+    (Promise as TDocumentListPromise).fList := lDocuments;
+    Resolve;
+
+  except on E: Exception do
+    Reject(E.Message);
+  end;
+end;
+
+function SimpleIndexOf(List: TStrings; aText: String): Integer; inline;
+begin
+  // TStringList.IndexOf has a little bit of overhead that I don't want
+  // and returns -1 for not found, when I want the final value.
+  result:=0;
+  While (result < List.Count) and (CompareText(list[Result],aText) <> 0) do
+    result:=result+1;
+end;
+
+
+
+
+function TStewProject.TListDocumentsInFolderTask.SortDocuments(
+  List: TStringList; Index1, Index2: Integer): Integer;
+var
+  s1: String;
+  s2: String;
+  i1: Integer;
+  i2: integer;
+begin
+  s1 := TDocumentPath.FromString(List[Index1]).Name;
+  s2 := TDocumentPath.FromString(List[Index2]).Name;
+  i1 := SimpleIndexOf(findex,s1);
+  i2 := SimpleIndexOf(findex,s2);
+  if (i1 = i2) then
+    result := CompareText(s1,s2)
+  else
+    result := i1 - i2;
+end;
+
+procedure TStewProject.TListDocumentsInFolderTask.DoTask(Input: TPromise);
+var
+  lReadProperties: TDocumentPropertiesPromise;
+begin
+  fFiles := (Input as TFileListPromise).Files;
+  // we need the properties as well...
+  lReadProperties := fProject.ReadDocumentProperties(fDocument,false);
+  lReadProperties.After(@PropertiesReceived,@SubPromiseRejected);
+end;
+
+function TStewProject.TListDocumentsInFolderTask.CreatePromise: TPromise;
+begin
+  Result := TDocumentListPromise.Create(fDocument);
+end;
+
+constructor TStewProject.TListDocumentsInFolderTask.Defer(
+  aDocument: TDocumentPath; aProject: TStewProject; aPromise: TFileListPromise);
+begin
+  fDocument := aDocument;
+  fProject := aProject;
+  fIndex := TStringList.Create;
+  inherited Defer(aPromise);
+end;
+
+destructor TStewProject.TListDocumentsInFolderTask.Destroy;
+begin
+  FreeAndNil(fIndex);
+  inherited Destroy;
+end;
+
 { TWriteAttachmentPromise }
 
 constructor TWriteAttachmentPromise.Create(aDocument: TDocumentPath;
@@ -1201,7 +1507,7 @@ end;
 
 procedure TStewProject.TReadDocumentPropertiesTask.DoTask(Input: TPromise);
 begin
-  if not (Input as TFileReadPromise).DoesNotExist then
+  if (Input as TFileReadPromise).Exists and not (Input as TFileReadPromise).IsFolder then
      (Promise as TDocumentPropertiesPromise).LoadAnswer((Input as TFileReadPromise).Data)
   else
      (Promise as TDocumentPropertiesPromise).LoadAnswer(nil);
@@ -1249,12 +1555,57 @@ end;
 
 { TAttachment }
 
-class function TAttachment.Make(aKind: TAttachmentKind;
-  aDescriptor: UTF8String; aExtension: UTF8String): TAttachment;
+class function TAttachment.MakeUnknown(aDescriptor: UTF8String;
+  aExtension: UTF8String): TAttachment;
 begin
-  result.Kind := aKind;
-  result.Descriptor:=aDescriptor;
-  result.Extension:=aExtension;
+  result.Kind:=atUnknown;
+  result.Extension := aExtension;
+  result.Descriptor := aDescriptor;
+end;
+
+class function TAttachment.MakePrimary(aExtension: UTF8String): TAttachment;
+begin
+  result.Kind:=atPrimary;
+  Result.Extension := aExtension;
+  result.Descriptor := '';
+end;
+
+class function TAttachment.MakeProperties: TAttachment;
+begin
+  result.Kind := atProperties;
+  Result.Descriptor:=TStewProject.DocumentPropertiesDescriptor;
+  Result.Extension := TStewProject.PropertiesExtension;
+end;
+
+class function TAttachment.MakeNotes(aExtension: UTF8String): TAttachment;
+begin
+  result.Kind:=atNotes;
+  Result.Extension := aExtension;
+  result.Descriptor := TStewProject.DocumentNotesDescriptor;
+end;
+
+class function TAttachment.MakeThumbnail(aExtension: UTF8String): TAttachment;
+begin
+  result.Kind:=atThumbnail;
+  Result.Extension := aExtension;
+  result.Descriptor := TStewProject.DocumentThumbnailDescriptor;
+end;
+
+class function TAttachment.MakeSynopsis: TAttachment;
+begin
+  result.Kind:=atSynopsis;
+  Result.Extension := TStewProject.DocumentSynopsisExtension;
+  result.Descriptor := TStewProject.DocumentSynopsisDescriptor;
+
+end;
+
+class function TAttachment.MakeBackup(aDescriptor: UTF8String;
+  aExtension: UTF8String): TAttachment;
+begin
+  result.Kind:=atBackup;
+  Result.Extension := aExtension;
+  result.Descriptor := aDescriptor;
+
 end;
 
 { TAttachmentError }
@@ -1276,20 +1627,15 @@ end;
 constructor TDocumentSynopsisDataReceived.Create(aDocument: TDocumentPath;
   aSynopsis: UTF8String);
 begin
-  inherited Create(paAttachmentDataReceived,aDocument,TAttachment.Make(atSynopsis,TStewProject.DocumentSynopsisDescriptor,TStewProject.DocumentSynopsisExtension));
+  inherited Create(paAttachmentDataReceived,aDocument,TAttachment.MakeSynopsis);
   fSynopsis := aSynopsis;
-end;
-
-function TDocumentSynopsisDataReceived.GetDescription: UTF8String;
-begin
-  Result:=inherited GetDescription + ' "' + fSynopsis + '"';
 end;
 
 { TDocumentPropertiesDataReceived }
 
 constructor TDocumentPropertiesDataReceivedEvent.Create(aDocument: TDocumentPath; aProperties: TDocumentProperties2);
 begin
-  inherited Create(paAttachmentDataReceived,aDocument,TAttachment.Make(atProperties,TStewProject.DocumentPropertiesDescriptor,TStewProject.PropertiesExtension));
+  inherited Create(paAttachmentDataReceived,aDocument,TAttachment.MakeProperties);
   fProperties := aProperties;
 end;
 
@@ -1465,7 +1811,7 @@ end;
 
 procedure TStewProject.TReadProjectPropertiesTask.DoTask(Input: TPromise);
 begin
-  if not (Input as TFileReadPromise).DoesNotExist then
+  if (Input as TFileReadPromise).Exists and not (Input as TFileReadPromise).IsFolder then
      (Promise as TProjectPropertiesPromise).LoadAnswer((Input as TFileReadPromise).Data)
   else
      (Promise as TProjectPropertiesPromise).LoadAnswer(nil);
@@ -1844,6 +2190,39 @@ begin
   result := (aChildContainer = Self) or // child's parent is this guy
             ((aChildContainer <> TDocumentPath.Root) and // child's parent is not root
             Contains(aChildContainer)); // this guy is a parent of the child's parent
+end;
+
+function TDocumentPath.Split: TStringArray;
+var
+  idLen: Integer;
+  resultLen: Integer;
+  cur: Integer;
+  last: Integer;
+begin
+  if fID = '' then
+     raise Exception.Create('Can''t split the null path');
+  idLen := Length(fID);
+  resultLen := 0;
+  SetLength(Result,0);
+  // skip the starting slash...
+  cur := 2;
+  last := cur;
+  while (cur <= idLen) do
+  begin
+    if fID[cur] = '/' then
+    begin
+      SetLength(Result,resultLen + 1);
+      Result[resultLen] := Copy(fID, last, cur - last);
+      inc(resultLen);
+      last := cur + 1;
+    end;
+    Inc(cur);
+  end;
+  if cur > last then
+  begin
+    SetLength(Result,resultLen + 1);
+    Result[resultLen] := Copy(fID, last, cur - last);
+  end;
 end;
 
 class function TDocumentPath.FromString(const aPath: UTF8String): TDocumentPath;
@@ -2314,15 +2693,6 @@ begin
     // we now know that it has disk stuff available, so the document
     // is definitely not "new";
     fIsNew := false;
-end;
-
-function SimpleIndexOf(List: TStrings; aText: String): Integer; inline;
-begin
-  // TStringList.IndexOf has a little bit of overhead that I don't want
-  // and returns -1 for not found, when I want the final value.
-  result:=0;
-  While (result < List.Count) and (CompareText(list[Result],aText) <> 0) do
-    result:=result+1;
 end;
 
 function TDocumentMetadata.SortDocuments(List: TStringList; Index1,
@@ -3024,6 +3394,21 @@ var
     // not worried about this.
   end;
 
+  procedure ReportCheck(Sender: TFileExistencePromise); inline;
+  begin
+   if ((fDisk = Sender.Path) or fDisk.Contains(Sender.Path)) then
+    begin
+      lDocument := TranslateFileToDocument(fDisk,Sender.Path);
+      if Sender.State = psIncomplete then
+         ReportEvent(TDocumentEvent.Create(paCheckingDocumentFile,lDocument))
+      else
+         ReportEvent(TDocumentEvent.Create(paDocumentFileChecked,lDocument))
+    end;
+    // else, its an attempt to "list" the directory contents of a file. I'm
+    // not worried about this.
+
+  end;
+
 begin
   if Sender is TFileReadPromise then
   begin
@@ -3037,9 +3422,13 @@ begin
   begin
     ReportList(Sender as TFileListPromise);
   end
+  else if Sender is TFileExistencePromise then
+  begin
+    ReportCheck(Sender as TFileExistencePromise)
+  end
   else
-    // we're not interested in checkexistence events,
-    // and renaming events are handled by the specific renaming
+    // we're not interested in renaming events,
+    // which are handled by the specific renaming
     // promise, because we need the names of the documents being
     // renamed.
     Exit;
@@ -3048,6 +3437,8 @@ begin
 end;
 
 procedure TStewProject.CacheError(Sender: TPromise; aError: TPromiseError);
+// TODO: I'm potentially missing a bunch of errors here by using conditionals
+// before reporting. I should be *reporting* these.
 var
   lDocument: TDocumentPath;
   lAttachment: TAttachment;
@@ -3090,6 +3481,16 @@ var
     // else, its an attempt to "list" the directory contents of a file. I'm
     // not worried about this.
   end;
+
+  procedure ReportCheck(Sender: TFileExistencePromise); inline;
+  begin
+    if ((fDisk = Sender.Path) or fDisk.Contains(Sender.Path)) then
+    begin
+      lDocument := TranslateFileToDocument(fDisk,Sender.Path);
+      ReportEvent(TDocumentError.Create(paDocumentFileCheckingFailed,lDocument,aError));
+    end;
+  end;
+
 begin
   if Sender is TFileReadPromise then
   begin
@@ -3103,9 +3504,12 @@ begin
   begin
     ReportList(Sender as TFileListPromise);
   end
+  else if Sender is TFileExistencePromise then
+  begin
+    ReportCheck(Sender as TFileExistencePromise)
+  end
   else
-    // we're not interested in checkexistence events,
-    // and renaming events are handled by the specific renaming
+    // renaming events are handled by the specific renaming
     // promise, because we need the names of the documents being
     // renamed.
     Exit;
@@ -3126,10 +3530,25 @@ end;
 procedure TStewProject.ProjectPropertiesWriteError(Sender: TPromise;
   aError: TPromiseError);
 begin
-  if (Sender as TWriteAttachmentPromise).IsConflict then
+  if (Sender as TWriteProjectPropertiesPromise).IsConflict then
      ReportEvent(TProjectEvent.Create(paProjectPropertiesSaveConflictOccurred))
   else
      ReportEvent(TProjectError.Create(paProjectPropertiesSavingFailed,aError));
+end;
+
+procedure TStewProject.DocumentListError(Sender: TPromise; aError: TPromiseError
+  );
+begin
+  ReportEvent(TDocumentError.Create(paDocumentsListingFailed,
+                                    (Sender as TDocumentListPromise).Document,
+                                    aError));
+end;
+
+procedure TStewProject.DocumentListReceived(Sender: TPromise);
+begin
+  ReportEvent(TDocumentListDataReceivedEvent.Create(
+              (Sender as TDocumentListPromise).Document,
+              (Sender as TDocumentListPromise).List));
 end;
 
 procedure TStewProject.DocumentPropertiesDataReceived(Sender: TPromise);
@@ -3142,15 +3561,13 @@ end;
 procedure TStewProject.DocumentPropertiesReadError(Sender: TPromise;
   aError: TPromiseError);
 begin
-  ReportEvent(TAttachmentError.Create(paAttachmentDataReceived,
+  ReportEvent(TAttachmentError.Create(paAttachmentLoadingFailed,
                                       (Sender as TDocumentPropertiesPromise).Document,
-                                      TAttachment.Make(atProperties,
-                                          DocumentPropertiesDescriptor,
-                                          PropertiesExtension),
+                                      TAttachment.MakeProperties,
                                       aError));
 end;
 
-procedure TStewProject.DocumentPropertiesWriteError(Sender: TPromise;
+procedure TStewProject.AttachmentWriteError(Sender: TPromise;
   aError: TPromiseError);
 begin
   if (Sender as TWriteAttachmentPromise).IsConflict then
@@ -3162,6 +3579,30 @@ begin
                                          (Sender as TWriteAttachmentPromise).Document,
                                          (Sender as TWriteAttachmentPromise).fAttachment,
                                          aError));
+end;
+
+procedure TStewProject.DocumentSynopsisDataReceived(Sender: TPromise);
+begin
+  ReportEvent(TDocumentSynopsisDataReceived.Create(
+                (Sender as TDocumentSynopsisPromise).Document,
+                (Sender as TDocumentSynopsisPromise).Synopsis));
+end;
+
+procedure TStewProject.DocumentSynopsisReadError(Sender: TPromise;
+  aError: TPromiseError);
+begin
+  ReportEvent(TAttachmentError.Create(paAttachmentLoadingFailed,
+                                      (Sender as TDocumentSynopsisPromise).Document,
+                                      TAttachment.MakeSynopsis,
+                                      aError));
+end;
+
+procedure TStewProject.DocumentIsFolderError(Sender: TPromise;
+  aError: TPromiseError);
+begin
+  ReportEvent(TDocumentError.Create(paDocumentFolderCheckFailed,
+                                    (Sender as TDocumentIsFolderPromise).Document,
+                                    aError));
 end;
 
 function TStewProject.GetIsOpened: Boolean;
@@ -3220,6 +3661,64 @@ begin
   result := fDisk.PacketName;
 end;
 
+function TStewProject.IsDocumentAFolder(aDocument: TDocumentPath;
+  aForceRefresh: Boolean): TDocumentIsFolderPromise;
+var
+  lFolderFile: TFile;
+  lCheckFile: TFileExistencePromise;
+begin
+  lFolderFile := GetDocumentFolderPath(fDisk,aDocument);
+  if aForceRefresh then
+    fCache.Uncache(lFolderFile,true);
+  lCheckFile := fCache.CheckExistence(lFolderFile);
+  result := TIsDocumentAFolderTask.Defer(aDocument,lCheckFile).Promise as TDocumentIsFolderPromise;
+  result.Catch(@DocumentIsFolderError);
+end;
+
+function TStewProject.ListDocumentsInFolder(aDocument: TDocumentPath;
+  aForceRefresh: Boolean): TDocumentListPromise;
+var
+  lFolderFile: TFile;
+  lListFiles: TFileListPromise;
+begin
+  lFolderFile := GetDocumentFolderPath(fDisk,aDocument);
+  if aForceRefresh then
+    fCache.Uncache(lFolderFile,true);
+  lListFiles := fCache.ListFiles(lFolderFile);
+  result := TListDocumentsInFolderTask.Defer(aDocument,Self,lListFiles).Promise as TDocumentListPromise;
+  result.After(@DocumentListReceived,@DocumentListError);
+
+end;
+
+function TStewProject.ReadDocumentSynopsis(aDocument: TDocumentPath;
+  aForceRefresh: Boolean): TDocumentSynopsisPromise;
+var
+  lSynFile: TFile;
+  lReadFile: TFileReadPromise;
+begin
+  lSynFile := GetDocumentSynopsisPath(fDisk,aDocument);
+  if aForceRefresh then
+    fCache.Uncache(lSynFile);
+  lReadFile := fCache.ReadFile(lSynFile);
+  result := TReadDocumentSynopsisTask.Defer(aDocument,lReadFile).Promise as TDocumentSynopsisPromise;
+  // we need to report the data that was received, and if an error occurred.
+  result.After(@DocumentSynopsisDataReceived,@DocumentSynopsisReadError);
+end;
+
+function TStewProject.WriteDocumentSynopsis(aDocument: TDocumentPath;
+  aSynopsis: UTF8String): TWriteAttachmentPromise;
+var
+  lWriteFile: TFileWritePromise;
+begin
+  lWriteFile := fCache.WriteFile(GetDocumentSynopsisPath(fDisk,aDocument));
+  lWriteFile.WriteString(aSynopsis);
+  result := TWriteAttachmentTask.Defer(aDocument,
+                                       TAttachment.MakeSynopsis,
+                                       lWriteFile).Promise as TWriteAttachmentPromise;
+  // we only need to catch to make sure the error is reported.
+  result.Catch(@AttachmentWriteError);
+end;
+
 function TStewProject.ReadDocumentProperties(aDocument: TDocumentPath;
   aForceRefresh: Boolean): TDocumentPropertiesPromise;
 var
@@ -3243,10 +3742,10 @@ begin
   lWriteFile := fCache.WriteFile(GetDocumentPropertiesPath(fDisk,aDocument));
   ToJSON(aProperties,lWriteFile.Data,'  ');
   result := TWriteAttachmentTask.Defer(aDocument,
-                                       TAttachment.Make(atProperties,DocumentPropertiesDescriptor,PropertiesExtension),
+                                       TAttachment.MakeProperties,
                                        lWriteFile).Promise as TWriteAttachmentPromise;
   // we only need to catch to make sure the error is reported.
-  result.Catch(@DocumentPropertiesWriteError);
+  result.Catch(@AttachmentWriteError);
 end;
 
 function TStewProject.ReadProjectProperties(aForceRefresh: Boolean
@@ -3312,33 +3811,37 @@ begin
   result := TranslateDocumentAttachmentToFile(aProjectPath,aDocument,DocumentPropertiesDescriptor,PropertiesExtension);
 end;
 
+class function TStewProject.GetDocumentSynopsisPath(aProjectPath: TFile;
+  aDocument: TDocumentPath): TFile;
+begin
+  result := TranslateDocumentAttachmentToFile(aProjectPath,aDocument,DocumentSynopsisDescriptor,DocumentSynopsisExtension);
+end;
+
+class function TStewProject.GetDocumentFolderPath(aProjectPath: TFile;
+  aDocument: TDocumentPath): TFile;
+begin
+  result := TranslateDocumentAttachmentToFile(aProjectPath,aDocument,'','');
+end;
+
 class function TStewProject.TranslateFileToDocument(aBasePath: TFile;
   aFile: TFile): TDocumentPath;
-
-// I feel like this could be converted to tail recursion somehow but
-// I don't have time to try to figure that out, and it's probably not
-// going to improve performance that much.
-
-  function Translate(aFile: TFile): TDocumentPath;
-  begin
-    if aFile = aBasePath then
-    begin
-       result := TDocumentPath.Root;
-    end
-    else
-    begin
-       result := Translate(aFile.Directory).GetContainedDocument(aFile.BaseName);
-    end;
-
-  end;
-
+var
+  lSplit: TStringArray;
+  i: Integer;
 begin
   if aBasePath.Contains(aFile) then
+  begin
     // We want to be able to handle documents that are contained within
     // attachments, for future compatbility, so we are not looking at just
     // the packetname for the rest of the path, but we are for here,
     // so the check is against a file without descriptor and extension.
-    result := Translate(aFile.WithDifferentDescriptorAndExtension('',''))
+    lSplit := aFile.WithDifferentDescriptorAndExtension('','').SplitPath(aBasePath);
+    result := TDocumentPath.Root;
+    for i := 0 to length(lSplit) - 1 do
+    begin
+      result := Result.GetContainedDocument(lSplit[i]);
+    end;
+  end
   else
     result := TDocumentPath.Null;
 
@@ -3347,7 +3850,7 @@ end;
 class function TStewProject.TranslateFileToAttachment(aBasePath: TFile;
   aFile: TFile): TAttachment;
 begin
-  result := TAttachment.Make(atUnknown,'','');
+  result := TAttachment.MakeUnknown('','');
   if aBasePath.Contains(aFile) then
   begin
     begin
@@ -3378,18 +3881,28 @@ end;
 class function TStewProject.TranslateDocumentAttachmentToFile(aBasePath: TFile;
   aDocument: TDocumentPath; aDescriptor: UTF8String; aExtension: UTF8String
   ): TFile;
-  function BuildPath(aFile: TFile; aDocument: TDocumentPath): TFile;
-  begin
-    if aDocument = TDocumentPath.Root then
-      result := aFile
-    else
-      result := BuildPath(aFile,aDocument.Container).GetContainedFile(aDocument.Name);
-  end;
+var
+  lSplit: TStringArray;
+  i: Integer;
 begin
   if aDocument = TDocumentPath.Root then
+  begin
     result := aBasePath.GetContainedFile('',aDescriptor,aExtension,true)
+  end
+  else if aDocument = TDocumentPath.Null then
+  begin
+    raise Exception.Create('Can''t determine file for null document path')
+  end
   else
-    result := BuildPath(aBasePath,aDocument.Container).GetContainedFile(aDocument.Name,aDescriptor,aExtension,true);
+  begin
+    lSplit := aDocument.Split;
+    result := aBasePath;
+    for i := 0 to Length(lSplit) - 1 do
+    begin
+      result := Result.GetContainedFile(lSplit[i]);
+    end;
+    result := Result.WithDifferentDescriptorAndExtension(aDescriptor,aExtension);
+  end;
 
 end;
 
