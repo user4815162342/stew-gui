@@ -241,7 +241,9 @@ type
      paDocumentListDataReceived,
      paDocumentsListingFailed,
      paDocumentFolderCheckFailed,
-     paDocumentCreated,
+     paDocumentCreated, // TODO: I'm not doing this... am I?
+     paDocumentShifted,
+     paDocumentShiftFailed,
      paDocumentDisappeared,
      paRenamingDocument,
      paDocumentRenamed,
@@ -293,6 +295,8 @@ type
      'DocumentsListingFailed',
      'DocumentFolderCheckFailed',
      'DocumentCreated',
+     'DocumentShifted',
+     'DocumentShiftFailed',
      'DocumentDisappeared',
      'RenamingDocument',
      'DocumentRenamed',
@@ -394,7 +398,7 @@ type
   end;
 
   // TODO: What else?
-  TAttachmentKind = (atUnknown, atPrimary, atProperties, atNotes, atThumbnail, atSynopsis, atBackup);
+  TAttachmentKind = (atUnknown, atFolder, atPrimary, atProperties, atNotes, atThumbnail, atSynopsis, atBackup);
 
   { TAttachment }
 
@@ -403,6 +407,7 @@ type
     Descriptor: UTF8String;
     Extension: UTF8String;
     class function MakeUnknown(aDescriptor: UTF8String; aExtension: UTF8String): TAttachment; static;
+    class function MakeDirectory: TAttachment; static;
     class function MakePrimary(aExtension: UTF8String): TAttachment; static;
     class function MakeProperties: TAttachment; static;
     class function MakeNotes(aExtension: UTF8String): TAttachment; static;
@@ -427,6 +432,7 @@ type
       AttachmentKindStrings: array[TAttachmentKind] of UTF8String =
     ('unknown',
      'primary',
+     'folder',
      'properties',
      'notes',
      'thumbnail',
@@ -919,9 +925,35 @@ type
     property IsFolder: Boolean read fIsFolder;
   end;
 
+  { TShiftDocumentPromise }
+
+  TShiftDocumentPromise = class(TPromise)
+  private
+    fDocument: TDocumentPath;
+  public
+    constructor Create(aDocument: TDocumentPath);
+    property Document: TDocumentPath read fDocument;
+  end;
+
+  { TRenameDocumentPromise }
+
+  TRenameDocumentPromise = class(TPromise)
+  private
+    fOldDocument: TDocumentPath;
+    fNewDocument: TDocumentPath;
+  public
+    constructor Create(aOldDocument: TDocumentPath; aNewDocument: TDocumentPath);
+    property Old: TDocumentPath read fOldDocument;
+    property New: TDocumentPath read fNewDocument;
+  end;
+
   { TStewProject }
 
   TStewProject = class
+    procedure DocumentRenamingError(Sender: TPromise; aError: TPromiseError);
+    procedure DocumentShifted(Sender: TPromise);
+    procedure DocumentShiftError(Sender: TPromise; aError: TPromiseError);
+    procedure DocumentsRenamed(Sender: TPromise);
   strict private type
 
     // this allows me access to the protected events on Project Properties,
@@ -1041,15 +1073,25 @@ type
       fProject: TStewProject;
       fDocument: TDocumentPath;
       fFiles: TFileInfoArray;
-      fIndex: TStringList;
     protected
       procedure DoTask(Input: TPromise); override;
       function CreatePromise: TPromise; override;
       procedure PropertiesReceived(Sender: TPromise);
-      function SortDocuments(List: TStringList; Index1, Index2: Integer
-        ): Integer;
     public
       constructor Defer(aDocument: TDocumentPath; aProject: TStewProject; aPromise: TFileListPromise);
+    end;
+
+    { TDocumentListBuilder }
+
+    TDocumentListBuilder = class(TObject)
+    private
+      fIndex: TStringList;
+      function SortDocuments(List: TStringList; Index1, Index2: Integer): Integer;
+    public
+      constructor Create;
+      function Build(aProperties: TDocumentProperties2;
+        aBasePath: TFile; aFiles: TFileInfoArray; aShadows: TDocumentInfoArray
+  ): TDocumentInfoArray;
       destructor Destroy; override;
     end;
 
@@ -1064,6 +1106,38 @@ type
       function CreatePromise: TPromise; override;
     public
       constructor Defer(aDocument: TDocumentPath; aProject: TStewProject; aPromise: TFileExistencePromise);
+    end;
+
+    { TShiftDocumentByTask }
+
+    TShiftDocumentByTask = class(TDeferredTask2)
+    private
+      fProject: TStewProject;
+      fDocument: TDocumentPath;
+      fFiles: TFileInfoArray;
+      fDelta: Integer;
+    protected
+      procedure DoTask(Input: TPromise); override;
+      function CreatePromise: TPromise; override;
+      procedure PropertiesReceived(Sender: TPromise);
+      procedure PropertiesWritten(Sender: TPromise);
+    public
+      constructor Defer(aDocument: TDocumentPath; aProject: TStewProject; aDelta: Integer; aPromise: TFileListPromise);
+    end;
+
+    { TRenameDocumentTask }
+
+    TRenameDocumentTask = class(TDeferredTask2)
+      procedure FilesRenamed(Sender: TPromise);
+    private
+      fProject: TStewProject;
+      fOldDocument: TDocumentPath;
+      fNewDocument: TDocumentPath;
+    protected
+      procedure DoTask(Input: TPromise); override;
+      function CreatePromise: TPromise; override;
+    public
+      constructor Defer(aOld: TDocumentPath; aNew: TDocumentPath; aProject: TStewProject; aInputPromise: TFileListPromise);
     end;
 
   private
@@ -1202,6 +1276,10 @@ type
     function ReadProjectProperties(aForceRefresh: Boolean = false): TProjectPropertiesPromise;
     function WriteProjectProperties(aProperties: TProjectProperties2
       ): TWriteProjectPropertiesPromise;
+    function ShiftDocumentBy(aDocument: TDocumentPath; aDelta: Integer): TShiftDocumentPromise;
+    function ShiftDocumentUp(aDocument: TDocumentPath): TShiftDocumentPromise;
+    function ShiftDocumentDown(aDocument: TDocumentPath): TShiftDocumentPromise;
+    function RenameDocument(aDocument: TDocumentPath; aNewDocument: TDocumentPath): TRenameDocumentPromise;
 
 
     // Important maintenance functions for working with the projects themselves.
@@ -1211,7 +1289,10 @@ type
     class function OpenInParent(aPath: TFile): TProjectPromise;
     class function CreateNew(aPath: TFile): TProjectPromise;
     // utility functions used internally, but here for your pleasure since they
-    // don't change anything.
+    // don't change anything in the project state.
+    function BuildAndSortDocumentList(aParent: TDocumentPath;
+      aProperties: TDocumentProperties2; aFiles: TFileInfoArray
+  ): TDocumentInfoArray;
     class function TranslateFileToDocument(aBasePath: TFile; aFile: TFile): TDocumentPath;
     class function TranslateFileToAttachment(aBasePath: TFile; aFile: TFile): TAttachment;
     class function TranslateDocumentAttachmentToFile(aBasePath: TFile; aDocument: TDocumentPath; aDescriptor: UTF8String; aExtension: UTF8String): TFile;
@@ -1292,6 +1373,336 @@ end;
 operator=(a: TDocumentPath; b: TDocumentPath): Boolean;
 begin
   result := CompareText(a.ID,b.ID) = 0;
+end;
+
+function SimpleIndexOf(List: TStrings; aText: String): Integer; inline;
+begin
+  // TStringList.IndexOf has a little bit of overhead that I don't want
+  // and returns -1 for not found, when I want the final value.
+  result:=0;
+  While (result < List.Count) and (CompareText(list[Result],aText) <> 0) do
+    result:=result+1;
+end;
+
+{ TRenameDocumentPromise }
+
+constructor TRenameDocumentPromise.Create(aOldDocument: TDocumentPath;
+  aNewDocument: TDocumentPath);
+begin
+  inherited Create;
+  fOldDocument := aOldDocument;
+  fNewDocument := aNewDocument;
+end;
+
+{ TStewProject.TRenameDocumentTask }
+
+procedure TStewProject.TRenameDocumentTask.FilesRenamed(Sender: TPromise);
+begin
+  Resolve;
+end;
+
+procedure TStewProject.TRenameDocumentTask.DoTask(Input: TPromise);
+var
+  i: Integer;
+  lListedFiles: TFileArray;
+  lListedLength: Integer;
+  lRenameLength: Integer;
+  lOldFiles: TFileArray;
+  lNewFiles: TFileArray;
+begin
+  lListedFiles := (Input as TFileListPromise).GetJustFiles;
+  lListedLength := Length(lListedFiles);
+  lRenameLength := 0;
+  SetLength(lNewFiles,0);
+  for i := 0 to lListedLength - 1 do
+  begin
+    if fProject.TranslateFileToDocument(fProject.fDisk,lListedFiles[i]) = fOldDocument then
+    begin
+      SetLength(lOldFiles,lRenameLength + 1);
+      SetLength(lNewFiles,lRenameLength + 1);
+      lOldFiles[lRenameLength] := lListedFiles[i];
+      lNewFiles[lRenameLength] :=
+          TranslateDocumentAttachmentToFile(fProject.fDisk,
+                                            fNewDocument,
+                                            lListedFiles[i].Descriptor,
+                                            lListedFiles[i].Extension);
+      inc(lRenameLength);
+    end;
+  end;
+  fProject.fCache.RenameFiles(lOldFiles,lNewFiles).After(@FilesRenamed,@SubPromiseRejected);
+end;
+
+function TStewProject.TRenameDocumentTask.CreatePromise: TPromise;
+begin
+  result := TRenameDocumentPromise.Create(fOldDocument,fNewDocument);
+end;
+
+constructor TStewProject.TRenameDocumentTask.Defer(aOld: TDocumentPath;
+  aNew: TDocumentPath; aProject: TStewProject; aInputPromise: TFileListPromise);
+begin
+  fOldDocument := aOld;
+  fNewDocument := aNew;
+  fProject := aProject;
+  inherited Defer(aInputPromise);
+end;
+
+{ TShiftDocumentPromise }
+
+constructor TShiftDocumentPromise.Create(aDocument: TDocumentPath);
+begin
+  inherited Create;
+  fDocument := aDocument;
+end;
+
+{ TStewProject.TShiftDocumentByTask }
+
+procedure TStewProject.TShiftDocumentByTask.PropertiesWritten(Sender: TPromise);
+begin
+  Resolve;
+end;
+
+procedure TStewProject.TShiftDocumentByTask.DoTask(Input: TPromise);
+var
+  lReadProperties: TDocumentPropertiesPromise;
+begin
+  fFiles := (Input as TFileListPromise).FilesInfo;
+  // we need the properties as well...
+  lReadProperties := fProject.ReadDocumentProperties(fDocument.Container,false);
+  lReadProperties.After(@PropertiesReceived,@SubPromiseRejected);
+end;
+
+function TStewProject.TShiftDocumentByTask.CreatePromise: TPromise;
+begin
+  result := TShiftDocumentPromise.Create(fDocument);
+end;
+
+procedure TStewProject.TShiftDocumentByTask.PropertiesReceived(Sender: TPromise
+  );
+var
+  lDirectory: TDocumentPath;
+  lProps: TDocumentProperties2;
+  lDocuments: TDocumentInfoArray;
+  lNewDocuments: TDocumentInfoArray;
+  l: Integer;
+  i: Integer;
+  lIndex: Integer;
+  lNewIndex: Integer;
+begin
+  try
+    lProps := (Sender as TDocumentPropertiesPromise).Properties;
+    lDirectory := fDocument.Container;
+    lDocuments := fProject.BuildAndSortDocumentList(lDirectory,
+                          lProps,
+                          fFiles);
+    l := Length(lDocuments);
+    SetLength(lNewDocuments,l);
+    // first, we have to find the current index... Okay, it's kind
+    // of annoying that we have to loop twice, but I'm not certain that
+    // there's a better way.
+    lIndex := -1;
+    for i := 0 to l - 1 do
+    begin
+      if lDocuments[i].Document = fDocument then
+      begin
+        lIndex := i;
+        break;
+      end;
+    end;
+
+    if lIndex <> -1 then
+    begin
+      lNewIndex := lIndex + fDelta;
+      if lNewIndex < 0 then
+        lNewIndex := 0
+      else if lNewIndex > (l - 1) then
+        lNewIndex := l - 1;
+      if lNewIndex = lIndex then
+      begin
+        // we're actually done, it's annoying that we went through
+        // all this work to get here, but... just leave.
+        Resolve;
+        exit;
+      end;
+
+      if lNewIndex < lIndex then
+      begin
+        for i := 0 to lNewIndex - 1 do
+          lNewDocuments[i] := lDocuments[i];
+        lNewDocuments[lNewIndex] := lDocuments[lIndex];
+        for i := lNewIndex + 1 to lIndex do
+          lNewDocuments[i] := lDocuments[i - 1];
+        for i := lIndex + 1 to l - 1 do
+          lNewDocuments[i] := lDocuments[i];
+      end
+      else
+      begin
+        for i := 0 to lIndex - 1 do
+          lNewDocuments[i] := lDocuments[i];
+        for i := lIndex to lNewIndex - 1 do
+          lNewDocuments[i] := lDocuments[i + 1];
+        lNewDocuments[lNewIndex] := lDocuments[lIndex];
+        for i := lNewIndex + 1 to l - 1 do
+          lNewDocuments[i] := lDocuments[i];
+      end;
+
+      // clear the props...
+      lProps.Index.Length := 0;
+      for i := 0 to l - 1 do
+      begin
+        lProps.Index.Put(i,lNewDocuments[i].Document.Name);
+      end;
+      fProject.WriteDocumentProperties(lDirectory,lProps).After(@PropertiesWritten,@SubPromiseRejected);
+    end
+    else
+    // else, the document doesn't exist yet, so it doesn't make any sense to
+    // add it.... right? But, we do need to resolve...
+      Resolve;
+  except on E: Exception do
+    Reject(E.Message);
+  end;
+end;
+
+constructor TStewProject.TShiftDocumentByTask.Defer(aDocument: TDocumentPath;
+  aProject: TStewProject; aDelta: Integer; aPromise: TFileListPromise);
+begin
+  fDocument := aDocument;
+  fProject := aProject;
+  fDelta := aDelta;
+  inherited Defer(aPromise);
+end;
+
+{ TStewProject.TDocumentListBuilder }
+
+
+function TStewProject.TDocumentListBuilder.SortDocuments(List: TStringList;
+  Index1, Index2: Integer): Integer;
+var
+  s1: String;
+  s2: String;
+  i1: Integer;
+  i2: integer;
+begin
+  s1 := TDocumentPath.FromString(List[Index1]).Name;
+  s2 := TDocumentPath.FromString(List[Index2]).Name;
+  i1 := SimpleIndexOf(findex,s1);
+  i2 := SimpleIndexOf(findex,s2);
+  if (i1 = i2) then
+    result := CompareText(s1,s2)
+  else
+    result := i1 - i2;
+end;
+
+constructor TStewProject.TDocumentListBuilder.Create;
+begin
+  inherited Create;
+  fIndex := TStringList.Create;
+end;
+
+function TStewProject.TDocumentListBuilder.Build(aProperties: TDocumentProperties2;
+  aBasePath: TFile; aFiles: TFileInfoArray; aShadows: TDocumentInfoArray): TDocumentInfoArray;
+var
+  lList: TEZSortStringList;
+  lFolders: TStringList;
+  lInfo: TDocumentInfo;
+  lDocument: TDocumentPath;
+  lIsFolder: Boolean;
+  l: Integer;
+  i: Integer;
+begin
+  // FUTURE: I should be able to do this in less steps, for example
+  // without translating to strings, and without keeping track of
+  // folders separately. But that will require a data structure
+  // that has a custom sort procedure attached and also prevents
+  // adding documents which already exist.
+  // to me to write
+  // my own sorting procedure, at the very least.
+  SetLength(Result,0);
+  fIndex.Clear;
+  l := aProperties.Index.Length;
+  for i := 0 to l - 1 do
+  begin
+    fIndex.Add(aProperties.Index.Get(i).AsString);
+  end;
+
+
+  lList := TEZSortStringList.Create;
+  try
+    // start out with them sorted, so we can keep the documents unique
+    // and make searching easier.
+    lList.Sorted := true;
+    // this doesn't do anything unless the string list is sorted, as we did just above
+    lList.Duplicates:=dupIgnore;
+    // we are counting items with different cases as the same, because they'll
+    // be the same on some file systems anyway.
+    lList.CaseSensitive:=false;
+
+    // track the folders, since we can't just put that data into the list.
+    // (Well, we could using AddObject, but I'm trying to get away from
+    // casting numbers to TObject.)
+    lFolders := TStringList.Create;
+    try
+      // same things...
+      lFolders.Sorted := true;
+      lFolders.Duplicates:=dupIgnore;
+      lFolders.CaseSensitive:= false;
+
+
+      // now, start adding the files as documents...
+      l := Length(aFiles);
+      for i := 0 to l - 1 do
+      begin
+        lDocument := TranslateFileToDocument(aBasePath,aFiles[i].Item);
+        // hide the documents made from folder attachments such
+        // as _stew.json and _properties.json in the root.
+        if lDocument.Name <> '' then
+        begin
+          lIsFolder := aFiles[i].IsFolder and
+             (aFiles[i].Item.Descriptor = '') and
+             (aFiles[i].Item.Extension = '');
+          lList.Add(lDocument.ID);
+          if lIsFolder then
+            lFolders.Add(lDocument.ID);
+        end;
+      end;
+
+      // also add the shadows so they show up in the list.
+      l := Length(aShadows);
+      for i := 0 to l - 1 do
+      begin
+        lDocument := aShadows[i].Document;
+        lIsFolder := aShadows[i].IsFolder;
+        lList.Add(lDocument.ID);
+        if lIsFolder then
+          lFolders.Add(lDocument.ID);
+      end;
+
+      // we should just have an item for each document now. Now,
+      // we have to change the sorting to sort by index.
+      lList.Sorted := false;
+      lList.OnEZSort:=@SortDocuments;
+      lList.EZSort;
+      l := lList.Count;
+      SetLength(Result,l);
+      for i := 0 to l - 1 do
+      begin
+        lInfo.Document := TDocumentPath.FromString(lList[i]);
+        lInfo.IsFolder := lFolders.IndexOf(lList[i]) > -1;
+        Result[i] := lInfo;
+      end;
+
+    finally
+      lFolders.Free;
+    end;
+  finally
+    lList.Free;
+  end;
+
+end;
+
+destructor TStewProject.TDocumentListBuilder.Destroy;
+begin
+  FreeAndNil(fIndex);
+  inherited Destroy;
 end;
 
 { TShadowCache }
@@ -1534,108 +1945,12 @@ end;
 procedure TStewProject.TListDocumentsInFolderTask.PropertiesReceived(
   Sender: TPromise);
 var
-  lProps: TDocumentProperties2;
-  lList: TEZSortStringList;
-  lFolders: TStringList;
   lDocuments: TDocumentInfoArray;
-  lInfo: TDocumentInfo;
-  lDocument: TDocumentPath;
-  lIsFolder: Boolean;
-  l: Integer;
-  i: Integer;
-  lShadows: TDocumentInfoArray;
 begin
   try
-    fIndex.Clear;
-    lProps := (Sender as TDocumentPropertiesPromise).Properties;
-    l := lProps.Index.Length;
-    for i := 0 to l - 1 do
-    begin
-      fIndex.Add(lProps.Index.Get(i).AsString);
-    end;
-
-    // FUTURE: I should be able to do this in less steps, for example
-    // without translating to strings, and without keeping track of
-    // folders separately. But that will require a data structure
-    // that has a custom sort procedure attached and also prevents
-    // adding documents which already exist.
-    // to me to write
-    // my own sorting procedure, at the very least.
-    SetLength(lDocuments,0);
-
-
-    lList := TEZSortStringList.Create;
-    try
-      // start out with them sorted, so we can keep the documents unique
-      // and make searching easier.
-      lList.Sorted := true;
-      // this doesn't do anything unless the string list is sorted, as we did just above
-      lList.Duplicates:=dupIgnore;
-      // we are counting items with different cases as the same, because they'll
-      // be the same on some file systems anyway.
-      lList.CaseSensitive:=false;
-
-      // track the folders, since we can't just put that data into the list.
-      // (Well, we could using AddObject, but I'm trying to get away from
-      // casting numbers to TObject.)
-      lFolders := TStringList.Create;
-      try
-        // same things...
-        lFolders.Sorted := true;
-        lFolders.Duplicates:=dupIgnore;
-        lFolders.CaseSensitive:= false;
-
-
-        // now, start adding the files as documents...
-        l := Length(fFiles);
-        for i := 0 to l - 1 do
-        begin
-          lDocument := TranslateFileToDocument(fProject.fDisk,fFiles[i].Item);
-          // hide the documents made from folder attachments such
-          // as _stew.json and _properties.json in the root.
-          if lDocument.Name <> '' then
-          begin
-            lIsFolder := fFiles[i].IsFolder and
-               (fFiles[i].Item.Descriptor = '') and
-               (fFiles[i].Item.Extension = '');
-            lList.Add(lDocument.ID);
-            if lIsFolder then
-              lFolders.Add(lDocument.ID);
-          end;
-        end;
-
-        // also add the shadows so they show up in the list.
-        lShadows := fProject.fShadows.GetContents(fDocument);
-        l := Length(lShadows);
-        for i := 0 to l - 1 do
-        begin
-          lDocument := lShadows[i].Document;
-          lIsFolder := lShadows[i].IsFolder;
-          lList.Add(lDocument.ID);
-          if lIsFolder then
-            lFolders.Add(lDocument.ID);
-        end;
-
-        // we should just have an item for each document now. Now,
-        // we have to change the sorting to sort by index.
-        lList.Sorted := false;
-        lList.OnEZSort:=@SortDocuments;
-        lList.EZSort;
-        l := lList.Count;
-        SetLength(lDocuments,l);
-        for i := 0 to l - 1 do
-        begin
-          lInfo.Document := TDocumentPath.FromString(lList[i]);
-          lInfo.IsFolder := lFolders.IndexOf(lList[i]) > -1;
-          lDocuments[i] := lInfo;
-        end;
-
-      finally
-        lFolders.Free;
-      end;
-    finally
-      lList.Free;
-    end;
+    lDocuments := fProject.BuildAndSortDocumentList(fDocument,
+                          (Sender as TDocumentPropertiesPromise).Properties,
+                          fFiles);
 
     (Promise as TDocumentListPromise).fList := lDocuments;
     Resolve;
@@ -1643,36 +1958,6 @@ begin
   except on E: Exception do
     Reject(E.Message);
   end;
-end;
-
-function SimpleIndexOf(List: TStrings; aText: String): Integer; inline;
-begin
-  // TStringList.IndexOf has a little bit of overhead that I don't want
-  // and returns -1 for not found, when I want the final value.
-  result:=0;
-  While (result < List.Count) and (CompareText(list[Result],aText) <> 0) do
-    result:=result+1;
-end;
-
-
-
-
-function TStewProject.TListDocumentsInFolderTask.SortDocuments(
-  List: TStringList; Index1, Index2: Integer): Integer;
-var
-  s1: String;
-  s2: String;
-  i1: Integer;
-  i2: integer;
-begin
-  s1 := TDocumentPath.FromString(List[Index1]).Name;
-  s2 := TDocumentPath.FromString(List[Index2]).Name;
-  i1 := SimpleIndexOf(findex,s1);
-  i2 := SimpleIndexOf(findex,s2);
-  if (i1 = i2) then
-    result := CompareText(s1,s2)
-  else
-    result := i1 - i2;
 end;
 
 procedure TStewProject.TListDocumentsInFolderTask.DoTask(Input: TPromise);
@@ -1695,14 +1980,7 @@ constructor TStewProject.TListDocumentsInFolderTask.Defer(
 begin
   fDocument := aDocument;
   fProject := aProject;
-  fIndex := TStringList.Create;
   inherited Defer(aPromise);
-end;
-
-destructor TStewProject.TListDocumentsInFolderTask.Destroy;
-begin
-  FreeAndNil(fIndex);
-  inherited Destroy;
 end;
 
 { TWriteAttachmentPromise }
@@ -1820,6 +2098,13 @@ begin
   result.Kind:=atUnknown;
   result.Extension := aExtension;
   result.Descriptor := aDescriptor;
+end;
+
+class function TAttachment.MakeDirectory: TAttachment;
+begin
+  result.Kind:= atFolder;
+  Result.Extension := '';
+  Result.Descriptor:= '';
 end;
 
 class function TAttachment.MakePrimary(aExtension: UTF8String): TAttachment;
@@ -2039,6 +2324,7 @@ begin
                     paProjectPropertiesSavingFailed, paProjectPropertiesSaveConflictOccurred, paProjectPropertiesFileSavingFailed,
                     paDocumentsListingFailed, paDocumentsFileListingFailed,
                     paDocumentDisappeared,
+                    paDocumentShiftFailed,
                     paDocumentRenamingFailed,
                     paAttachmentLoadingFailed, paAttachmentFileLoadingFailed,
                     paAttachmentSavingFailed, paAttachmentSaveConflictOccurred, paAttachmentFileSavingFailed,
@@ -3866,6 +4152,36 @@ begin
                                     aError));
 end;
 
+procedure TStewProject.DocumentRenamingError(Sender: TPromise;
+  aError: TPromiseError);
+begin
+  ReportEvent(TDocumentRenameErrorEvent.Create(paDocumentRenamed,
+                                          (Sender as TRenameDocumentPromise).Old,
+                                          (Sender as TRenameDocumentPromise).New,
+                                          aError));
+end;
+
+procedure TStewProject.DocumentShifted(Sender: TPromise);
+begin
+  ReportEvent(TDocumentEvent.Create(paDocumentShifted,
+                                    (Sender as TShiftDocumentPromise).Document));
+end;
+
+procedure TStewProject.DocumentShiftError(Sender: TPromise;
+  aError: TPromiseError);
+begin
+  ReportEvent(TDocumentError.Create(paDocumentShiftFailed,
+                                    (Sender as TShiftDocumentPromise).Document,
+                                    aError));
+end;
+
+procedure TStewProject.DocumentsRenamed(Sender: TPromise);
+begin
+  ReportEvent(TDocumentRenameEvent.Create(paDocumentRenamed,
+                                          (Sender as TRenameDocumentPromise).Old,
+                                          (Sender as TRenameDocumentPromise).New));
+end;
+
 function TStewProject.GetIsOpened: Boolean;
 begin
   result := fProperties <> nil;
@@ -4053,6 +4369,48 @@ begin
   result.Catch(@ProjectPropertiesWriteError);
 end;
 
+function TStewProject.ShiftDocumentBy(aDocument: TDocumentPath; aDelta: Integer
+  ): TShiftDocumentPromise;
+var
+  lFolderFile: TFile;
+  lListFiles: TFileListPromise;
+begin
+  if aDocument = TDocumentPath.Root then
+    raise Exception.Create('Can''t shift the document root');
+  if aDelta = 0 then
+    raise Exception.Create('Delta can''t be 0');
+  lFolderFile := GetDocumentFolderPath(fDisk,aDocument.Container);
+  lListFiles := fCache.ListFiles(lFolderFile);
+  result := TShiftDocumentByTask.Defer(aDocument,Self,aDelta,lListFiles).Promise as TShiftDocumentPromise;
+  result.After(@DocumentShifted,@DocumentShiftError);
+end;
+
+function TStewProject.ShiftDocumentUp(aDocument: TDocumentPath
+  ): TShiftDocumentPromise;
+begin
+  result := ShiftDocumentBy(aDocument,-1);
+end;
+
+function TStewProject.ShiftDocumentDown(aDocument: TDocumentPath
+  ): TShiftDocumentPromise;
+begin
+  result := ShiftDocumentBy(aDocument,1);
+end;
+
+function TStewProject.RenameDocument(aDocument: TDocumentPath;
+  aNewDocument: TDocumentPath): TRenameDocumentPromise;
+var
+  lListFiles: TFileListPromise;
+begin
+  if aDocument = TDocumentPath.Root then
+    raise Exception.Create('Can''t shift the document root');
+  if aNewDocument = TDocumentPath.Root then
+    raise Exception.Create('Can''t rename a document to root');
+  lListFiles := fCache.ListFiles(GetDocumentFolderPath(fDisk,aDocument.Container));
+  result := TRenameDocumentTask.Defer(aDocument,aNewDocument,Self,lListFiles).Promise as TRenameDocumentPromise;
+  result.After(@DocumentsRenamed,@DocumentRenamingError);
+end;
+
 procedure TStewProject.AddObserver(aObserver: TProjectObserver);
 begin
   fObservers.Add(aObserver);
@@ -4076,6 +4434,22 @@ end;
 class function TStewProject.CreateNew(aPath: TFile): TProjectPromise;
 begin
   result := TProjectCreateNewTask.Enqueue(aPath).Promise as TProjectPromise;
+end;
+
+function TStewProject.BuildAndSortDocumentList(
+  aParent: TDocumentPath;
+  aProperties: TDocumentProperties2; aFiles: TFileInfoArray
+  ): TDocumentInfoArray;
+var
+  lBuilder: TDocumentListBuilder;
+begin
+  lBuilder := TDocumentListBuilder.Create;
+  try
+    result := lBuilder.Build(aProperties,fDisk,aFiles,fShadows.GetContents(aParent));
+  finally
+    lBuilder.Free;
+  end;
+
 end;
 
 class function TStewProject.GetProjectPropertiesPath(aFile: TFile): TFile;
@@ -4120,6 +4494,8 @@ begin
       result := Result.GetContainedDocument(lSplit[i]);
     end;
   end
+  else if aBasePath = aFile then
+    result := TDocumentPath.Root
   else
     result := TDocumentPath.Null;
 
@@ -4136,7 +4512,10 @@ begin
       result.Descriptor := aFile.Descriptor;
       case result.Descriptor of
         '':
-          result.Kind := atPrimary;
+          if Result.Extension = '' then
+            result.Kind:= atFolder
+          else
+            result.Kind := atPrimary;
         DocumentSynopsisDescriptor:
           if result.Extension = DocumentSynopsisExtension then
             result.Kind := atSynopsis;
@@ -4153,6 +4532,9 @@ begin
       end;
     end;
   end
+  else if aBasePath = aFile then
+     result.Kind := atFolder
+  else
   // else we're actually not at all interested in this file...
 end;
 
@@ -4165,7 +4547,12 @@ var
 begin
   if aDocument = TDocumentPath.Root then
   begin
-    result := aBasePath.GetContainedFile('',aDescriptor,aExtension,true)
+    if (aDescriptor = '') and (aExtension = '') then
+    // the only 'attachment' on the root that isn't contained inside the
+    // directory is the directory itself.
+      result := aBasePath
+    else
+      result := aBasePath.GetContainedFile('',aDescriptor,aExtension,true)
   end
   else if aDocument = TDocumentPath.Null then
   begin
