@@ -334,7 +334,8 @@ end;
 procedure TLocalFileListTask.DoTask;
 var
   SR: TSearchRec;
-  lAnswer: TFileArray;
+  lAnswer: TFileInfoArray;
+  lInfo: TFileInfo;
   L: Integer;
 begin
   L := 0;
@@ -346,9 +347,11 @@ begin
         repeat
           if (SR.Name <> '.') and (SR.Name <> '..') then
           begin
-             L := L + 1;
-             SetLength(lAnswer,L);
-             lAnswer[L-1] := fPath.GetContainedFile(SR.Name);
+            lInfo.Item := fPath.GetContainedFile(SR.Name);
+            lInfo.IsFolder := DirectoryExists(lInfo.Item.ID);
+            L := L + 1;
+            SetLength(lAnswer,L);
+            lAnswer[L-1] := lInfo;
           end;
         until FindNext(SR) <> 0;
       finally

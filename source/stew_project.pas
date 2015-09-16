@@ -9,13 +9,10 @@ uses
   Classes, SysUtils, sys_file, sys_async, stew_properties, stew_types, contnrs, sys_filecache, fgl;
 
 {
-TODO: Although I have the file caching done so I don't really need to keep a
-cache of files, I still need to keep a "new" state, so that when I get a list
-of documents I can still return the ones that don't have anything saved yet.
-
 TODO: Next: Implement project properties, then test that, then implement document
 properties, then test that, then convert the GUI into using them both (since they both
 have an effect on the JSON Editor GUI control). Then, work on the other actions.
+see test_stew_project.
 
 TODO: Something I might add later, if I feel it's necessary. Loading should have a refresh mode, I think I've put this elsewhere:
 - retrieve-from-cache-only: if the file is not cached, load it, otherwise just
@@ -167,6 +164,13 @@ type
   end;
 
   TDocumentArray = array of TDocumentPath;
+
+  TDocumentInfo = record
+    Document: TDocumentPath;
+    IsFolder: Boolean;
+  end;
+
+  TDocumentInfoArray = array of TDocumentInfo;
 
   // TODO: There are two "Loaded" events: *Loaded/*Listed and *DataReceived
   // the first is only called when the cache reports an actual file read (as opposed
@@ -346,10 +350,10 @@ type
 
   TDocumentListDataReceivedEvent = class(TDocumentEvent)
   private
-    fList: TDocumentArray;
+    fList: TDocumentInfoArray;
   public
-    constructor Create(aDocument: TDocumentPath; aList: TDocumentArray);
-    property List: TDocumentArray read FList;
+    constructor Create(aDocument: TDocumentPath; aList: TDocumentInfoArray);
+    property List: TDocumentInfoArray read FList;
     function GetDescription: UTF8String; override;
   end;
 
@@ -789,6 +793,34 @@ type
   TCachedSynopsis = specialize TCachedAttachmentData<UTF8String>;
 
 
+  { TShadowDocument }
+
+  TShadowDocument = class
+  private
+    fContents: TFPHashObjectList;
+  protected
+    function CreatePath(aPath: UTF8String): TShadowDocument;
+    function GetIsFolder: Boolean;
+    function GetPath(aPath: UTF8String): TShadowDocument;
+    procedure DeletePath(aPath: UTF8String);
+    procedure SplitPath(aPath: UTF8String; out aChildName: UTF8String; out aChildPath: UTF8String);
+  public
+    constructor Create;
+    destructor Destroy; override;
+    property IsFolder: Boolean read GetIsFolder;
+  end;
+
+  { TShadowCache }
+
+  TShadowCache = class(TShadowDocument)
+  public
+    function CreateShadow(aDocument: TDocumentPath): TShadowDocument;
+    procedure DeleteShadow(aDocument: TDocumentPath);
+    function HasShadow(aDocument: TDocumentPath): Boolean;
+    function IsFolder(aDocument: TDocumentPath): Boolean;
+    function GetContents(aDocument: TDocumentPath): TDocumentInfoArray;
+  end;
+
   { TProjectPromise }
 
   TProjectPromise = class(TPromise)
@@ -868,11 +900,11 @@ type
   TDocumentListPromise = class(TPromise)
   private
     fDocument: TDocumentPath;
-    fList: TDocumentArray;
+    fList: TDocumentInfoArray;
   public
     constructor Create(aDocument: TDocumentPath);
     property Document: TDocumentPath read fDocument;
-    property List: TDocumentArray read fList;
+    property List: TDocumentInfoArray read fList;
   end;
 
   { TDocumentIsFolderPromise }
@@ -1008,7 +1040,7 @@ type
     private
       fProject: TStewProject;
       fDocument: TDocumentPath;
-      fFiles: TFileArray;
+      fFiles: TFileInfoArray;
       fIndex: TStringList;
     protected
       procedure DoTask(Input: TPromise); override;
@@ -1026,16 +1058,18 @@ type
     TIsDocumentAFolderTask = class(TDeferredTask2)
     private
       fDocument: TDocumentPath;
+      fProject: TStewProject;
     protected
       procedure DoTask(Input: TPromise); override;
       function CreatePromise: TPromise; override;
     public
-      constructor Defer(aDocument: TDocumentPath; aPromise: TFileExistencePromise);
+      constructor Defer(aDocument: TDocumentPath; aProject: TStewProject; aPromise: TFileExistencePromise);
     end;
 
   private
     fDisk: TFile;
     fCache: TFileSystemCache;
+    fShadows: TShadowCache;
     fObservers: TProjectObserverList;
 
     // TODO: A lot of the rest are going away once everything's moved over
@@ -1145,6 +1179,20 @@ type
     function GetProjectName: String;
     property Properties: TProjectProperties read GetProperties;
 
+    // A "Shadow" is a document that doesn't have any files to back it up.
+    // This can be used to create new documents before they are saved,
+    // and have them show up in the listings, or to create magic documents
+    // which might have a special role and need to be created with every
+    // project, such as "Trash". The shadow remains even after the files
+    // might be actually created on disk, so it is up to the user to
+    // delete the shadow once files have been created, such as when
+    // saving properties.
+    procedure CreateShadow(aDocument: TDocumentPath);
+    // Returns true if the document is in the shadow list.
+    function IsShadow(aDocument: TDocumentPath): Boolean;
+    // Removes the "shadow" from the list of documents.
+    procedure DeleteShadow(aDocument: TDocumentPath);
+
     function IsDocumentAFolder(aDocument: TDocumentPath; aForceRefresh: Boolean = false): TDocumentIsFolderPromise;
     function ListDocumentsInFolder(aDocument: TDocumentPath; aForceRefresh: Boolean = false): TDocumentListPromise;
     function ReadDocumentSynopsis(aDocument: TDocumentPath; aForceRefresh: Boolean = false): TDocumentSynopsisPromise;
@@ -1156,6 +1204,7 @@ type
       ): TWriteProjectPropertiesPromise;
 
 
+    // Important maintenance functions for working with the projects themselves.
     procedure AddObserver(aObserver: TProjectObserver);
     procedure RemoveObserver(aObserver: TProjectObserver);
     class function Open(aPath: TFile): TProjectPromise;
@@ -1245,6 +1294,165 @@ begin
   result := CompareText(a.ID,b.ID) = 0;
 end;
 
+{ TShadowCache }
+
+function TShadowCache.CreateShadow(aDocument: TDocumentPath): TShadowDocument;
+begin
+  result := CreatePath(aDocument.ID);
+end;
+
+procedure TShadowCache.DeleteShadow(aDocument: TDocumentPath);
+begin
+  DeletePath(aDocument.ID);
+end;
+
+function TShadowCache.HasShadow(aDocument: TDocumentPath): Boolean;
+begin
+  result := GetPath(aDocument.ID) <> nil;
+end;
+
+function TShadowCache.IsFolder(aDocument: TDocumentPath): Boolean;
+var
+  lShadow: TShadowDocument;
+begin
+  lShadow := GetPath(aDocument.ID);
+  result := (lShadow <> nil) and lShadow.IsFolder;
+end;
+
+function TShadowCache.GetContents(aDocument: TDocumentPath): TDocumentInfoArray;
+var
+  lShadow: TShadowDocument;
+  lChild: TShadowDocument;
+  lChildName: UTF8String;
+  lInfo: TDocumentInfo;
+  l: Integer;
+  i: Integer;
+begin
+  lShadow := GetPath(aDocument.ID);
+  if lShadow <> nil then
+  begin
+    l := lShadow.fContents.Count;
+    SetLength(Result,l);
+    for i := 0 to l - 1 do
+    begin
+      lChildName := lShadow.fContents.NameOfIndex(i);
+      lChild := lShadow.fContents[i] as TShadowDocument;
+      lInfo.Document := aDocument.GetContainedDocument(lChildName);
+      lInfo.IsFolder := lChild.IsFolder;
+      Result[i] := lInfo;
+    end;
+
+  end;
+end;
+
+{ TShadowDocument }
+
+function TShadowDocument.CreatePath(aPath: UTF8String): TShadowDocument;
+var
+  lChildName: UTF8String;
+  lChildPath: UTF8String;
+  i: Integer;
+  lChildShadow: TShadowDocument;
+begin
+  SplitPath(aPath,lChildName,lChildPath);
+  i := fContents.FindIndexOf(lChildName);
+  if i = -1 then
+  begin
+    // TODO: Do we need to keep the name on the object?
+    lChildShadow := TShadowDocument.Create;
+    fContents.Add(lChildName,lChildShadow);
+  end
+  else
+    lChildShadow := fContents.Items[i] as TShadowDocument;
+  if lChildPath = '' then
+    result := lChildShadow
+  else
+    result := lChildShadow.CreatePath(lChildPath);
+end;
+
+function TShadowDocument.GetIsFolder: Boolean;
+begin
+  result := fContents.Count > 0;
+end;
+
+function TShadowDocument.GetPath(aPath: UTF8String): TShadowDocument;
+var
+  lChildName: UTF8String;
+  lChildPath: UTF8String;
+  i: Integer;
+  lChildShadow: TShadowDocument;
+begin
+  SplitPath(aPath,lChildName,lChildPath);
+  i := fContents.FindIndexOf(lChildName);
+  if i = -1 then
+  begin
+    result := nil;
+  end
+  else
+  begin
+    lChildShadow := fContents.Items[i] as TShadowDocument;
+    if lChildPath = '' then
+      result := lChildShadow
+    else
+      result := lChildShadow.GetPath(lChildPath);
+  end;
+end;
+
+procedure TShadowDocument.DeletePath(aPath: UTF8String);
+var
+  lChildName: UTF8String;
+  lChildPath: UTF8String;
+  i: Integer;
+  lChildShadow: TShadowDocument;
+begin
+  SplitPath(aPath,lChildName,lChildPath);
+  i := fContents.FindIndexOf(lChildName);
+  if i > -1 then
+  begin
+    lChildShadow := fContents.Items[i] as TShadowDocument;
+    if lChildPath = '' then
+    begin
+      fContents.Delete(i);
+    end
+    else
+    begin
+      lChildShadow.DeletePath(lChildPath);
+      if not lChildShadow.IsFolder then
+        fContents.Delete(i);
+    end;
+  end;
+end;
+
+procedure TShadowDocument.SplitPath(aPath: UTF8String; out
+  aChildName: UTF8String; out aChildPath: UTF8String);
+var
+  l: Integer;
+  i: Integer;
+begin
+  l := Length(aPath);
+  i := 1;
+  while i <= l do
+  begin
+    if aPath[i] = '/' then
+      break;
+    inc(i);
+  end;
+  aChildName:=Copy(aPath,1,i - 1);
+  aChildPath:=Copy(aPath,i + 1,MaxInt);
+end;
+
+constructor TShadowDocument.Create;
+begin
+  inherited Create;
+  fContents := TFPHashObjectList.Create(true);
+end;
+
+destructor TShadowDocument.Destroy;
+begin
+  FreeAndNil(fContents);
+  inherited Destroy;
+end;
+
 { TDocumentIsFolderPromise }
 
 constructor TDocumentIsFolderPromise.Create(aDocument: TDocumentPath);
@@ -1257,7 +1465,8 @@ end;
 
 procedure TStewProject.TIsDocumentAFolderTask.DoTask(Input: TPromise);
 begin
-  (Promise as TDocumentIsFolderPromise).fIsFolder := (Input as TFileExistencePromise).IsFolder;
+  (Promise as TDocumentIsFolderPromise).fIsFolder := (Input as TFileExistencePromise).IsFolder or
+                                                     fProject.fShadows.IsFolder(fDocument);
   Resolve;
 end;
 
@@ -1267,9 +1476,10 @@ begin
 end;
 
 constructor TStewProject.TIsDocumentAFolderTask.Defer(aDocument: TDocumentPath;
-  aPromise: TFileExistencePromise);
+  aProject: TStewProject; aPromise: TFileExistencePromise);
 begin
   fDocument := aDocument;
+  fProject := aProject;
   inherited Defer(aPromise);
 end;
 
@@ -1326,10 +1536,14 @@ procedure TStewProject.TListDocumentsInFolderTask.PropertiesReceived(
 var
   lProps: TDocumentProperties2;
   lList: TEZSortStringList;
-  lDocuments: TDocumentArray;
+  lFolders: TStringList;
+  lDocuments: TDocumentInfoArray;
+  lInfo: TDocumentInfo;
   lDocument: TDocumentPath;
+  lIsFolder: Boolean;
   l: Integer;
   i: Integer;
+  lShadows: TDocumentInfoArray;
 begin
   try
     fIndex.Clear;
@@ -1341,38 +1555,83 @@ begin
     end;
 
     // FUTURE: I should be able to do this in less steps, for example
-    // without translating to strings. But that will require me to write
-    // my own sorting procedure.
+    // without translating to strings, and without keeping track of
+    // folders separately. But that will require a data structure
+    // that has a custom sort procedure attached and also prevents
+    // adding documents which already exist.
+    // to me to write
+    // my own sorting procedure, at the very least.
     SetLength(lDocuments,0);
+
 
     lList := TEZSortStringList.Create;
     try
-      // start out with them sorted, so we can keep the documents unique.
+      // start out with them sorted, so we can keep the documents unique
+      // and make searching easier.
       lList.Sorted := true;
+      // this doesn't do anything unless the string list is sorted, as we did just above
       lList.Duplicates:=dupIgnore;
+      // we are counting items with different cases as the same, because they'll
+      // be the same on some file systems anyway.
       lList.CaseSensitive:=false;
 
-      // now, start adding the files as documents...
-      l := Length(fFiles);
-      for i := 0 to l - 1 do
-      begin
-        lDocument := TranslateFileToDocument(fProject.fDisk,fFiles[i]);
-        if lDocument.Name <> '' then
+      // track the folders, since we can't just put that data into the list.
+      // (Well, we could using AddObject, but I'm trying to get away from
+      // casting numbers to TObject.)
+      lFolders := TStringList.Create;
+      try
+        // same things...
+        lFolders.Sorted := true;
+        lFolders.Duplicates:=dupIgnore;
+        lFolders.CaseSensitive:= false;
+
+
+        // now, start adding the files as documents...
+        l := Length(fFiles);
+        for i := 0 to l - 1 do
+        begin
+          lDocument := TranslateFileToDocument(fProject.fDisk,fFiles[i].Item);
           // hide the documents made from folder attachments such
           // as _stew.json and _properties.json in the root.
-          lList.Add(lDocument.ID);
-      end;
+          if lDocument.Name <> '' then
+          begin
+            lIsFolder := fFiles[i].IsFolder and
+               (fFiles[i].Item.Descriptor = '') and
+               (fFiles[i].Item.Extension = '');
+            lList.Add(lDocument.ID);
+            if lIsFolder then
+              lFolders.Add(lDocument.ID);
+          end;
+        end;
 
-      // we should just have an item for each document now. Now,
-      // we have to change the sorting to sort by index.
-      lList.Sorted := false;
-      lList.OnEZSort:=@SortDocuments;
-      lList.EZSort;
-      l := lList.Count;
-      SetLength(lDocuments,l);
-      for i := 0 to l - 1 do
-      begin
-        lDocuments[i] := TDocumentPath.FromString(lList[i]);
+        // also add the shadows so they show up in the list.
+        lShadows := fProject.fShadows.GetContents(fDocument);
+        l := Length(lShadows);
+        for i := 0 to l - 1 do
+        begin
+          lDocument := lShadows[i].Document;
+          lIsFolder := lShadows[i].IsFolder;
+          lList.Add(lDocument.ID);
+          if lIsFolder then
+            lFolders.Add(lDocument.ID);
+        end;
+
+        // we should just have an item for each document now. Now,
+        // we have to change the sorting to sort by index.
+        lList.Sorted := false;
+        lList.OnEZSort:=@SortDocuments;
+        lList.EZSort;
+        l := lList.Count;
+        SetLength(lDocuments,l);
+        for i := 0 to l - 1 do
+        begin
+          lInfo.Document := TDocumentPath.FromString(lList[i]);
+          lInfo.IsFolder := lFolders.IndexOf(lList[i]) > -1;
+          lDocuments[i] := lInfo;
+        end;
+
+      finally
+        lFolders.Free;
       end;
     finally
       lList.Free;
@@ -1420,7 +1679,7 @@ procedure TStewProject.TListDocumentsInFolderTask.DoTask(Input: TPromise);
 var
   lReadProperties: TDocumentPropertiesPromise;
 begin
-  fFiles := (Input as TFileListPromise).Files;
+  fFiles := (Input as TFileListPromise).FilesInfo;
   // we need the properties as well...
   lReadProperties := fProject.ReadDocumentProperties(fDocument,false);
   lReadProperties.After(@PropertiesReceived,@SubPromiseRejected);
@@ -1670,7 +1929,7 @@ end;
 { TDocumentListedEvent }
 
 constructor TDocumentListDataReceivedEvent.Create(aDocument: TDocumentPath;
-  aList: TDocumentArray);
+  aList: TDocumentInfoArray);
 begin
   inherited Create(paDocumentListDataReceived,aDocument);
   fList := aList;
@@ -1687,10 +1946,12 @@ begin
   begin
     if i > 0 then
       result := result + ',';
-    if not (fList[i] = TDocumentPath.Null) then
-       result := result + ' ' + fList[i].ID
+    if not (fList[i].Document = TDocumentPath.Null) then
+       result := result + ' "' + fList[i].Document.ID + '"'
     else
-       result := result + ' <BLANK DOCUMENT PATH>'
+       result := result + ' <BLANK DOCUMENT PATH>';
+    if fList[i].IsFolder then
+       result := result + ' <FOLDER>';
   end;
   result := result + ']';
 end;
@@ -2600,7 +2861,7 @@ end;
 
 procedure TDocumentMetadata.FilesListedNonrecursive(aSender: TPromise);
 begin
-  FilesListed((aSender as TFileListPromise).Files,false);
+  FilesListed((aSender as TFileListPromise).GetJustFiles,false);
 end;
 
 procedure TDocumentMetadata.FilesListError(aSender: TPromise; Data: String);
@@ -2780,7 +3041,7 @@ end;
 
 procedure TDocumentMetadata.FilesListedRecursive(aSender: TPromise);
 begin
-  FilesListed((aSender as TFileListPromise).Files,true);
+  FilesListed((aSender as TFileListPromise).GetJustFiles,true);
 end;
 
 function TDocumentMetadata.GetPrimary: TPrimaryMetadata;
@@ -3623,6 +3884,7 @@ begin
   fCache := TFileSystemCache.Create(fDisk.System);
   fCache.OnActivity:=@CacheActivity;
   fCache.OnError:=@CacheError;
+  fShadows := TShadowCache.Create;
   fObservers := TProjectObserverList.Create;
   fMetadataCache := nil; // created on open.
   fProperties := nil;
@@ -3635,6 +3897,7 @@ end;
 
 destructor TStewProject.Destroy;
 begin
+  FreeAndNil(fShadows);
   FreeAndNil(fCache);
   FreeAndNil(fObservers);
   FreeAndNil(fMetadataCache);
@@ -3661,6 +3924,21 @@ begin
   result := fDisk.PacketName;
 end;
 
+procedure TStewProject.CreateShadow(aDocument: TDocumentPath);
+begin
+  fShadows.CreateShadow(aDocument);
+end;
+
+function TStewProject.IsShadow(aDocument: TDocumentPath): Boolean;
+begin
+  result := fShadows.HasShadow(aDocument);
+end;
+
+procedure TStewProject.DeleteShadow(aDocument: TDocumentPath);
+begin
+  fShadows.DeleteShadow(aDocument);
+end;
+
 function TStewProject.IsDocumentAFolder(aDocument: TDocumentPath;
   aForceRefresh: Boolean): TDocumentIsFolderPromise;
 var
@@ -3671,7 +3949,7 @@ begin
   if aForceRefresh then
     fCache.Uncache(lFolderFile,true);
   lCheckFile := fCache.CheckExistence(lFolderFile);
-  result := TIsDocumentAFolderTask.Defer(aDocument,lCheckFile).Promise as TDocumentIsFolderPromise;
+  result := TIsDocumentAFolderTask.Defer(aDocument,Self,lCheckFile).Promise as TDocumentIsFolderPromise;
   result.Catch(@DocumentIsFolderError);
 end;
 

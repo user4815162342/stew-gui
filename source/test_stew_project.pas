@@ -11,17 +11,6 @@ uses
 TODO:
 - As we go through, make sure we're supporting the non-file events with
   each thing.
-- Need to 'cache' the file lists in the file system cache as an existence check.
-  This requires the file list to have two separate lists, a folder list and a file
-  list.
-- Need Edit Document Attachment
-  - not absolutely sure we need to test this, although I suppose we're testing
-    it at another point where we're getting the xdg-open error.
-- Need Create Document
-  - also make sure it shows up in lists after created:
-    - on a list files, it must show up even if there's no backing file yet.
-    - on an isFolder check on it's parent, true must be returned, even if
-      it's not actually a folder.
 - Need *Shift* Document up and down
   - and, again, test the listing after...
 - Need Move Document between folders.
@@ -29,6 +18,21 @@ TODO:
     request is made to move. I should be able to just automatically change the
     documentpath to the new one. However, if I'm renaming *over* another file,
     that might be a problem, but I don't think I should allow that.
+  - Make sure this updates the shadow cache as well.
+- Need Edit Document Attachment
+  - not absolutely sure we need to test this, although I suppose we're testing
+    it at another point where we're getting the xdg-open error.
+
+TODO: In the Async code: It would be nice to have some events that get
+passed to the application when tasks are queued. This will allow us to
+show a busy signal on the app. Also, another function should force the
+mainform to wait until the tasks are complete before it closes. This does
+have the issue of make the application not want to close (which can be
+a problem if some operation is hanging), so maybe have a timeout where
+the application automatically closes.
+
+TODO: Also in Async code, make sure there's a try...except around running
+the code, and allow the application to report any uncaught errors.
 
 TODO: An Idea to help out with the project tree building: Part of the
 file existence check, and the listing, involves calls to DirectoryExists.
@@ -203,6 +207,9 @@ type
   { TProjectSpec }
 
   TProjectSpec = class(TTestSpec)
+    procedure Shadow_1(Sender: TPromise);
+    procedure Shadow_2(Sender: TPromise);
+    procedure Shadow_3(Sender: TPromise);
   private
     fTempDir: String;
     fTestRootDir: TFile;
@@ -242,6 +249,7 @@ type
     procedure Test_Document_List;
     procedure Test_Document_Synopsis;
     procedure Test_Document_IsFolder;
+    procedure Test_Shadows;
   end;
 
 
@@ -380,26 +388,28 @@ end;
 
 procedure TProjectSpec.Document_List_2(Sender: TPromise);
 var
-  lDocuments: TDocumentArray;
+  lDocuments: TDocumentInfoArray;
   l: Integer;
 begin
   lDocuments := (Sender as TDocumentListPromise).List;
   l := Length(lDocuments);
   AssertAsync(l = 7,'Document list should return 7 items',Sender.Tag);
-  AssertAsync(lDocuments[0].Name = 'Chapter 1','Document list should return and be correctly sorted',Sender.Tag);
-  AssertAsync(lDocuments[1].Name = 'Chapter 2','Document list should return and be correctly sorted',Sender.Tag);
-  AssertAsync(lDocuments[2].Name = 'Chapter 3','Document list should return and be correctly sorted',Sender.Tag);
-  AssertAsync(lDocuments[3].Name = 'Chapter 4','Document list should return and be correctly sorted',Sender.Tag);
-  AssertAsync(lDocuments[4].Name = 'Chapter 5','Document list should return and be correctly sorted',Sender.Tag);
-  AssertAsync(lDocuments[5].Name = 'Epilogue','Document list should return and be correctly sorted',Sender.Tag);
-  AssertAsync(lDocuments[6].Name = 'Notes','Document list should return and be correctly sorted',Sender.Tag);
+  AssertAsync(lDocuments[0].Document.Name = 'Chapter 1','Document list should return and be correctly sorted',Sender.Tag);
+  AssertAsync(lDocuments[1].Document.Name = 'Chapter 2','Document list should return and be correctly sorted',Sender.Tag);
+  AssertAsync(not lDocuments[1].IsFolder,'Document list should return and be correctly sorted',Sender.Tag);
+  AssertAsync(lDocuments[2].Document.Name = 'Chapter 3','Document list should return and be correctly sorted',Sender.Tag);
+  AssertAsync(lDocuments[3].Document.Name = 'Chapter 4','Document list should return and be correctly sorted',Sender.Tag);
+  AssertAsync(lDocuments[4].Document.Name = 'Chapter 5','Document list should return and be correctly sorted',Sender.Tag);
+  AssertAsync(lDocuments[5].Document.Name = 'Epilogue','Document list should return and be correctly sorted',Sender.Tag);
+  AssertAsync(lDocuments[6].Document.Name = 'Notes','Document list should return and be correctly sorted',Sender.Tag);
+  AssertAsync(lDocuments[6].IsFolder,'Document list should return and be correctly sorted',Sender.Tag);
   VerifyProjectEvents([
 '<ListingDocumentFiles> "/"',
 '<DocumentFilesListed> "/"',
 '<LoadingAttachmentFile> "/" <properties> "_properties.json"',
 '<AttachmentFileLoaded> "/" <properties> "_properties.json"',
 '<AttachmentDataReceived> "/" <properties> "_properties.json"',
-'<DocumentListDataReceived> "/" [ /Chapter 1, /Chapter 2, /Chapter 3, /Chapter 4, /Chapter 5, /Epilogue, /Notes]'
+'<DocumentListDataReceived> "/" [ "/Chapter 1", "/Chapter 2", "/Chapter 3", "/Chapter 4", "/Chapter 5", "/Epilogue", "/Notes" <FOLDER>]'
   ],Sender.Tag);
   EndAsync(Sender.Tag);
 
@@ -470,6 +480,48 @@ begin
   ],Sender.Tag);
   EndAsync(Sender.Tag);
 
+end;
+
+procedure TProjectSpec.Shadow_1(Sender: TPromise);
+var
+  lDocument: TDocumentPath;
+  lShadow: TDocumentPath;
+begin
+  fProject := (Sender as TProjectPromise).Project;
+  ClearProjectEvents;
+  fProject.AddObserver(@ObserveProject);
+  lDocument := TDocumentPath.Root.GetContainedDocument('Chapter 1');
+  lShadow := lDocument.GetContainedDocument('Notes');
+  fProject.CreateShadow(lShadow);
+  fProject.IsDocumentAFolder(lDocument).After(@Shadow_2,@PromiseFailed).Tag := Sender.Tag;
+end;
+
+procedure TProjectSpec.Shadow_2(Sender: TPromise);
+begin
+  if not AssertAsync((Sender as TDocumentIsFolderPromise).IsFolder,'Document should have been a folder containing a shadow',Sender.Tag) then
+    Exit;
+  fProject.ListDocumentsInFolder((Sender as TDocumentIsFolderPromise).Document).After(@Shadow_3,@PromiseFailed).Tag := Sender.Tag;
+
+end;
+
+procedure TProjectSpec.Shadow_3(Sender: TPromise);
+begin
+  if not AssertAsync(Length((Sender as TDocumentListPromise).List) = 1,'Shadow should show up in list',Sender.Tag) then
+    Exit;
+  if not AssertAsync((Sender as TDocumentListPromise).List[0].Document.Name = 'Notes','Shadow should show up in list',Sender.Tag) then
+    Exit;
+  if not VerifyProjectEvents([
+    '<CheckingDocumentFile> "/Chapter 1"',
+    '<DocumentFileChecked> "/Chapter 1"',
+    '<ListingDocumentFiles> "/Chapter 1"',
+    '<DocumentFilesListed> "/Chapter 1"',
+    '<LoadingAttachmentFile> "/Chapter 1" <properties> "_properties.json"',
+    '<AttachmentFileLoaded> "/Chapter 1" <properties> "_properties.json"',
+    '<AttachmentDataReceived> "/Chapter 1" <properties> "_properties.json"',
+    '<DocumentListDataReceived> "/Chapter 1" [ "/Chapter 1/Notes"]'
+  ],Sender.Tag) then
+    Exit;
+  EndAsync(Sender.Tag);
 end;
 
 procedure TProjectSpec.ClearProjectEvents;
@@ -632,6 +684,13 @@ begin
   if fProject <> nil then
     FreeAndNil(fProject);
   TStewProject.Open(fTestRootDir).After(@Document_IsFolder_1,@PromiseFailed).Tag := BeginAsync;
+end;
+
+procedure TProjectSpec.Test_Shadows;
+begin
+  if fProject <> nil then
+    FreeAndNil(fProject);
+  TStewProject.Open(fTestRootDir).After(@Shadow_1,@PromiseFailed).Tag := BeginAsync;
 end;
 
 end.

@@ -146,23 +146,34 @@ type
 
   TFileArray = array of TFile;
 
+  { TFileInfo }
+
+  TFileInfo = record
+    Item: TFile;
+    IsFolder: Boolean;
+    class function Make(aItem: TFile; aIsFolder: Boolean): TFileInfo; static;
+  end;
+
+  TFileInfoArray = array of TFileInfo;
+
   { TFileListPromise }
 
   TFileListPromise = class(TPromise)
   private
     fPath: TFile;
   protected
-    fFiles: TFileArray;
+    fFilesInfo: TFileInfoArray;
     fExists: Boolean;
     fIsFolder: Boolean;
   public
     constructor Create(aFile: TFile);
-    procedure SetAnswer(aFiles: TFileArray; aExists: Boolean; aIsFolder: Boolean
+    procedure SetAnswer(aFiles: TFileInfoArray; aExists: Boolean; aIsFolder: Boolean
       );
-    property Files: TFileArray read fFiles;
+    property FilesInfo: TFileInfoArray read fFilesInfo;
     property Path: TFile read fPath;
     property Exists: Boolean read fExists;
     property IsFolder: Boolean read fIsFolder;
+    function GetJustFiles: TFileArray;
   end;
 
   { TFileCheckExistencePromise }
@@ -358,6 +369,14 @@ implementation
 uses
   strutils, FileUtil;
 
+{ TFileInfo }
+
+class function TFileInfo.Make(aItem: TFile; aIsFolder: Boolean): TFileInfo;
+begin
+  result.Item := aItem;
+  result.IsFolder := aIsFolder;
+end;
+
 { TFileListTemplatesPromise }
 
 constructor TFileListTemplatesPromise.Create(aFile: TFile);
@@ -542,12 +561,26 @@ begin
   fIsFolder := false;
 end;
 
-procedure TFileListPromise.SetAnswer(aFiles: TFileArray; aExists: Boolean;
+procedure TFileListPromise.SetAnswer(aFiles: TFileInfoArray; aExists: Boolean;
   aIsFolder: Boolean);
 begin
-  fFiles := aFiles;
+  fFilesInfo := aFiles;
   fExists := aExists;
   fIsFolder := aIsFolder;
+end;
+
+function TFileListPromise.GetJustFiles: TFileArray;
+var
+  i: Integer;
+  l: Integer;
+begin
+  l := Length(fFilesInfo);
+  SetLength(Result,l);
+  for i := 0 to l - 1 do
+  begin
+    result[i] := fFilesInfo[i].Item;
+  end;
+
 end;
 
 { TFileList }

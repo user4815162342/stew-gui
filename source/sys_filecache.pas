@@ -103,10 +103,10 @@ as well, since I don't intend on the file cache being shared.
 
   TFileSystemCacheLists = class(TFileSystemCacheData)
   private
-    fFiles: TFileArray;
+    fFilesInfo: TFileInfoArray;
   public
-    constructor Create(aFiles: TFileArray);
-    property Files: TFileArray read fFiles;
+    constructor Create(aFiles: TFileInfoArray);
+    property FilesInfo: TFileInfoArray read fFilesInfo;
   end;
 
   { TFileSystemCacheContents }
@@ -319,7 +319,7 @@ constructor TFileSystemCacheListKnownTask.Enqueue(aFile: TFile;
 begin
   fFile := aFile;
   inherited Enqueue;
-  (Promise as TFileListPromise).SetAnswer(aData.Files,aExistence.Exists,aExistence.IsFolder);
+  (Promise as TFileListPromise).SetAnswer(aData.FilesInfo,aExistence.Exists,aExistence.IsFolder);
 
 end;
 
@@ -396,10 +396,10 @@ end;
 
 { TFileSystemCacheLists }
 
-constructor TFileSystemCacheLists.Create(aFiles: TFileArray);
+constructor TFileSystemCacheLists.Create(aFiles: TFileInfoArray);
 begin
   inherited Create;
-  fFiles := aFiles;
+  fFilesInfo := aFiles;
 end;
 
 { TFileSystemCacheExists }
@@ -445,10 +445,12 @@ procedure TFileSystemCache.FileListed(Sender: TPromise);
 var
   lFile: TFile;
   lExists: Boolean;
-  lList: TFileArray;
+  lFiles: TFileInfoArray;
   lExistsKey: UTF8String;
   lIsFolder: Boolean;
   lListKey: UTF8String;
+  l: Integer;
+  i: Integer;
 begin
   lFile := (Sender as TFileListPromise).Path;
   lExistsKey := ExistsKey(lFile);
@@ -457,10 +459,18 @@ begin
   begin
     lExists := (Sender as TFileListPromise).Exists;
     lIsFolder := (Sender as TFileListPromise).IsFolder;
-    lList := (Sender as TFileListPromise).Files;
+    lFiles := (Sender as TFileListPromise).FilesInfo;
     fPromiseCache.Delete(lListKey);
     fDataCache[lExistsKey] := TFileSystemCacheExists.Create(lExists,lIsFolder);
-    fDataCache[lListKey] := TFileSystemCacheLists.Create(lList);
+    fDataCache[lListKey] := TFileSystemCacheLists.Create(lFiles);
+
+    // also cache the existence of the files...
+    l := Length(lFiles);
+    for i := 0 to l - 1 do
+    begin
+      fDataCache[ExistsKey(lFiles[i].Item)] := TFileSystemCacheExists.Create(true,lFiles[i].IsFolder);
+    end;
+
     ReportActivity(Sender);
   end;
   // otherwise, there must be a newer promise with better information...

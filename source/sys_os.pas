@@ -221,7 +221,7 @@ var
   lData: TFileArray;
 begin
   lExt := fPath.Extension;
-  lData := (Sender as TFileListPromise).Files;
+  lData := (Sender as TFileListPromise).GetJustFiles;
   l := Length(lData);
   j := 0;
   for i := 0 to l - 1 do

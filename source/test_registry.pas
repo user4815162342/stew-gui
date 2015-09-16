@@ -36,7 +36,7 @@ type
     procedure FailAsync(aTestID: Integer; const aMessage: String);
     // I know there's an assert function in pascal, but that is only
     // compiled when a certain switch is on.
-    procedure AssertAsync(aCondition: Boolean; aError: String; aTestID: Integer);
+    function AssertAsync(aCondition: Boolean; aError: String; aTestID: Integer): Boolean;
     procedure Assert(aCondition: Boolean; aError: String);
     procedure SetupTest; virtual;
     procedure CleanupTest; virtual;
@@ -168,9 +168,10 @@ begin
   fRegistry.TestFailed(aTestID,aMessage);
 end;
 
-procedure TTestSpec.AssertAsync(aCondition: Boolean; aError: String; aTestID: Integer
-  );
+function TTestSpec.AssertAsync(aCondition: Boolean; aError: String;
+  aTestID: Integer): Boolean;
 begin
+  Result := aCondition;
   if not aCondition then
      FailAsync(aTestID,aError);
 end;

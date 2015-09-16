@@ -185,7 +185,7 @@ var
   i: Integer;
   lData: TFileArray;
 begin
-  lData := (aSender as TFileListPromise).Files;
+  lData := (aSender as TFileListPromise).GetJustFiles;
   SetLength(target,Length(lData));
   for i := 0 to Length(lData) -1 do
   begin
@@ -312,7 +312,7 @@ begin
   end;
 
   lFound := false;
-  lData := (aSender as TFileListPromise).Files;
+  lData := (aSender as TFileListPromise).GetJustFiles;
   if Length(lData) <> Length(ExpectedFileNamesInList) then
   begin
     FailAsync(aSender.Tag,'Expected list results to have ' + IntToStr(Length(ExpectedFileNamesInList)) + ' results.');
