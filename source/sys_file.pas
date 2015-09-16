@@ -643,7 +643,7 @@ end;
 class function TFileSystem.GetFile(ID: String): TFile;
 begin
   result.fSystem := GetFileSystemClass;
-  result.fID := ID;
+  result.fID := ExcludeTrailingPathDelimiter(ID);
 end;
 
 { TFile }

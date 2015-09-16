@@ -484,6 +484,8 @@ var
   lList: TFileArray;
 begin
   // we need to uncache *both* sets of files, just in case, recursively.
+  // But, we also have to uncache the file's parents because of the
+  // listing cache.
   // It's going to be more efficient to do both of them at once, I feel.
   lSource := (Sender as TFileRenamePromise).Source;
   l := Length(lSource);
@@ -492,7 +494,7 @@ begin
   begin
     lList[i] := lSource[i];
   end;
-  lSource := (Sender as TFileRenamePromise).Source;
+  lSource := (Sender as TFileRenamePromise).Target;
   for i := 0 to l - 1 do
   begin
     lList[l + i] := lSource[i];
@@ -697,7 +699,7 @@ begin
   I := Length(aKey);
   while (I > 0) and not (aKey[I] = Delim) do
     Dec(I);
-  id := Copy(aKey,1,i);
+  id := Copy(aKey,1,i - 1);
   case Copy(aKey,i,Length(aKey)) of
     ListIdentifier, ContentsIdentifier, ExistsIdentifier:
     begin
@@ -732,6 +734,8 @@ begin
       if (aFiles[j] = lCheckFile) or aFiles[j].Contains(lCheckFile) then
       begin
          aCache.Delete(lKeys[i]);
+         // and delete the list key that contains it
+         aCache.Delete(ListKey(lCheckFile.Directory));
          break;
       end;
     end;
@@ -967,6 +971,10 @@ begin
     fDataCache.Delete(lContentsKey);
     fDataCache.Delete(lListKey);
     fDataCache.Delete(lExistsKey);
+    // we also need to delete the lists that contain it...
+    lListKey := ListKey(aFile.Directory);
+    fPromiseCache.Delete(lListKey);
+    fDataCache.Delete(lListKey);
   end;
 
 end;

@@ -11,14 +11,7 @@ uses
 TODO:
 - As we go through, make sure we're supporting the non-file events with
   each thing.
-- Need *Shift* Document up and down
-  - and, again, test the listing after...
-- Need Move Document between folders.
-  - I don't *really* need to prevent a move if something's being edited when a
-    request is made to move. I should be able to just automatically change the
-    documentpath to the new one. However, if I'm renaming *over* another file,
-    that might be a problem, but I don't think I should allow that.
-  - Make sure this updates the shadow cache as well.
+- TODO: Make sure all of the 'events' are being notified, or get rid of them.
 - Need Edit Document Attachment
   - not absolutely sure we need to test this, although I suppose we're testing
     it at another point where we're getting the xdg-open error.
@@ -33,26 +26,6 @@ the application automatically closes.
 
 TODO: Also in Async code, make sure there's a try...except around running
 the code, and allow the application to report any uncaught errors.
-
-TODO: An Idea to help out with the project tree building: Part of the
-file existence check, and the listing, involves calls to DirectoryExists.
-It shouldn't take much more to add a 'IsDirectory' property onto the
-Existence check in the file system cache. I can then easily report, with
-some quick check existence stuff, whether a given document has a directory
-attachment, and therefore be able to easily mark it as expandable in the
-project tree view, without having to guess. It does require doing a check
-existence on every document, but that's something that might be useful
-anyway.
--- Basically, all this does is add a IsDirectory(Document) method, task
-and promise to the Project, and a little bit of infrastructure in the
-CheckExistence file routines to get this information.
-
-TODO: While we're at that, when we do a file list, the cache should automatically
-store the fact that each of those files exist. If we're doing a directory checking,
-we can either return a list of records and statuses, or just return two sets of
-lists: one for file and one for folders.
-
-
 
 TODO: Once TStewProject is ready and tested, start deprecating the old stuff,
 and recompile the GUI. Use the deprecated hints to help figure out where things
@@ -207,9 +180,6 @@ type
   { TProjectSpec }
 
   TProjectSpec = class(TTestSpec)
-    procedure Shadow_1(Sender: TPromise);
-    procedure Shadow_2(Sender: TPromise);
-    procedure Shadow_3(Sender: TPromise);
   private
     fTempDir: String;
     fTestRootDir: TFile;
@@ -238,10 +208,24 @@ type
     procedure Document_Syn_4(Sender: TPromise);
     procedure Document_IsFolder_1(Sender: TPromise);
     procedure Document_IsFolder_2(Sender: TPromise);
+    procedure Rename_1(Sender: TPromise);
+    procedure Rename_2(Sender: TPromise);
+    procedure Shadow_1(Sender: TPromise);
+    procedure Shadow_2(Sender: TPromise);
+    procedure Shadow_3(Sender: TPromise);
+    procedure Shift_1(Sender: TPromise);
+    procedure Shift_2(Sender: TPromise);
+    procedure Shift_3(Sender: TPromise);
+    procedure Rename_3(Sender: TPromise);
+    procedure Rename_4(Sender: TPromise);
+    procedure Rename_5(Sender: TPromise);
+    procedure Rename_6(Sender: TPromise);
   public
     procedure SetupTest; override;
     procedure CleanupTest; override;
   published
+    // TODO: We have to enforce the *order* that these tests happen in,
+    // or do the file stuff before and after each test.
     procedure Test_DocumentPath;
     procedure Test_Open_Project;
     procedure Test_Project_Properties;
@@ -250,6 +234,8 @@ type
     procedure Test_Document_Synopsis;
     procedure Test_Document_IsFolder;
     procedure Test_Shadows;
+    procedure Test_Shift;
+    procedure Test_Rename;
   end;
 
 
@@ -274,8 +260,8 @@ var
 begin
   lProject := (Sender as TProjectPromise).Project;
   try
-    AssertAsync(lProject <> nil,'Project should have been opened in parent',Sender.Tag);
-    AssertAsync(lProject.DiskPath = fTestRootDir,'Open in parent should have been opened at the correct path',Sender.Tag);
+    if not AssertAsync(lProject <> nil,'Project should have been opened in parent',Sender.Tag) then Exit;;
+    if not AssertAsync(lProject.DiskPath = fTestRootDir,'Open in parent should have been opened at the correct path',Sender.Tag) then Exit;
   finally
     lProject.Free;
   end;
@@ -288,8 +274,8 @@ var
 begin
   lProject := (Sender as TProjectPromise).Project;
   try
-    AssertAsync(lProject <> nil,'New project should have been opened',Sender.Tag);
-    AssertAsync(lProject.DiskPath <> fTestRootDir,'New project should have been opened at the correct path',Sender.Tag);
+    if not AssertAsync(lProject <> nil,'New project should have been opened',Sender.Tag) then Exit;
+    if not AssertAsync(lProject.DiskPath <> fTestRootDir,'New project should have been opened at the correct path',Sender.Tag) then Exit;
   finally
     lProject.Free;
   end;
@@ -313,14 +299,14 @@ begin
   AssertAsync(Length(lProps.Categories.keys) > 0,'Combination of parsing and GetPath should have gotten some data',Sender.Tag);
   AssertAsync((lProps.Categories.Get('Chapter') as TCategoryDefinition2).PublishTitleLevel = 0,'Project category definitions should work',Sender.Tag);
   AssertAsync(lProps.Categories.hasOwnProperty('Scene'),'Project categories should work',Sender.Tag);
-  AssertAsync(lProps.DefaultCategory = 'Chapter','Project default category should work',Sender.Tag);
-  AssertAsync(lProps.DefaultDocExtension = 'txt','Project default doc extension should work',Sender.Tag);
-  AssertAsync(lProps.DefaultNotesExtension = 'txt','Project default notes extension should work',Sender.Tag);
-  AssertAsync(lProps.DefaultStatus = 'Unwritten','Project default status should work',Sender.Tag);
-  AssertAsync(lProps.DefaultThumbnailExtension = 'png','Project default thumbnail extension should work',Sender.Tag);
+  if not AssertAsync(lProps.DefaultCategory = 'Chapter','Project default category should work',Sender.Tag) then Exit;
+  if not AssertAsync(lProps.DefaultDocExtension = 'txt','Project default doc extension should work',Sender.Tag) then Exit;
+  if not AssertAsync(lProps.DefaultNotesExtension = 'txt','Project default notes extension should work',Sender.Tag) then Exit;
+  if not AssertAsync(lProps.DefaultStatus = 'Unwritten','Project default status should work',Sender.Tag) then Exit;
+  if not AssertAsync(lProps.DefaultThumbnailExtension = 'png','Project default thumbnail extension should work',Sender.Tag) then Exit;
   AssertAsync((lProps.Statuses.Get('Unwritten') as TStatusDefinition2).Color = clRed,'Project statuses should work',Sender.Tag);
   lProps.DefaultDocExtension := '.doc';
-  AssertAsync(lProps.DefaultDocExtension = 'doc','Default doc extension should trim off the "." when assigning',Sender.Tag);
+  if not AssertAsync(lProps.DefaultDocExtension = 'doc','Default doc extension should trim off the "." when assigning',Sender.Tag) then Exit;
 
   // now, test changing some things and writing it out.
   lProps.DefaultCategory := 'Tome';
@@ -345,11 +331,11 @@ var
 begin
   lProps := (Sender as TDocumentPropertiesPromise).Properties;
   lDocument := (Sender as TDocumentPropertiesPromise).Document;
-  AssertAsync(lProps.Category = 'Chapter','Category should return correct value',Sender.Tag);
-  AssertAsync(lProps.Status = 'Unwritten','Status should return correct value',Sender.Tag);
-  AssertAsync(lProps.Title = 'The Cottage','Title should return correct value',Sender.Tag);
-  AssertAsync(lProps.Publish = false,'Publish should return correct value',Sender.Tag);
-  AssertAsync(lProps.Index.Length = 0,'Index should return correct value',Sender.Tag);
+  if not AssertAsync(lProps.Category = 'Chapter','Category should return correct value',Sender.Tag) then Exit;
+  if not AssertAsync(lProps.Status = 'Unwritten','Status should return correct value',Sender.Tag) then Exit;
+  if not AssertAsync(lProps.Title = 'The Cottage','Title should return correct value',Sender.Tag) then Exit;
+  if not AssertAsync(lProps.Publish = false,'Publish should return correct value',Sender.Tag) then Exit;
+  if not AssertAsync(lProps.Index.Length = 0,'Index should return correct value',Sender.Tag) then Exit;
   AssertAsync(lProps.User.Get('place').AsString = 'Jen''s Lakeside Cottage','User properties should return correct values',Sender.Tag);
 
   lProps.Title := 'The Cottage Not in the Woods';
@@ -393,16 +379,16 @@ var
 begin
   lDocuments := (Sender as TDocumentListPromise).List;
   l := Length(lDocuments);
-  AssertAsync(l = 7,'Document list should return 7 items',Sender.Tag);
-  AssertAsync(lDocuments[0].Document.Name = 'Chapter 1','Document list should return and be correctly sorted',Sender.Tag);
-  AssertAsync(lDocuments[1].Document.Name = 'Chapter 2','Document list should return and be correctly sorted',Sender.Tag);
-  AssertAsync(not lDocuments[1].IsFolder,'Document list should return and be correctly sorted',Sender.Tag);
-  AssertAsync(lDocuments[2].Document.Name = 'Chapter 3','Document list should return and be correctly sorted',Sender.Tag);
-  AssertAsync(lDocuments[3].Document.Name = 'Chapter 4','Document list should return and be correctly sorted',Sender.Tag);
-  AssertAsync(lDocuments[4].Document.Name = 'Chapter 5','Document list should return and be correctly sorted',Sender.Tag);
-  AssertAsync(lDocuments[5].Document.Name = 'Epilogue','Document list should return and be correctly sorted',Sender.Tag);
-  AssertAsync(lDocuments[6].Document.Name = 'Notes','Document list should return and be correctly sorted',Sender.Tag);
-  AssertAsync(lDocuments[6].IsFolder,'Document list should return and be correctly sorted',Sender.Tag);
+  if not AssertAsync(l = 7,'Document list should return 7 items',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[0].Document.Name = 'Chapter 1','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[1].Document.Name = 'Chapter 2','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(not lDocuments[1].IsFolder,'Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[2].Document.Name = 'Chapter 3','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[3].Document.Name = 'Chapter 4','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[4].Document.Name = 'Chapter 5','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[5].Document.Name = 'Epilogue','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[6].Document.Name = 'Notes','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[6].IsFolder,'Document list should return and be correctly sorted',Sender.Tag) then Exit;
   VerifyProjectEvents([
 '<ListingDocumentFiles> "/"',
 '<DocumentFilesListed> "/"',
@@ -433,7 +419,7 @@ var
 begin
   lSyn := (Sender as TDocumentSynopsisPromise).Synopsis;
   lDocument := (Sender as TDocumentSynopsisPromise).Document;
-  AssertAsync(lSyn = 'Jack confesses to his friends that he''s actually a werewolf. While Jen and Joe are completely surprised, Jane responds to the news in a rather unexpected manner.','Synopsis must be read correctly',Sender.Tag);
+  if not AssertAsync(lSyn = 'Jack confesses to his friends that he''s actually a werewolf. While Jen and Joe are completely surprised, Jane responds to the news in a rather unexpected manner.','Synopsis must be read correctly',Sender.Tag) then Exit;
   lSyn := 'Jack confesses. Jen and Joe are suprised. Jane responds.';
   fProject.WriteDocumentSynopsis(lDocument,lSyn).After(@Document_Syn_3,@PromiseFailed).Tag := Sender.Tag;
 end;
@@ -449,7 +435,7 @@ var
   lSyn: UTF8String;
 begin
   lSyn := (Sender as TDocumentSynopsisPromise).Synopsis;
-  AssertAsync(lSyn = 'Jack confesses. Jen and Joe are suprised. Jane responds.','Changes should have been saved',Sender.Tag);
+  if not AssertAsync(lSyn = 'Jack confesses. Jen and Joe are suprised. Jane responds.','Changes should have been saved',Sender.Tag) then Exit;
   if not VerifyProjectEvents(['<LoadingAttachmentFile> "/Chapter 1" <synopsis> "_synopsis.txt"',
                               '<AttachmentFileLoaded> "/Chapter 1" <synopsis> "_synopsis.txt"',
                               '<AttachmentDataReceived> "/Chapter 1" <synopsis> "_synopsis.txt"',
@@ -482,6 +468,24 @@ begin
 
 end;
 
+procedure TProjectSpec.Rename_1(Sender: TPromise);
+var
+  lOld: TDocumentPath;
+  lNew: TDocumentPath;
+begin
+  fProject := (Sender as TProjectPromise).Project;
+  ClearProjectEvents;
+  fProject.AddObserver(@ObserveProject);
+  lOld := TDocumentPath.Root.GetContainedDocument('Epilogue');
+  lNew := TDocumentPath.Root.GetContainedDocument('Chapter 6');
+  fProject.RenameDocument(lOld,lNew).After(@Rename_2,@PromiseFailed).Tag := Sender.Tag;
+end;
+
+procedure TProjectSpec.Rename_2(Sender: TPromise);
+begin
+  fProject.ListDocumentsInFolder(TDocumentPath.Root).After(@Rename_3,@PromiseFailed).Tag := Sender.Tag;
+end;
+
 procedure TProjectSpec.Shadow_1(Sender: TPromise);
 var
   lDocument: TDocumentPath;
@@ -511,6 +515,7 @@ begin
   if not AssertAsync((Sender as TDocumentListPromise).List[0].Document.Name = 'Notes','Shadow should show up in list',Sender.Tag) then
     Exit;
   if not VerifyProjectEvents([
+    '<ShadowCreated> "/Chapter 1/Notes"',
     '<CheckingDocumentFile> "/Chapter 1"',
     '<DocumentFileChecked> "/Chapter 1"',
     '<ListingDocumentFiles> "/Chapter 1"',
@@ -521,6 +526,149 @@ begin
     '<DocumentListDataReceived> "/Chapter 1" [ "/Chapter 1/Notes"]'
   ],Sender.Tag) then
     Exit;
+  EndAsync(Sender.Tag);
+end;
+
+procedure TProjectSpec.Shift_1(Sender: TPromise);
+var
+  lDocument: TDocumentPath;
+begin
+  fProject := (Sender as TProjectPromise).Project;
+  ClearProjectEvents;
+  fProject.AddObserver(@ObserveProject);
+  lDocument := TDocumentPath.Root.GetContainedDocument('Notes');
+  fProject.ShiftDocumentBy(lDocument,-2).After(@Shift_2,@PromiseFailed).Tag := Sender.Tag;
+end;
+
+procedure TProjectSpec.Shift_2(Sender: TPromise);
+var
+  lDocument: TDocumentPath;
+begin
+  lDocument := TDocumentPath.Root;
+  fProject.ListDocumentsInFolder(lDocument).After(@Shift_3,@PromiseFailed).Tag := Sender.Tag;
+end;
+
+procedure TProjectSpec.Shift_3(Sender: TPromise);
+var
+  lDocuments: TDocumentInfoArray;
+  l: Integer;
+begin
+  lDocuments := (Sender as TDocumentListPromise).List;
+  l := Length(lDocuments);
+  if not AssertAsync(l = 7,'Document list should return 7 items',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[0].Document.Name = 'Chapter 1','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[1].Document.Name = 'Chapter 2','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(not lDocuments[1].IsFolder,'Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[2].Document.Name = 'Chapter 3','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[3].Document.Name = 'Chapter 4','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[4].Document.Name = 'Notes','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[4].IsFolder,'Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[5].Document.Name = 'Chapter 5','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[6].Document.Name = 'Epilogue','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  VerifyProjectEvents([
+'<ListingDocumentFiles> "/"',
+'<DocumentFilesListed> "/"',
+'<LoadingAttachmentFile> "/" <properties> "_properties.json"',
+'<AttachmentFileLoaded> "/" <properties> "_properties.json"',
+'<AttachmentDataReceived> "/" <properties> "_properties.json"',
+'<SavingAttachmentFile> "/" <properties> "_properties.json"',
+'<AttachmentFileSaved> "/" <properties> "_properties.json"',
+'<DocumentShifted> "/Notes"',
+'<AttachmentDataReceived> "/" <properties> "_properties.json"',
+'<DocumentListDataReceived> "/" [ "/Chapter 1", "/Chapter 2", "/Chapter 3", "/Chapter 4", "/Notes" <FOLDER>, "/Chapter 5", "/Epilogue"]'
+  ],Sender.Tag);
+  EndAsync(Sender.Tag);
+
+
+end;
+
+procedure TProjectSpec.Rename_3(Sender: TPromise);
+var
+  lDocuments: TDocumentInfoArray;
+  l: Integer;
+begin
+  lDocuments := (Sender as TDocumentListPromise).List;
+  l := Length(lDocuments);
+  if not AssertAsync(l = 7,'Document list should return 7 items',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[0].Document.Name = 'Chapter 1','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[1].Document.Name = 'Chapter 2','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(not lDocuments[1].IsFolder,'Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[2].Document.Name = 'Chapter 3','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[3].Document.Name = 'Chapter 4','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[4].Document.Name = 'Notes','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[4].IsFolder,'Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[5].Document.Name = 'Chapter 5','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[6].Document.Name = 'Chapter 6','Document renme should have worked',Sender.Tag) then Exit;
+  // Now, move Chapter 2 into Notes
+  fProject.RenameDocument(TDocumentPath.Root.GetContainedDocument('Chapter 6'),
+                          TDocumentPath.Root.GetContainedDocument('Notes').GetContainedDocument('Chapter 6')).
+                          After(@Rename_4,@PromiseFailed).Tag := Sender.Tag;
+end;
+
+procedure TProjectSpec.Rename_4(Sender: TPromise);
+begin
+  fProject.ListDocumentsInFolder(TDocumentPath.Root).After(@Rename_5,@PromiseFailed).Tag := Sender.Tag;
+end;
+
+procedure TProjectSpec.Rename_5(Sender: TPromise);
+var
+  lDocuments: TDocumentInfoArray;
+  l: Integer;
+begin
+  lDocuments := (Sender as TDocumentListPromise).List;
+  l := Length(lDocuments);
+  if not AssertAsync(l = 6,'Document list should return 6 items',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[0].Document.Name = 'Chapter 1','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[1].Document.Name = 'Chapter 2','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(not lDocuments[1].IsFolder,'Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[2].Document.Name = 'Chapter 3','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[3].Document.Name = 'Chapter 4','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[4].Document.Name = 'Notes','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[4].IsFolder,'Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  if not AssertAsync(lDocuments[5].Document.Name = 'Chapter 5','Document list should return and be correctly sorted',Sender.Tag) then Exit;
+  // Now, check if it's in Notes.
+  fProject.ListDocumentsInFolder(TDocumentPath.Root.GetContainedDocument('Notes')).
+                          After(@Rename_6,@PromiseFailed).Tag := Sender.Tag;
+end;
+
+procedure TProjectSpec.Rename_6(Sender: TPromise);
+var
+  lDocuments: TDocumentInfoArray;
+  l: Integer;
+  lName: String;
+begin
+  lDocuments := (Sender as TDocumentListPromise).List;
+  l := Length(lDocuments);
+  if not AssertAsync(l = 2,'Document list should return 2 items',Sender.Tag) then Exit;
+  lName := lDocuments[0].Document.Name;
+  if not AssertAsync((lName = 'Chapter 6') or (lName = 'Characters'),'Document should only containe Chapter 6 or Characters',Sender.Tag) then Exit;
+  lName := lDocuments[1].Document.Name;
+  if not AssertAsync((lName = 'Chapter 6') or (lName = 'Characters'),'Document should only containe Chapter 6 or Characters',Sender.Tag) then Exit;
+  // TODO: Verify events...
+  if not VerifyProjectEvents([
+         '<RenamingDocument> "/Epilogue" TO: /Chapter 6',
+         '<ListingDocumentFiles> "/"',
+         '<DocumentFilesListed> "/"',
+         '<DocumentRenamed> "/Epilogue" TO: /Chapter 6',
+         '<ListingDocumentFiles> "/"',
+         '<DocumentFilesListed> "/"',
+         '<LoadingAttachmentFile> "/" <properties> "_properties.json"',
+         '<AttachmentFileLoaded> "/" <properties> "_properties.json"',
+         '<AttachmentDataReceived> "/" <properties> "_properties.json"',
+         '<DocumentListDataReceived> "/" [ "/Chapter 1", "/Chapter 2", "/Chapter 3", "/Chapter 4", "/Notes" <FOLDER>, "/Chapter 5", "/Chapter 6"]',
+         '<RenamingDocument> "/Chapter 6" TO: /Notes/Chapter 6',
+         '<DocumentRenamed> "/Chapter 6" TO: /Notes/Chapter 6',
+         '<ListingDocumentFiles> "/"',
+         '<DocumentFilesListed> "/"',
+         '<AttachmentDataReceived> "/" <properties> "_properties.json"',
+         '<DocumentListDataReceived> "/" [ "/Chapter 1", "/Chapter 2", "/Chapter 3", "/Chapter 4", "/Notes" <FOLDER>, "/Chapter 5"]',
+         '<ListingDocumentFiles> "/Notes"',
+         '<DocumentFilesListed> "/Notes"',
+         '<LoadingAttachmentFile> "/Notes" <properties> "_properties.json"',
+         '<AttachmentFileLoaded> "/Notes" <properties> "_properties.json"',
+         '<AttachmentDataReceived> "/Notes" <properties> "_properties.json"',
+         '<DocumentListDataReceived> "/Notes" [ "/Notes/Chapter 6", "/Notes/Characters" <FOLDER>]'
+     ],Sender.Tag) then Exit;
   EndAsync(Sender.Tag);
 end;
 
@@ -593,8 +741,8 @@ var
 begin
   lProject := (Sender as TProjectPromise).Project;
   try
-    AssertAsync(lProject <> nil,'Project should have been opened',Sender.Tag);
-    AssertAsync(lProject.DiskPath = fTestRootDir,'Project should have been opened at the correct path',Sender.Tag);
+    if not AssertAsync(lProject <> nil,'Project should have been opened',Sender.Tag) then Exit;
+    if not AssertAsync(lProject.DiskPath = fTestRootDir,'Project should have been opened at the correct path',Sender.Tag) then Exit;
   finally
     lProject.Free;
   end;
@@ -691,6 +839,20 @@ begin
   if fProject <> nil then
     FreeAndNil(fProject);
   TStewProject.Open(fTestRootDir).After(@Shadow_1,@PromiseFailed).Tag := BeginAsync;
+end;
+
+procedure TProjectSpec.Test_Shift;
+begin
+  if fProject <> nil then
+    FreeAndNil(fProject);
+  TStewProject.Open(fTestRootDir).After(@Shift_1,@PromiseFailed).Tag := BeginAsync;
+end;
+
+procedure TProjectSpec.Test_Rename;
+begin
+  if fProject <> nil then
+    FreeAndNil(fProject);
+  TStewProject.Open(fTestRootDir).After(@Rename_1,@PromiseFailed).Tag := BeginAsync;
 end;
 
 end.
