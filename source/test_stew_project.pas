@@ -11,15 +11,6 @@ uses
 TODO:
 - As we go through, make sure we're supporting the non-file events with
   each thing.
-<<<<<<< HEAD
-=======
-- Need Move Document between folders.
-  - I don't *really* need to prevent a move if something's being edited when a
-    request is made to move. I should be able to just automatically change the
-    documentpath to the new one. However, if I'm renaming *over* another file,
-    that might be a problem, but I don't think I should allow that.
-  - Make sure this updates the shadow cache as well.
->>>>>>> 9ca9502eefb609522e20518999f6c170d2d4c98c
 - TODO: Make sure all of the 'events' are being notified, or get rid of them.
 - Need Edit Document Attachment
   - not absolutely sure we need to test this, although I suppose we're testing
@@ -28,7 +19,7 @@ TODO:
 TODO: In the Async code: It would be nice to have some events that get
 passed to the application when tasks are queued. This will allow us to
 show a busy signal on the app. Also, another function should force the
-mainform to wait until the tasks are complete before it closes. This does
+mainform to wait until the tasks  are complete before it closes. This does
 have the issue of make the application not want to close (which can be
 a problem if some operation is hanging), so maybe have a timeout where
 the application automatically closes.
@@ -655,10 +646,7 @@ begin
   if not AssertAsync((lName = 'Chapter 6') or (lName = 'Characters'),'Document should only containe Chapter 6 or Characters',Sender.Tag) then Exit;
   // TODO: Verify events...
   if not VerifyProjectEvents([
-<<<<<<< HEAD
          '<RenamingDocument> "/Epilogue" TO: /Chapter 6',
-=======
->>>>>>> 9ca9502eefb609522e20518999f6c170d2d4c98c
          '<ListingDocumentFiles> "/"',
          '<DocumentFilesListed> "/"',
          '<DocumentRenamed> "/Epilogue" TO: /Chapter 6',
@@ -668,10 +656,7 @@ begin
          '<AttachmentFileLoaded> "/" <properties> "_properties.json"',
          '<AttachmentDataReceived> "/" <properties> "_properties.json"',
          '<DocumentListDataReceived> "/" [ "/Chapter 1", "/Chapter 2", "/Chapter 3", "/Chapter 4", "/Notes" <FOLDER>, "/Chapter 5", "/Chapter 6"]',
-<<<<<<< HEAD
          '<RenamingDocument> "/Chapter 6" TO: /Notes/Chapter 6',
-=======
->>>>>>> 9ca9502eefb609522e20518999f6c170d2d4c98c
          '<DocumentRenamed> "/Chapter 6" TO: /Notes/Chapter 6',
          '<ListingDocumentFiles> "/"',
          '<DocumentFilesListed> "/"',
