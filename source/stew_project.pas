@@ -241,10 +241,17 @@ type
      paDocumentListDataReceived,
      paDocumentsListingFailed,
      paDocumentFolderCheckFailed,
+<<<<<<< HEAD
      paShadowCreated,
      paShadowUncreated,
      paDocumentShifted,
      paDocumentShiftFailed,
+=======
+     paDocumentCreated, // TODO: I'm not doing this... am I?
+     paDocumentShifted,
+     paDocumentShiftFailed,
+     paDocumentDisappeared,
+>>>>>>> 9ca9502eefb609522e20518999f6c170d2d4c98c
      paRenamingDocument,
      paDocumentRenamed,
      paDocumentRenamingFailed,
@@ -293,10 +300,17 @@ type
      'DocumentListDataReceived',
      'DocumentsListingFailed',
      'DocumentFolderCheckFailed',
+<<<<<<< HEAD
      'ShadowCreated',
      'ShadowUncreated',
      'DocumentShifted',
      'DocumentShiftFailed',
+=======
+     'DocumentCreated',
+     'DocumentShifted',
+     'DocumentShiftFailed',
+     'DocumentDisappeared',
+>>>>>>> 9ca9502eefb609522e20518999f6c170d2d4c98c
      'RenamingDocument',
      'DocumentRenamed',
      'DocumentRenamingFailed',
@@ -948,6 +962,10 @@ type
   { TStewProject }
 
   TStewProject = class
+    procedure DocumentRenamingError(Sender: TPromise; aError: TPromiseError);
+    procedure DocumentShifted(Sender: TPromise);
+    procedure DocumentShiftError(Sender: TPromise; aError: TPromiseError);
+    procedure DocumentsRenamed(Sender: TPromise);
   strict private type
 
     // this allows me access to the protected events on Project Properties,
@@ -2321,6 +2339,10 @@ begin
   fIsError := aAction in [paProjectPropertiesLoadingFailed, paProjectPropertiesFileLoadingFailed,
                     paProjectPropertiesSavingFailed, paProjectPropertiesSaveConflictOccurred, paProjectPropertiesFileSavingFailed,
                     paDocumentsListingFailed, paDocumentsFileListingFailed,
+<<<<<<< HEAD
+=======
+                    paDocumentDisappeared,
+>>>>>>> 9ca9502eefb609522e20518999f6c170d2d4c98c
                     paDocumentShiftFailed,
                     paDocumentRenamingFailed,
                     paAttachmentLoadingFailed, paAttachmentFileLoadingFailed,
@@ -4151,7 +4173,11 @@ end;
 procedure TStewProject.DocumentRenamingError(Sender: TPromise;
   aError: TPromiseError);
 begin
+<<<<<<< HEAD
   ReportEvent(TDocumentRenameErrorEvent.Create(paDocumentRenamingFailed,
+=======
+  ReportEvent(TDocumentRenameErrorEvent.Create(paDocumentRenamed,
+>>>>>>> 9ca9502eefb609522e20518999f6c170d2d4c98c
                                           (Sender as TRenameDocumentPromise).Old,
                                           (Sender as TRenameDocumentPromise).New,
                                           aError));
@@ -4404,7 +4430,10 @@ begin
     raise Exception.Create('Can''t shift the document root');
   if aNewDocument = TDocumentPath.Root then
     raise Exception.Create('Can''t rename a document to root');
+<<<<<<< HEAD
   ReportEvent(TDocumentRenameEvent.Create(paRenamingDocument,aDocument,aNewDocument));
+=======
+>>>>>>> 9ca9502eefb609522e20518999f6c170d2d4c98c
   lListFiles := fCache.ListFiles(GetDocumentFolderPath(fDisk,aDocument.Container));
   result := TRenameDocumentTask.Defer(aDocument,aNewDocument,Self,lListFiles).Promise as TRenameDocumentPromise;
   result.After(@DocumentsRenamed,@DocumentRenamingError);
