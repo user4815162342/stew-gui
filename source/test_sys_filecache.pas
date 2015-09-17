@@ -45,13 +45,13 @@ type
     procedure SetupTest; override;
     procedure CleanupTest; override;
   published
-    procedure Test_List_Files;
-    procedure Test_Check_Existence;
-    procedure Test_Read_File;
-    procedure Test_Basic_File_Writing;
-    procedure Test_Empty_File_Writing;
-    procedure Test_File_Writing_with_Conflict_Checking;
-    procedure Test_File_Batch_Renaming;
+    procedure Test_01_List_Files;
+    procedure Test_02_Check_Existence;
+    procedure Test_03_Read_File;
+    procedure Test_04_Basic_File_Writing;
+    procedure Test_05_Empty_File_Writing;
+    procedure Test_06_File_Writing_with_Conflict_Checking;
+    procedure Test_07_File_Batch_Renaming;
   end;
 
 implementation
@@ -374,7 +374,7 @@ begin
   inherited CleanupTest;
 end;
 
-procedure TCacheSpec.Test_List_Files;
+procedure TCacheSpec.Test_01_List_Files;
 var
   root: TFile;
 begin
@@ -383,7 +383,7 @@ begin
   Assert(fCache.IsListing(root),'Cache should report that a file is being listed');
 end;
 
-procedure TCacheSpec.Test_Check_Existence;
+procedure TCacheSpec.Test_02_Check_Existence;
 var
   root: TFile;
 begin
@@ -393,7 +393,7 @@ begin
 
 end;
 
-procedure TCacheSpec.Test_Read_File;
+procedure TCacheSpec.Test_03_Read_File;
 var
   lFile: TFile;
 begin
@@ -403,7 +403,7 @@ begin
 
 end;
 
-procedure TCacheSpec.Test_Basic_File_Writing;
+procedure TCacheSpec.Test_04_Basic_File_Writing;
 var
   lFile: TFile;
 begin
@@ -412,7 +412,7 @@ begin
   Assert(fCache.IsWriting(lFile),'Cache should report file as being read');
 end;
 
-procedure TCacheSpec.Test_Empty_File_Writing;
+procedure TCacheSpec.Test_05_Empty_File_Writing;
 var
   root: TFile;
 begin
@@ -421,7 +421,7 @@ begin
 
 end;
 
-procedure TCacheSpec.Test_File_Writing_with_Conflict_Checking;
+procedure TCacheSpec.Test_06_File_Writing_with_Conflict_Checking;
 var
   root: TFile;
 begin
@@ -433,7 +433,7 @@ begin
 
 end;
 
-procedure TCacheSpec.Test_File_Batch_Renaming;
+procedure TCacheSpec.Test_07_File_Batch_Renaming;
 var
   root: TFile;
 begin

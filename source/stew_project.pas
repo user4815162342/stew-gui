@@ -9,12 +9,7 @@ uses
   Classes, SysUtils, sys_file, sys_async, stew_properties, stew_types, contnrs, sys_filecache, fgl;
 
 {
-TODO: Next: Implement project properties, then test that, then implement document
-properties, then test that, then convert the GUI into using them both (since they both
-have an effect on the JSON Editor GUI control). Then, work on the other actions.
-see test_stew_project.
-
-TODO: Something I might add later, if I feel it's necessary. Loading should have a refresh mode, I think I've put this elsewhere:
+FUTURE: Something I might add later, if I feel it's necessary. Loading should have a refresh mode, I think I've put this elsewhere:
 - retrieve-from-cache-only: if the file is not cached, load it, otherwise just
   return the file data.
 - reload-if-modified: if the file on disk has been modified, load it, otherwise
@@ -24,117 +19,6 @@ TODO: Something I might add later, if I feel it's necessary. Loading should have
   done by clearing out old data instead.
 - reload-always: reload the file completely from disk, no matter what it's cache
   status.
-
-}
-
-{
-
-TODO: Events: Instead of having a separate event for each type of thing, create
-a list that observers can add and remove themselves from. These are
-method pointers, the method signature looking something like:
-
-TProjectObserver = procedure(Sender: TProject; Event: TProjectEvent) of object;
-
-Most of the events are emitted when the OnActivity and OnError events occur in the
-file system cache. The promises returned are processed to determine the action
-and the file it occurs on, and this is converted to document/attachment info
-based on name, descriptor and extension for creating the event.
-
-There are a few events which are emitted by the project itself based on other
-evidence, because the events aren't knowable to the file cache.
-
-The TProjectEvent object will have a flag indicating the type, for use in
-case statements, but the data it contains will depend on the class, although
-the same class is used for various types.
-
-It will also have a boolean flag 'IsError', since this is an important distinction
-that might need to be filtered out.
-
-The classes of events are:
-
-TProjectEvent: This is a simple notification, no parameters are necessary because
-the only data of importance is the project itself.
-=====================
-ProjectPropertiesLoading: - triggered when a call is made to load the project
-                            properties. UI can disable or indicate progress.
-ProjectPropertiesSaving: - triggered when a call is made to save the properties.
-                           UI can indicate progress.
-ProjectPropertiesSaved: - triggered when a property save is finished. UI can indicate
-                          progress, or trigger a reload to get the new data.
-ProjectPropertiesSaveConflict - triggered if there is a conflict while saving properties.
-                          While this is technically an error, it requires no error
-                          message, so it is still a basic notification.
-
-TProjectPropertiesLoaded (TProjectEvent):
-Adds the project properties that were loaded, for reference
-==============================
-ProjectPropertiesLoaded: - triggered when a property load is
-                           finished. UI can indicate progress, update controls or
-                           check for data conflicts.
-
-TProjectError (TProjectEvent):
-These notifications will contain an error message. These are mostly useful for
-reporting errors, but occasionally UI needs to be enabled to indicate completion
-of activity.
-==========================
-ProjectPropertiesLoadError - triggered if an error occurrs while loading properties.
-ProjectPropertiesSaveError - triggered if an error ocurrs while saving properties.
-
-TDocumentEvent (TProjectEvent):
-Contains a Document property which indicates the TDocumentPath this is relevant to.
-=======================
-DocumentListing - matching opposite is a TDocumentListedEvent.
-DocumentCreated
-DocumentDisappeared - might occur if, on a listing, the document suddenly doesn't
-exist anymore, the editor can convert the document to "new" instead. This is
-going to be different from a potential DocumentDeleted, which would and should be
-cancellable. This is actually an error.
-
-TDocumentRenameEvent (TDocumentEvent)
-contains a second document property to indicate what the rename was too
-=======================
-DocumentRenaming
-DocumentRenamed
-
-TDocumentListedEvent (TDocumentEvent)
-contains a list of files returned from listing the event
-=======================
-DocumentListed
-
-TDocumentError (TDocumentEvent)
-Adds an Error message.
-=============================
-DocumentListError
-
-TDocumentRenameError (TDocumentRenameEvent)
-==============================
-DocumentRenameError
-
-TAttachmentEvent (TDocumentEvent)
-Adds an 'Attachment' property, which is an enum indicating which attachments
-are involved here. Also an extension property in case there are "multiple" extensions.
-=========================
-AttachmentLoading
-AttachmentSaving
-AttachmentSaved
-AttachmentDisappeared (See DocumentDisappeared)
-AttachmentSaveConflict
-AttachmentEditing - This doesn't have a corresponding AttachmentEdited because
-we have no universal way of knowing when a document is done being edited. Some
-processes return after launching a separate editor for the editor window, some
-processes don't lock files while they're being edited, or lock them in some
-non-standard way that only they know about.
-
-TAttachmentLoaded (TAttachmentEvent):
--- Actually a different type depending on the type of attachment
-========================
-AttachmentLoaded
-
-TAttachmentError (TAttachmentEvent)
-Adds an error message on.
-===============================
-AttachmentLoadError
-AttachmentSaveError
 
 }
 
@@ -173,26 +57,6 @@ type
 
   TDocumentInfoArray = array of TDocumentInfo;
 
-  // TODO: There are two "Loaded" events: *Loaded/*Listed and *DataReceived
-  // the first is only called when the cache reports an actual file read (as opposed
-  // to just reading from the data cache). It does not contain any of the data in
-  // the event, it is only a notification for bystanders to know that a task
-  // has been finished.
-  // the second is called whenever a call to load the data is completed on the
-  // project, whether the actual file cache had to be read or not. It is meant
-  // as a way for some observer who is passively interested in the data to be
-  // able to view the actual data. While it does mean that these observers get
-  // a lot of data passed to them that they didn't necessarily request, it
-  // does mean that they don't have to call load again to get the data after being
-  // notified that it has been loaded. The alternative is to convert the file
-  // system info into data twice -- once for the promise and once for the loaded
-  // event.
-  // TODO: There are two "Failed" events: *File*Failed and **Failed.
-  // This is mainly a feature to ensure that no errors are missed. The first
-  // one happens when there are errors in the file cache itself. The second includes
-  // errors such as parsing data, indicates saving conflicts, etc. and are handled by
-  // the initial promises themselves. UI error reporting *should* be done for the second
-  // one only, as it is global, but the other might be important to watch for as well.
   TProjectEventKind = (
   // The "File" events indicate actual file-based activity. These are necessary
   // to:
@@ -254,7 +118,10 @@ type
      paAttachmentSavingFailed,
      paAttachmentSaveConflictOccurred,
      paEditingAttachment,
-     paAttachmentEditingFailed);
+     paAttachmentEditingFailed,
+     paUnexpectedProjectError,
+     paUnexpectedDocumentError,
+     paUnexpectedAttachmentError);
 
   { TProjectEvent }
 
@@ -307,7 +174,10 @@ type
      'AttachmentSavingFailed',
      'AttachmentSaveConflictOccurred',
      'EditingAttachment',
-     'AttachmentEditingFailed');
+     'AttachmentEditingFailed',
+     'UnexpectedProjectError',
+     'UnexpectedDocumentError',
+     'UnexpectedAttachmentError');
 
   end;
 
@@ -398,7 +268,7 @@ type
     function GetDescription: UTF8String; override;
   end;
 
-  // TODO: What else?
+
   TAttachmentKind = (atUnknown, atFolder, atPrimary, atProperties, atNotes, atThumbnail, atSynopsis, atBackup);
 
   { TAttachment }
@@ -681,7 +551,8 @@ type
   end;
 
 
-  {TODO: New cache stuff starts here.}
+  {TODO: These cachedItem things were an early attempt at caching the file system
+  that was abandoned, get rid of them.}
 
   { TCachedItem }
 
@@ -1260,13 +1131,6 @@ type
     // async in order to check.
     {%H-}constructor Create(const Path: TFile);
   public
-    // TODO: Do I want these events protected?
-    // In general, the project itself handles
-    // these events, and I want all UI code to handle these actions via the
-    // MainForm observation API. By making these protected, I can control
-    // this better (The form overrides this by creating a subclass of
-    // this that can handle the events).
-
     property OnPropertiesLoaded: TNotifyEvent read FOnPropertiesLoaded write fOnPropertiesLoaded;
     property OnPropertiesSaved: TNotifyEvent read FOnPropertiesSaved write fOnPropertiesSaved;
     property OnPropertiesError: TExceptionMessageEvent read FOnPropertiesError write fOnPropertiesError;
@@ -1290,8 +1154,7 @@ type
     property OnDocumentCreated: TDocumentNotifyEvent read FOnDocumentCreated write FOnDocumentCreated;
     property OnDocumentChanged: TDocumentNotifyEvent read FOnDocumentChanged write FOnDocumentChanged;
     property OnDocumentRenameFailed: TDocumentExceptionEvent read FOnDocumentRenameFailed write FOnDocumentRenameFailed;
-    // TODO: ConfirmNewAttachment and ChooseTemplate are not meant
-    // for the observers to see, they are meant for attaching the UI to.
+
     property OnConfirmNewAttachment: TAttachmentConfirmationEvent read FOnConfirmNewAttachment write FOnConfirmNewAttachment;
     property OnChooseTemplate: TAttachmentChoiceEvent read FOnChooseTemplate write FOnChooseTemplate;
     property OnChooseAttachment: TAttachmentChoiceEvent read fOnChooseAttachment write fOnChooseAttachment;
@@ -1665,46 +1528,6 @@ begin
     else
       fProject.ReadProjectProperties.After(@TooManyAttachment_PropertiesRead,@SubPromiseRejected);
     end;
-    // TODO:
-    // This is a promise thing after all, since there are a few things
-    // that have to be done before we can actually open the editor...
-    // 1. Need to get a list of all 'attachments' in the document.
-    //    - This should either be a special file system thing where
-    //      we can look for all files starting with X, or this can
-    //      just be a general directory list that retrieves *all* files.
-    //      probably the second.
-    //    - Keep in mind that the root document might be editable
-    //      (have to handle /_notes.txt and /.<doc>)
-    //    - The rename files also does this, so maybe we need that as well.
-    // 2. Once we have a list, then we have to find out how many
-    //    match the descriptor.
-    // 3. If no files match the descriptor, then we need to create one.
-    //    For this, we need the project properties for a few of them.
-    //    This is another async task.
-    //    a. We also need to list all templates, which is another async
-    //       task, and then ask the user which one to do.
-    //    b. We also need to ask the user if they *want* to create a new
-    //       file.
-    // 4. If multiple files match the descriptor, we want to open the
-    //    one with the default extension. Again, we need the project properties.
-    // 5. If multiple files match, and we can't figure out which one to open,
-    //    we need to ask the user which one.
-    // 6. The promise finally returns after the process is initiated.
-
-  {
-  aCandidates := GetCandidateFiles;
-  case Length(aCandidates) of
-    0:
-    if fDocument.DoConfirmNewAttachment(GetName) then
-    begin
-      GetDefaultFile.ListTemplatesFor.After(@EditorTemplatesListed,@FileLoadFailed);
-    end;
-    1:
-      aCandidates[0].OpenInEditor;
-  else
-      raise Exception.Create('Too many ' + GetName + ' files');
-  end;
-  }
   except on E: Exception do
     Reject(E.Message);
   end;
@@ -2143,7 +1966,6 @@ begin
   i := fContents.FindIndexOf(lChildName);
   if i = -1 then
   begin
-    // TODO: Do we need to keep the name on the object?
     lChildShadow := TShadowDocument.Create;
     fContents.Add(lChildName,lChildShadow);
   end
@@ -2702,14 +2524,29 @@ constructor TProjectEvent.Create(aAction: TProjectEventKind);
 begin
   inherited Create;
   fAction := aAction;
-  fIsError := aAction in [paProjectPropertiesLoadingFailed, paProjectPropertiesFileLoadingFailed,
-                    paProjectPropertiesSavingFailed, paProjectPropertiesSaveConflictOccurred, paProjectPropertiesFileSavingFailed,
-                    paDocumentsListingFailed, paDocumentsFileListingFailed,
-                    paDocumentShiftFailed,
-                    paDocumentRenamingFailed,
-                    paAttachmentLoadingFailed, paAttachmentFileLoadingFailed,
-                    paAttachmentSavingFailed, paAttachmentSaveConflictOccurred, paAttachmentFileSavingFailed,
-                    paAttachmentEditingFailed];
+  fIsError := aAction in
+  [paProjectPropertiesFileLoadingFailed,
+  paProjectPropertiesFileSavingFailed,
+  paDocumentsFileListingFailed,
+  paDocumentFileCheckingFailed,
+  paAttachmentFileLoadingFailed,
+  paAttachmentFileSavingFailed,
+  paDocumentFileRenameFailed,
+  paProjectPropertiesLoadingFailed,
+  paProjectPropertiesSavingFailed,
+  paProjectPropertiesSaveConflictOccurred,
+  paDocumentsListingFailed,
+  paDocumentFolderCheckFailed,
+  paDocumentShiftFailed,
+  paDocumentRenamingFailed,
+  paAttachmentLoadingFailed,
+  paAttachmentSavingFailed,
+  paAttachmentSaveConflictOccurred,
+  paAttachmentEditingFailed,
+  paUnexpectedProjectError,
+  paUnexpectedDocumentError,
+  paUnexpectedAttachmentError];
+
 end;
 
 function TProjectEvent.GetDescription: UTF8String;
@@ -2770,7 +2607,8 @@ begin
   lProject := TStewProject.Create(aPath);
   (Promise as TProjectPromise).SetAnswer(lProject);
   // TODO: Once we move to the new system there really is no need
-  // to call this anymore.
+  // to call this anymore. Wait until the GUI has been converted
+  // before doing this, though.
   lProject.DoOpened.After(@ProjectOpened,@SubPromiseRejected);
 end;
 
@@ -3058,8 +2896,6 @@ end;
 
 procedure TStewProject.TProjectOpenAtPathTask.DoTask;
 begin
-  // TODO: Once we move over to the new Properties format, just
-  // make this a 'read', and pass the data onto the project constructor.
   GetProjectPropertiesPath(Path).CheckExistence.After(@FileExists,@SubPromiseRejected);
 end;
 
@@ -3722,8 +3558,6 @@ end;
 procedure TDocumentMetadata.FilesRenamed(aSender: TPromise);
 begin
   // now, refresh the parent so that this thing appears under the new location.
-  // TODO: With the new Promise system, we keep track of the old file and the
-  // new, in the Promise, which means we can refresh both of them.
   ListDocuments(true);
 end;
 
@@ -4358,8 +4192,6 @@ begin
 end;
 
 procedure TStewProject.CacheError(Sender: TPromise; aError: TPromiseError);
-// TODO: I'm potentially missing a bunch of errors here by using conditionals
-// before reporting. I should be *reporting* these.
 var
   lDocument: TDocumentPath;
   lAttachment: TAttachment;
@@ -4394,13 +4226,13 @@ var
 
   procedure ReportList(Sender: TFileListPromise); inline;
   begin
-   if not (Sender.Path = GetProjectPropertiesPath(fDisk)) then
+    if not (Sender.Path = GetProjectPropertiesPath(fDisk)) then
     begin
       lDocument := TranslateFileToDocument(fDisk,Sender.Path);
       ReportEvent(TDocumentError.Create(paDocumentsFileListingFailed,lDocument,aError));
-    end;
-    // else, its an attempt to "list" the directory contents of a file. I'm
-    // not worried about this.
+    end
+    else
+      ReportEvent(TProjectError.Create(paUnexpectedProjectError,'Error attempting to list contents of project properties: ' + aError));
   end;
 
   procedure ReportCheck(Sender: TFileExistencePromise); inline;
@@ -4409,7 +4241,9 @@ var
     begin
       lDocument := TranslateFileToDocument(fDisk,Sender.Path);
       ReportEvent(TDocumentError.Create(paDocumentFileCheckingFailed,lDocument,aError));
-    end;
+    end
+    else
+      ReportEvent(TProjectError.Create(paUnexpectedProjectError,'Error attempting to check the existence of a file outside the project: ' + aError));
   end;
 
 begin
@@ -4430,10 +4264,7 @@ begin
     ReportCheck(Sender as TFileExistencePromise)
   end
   else
-    // renaming events are handled by the specific renaming
-    // promise, because we need the names of the documents being
-    // renamed.
-    Exit;
+    ReportEvent(TProjectError.Create(paUnexpectedProjectError,'Unexpected error from file cache: ' + aError));
 
 end;
 

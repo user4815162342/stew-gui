@@ -10,43 +10,6 @@ uses
 
 const NewFileAge: Longint = -1;
 
-  // TODO: Google Drive allows multiple files with the same name. This system
-  // will have to account for it: ID's are separate from names, even if they're
-  // the same thing in most systems. I also have to consider the possibility of
-  // a file system using mime-types instead of extensions (as I
-  // believe Google Drive does), that will cause an even bigger problem. And,
-  // if I go that far, I could consider using other mechanisms for descriptors:
-  // for example, google drive has file labels which could be used instead.
-  // Another issue: Google Drive also allows a file to be contained in multiple
-  // folders (this isn't just symlinks). In fact, defining a file by it's
-  // name doesn't even work, so the GetContainedFile isn't going to work.
-  // -- back to the drawing board! Two things have to be done:
-  // * Probably our best bet is to stop using
-  // paths completely, and especially stop using the ID to denote the path.
-  // You would create a LocalFile given a local path, sure, and internally the
-  // local file would use the path as an ID, but you wouldn't actually use the
-  // ID anywhere else. This ID would then be used as an actual ID for Google Drive.
-  // * GetContainedFile would have to be changed. Instead of indicating a file
-  // contained in a parent, it's a hypothetical file contained inside that
-  // parent, so it would be called GetHypotheticalContainedFile.
-  // Actually getting the real file would require a "List" async command,
-  // but you could turn a hypothetical file into a real file when writing to it.
-  // * We'd still depend on naming when looking in Google Drive, because there's
-  // no other way to specify where the _stew.json file might be, or things like
-  // that.
-  // * We have to accept that there might be multiple files with the same name.
-  // I'm almost doing that anyway, since files can have the same name and different
-  // extensions. We just have to provide a file age when differentiating with the
-  // user.
-
-  // TODO: I'm currently using FileAge to check whether a file has been modified.
-  // Unfortunately, it only has a precision of one second, so it's not accurate.
-  // There are numerous better ways to deal with this, but as this is meant for a manual
-  // interface, I doubt I'm going to need more precision. Still, I would like to
-  // fix this sometime, especially if the platform handles nanosecond precision
-  // on file times, or even better some sort of magic number which indicates if
-  // the file is different.
-
 type
 
   // Used when creating new files. The ID is system-specific.

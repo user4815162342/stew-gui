@@ -137,8 +137,6 @@ begin
     Assert((lMap[cKeyH] as TTestObject).Key = cKeyH,'Long String Map Should Map Correctly');
     Assert((lMap[cKeyI] as TTestObject).Key = cKeyI,'Long String Map Should Map Correctly');
     Assert(lMap[cKeyJ] = nil,'Long String Map should map a nil value correctly');
-    // TODO: This fails, even though 'GetKeys' returns the key as one of it's own. But,
-    // I don't want to have to do a GetKeys to do that.
     Assert(lMap.Has(cKeyJ),'Long string map should still report that it has that key, however');
     Assert(not lMap.Has('key does not exist'),'Long string map should not report that it has a key that it shouldn''t have');
     lKeys := lMap.GetKeys;

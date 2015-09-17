@@ -203,7 +203,7 @@ end;
 
 { TLocalFileWriteTask }
 
-// TODO: At some point, I need to 'test' the save conflicts.
+// FUTURE: At some point, I need to 'test' the save conflicts.
 procedure TLocalFileWriteTask.DoTask;
 var
   stream: TFileStream;

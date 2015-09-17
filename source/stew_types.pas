@@ -99,6 +99,8 @@ type
   // push to turn it into a stack (and alternatively shift/unshift)
   // I could however, start to make use of this instead of the other dynamic
   // arrays.
+  // - a separate 'length' private field would allow me to increase capacity in
+  // large jumps instead of one at a time, which may or may not work.
   generic GSimpleArray<ItemType> = record
   public type
     ArrayType = array of ItemType;

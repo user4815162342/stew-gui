@@ -8,32 +8,6 @@ uses
   Classes, SysUtils, sys_file, contnrs, stew_types, sys_async;
 
 type
-{
-TODO: Actually, a lot of the following notifications can be done by the file cache
-instead, and they should. If we do them in the project, then we can easily have
-two people loading something at the same time and thereby get double events. This
-would be prevented by keeping filing state for everything, but then we'd have to
-keep a cache of this state anyway. However, the cache already keeps the state,
-so if the notifications come out of that, then it's okay. The project just
-has to translate the file notifications into document notifications:
-* fileloading
-* fileloaded
-* filesaving
-* filesaved
-* filesaveconflict
-* filesaveerror
-* fileloaderror
-* filerenaming
-* filerenamed
-* filerenameerror
-* filelisting
-* filelisted
-* filelisterror
-
--- This can be two events: OnActivity and OnError, and straight basic events
-as well, since I don't intend on the file cache being shared.
-
-}
 
   TLongStringMapIteratorCallback = procedure(aKey: UTF8String; aValue: TObject) of object;
 

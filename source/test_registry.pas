@@ -123,6 +123,8 @@ var
   lSpecName: String;
   lTestName: String;
   lNormalName: Boolean;
+  lFirstSpacePos: Integer;
+  lNumber: Integer;
 begin
   lSpecName := aObject.ClassType.ClassName;
   lTestName := aMethodName;
@@ -137,6 +139,13 @@ begin
       begin
         lTestName := Copy(lTestName,5,Length(lTestName));
         lTestName := Trim(StringReplace(lTestName,'_',' ',[rfReplaceAll]));
+        lFirstSpacePos:=Pos(' ',lTestName);
+        if TryStrToInt(Copy(lTestName,1,lFirstSpacePos - 1),lNumber) then
+        begin
+          // the number is meant only for sorting, and should be removed.
+          lTestName := Copy(lTestName,lFirstSpacePos + 1,MaxInt);
+        end;
+
       end;
     end;
   end;
@@ -468,16 +477,20 @@ begin
       end;
       vmt := pClass(pointer(vmt) + vmtParent)^;
     end;
+    // sort the tests so we can handle making sure the tests
+    // are in order by adding numbers to them.
+    list.Sort;
     for j := 0 to list.Count - 1 do
     begin
       if Pos('test',LowerCase(list[j])) = 1 then
       begin
         lMethod.Data := aObject;
         lMethod.Code := aObject.MethodAddress(list[j]);
-        // TODO: Note that I can find no way of verifying it's the
-        // right method. This doesn't raise an error, as I would expect it
-        // to, if the method is invalid. This can cause problems. Perhaps
-        // there's some other way to report it as async.
+        // I can find no way of verifying it's the
+        // right type of method. This doesn't raise an error, as I would expect it
+        // to, if the method doesn't match the signature. This can cause
+        // problems. If there were a way to get the signature, I could also
+        // use that to determine whether it's async or not.
         AddTest(CalculateTestName(aObject,list[j]),TTest(lMethod));
       end;
     end;

@@ -38,8 +38,17 @@ end;
 
 procedure TAsyncCallback.Callback(Data: PtrInt);
 begin
-  fCallback;
-  Free;
+  try
+    try
+      fCallback;
+    except
+      // Catch any exceptions so they can be reported here...
+      on E: Exception do
+        Application.ShowException(E);
+    end;
+  finally
+    Free;
+  end;
 end;
 
 constructor TAsyncCallback.Create(aCallback: TDeferredCallback);

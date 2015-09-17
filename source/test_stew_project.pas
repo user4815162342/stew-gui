@@ -8,161 +8,9 @@ uses
   Classes, SysUtils, test_registry, sys_file, sys_async, stew_project, stew_types;
 
 {
-TODO: In the Async code: It would be nice to have some events that get
-passed to the application when tasks are queued. This will allow us to
-show a busy signal on the app. Also, another function should force the
-mainform to wait until the tasks  are complete before it closes. This does
-have the issue of make the application not want to close (which can be
-a problem if some operation is hanging), so maybe have a timeout where
-the application automatically closes.
-
-TODO: Also in Async code, make sure there's a try...except around running
-the code, and allow the application to report any uncaught errors.
-
 TODO: Once TStewProject is ready and tested, start deprecating the old stuff,
 and recompile the GUI. Use the deprecated hints to help figure out where things
 need to be fixed.
-
-TODO: I'm slowly converting the TStewProject over to the way I want it to be,
-and testing the new stuff as I do so (this is better than writing the tests and
-then rewriting them for the new things). As I complete each section, write a
-test, once it's working, go back to the GUI and refactor to use the changes.
-Then commit.
-
-Overall changes, new code standards:
-- Properties need to be the JSValue stuff, and are loaded by Metadata objects.
-- All async stuff needs to be promises (except a few small things in the GUI layer).
-- Stop dealing with all of these events and convert to a browser style, also hiding the cache.
-  - Instead of events, the project broadcasts changes which can be responded to.
-    The broadcasts might include the actual promises so you can attach 'after' to
-    them.
-  - Instead of 'locking' documents before rename or move, a broadcast will be
-    sent out asking if the document can be moved. The user can then be asked
-    if that's okay. If anyone says "no" then it will fail.
-  - Instead of searching for the cache, etc. All calls to get data from the project
-    will return promises. The code will only deal with 'DocumentIDs', and call
-    methods on the *Project* like "GetSynopsis", etc. The project will check it's
-    cache, and if it's not found will go and get the data.
-  - There would also be parameters for "forcing" an update on most requests for
-    data:
-    - don't even check file system if in cache;
-    - check file age and update cache if changed;
-    - update whether the file has changed or is in cache or not.
-- broadcast events:
-  - In general, we don't need a broadcast event for a load. The objects that
-  need the data will load it when they need it (and if it's already there,
-  it will be loaded from the cache) and they will get promises. The only
-  broadcast events we need are if the data somehow changes (or wants to change),
-  or if there is some sort of error in filing (although this is only needed by
-  the mainform, so that may remain a separate event). So, only broadcast when
-  data is written, or some sort of check is made and the disk file has changed,
-  so therefore the data needs to be reloaded.
-
-Sections:
-
-* Project Properties
- - Test Open up the project properties and check values
- - Test Make changes to project properties and make sure they get written to disk correctly.
-* Document Properties
-- Test Open up some document properties and check values
-- Test Make changes to document properties and make sure they get written to disk correctly.
-* Create Document
-* Document listing:
-  - Test listing,
-  - Test listing of subdirectories
-  - Test 'refresh' of a listing so that it only relists what is already cached.
-* Re-order a document and make sure it shows up in the appropriate place in the list
-  - One that's not in the index to before one that's in the index
-  - One that's in the index to before one that's in the index
-  - One that's not in the index to before one that's not in a index
-* Rename a document
-* Move a document from one folder to another
-  - move to be a sibling of it's parent
-  - move to be inside another folder that's a sibling of it's parent
-  - move inside a sibling
-* Lock Documents? Or, instead, allowing denial of document renaming and moving
-  and other metadata something listening to a specific document might want.
-
-
-TStewProject:
-protected
-  // These events are protected. In general, the project itself handles
-  // these events, and I want all UI code to handle these actions via the
-  // MainForm observation API. By making these protected, I can control
-  // this better (The form overrides this by creating a subclass of
-  // this that can handle the events).
-
-  property OnOpened: TNotifyEvent read FOnOpened write fOnOpened;
-  property OnPropertiesLoaded: TNotifyEvent read FOnPropertiesLoaded write fOnPropertiesLoaded;
-  property OnPropertiesSaved: TNotifyEvent read FOnPropertiesSaved write fOnPropertiesSaved;
-  property OnPropertiesError: TExceptionMessageEvent read FOnPropertiesError write fOnPropertiesError;
-  property OnPropertiesSaveConflicted: TNotifyEvent read FOnPropertiesSaveConflicted write fOnPropertiesSaveConflicted;
-  property OnPropertiesSaving: TNotifyEvent read fOnPropertiesSaving write FOnPropertiesSaving;
-  property OnPropertiesLoading: TNotifyEvent read FOnPropertiesLoading write FOnPropertiesLoading;
-  property OnDocumentPropertiesLoaded: TDocumentNotifyEvent read FOnDocumentPropertiesLoaded write FOnDocumentPropertiesLoaded;
-  property OnDocumentPropertiesSaved: TDocumentNotifyEvent read FOnDocumentPropertiesSaved write FOnDocumentPropertiesSaved ;
-  property OnDocumentPropertiesError: TDocumentExceptionEvent read FOnDocumentPropertiesError write FOnDocumentPropertiesError;
-  property OnDocumentPropertiesSaveConflicted: TDocumentNotifyEvent read FOnDocumentPropertiesSaveConflicted write FOnDocumentPropertiesSaveConflicted;
-  property OnDocumentPropertiesSaving: TDocumentNotifyEvent read fOnDocumentPropertiesSaving write fOnDocumentPropertiesSaving;
-  property OnDocumentPropertiesLoading: TDocumentNotifyEvent read fOnDocumentPropertiesLoading write fOnDocumentPropertiesLoading;
-  property OnDocumentAttachmentLoading: TAttachmentNotifyEvent read FOnDocumentAttachmentLoading write FOnDocumentAttachmentLoading;
-  property OnDocumentAttachmentLoaded: TAttachmentNotifyEvent read FOnDocumentAttachmentLoaded write FOnDocumentAttachmentLoaded;
-  property OnDocumentAttachmentError: TAttachmentExceptionEvent read FOnDocumentAttachmentError write FOnDocumentAttachmentError;
-  property OnDocumentAttachmentSaving: TAttachmentNotifyEvent read FOnDocumentAttachmentSaving write FOnDocumentAttachmentSaving;
-  property OnDocumentAttachmentSaved: TAttachmentNotifyEvent read FOnDocumentAttachmentSaved write FOnDocumentAttachmentSaved;
-  property OnDocumentAttachmentSaveConflicted: TAttachmentNotifyEvent read FOnDocumentAttachmentSaveConflicted write FOnDocumentAttachmentSaveConflicted;
-  property OnDocumentsListed: TDocumentNotifyEvent read fOnDocumentsListed write fOnDocumentsListed;
-  property OnDocumentListError: TDocumentExceptionEvent read fOnDocumentListError write fOnDocumentListError;
-  property OnDocumentCreated: TDocumentNotifyEvent read FOnDocumentCreated write FOnDocumentCreated;
-  property OnDocumentChanged: TDocumentNotifyEvent read FOnDocumentChanged write FOnDocumentChanged;
-  property OnDocumentRenameFailed: TDocumentExceptionEvent read FOnDocumentRenameFailed write FOnDocumentRenameFailed;
-  property OnConfirmNewAttachment: TAttachmentConfirmationEvent read FOnConfirmNewAttachment write FOnConfirmNewAttachment;
-  property OnChooseTemplate: TAttachmentChoiceEvent read FOnChooseTemplate write FOnChooseTemplate;
-public
-  constructor Create(const Path: TFile);
-  destructor Destroy; override;
-  property DiskPath: TFile read fDisk;
-  function GetDocument(const aDocumentID: TDocumentID): TDocumentMetadata;
-  procedure OpenAtPath(aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
-  procedure OpenInParentDirectory(aCallback: TDeferredBooleanCallback; aErrorback: TDeferredExceptionCallback);
-  procedure OpenNewAtPath;
-  property IsOpened: Boolean read GetIsOpened;
-  function GetProjectName: String;
-  property Properties: TProjectProperties read GetProperties;
-end;
-
-TDocumentMetadata:
-public
-  constructor Create(aProject: TStewProject; aDiskPath: TFile;
-    aID: TDocumentID; aIsRoot: Boolean);
-  destructor Destroy; override;
-  property Properties: TDocumentProperties read fProperties;
-  // This isn't a true recursive. It is more of a recursive refresh that doesn't
-  // cause new documents to appear. It will list the current document, yes.
-  // But it will only cause children docs to list themselves if they have already
-  // been listed.
-  procedure ListDocuments(Recursive: Boolean);
-  property ListingState: TListingState read fListingState;
-  function GetContents: TDocumentList;
-  function AreAttachmentsListed: Boolean;
-  property Synopsis: TSynopsisMetadata read GetSynopsis;
-  property Primary: TPrimaryMetadata read GetPrimary;
-  property Notes: TNotesMetadata read fNotes;
-  property IsNew: Boolean read fIsNew;
-  property IsLocked: Boolean read GetIsLocked;
-  procedure Lock(aLockingObject: TObject);
-  procedure Unlock(aLockingObject: TObject);
-  procedure CreateDocument(aName: String);
-  class function IsTroublesome(aName: String): Boolean;
-  function HasDocument(aName: String): Boolean;
-  function GetParent: TDocumentMetadata;
-  function GetName: String;
-  procedure Rename(aOldName: String; aNewName: String);
-  procedure MoveDocToHere(aOldChild: TDocumentMetadata);
-  procedure OrderDocument(aDoc: TDocumentMetadata; aPosition: TOrderDocumentPosition; aRelative: TDocumentMetadata); overload;
-end;
-
-TODO: Once the tests are done, start converting Project over to new code standards:
 
 }
 
@@ -237,19 +85,17 @@ type
     procedure SetupTest; override;
     procedure CleanupTest; override;
   published
-    // TODO: We have to enforce the *order* that these tests happen in,
-    // or do the file stuff before and after each test.
-    procedure Test_DocumentPath;
-    procedure Test_Open_Project;
-    procedure Test_Project_Properties;
-    procedure Test_Document_Properties;
-    procedure Test_Document_List;
-    procedure Test_Document_Synopsis;
-    procedure Test_Document_IsFolder;
-    procedure Test_Shadows;
-    procedure Test_Shift;
-    procedure Test_Rename;
-    procedure Test_Edit;
+    procedure Test_01_DocumentPath;
+    procedure Test_02_Open_Project;
+    procedure Test_03_Project_Properties;
+    procedure Test_04_Document_Properties;
+    procedure Test_05_Document_List;
+    procedure Test_06_Document_Synopsis;
+    procedure Test_07_Document_IsFolder;
+    procedure Test_08_Shadows;
+    procedure Test_09_Shift;
+    procedure Test_10_Rename;
+    procedure Test_11_Edit;
   end;
 
 
@@ -662,7 +508,6 @@ begin
   if not AssertAsync((lName = 'Chapter 6') or (lName = 'Characters'),'Document should only containe Chapter 6 or Characters',Sender.Tag) then Exit;
   lName := lDocuments[1].Document.Name;
   if not AssertAsync((lName = 'Chapter 6') or (lName = 'Characters'),'Document should only containe Chapter 6 or Characters',Sender.Tag) then Exit;
-  // TODO: Verify events...
   if not VerifyProjectEvents([
          '<RenamingDocument> "/Epilogue" TO: /Chapter 6',
          '<ListingDocumentFiles> "/"',
@@ -973,7 +818,7 @@ begin
   inherited CleanupTest;
 end;
 
-procedure TProjectSpec.Test_DocumentPath;
+procedure TProjectSpec.Test_01_DocumentPath;
 var
   lPath: TDocumentPath;
   lSplit: TStringArray;
@@ -999,68 +844,68 @@ begin
 
 end;
 
-procedure TProjectSpec.Test_Open_Project;
+procedure TProjectSpec.Test_02_Open_Project;
 begin
   TStewProject.Open(fTestRootDir).After(@Open_Project_1,@PromiseFailed).Tag := BeginAsync;
 end;
 
-procedure TProjectSpec.Test_Project_Properties;
+procedure TProjectSpec.Test_03_Project_Properties;
 begin
   if fProject <> nil then
     FreeAndNil(fProject);
   TStewProject.Open(fTestRootDir).After(@Project_Properties_1,@PromiseFailed).Tag := BeginAsync;
 end;
 
-procedure TProjectSpec.Test_Document_Properties;
+procedure TProjectSpec.Test_04_Document_Properties;
 begin
   if fProject <> nil then
     FreeAndNil(fProject);
   TStewProject.Open(fTestRootDir).After(@Document_Properties_1,@PromiseFailed).Tag := BeginAsync;
 end;
 
-procedure TProjectSpec.Test_Document_List;
+procedure TProjectSpec.Test_05_Document_List;
 begin
   if fProject <> nil then
     FreeAndNil(fProject);
   TStewProject.Open(fTestRootDir).After(@Document_List_1,@PromiseFailed).Tag := BeginAsync;
 end;
 
-procedure TProjectSpec.Test_Document_Synopsis;
+procedure TProjectSpec.Test_06_Document_Synopsis;
 begin
   if fProject <> nil then
     FreeAndNil(fProject);
   TStewProject.Open(fTestRootDir).After(@Document_Syn_1,@PromiseFailed).Tag := BeginAsync;
 end;
 
-procedure TProjectSpec.Test_Document_IsFolder;
+procedure TProjectSpec.Test_07_Document_IsFolder;
 begin
   if fProject <> nil then
     FreeAndNil(fProject);
   TStewProject.Open(fTestRootDir).After(@Document_IsFolder_1,@PromiseFailed).Tag := BeginAsync;
 end;
 
-procedure TProjectSpec.Test_Shadows;
+procedure TProjectSpec.Test_08_Shadows;
 begin
   if fProject <> nil then
     FreeAndNil(fProject);
   TStewProject.Open(fTestRootDir).After(@Shadow_1,@PromiseFailed).Tag := BeginAsync;
 end;
 
-procedure TProjectSpec.Test_Shift;
+procedure TProjectSpec.Test_09_Shift;
 begin
   if fProject <> nil then
     FreeAndNil(fProject);
   TStewProject.Open(fTestRootDir).After(@Shift_1,@PromiseFailed).Tag := BeginAsync;
 end;
 
-procedure TProjectSpec.Test_Rename;
+procedure TProjectSpec.Test_10_Rename;
 begin
   if fProject <> nil then
     FreeAndNil(fProject);
   TStewProject.Open(fTestRootDir).After(@Rename_1,@PromiseFailed).Tag := BeginAsync;
 end;
 
-procedure TProjectSpec.Test_Edit;
+procedure TProjectSpec.Test_11_Edit;
 begin
   if fProject <> nil then
     FreeAndNil(fProject);

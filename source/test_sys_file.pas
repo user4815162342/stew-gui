@@ -46,17 +46,17 @@ type
     procedure SetupTest; override;
     procedure CleanupTest; override;
   published
-    procedure Test_List_Files;
-    procedure Test_Check_Existence;
-    procedure Test_Read_File;
-    procedure Test_Basic_File_Writing;
-    procedure Test_Empty_File_Writing;
-    procedure Test_File_Writing_with_Conflict_Checking;
-    procedure Test_File_Copying;
-    procedure Test_File_Renaming;
-    procedure Test_File_Batch_Renaming;
-    procedure Test_Filename_Routines;
-    procedure Test_System_Functionality;
+    procedure Test_01_List_Files;
+    procedure Test_02_Check_Existence;
+    procedure Test_03_Read_File;
+    procedure Test_04_Basic_File_Writing;
+    procedure Test_05_Empty_File_Writing;
+    procedure Test_06_File_Writing_with_Conflict_Checking;
+    procedure Test_07_File_Copying;
+    procedure Test_08_File_Renaming;
+    procedure Test_09_File_Batch_Renaming;
+    procedure Test_10_Filename_Routines;
+    procedure Test_11_System_Functionality;
   end;
 
 implementation
@@ -396,7 +396,7 @@ begin
   inherited CleanupTest;
 end;
 
-procedure TFileSpec.Test_List_Files;
+procedure TFileSpec.Test_01_List_Files;
 var
   root: TFile;
 begin
@@ -404,7 +404,7 @@ begin
   root.List.After(@ListFilesCallback,@PromiseError).Tag := BeginAsync;
 end;
 
-procedure TFileSpec.Test_Check_Existence;
+procedure TFileSpec.Test_02_Check_Existence;
 var
   root: TFile;
 begin
@@ -414,7 +414,7 @@ begin
 
 end;
 
-procedure TFileSpec.Test_Read_File;
+procedure TFileSpec.Test_03_Read_File;
 var
   root: TFile;
 begin
@@ -422,7 +422,7 @@ begin
   root.GetContainedFile('_stew.json').Read.After(@ReadTestCallback,@PromiseError).Tag := BeginAsync;
 end;
 
-procedure TFileSpec.Test_Basic_File_Writing;
+procedure TFileSpec.Test_04_Basic_File_Writing;
 var
   root: TFile;
 begin
@@ -431,7 +431,7 @@ begin
 
 end;
 
-procedure TFileSpec.Test_Empty_File_Writing;
+procedure TFileSpec.Test_05_Empty_File_Writing;
 var
   root: TFile;
 begin
@@ -440,7 +440,7 @@ begin
 
 end;
 
-procedure TFileSpec.Test_File_Writing_with_Conflict_Checking;
+procedure TFileSpec.Test_06_File_Writing_with_Conflict_Checking;
 var
   root: TFile;
 begin
@@ -452,7 +452,7 @@ begin
                                                                   @ComplexWriteConflict1).Tag := BeginAsync;
 end;
 
-procedure TFileSpec.Test_File_Copying;
+procedure TFileSpec.Test_07_File_Copying;
 var
   root: TFile;
 begin
@@ -460,7 +460,7 @@ begin
   root.GetContainedFile('_stew.json').CopyTo(root.GetContainedFile('_stew.json.bak')).After(@CopyFileCallback,@PromiseError).Tag := BeginAsync;
 end;
 
-procedure TFileSpec.Test_File_Renaming;
+procedure TFileSpec.Test_08_File_Renaming;
 var
   root: TFile;
 begin
@@ -468,7 +468,7 @@ begin
   root.GetContainedFile('_stew.json').Rename(root.GetContainedFile('_stew.json.2')).After(@RenameFileCallback,@PromiseError).Tag := BeginAsync;
 end;
 
-procedure TFileSpec.Test_File_Batch_Renaming;
+procedure TFileSpec.Test_09_File_Batch_Renaming;
 var
   root: TFile;
 begin
@@ -477,7 +477,7 @@ begin
      After(@BatchRenameCallback1,@PromiseError).Tag := BeginAsync;
 end;
 
-procedure TFileSpec.Test_Filename_Routines;
+procedure TFileSpec.Test_10_Filename_Routines;
 var
   root: TFile;
   lChild: TFile;
@@ -495,7 +495,7 @@ begin
   Assert(not lChild.Contains(root),'Contains should return correct result');
 end;
 
-procedure TFileSpec.Test_System_Functionality;
+procedure TFileSpec.Test_11_System_Functionality;
 var
   root: TFile;
 begin
