@@ -393,7 +393,7 @@ end;
 class function TLocalFileSystem.CreateFileFromTemplate(aFile: TFile;
   aTemplate: TTemplate): TFileCopyPromise;
 begin
-  result := sys_os.CreateFileFromTemplate(aTemplate,aFile);
+  result := TOperatingSystemInterface.CreateFileFromTemplate(aTemplate,aFile);
 end;
 
 class function TLocalFileSystem.GetContainedFile(aDir: TFile;
@@ -432,7 +432,7 @@ end;
 
 class procedure TLocalFileSystem.OpenInEditor(aFile: TFile);
 begin
-  EditFile(aFile);
+  TOperatingSystemInterface.EditFile(aFile);
 end;
 
 class function TLocalFileSystem.ReadFile(aFile: TFile): TFileReadPromise;

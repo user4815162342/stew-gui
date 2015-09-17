@@ -412,6 +412,18 @@ type
     class function MakeThumbnail(aExtension: UTF8String): TAttachment; static;
     class function MakeSynopsis: TAttachment; static;
     class function MakeBackup(aDescriptor: UTF8String; aExtension: UTF8String): TAttachment; static;
+    class function Make(aKind: TAttachmentKind; aDescriptor: UTF8String; aExtension: UTF8String): TAttachment; static;
+    const
+      AttachmentKindStrings: array[TAttachmentKind] of UTF8String =
+    ('unknown',
+     'primary',
+     'folder',
+     'properties',
+     'notes',
+     'thumbnail',
+     'synopsis',
+     'backup'
+    );
   end;
 
   { TAttachmentEvent }
@@ -426,17 +438,6 @@ type
     property Extension: UTF8String read fAttachment.Extension;
     property Descriptor: UTF8String read fAttachment.Descriptor;
     function GetDescription: UTF8String; override;
-    const
-      AttachmentKindStrings: array[TAttachmentKind] of UTF8String =
-    ('unknown',
-     'primary',
-     'folder',
-     'properties',
-     'notes',
-     'thumbnail',
-     'synopsis',
-     'backup'
-    );
   end;
 
   { TDocumentPropertiesDataReceived }
@@ -473,13 +474,13 @@ type
     function GetDescription: UTF8String; override;
   end;
 
+  TAttachmentConfirmationEvent = procedure(Sender: TObject; Document: TDocumentPath; AttachmentName: String; out Answer: Boolean) of object;
+  TAttachmentChoiceEvent = procedure(Sender: TObject; Document: TDocumentPath; AttachmentName: String; aChoices: TStringArray; var Answer: Integer; out Accepted: Boolean) of object;
   // TODO: These are old events, which are going to be gone when I've got things figured out.
   TDocumentNotifyEvent = procedure(Sender: TObject; Document: TDocumentPath) of object;
   TDocumentExceptionEvent = procedure(Sender: TObject; Document: TDocumentPath; Error: String) of object;
   TAttachmentNotifyEvent = procedure(Sender: TObject; Document: TDocumentPath; AttachmentName: String) of object;
   TAttachmentExceptionEvent = procedure(Sender: TObject; Document: TDocumentPath; AttachmentName: String; Error: String) of object;
-  TAttachmentConfirmationEvent = procedure(Sender: TObject; Document: TDocumentPath; AttachmentName: String; out Answer: Boolean) of object;
-  TAttachmentChoiceEvent = procedure(Sender: TObject; Document: TDocumentPath; AttachmentName: String; aChoices: TStringArray; var Answer: String; out Accepted: Boolean) of object;
 
   TOrderDocumentPosition = (odpBefore,odpAfter);
 
@@ -945,9 +946,25 @@ type
     property New: TDocumentPath read fNewDocument;
   end;
 
+  { TRequestEditingAttachmentPromise }
+
+  TRequestEditingAttachmentPromise = class(TPromise)
+  private
+    fDocument: TDocumentPath;
+    fAttachment: TAttachment;
+    fCancelled: Boolean;
+  public
+    constructor Create(aDocument: TDocumentPath);
+    property Document: TDocumentPath read fDocument;
+    property Attachment: TAttachment read fAttachment;
+    property Cancelled: Boolean read fCancelled;
+  end;
+
   { TStewProject }
 
   TStewProject = class
+    procedure DocumentEditing(Sender: TPromise);
+    procedure DocumentEditingError(Sender: TPromise; aError: TPromiseError);
   strict private type
 
     // this allows me access to the protected events on Project Properties,
@@ -1122,7 +1139,6 @@ type
     { TRenameDocumentTask }
 
     TRenameDocumentTask = class(TDeferredTask2)
-      procedure FilesRenamed(Sender: TPromise);
     private
       fProject: TStewProject;
       fOldDocument: TDocumentPath;
@@ -1130,8 +1146,29 @@ type
     protected
       procedure DoTask(Input: TPromise); override;
       function CreatePromise: TPromise; override;
+      procedure FilesRenamed(Sender: TPromise);
     public
       constructor Defer(aOld: TDocumentPath; aNew: TDocumentPath; aProject: TStewProject; aInputPromise: TFileListPromise);
+    end;
+
+    { TRequestEditAttachmentTask }
+
+    TRequestEditAttachmentTask = class(TDeferredTask2)
+      procedure NewAttachment_FileCreated(Sender: TPromise);
+      procedure TooManyAttachment_PropertiesRead(Sender: TPromise);
+    private
+      fProject: TStewProject;
+      fDocument: TDocumentPath;
+      fAttachment: TAttachmentKind;
+      fCandidates: TFileArray;
+      fNewFile: TFile;
+    protected
+      procedure DoTask(Input: TPromise); override;
+      function CreatePromise: TPromise; override;
+      procedure NewAttachment_PropertiesRead(Sender: TPromise);
+      procedure NewAttachment_TemplatesListed(Sender: TPromise);
+    public
+      constructor Defer(aDocument: TDocumentPath; aAttachment: TAttachmentKind; aProject: TStewProject; aInputPromise: TFileListPromise);
     end;
 
   private
@@ -1139,13 +1176,14 @@ type
     fCache: TFileSystemCache;
     fShadows: TShadowCache;
     fObservers: TProjectObserverList;
+    FOnChooseTemplate: TAttachmentChoiceEvent;
+    FOnConfirmNewAttachment: TAttachmentConfirmationEvent;
+    fOnChooseAttachment: TAttachmentChoiceEvent;
 
     // TODO: A lot of the rest are going away once everything's moved over
     // to updated promises and jsvalues.
 
     fMetadataCache: TDocumentMetadata;
-    FOnChooseTemplate: TAttachmentChoiceEvent;
-    FOnConfirmNewAttachment: TAttachmentConfirmationEvent;
     FOnDocumentAttachmentError: TAttachmentExceptionEvent;
     FOnDocumentAttachmentLoaded: TAttachmentNotifyEvent;
     FOnDocumentAttachmentLoading: TAttachmentNotifyEvent;
@@ -1242,6 +1280,7 @@ type
     // for the observers to see, they are meant for attaching the UI to.
     property OnConfirmNewAttachment: TAttachmentConfirmationEvent read FOnConfirmNewAttachment write FOnConfirmNewAttachment;
     property OnChooseTemplate: TAttachmentChoiceEvent read FOnChooseTemplate write FOnChooseTemplate;
+    property OnChooseAttachment: TAttachmentChoiceEvent read fOnChooseAttachment write fOnChooseAttachment;
   public
     constructor Create;
     destructor Destroy; override;
@@ -1278,6 +1317,11 @@ type
     function ShiftDocumentUp(aDocument: TDocumentPath): TShiftDocumentPromise;
     function ShiftDocumentDown(aDocument: TDocumentPath): TShiftDocumentPromise;
     function RenameDocument(aDocument: TDocumentPath; aNewDocument: TDocumentPath): TRenameDocumentPromise;
+    function EditDocument(aDocument: TDocumentPath): TRequestEditingAttachmentPromise;
+    function EditDocumentNotes(aDocument: TDocumentPath): TRequestEditingAttachmentPromise;
+    function EditDocumentThumbnail(aDocument: TDocumentPath): TRequestEditingAttachmentPromise;
+    function EditDocumentAttachment(aDocument: TDocumentPath; aAttachment: TAttachmentKind): TRequestEditingAttachmentPromise;
+
 
 
     // Important maintenance functions for working with the projects themselves.
@@ -1289,8 +1333,10 @@ type
     // utility functions used internally, but here for your pleasure since they
     // don't change anything in the project state.
     function BuildAndSortDocumentList(aParent: TDocumentPath;
-      aProperties: TDocumentProperties2; aFiles: TFileInfoArray
-  ): TDocumentInfoArray;
+      aProperties: TDocumentProperties2; aFiles: TFileInfoArray): TDocumentInfoArray;
+    function DoConfirmNewAttachment(aDocument: TDocumentPath; aKind: TAttachmentKind): Boolean;
+    function DoChooseTemplate(aDocument: TDocumentPath; aKind: TAttachmentKind; aList: TTemplateArray; out aChosen: TTemplate): Boolean;
+    function DoChooseFileForAttachment(aDocument: TDocumentPath; aKind: TAttachmentKind; aChoices: TFileArray; out aChosen: TFile): Boolean;
     class function TranslateFileToDocument(aBasePath: TFile; aFile: TFile): TDocumentPath;
     class function TranslateFileToAttachment(aBasePath: TFile; aFile: TFile): TAttachment;
     class function TranslateDocumentAttachmentToFile(aBasePath: TFile; aDocument: TDocumentPath; aDescriptor: UTF8String; aExtension: UTF8String): TFile;
@@ -1380,6 +1426,344 @@ begin
   result:=0;
   While (result < List.Count) and (CompareText(list[Result],aText) <> 0) do
     result:=result+1;
+end;
+
+{ TRequestEditingAttachmentPromise }
+
+constructor TRequestEditingAttachmentPromise.Create(aDocument: TDocumentPath);
+begin
+  inherited Create;
+  fDocument := aDocument;
+end;
+
+{ TStewProject.TRequestEditAttachmentTask }
+
+procedure TStewProject.TRequestEditAttachmentTask.NewAttachment_PropertiesRead(
+  Sender: TPromise);
+var
+  lProps: TProjectProperties2;
+  lDescriptor: UTF8String;
+  lExtension: UTF8String;
+begin
+  try
+    lProps := (Sender as TProjectPropertiesPromise).Properties;
+    case fAttachment of
+      atPrimary:
+      begin
+        lDescriptor := '';
+        lExtension := lProps.DefaultDocExtension;
+        if lExtension = '' then
+          lExtension := 'txt';
+      end;
+      atNotes:
+      begin
+        lDescriptor := TStewProject.DocumentNotesDescriptor;
+        lExtension := lProps.DefaultNotesExtension;
+        if lExtension = '' then
+          lExtension := 'txt';
+      end;
+      atThumbnail:
+      begin
+        lDescriptor := TStewProject.DocumentThumbnailDescriptor;
+        lExtension := lProps.DefaultThumbnailExtension;
+        if lExtension = '' then
+          lExtension := 'png';
+      end;
+    else
+      Reject('Invalid new attachment type: ' + TAttachment.AttachmentKindStrings[fAttachment]);
+    end;
+    fNewFile :=  fProject.TranslateDocumentAttachmentToFile(fProject.fDisk,fDocument,lDescriptor,lExtension);
+    fNewFile.ListTemplatesFor.After(@NewAttachment_TemplatesListed,@SubPromiseRejected);
+  except
+    on E: Exception do
+      Reject(E.Message);
+  end;
+end;
+
+procedure TStewProject.TRequestEditAttachmentTask.NewAttachment_TemplatesListed(
+  Sender: TPromise);
+var
+  lTemplate: TTemplate;
+  lData: TTemplateArray;
+begin
+  try
+    lData := (Sender as TFileListTemplatesPromise).Templates;
+    if Length(lData) = 0 then
+      // create a simple, basic, blank file.
+      // this is not cached, because editing is not done through cache.
+       fNewFile.Write('').After(@NewAttachment_FileCreated,@SubPromiseRejected)
+    else
+    begin
+      if Length(lData) > 1 then
+      begin
+        if not fProject.DoChooseTemplate(fDocument,fAttachment,lData,lTemplate) then
+        begin
+          (Promise as TRequestEditingAttachmentPromise).fCancelled := true;
+          Resolve;
+          Exit;
+        end;
+      end
+      else
+        lTemplate := lData[0];
+      fNewFile.CreateFromTemplate(lTemplate).After(@NewAttachment_FileCreated,@SubPromiseRejected);
+    end;
+
+  except
+    on E: Exception do
+      Reject(E.Message);
+  end;
+
+end;
+
+procedure TStewProject.TRequestEditAttachmentTask.NewAttachment_FileCreated(
+  Sender: TPromise);
+begin
+  (Promise as TRequestEditingAttachmentPromise).fAttachment := fProject.TranslateFileToAttachment(fProject.fDisk,fNewFile);
+  (Promise as TRequestEditingAttachmentPromise).fCancelled := false;
+  Resolve;
+end;
+
+procedure TStewProject.TRequestEditAttachmentTask.TooManyAttachment_PropertiesRead
+  (Sender: TPromise);
+var
+  lProps: TProjectProperties2;
+  lDescriptor: UTF8String;
+  lExtension: UTF8String;
+  lCandidatesLength: Integer;
+  lFilteredLength: Integer;
+  lFiltered: TFileArray;
+  lChosenFile: TFile;
+  i: Integer;
+begin
+  try
+    lProps := (Sender as TProjectPropertiesPromise).Properties;
+    case fAttachment of
+      atPrimary:
+      begin
+        lDescriptor := '';
+        lExtension := lProps.DefaultDocExtension;
+        if lExtension = '' then
+          lExtension := 'txt';
+      end;
+      atNotes:
+      begin
+        lDescriptor := TStewProject.DocumentNotesDescriptor;
+        lExtension := lProps.DefaultNotesExtension;
+        if lExtension = '' then
+          lExtension := 'txt';
+      end;
+      atThumbnail:
+      begin
+        lDescriptor := TStewProject.DocumentThumbnailDescriptor;
+        lExtension := lProps.DefaultThumbnailExtension;
+        if lExtension = '' then
+          lExtension := 'png';
+      end;
+    else
+      Reject('Invalid new attachment type: ' + TAttachment.AttachmentKindStrings[fAttachment]);
+    end;
+
+    lCandidatesLength := Length(fCandidates);
+    lFilteredLength := 0;
+    SetLength(lFiltered,0);
+    for i := 0 to lCandidatesLength - 1 do
+    begin
+      if (fCandidates[i].Extension = lExtension) and
+         (fCandidates[i].Descriptor = lDescriptor) then
+      begin
+        SetLength(lFiltered,lFilteredLength + 1);
+        lFiltered[lFilteredLength] := fCandidates[i];
+        inc(lFilteredLength);
+      end;
+
+    end;
+
+    case lFilteredLength of
+      0:
+      begin
+        if fProject.DoConfirmNewAttachment(fDocument,fAttachment) then
+        begin
+          // Need to create the new attachment, and for that we need to
+          // know what the default is...
+          case fAttachment of
+            atNotes, atThumbnail, atPrimary:
+            // in this case, I *do* have the properties already...
+            // behave as if we need to create a new one...
+              NewAttachment_PropertiesRead(Sender);
+          else
+            // we shouldn't really have gotten this far...
+            Reject('Can''t edit this type of attachment: ' + TAttachment.AttachmentKindStrings[fAttachment]);
+          end;
+        end
+        else
+        begin
+          // all done, and since this was a user cancelling event, it's
+          // not an error
+          (Promise as TRequestEditingAttachmentPromise).fAttachment := TAttachment.MakeUnknown('','');
+          (Promise as TRequestEditingAttachmentPromise).fCancelled := true;
+          Resolve;
+        end;
+      end;
+      1:
+      begin
+        lChosenFile := lFiltered[0];
+        (Promise as TRequestEditingAttachmentPromise).fAttachment :=
+                 TAttachment.Make(fAttachment,
+                                  lChosenFile.Descriptor,
+                                  lChosenFile.Extension);
+        lChosenFile.OpenInEditor;
+        Resolve;
+      end;
+    else
+      if fProject.DoChooseFileForAttachment(fDocument,fAttachment,lFiltered,lChosenFile) then
+      begin
+        (Promise as TRequestEditingAttachmentPromise).fAttachment :=
+                 TAttachment.Make(fAttachment,
+                                  lChosenFile.Descriptor,
+                                  lChosenFile.Extension);
+        lChosenFile.OpenInEditor;
+        Resolve;
+      end
+      else
+      begin
+        // all done, and since this was a user cancelling event, it's
+        // not an error
+        (Promise as TRequestEditingAttachmentPromise).fAttachment := TAttachment.MakeUnknown('','');
+        (Promise as TRequestEditingAttachmentPromise).fCancelled := true;
+        Resolve;
+      end;
+    end;
+
+  except
+    on E: Exception do
+      Reject(E.Message);
+  end;
+end;
+
+procedure TStewProject.TRequestEditAttachmentTask.DoTask(Input: TPromise);
+var
+  i: Integer;
+  lListedFiles: TFileArray;
+  lListedLength: Integer;
+  lCandidateLength: Integer;
+  lChosenFile: TFile;
+begin
+  try
+
+    // get a list of 'candidate' files from the listing...
+    lListedFiles := (Input as TFileListPromise).GetJustFiles;
+    lListedLength := Length(lListedFiles);
+    lCandidateLength := 0;
+    SetLength(fCandidates,0);
+    for i := 0 to lListedLength - 1 do
+    begin
+      if (fProject.TranslateFileToDocument(fProject.fDisk,lListedFiles[i]) = fDocument) and
+         (fProject.TranslateFileToAttachment(fProject.fDisk,lListedFiles[i]).Kind = fAttachment) then
+      begin
+        SetLength(fCandidates,lCandidateLength + 1);
+        fCandidates[lCandidateLength] := lListedFiles[i];
+        inc(lCandidateLength);
+      end;
+    end;
+
+    // we have a list, now figure out which one to edit.
+    case lCandidateLength of
+      0:
+      begin
+        if fProject.DoConfirmNewAttachment(fDocument,fAttachment) then
+        begin
+          // Need to create the new attachment, and for that we need to
+          // know what the default is...
+          case fAttachment of
+            atNotes, atThumbnail, atPrimary:
+              fProject.ReadProjectProperties.After(@NewAttachment_PropertiesRead,@SubPromiseRejected);
+          else
+            // we shouldn't really have gotten this far...
+            Reject('Can''t edit this type of attachment: ' + TAttachment.AttachmentKindStrings[fAttachment]);
+          end;
+        end
+        else
+        begin
+          // all done, and since this was a user cancelling event, it's
+          // not an error
+          (Promise as TRequestEditingAttachmentPromise).fAttachment := TAttachment.MakeUnknown('','');
+          (Promise as TRequestEditingAttachmentPromise).fCancelled := true;
+          Resolve;
+        end;
+      end;
+      1:
+      begin
+        lChosenFile := fCandidates[0];
+        (Promise as TRequestEditingAttachmentPromise).fAttachment :=
+                 TAttachment.Make(fAttachment,
+                                  lChosenFile.Descriptor,
+                                  lChosenFile.Extension);
+        lChosenFile.OpenInEditor;
+        Resolve;
+      end;
+    else
+      fProject.ReadProjectProperties.After(@TooManyAttachment_PropertiesRead,@SubPromiseRejected);
+    end;
+    // TODO:
+    // This is a promise thing after all, since there are a few things
+    // that have to be done before we can actually open the editor...
+    // 1. Need to get a list of all 'attachments' in the document.
+    //    - This should either be a special file system thing where
+    //      we can look for all files starting with X, or this can
+    //      just be a general directory list that retrieves *all* files.
+    //      probably the second.
+    //    - Keep in mind that the root document might be editable
+    //      (have to handle /_notes.txt and /.<doc>)
+    //    - The rename files also does this, so maybe we need that as well.
+    // 2. Once we have a list, then we have to find out how many
+    //    match the descriptor.
+    // 3. If no files match the descriptor, then we need to create one.
+    //    For this, we need the project properties for a few of them.
+    //    This is another async task.
+    //    a. We also need to list all templates, which is another async
+    //       task, and then ask the user which one to do.
+    //    b. We also need to ask the user if they *want* to create a new
+    //       file.
+    // 4. If multiple files match the descriptor, we want to open the
+    //    one with the default extension. Again, we need the project properties.
+    // 5. If multiple files match, and we can't figure out which one to open,
+    //    we need to ask the user which one.
+    // 6. The promise finally returns after the process is initiated.
+
+  {
+  aCandidates := GetCandidateFiles;
+  case Length(aCandidates) of
+    0:
+    if fDocument.DoConfirmNewAttachment(GetName) then
+    begin
+      GetDefaultFile.ListTemplatesFor.After(@EditorTemplatesListed,@FileLoadFailed);
+    end;
+    1:
+      aCandidates[0].OpenInEditor;
+  else
+      raise Exception.Create('Too many ' + GetName + ' files');
+  end;
+  }
+  except on E: Exception do
+    Reject(E.Message);
+  end;
+
+end;
+
+function TStewProject.TRequestEditAttachmentTask.CreatePromise: TPromise;
+begin
+  result := TRequestEditingAttachmentPromise.Create(fDocument);
+end;
+
+constructor TStewProject.TRequestEditAttachmentTask.Defer(aDocument: TDocumentPath;
+  aAttachment: TAttachmentKind; aProject: TStewProject;
+  aInputPromise: TFileListPromise);
+begin
+  fDocument := aDocument;
+  fAttachment := aAttachment;
+  fProject := aProject;
+  inherited Defer(aInputPromise);
+
 end;
 
 { TRenameDocumentPromise }
@@ -2150,6 +2534,14 @@ begin
 
 end;
 
+class function TAttachment.Make(aKind: TAttachmentKind;
+  aDescriptor: UTF8String; aExtension: UTF8String): TAttachment;
+begin
+  result.Kind := aKind;
+  result.Descriptor:= aDescriptor;
+  result.Extension:= aExtension;
+end;
+
 { TAttachmentError }
 
 constructor TAttachmentError.Create(aAction: TProjectEventKind;
@@ -2192,7 +2584,7 @@ end;
 
 function TAttachmentEvent.GetDescription: UTF8String;
 begin
-  Result:=inherited GetDescription + ' <' + AttachmentKindStrings[fAttachment.Kind] + '> "_' + fAttachment.Descriptor + '.' + fAttachment.Extension + '"';
+  Result:=inherited GetDescription + ' <' + TAttachment.AttachmentKindStrings[fAttachment.Kind] + '> "_' + fAttachment.Descriptor + '.' + fAttachment.Extension + '"';
 end;
 
 { TDocumentError }
@@ -3183,22 +3575,15 @@ begin
       aNames[i] := aTemplates[i].Name;
     end;
     aName := '';
-    fProject.fOnChooseTemplate(fProject,fID,aAttachmentName,aNames,aName,Result);
+    fProject.fOnChooseTemplate(fProject,fID,aAttachmentName,aNames,i,Result);
     aTemplate.Name:='';
     aTemplate.ID := '';
     if result then
     begin
-      for i := 0 to l - 1 do
-      begin
-        if aTemplates[i].Name = aName then
-        begin
-          aTemplate := aTemplates[i];
-          break;
-        end;
-
-      end;
-      if aTemplate.Name = '' then
-        raise Exception.Create('Invalid result from choose template');
+      if (i >= 0) and (i < l) then
+        aTemplate := aTemplates[i]
+      else
+        raise Exception.Create('Invalid choice for template');
     end;
 
   end
@@ -4178,6 +4563,23 @@ begin
                                           (Sender as TRenameDocumentPromise).New));
 end;
 
+procedure TStewProject.DocumentEditing(Sender: TPromise);
+begin
+  ReportEvent(TAttachmentEvent.Create(paEditingAttachment,
+                                      (Sender as TRequestEditingAttachmentPromise).Document,
+                                      (Sender as TRequestEditingAttachmentPromise).Attachment));
+end;
+
+procedure TStewProject.DocumentEditingError(Sender: TPromise;
+  aError: TPromiseError);
+begin
+  ReportEvent(TAttachmentError.Create(paEditingAttachment,
+                                      (Sender as TRequestEditingAttachmentPromise).Document,
+                                      (Sender as TRequestEditingAttachmentPromise).Attachment,
+                                      aError));
+
+end;
+
 function TStewProject.GetIsOpened: Boolean;
 begin
   result := fProperties <> nil;
@@ -4401,13 +4803,42 @@ var
   lListFiles: TFileListPromise;
 begin
   if aDocument = TDocumentPath.Root then
-    raise Exception.Create('Can''t shift the document root');
+    raise Exception.Create('Can''t rename the document root');
   if aNewDocument = TDocumentPath.Root then
     raise Exception.Create('Can''t rename a document to root');
   ReportEvent(TDocumentRenameEvent.Create(paRenamingDocument,aDocument,aNewDocument));
   lListFiles := fCache.ListFiles(GetDocumentFolderPath(fDisk,aDocument.Container));
   result := TRenameDocumentTask.Defer(aDocument,aNewDocument,Self,lListFiles).Promise as TRenameDocumentPromise;
   result.After(@DocumentsRenamed,@DocumentRenamingError);
+end;
+
+function TStewProject.EditDocument(aDocument: TDocumentPath
+  ): TRequestEditingAttachmentPromise;
+begin
+  result := EditDocumentAttachment(aDocument,atPrimary);
+end;
+
+function TStewProject.EditDocumentNotes(aDocument: TDocumentPath
+  ): TRequestEditingAttachmentPromise;
+begin
+  result := EditDocumentAttachment(aDocument,atNotes);
+end;
+
+function TStewProject.EditDocumentThumbnail(aDocument: TDocumentPath
+  ): TRequestEditingAttachmentPromise;
+begin
+  result := EditDocumentAttachment(aDocument,atThumbnail);
+end;
+
+function TStewProject.EditDocumentAttachment(aDocument: TDocumentPath;
+  aAttachment: TAttachmentKind): TRequestEditingAttachmentPromise;
+var
+  lListFiles: TFileListPromise;
+begin
+  // TODO: Make sure this works for the root as well...
+  lListFiles := fCache.ListFiles(GetDocumentFolderPath(fDisk,aDocument.Container));
+  result := TRequestEditAttachmentTask.Defer(aDocument,aAttachment,Self,lListFiles).Promise as TRequestEditingAttachmentPromise;
+  result.After(@DocumentEditing,@DocumentEditingError);
 end;
 
 procedure TStewProject.AddObserver(aObserver: TProjectObserver);
@@ -4449,6 +4880,74 @@ begin
     lBuilder.Free;
   end;
 
+end;
+
+function TStewProject.DoConfirmNewAttachment(aDocument: TDocumentPath;
+  aKind: TAttachmentKind): Boolean;
+begin
+  if FOnConfirmNewAttachment <> nil then
+    FOnConfirmNewAttachment(Self,aDocument,TAttachment.AttachmentKindStrings[aKind],Result)
+  else
+    raise Exception.Create('User has no way to confirm new attachment');
+end;
+
+function TStewProject.DoChooseTemplate(aDocument: TDocumentPath;
+  aKind: TAttachmentKind; aList: TTemplateArray; out aChosen: TTemplate
+  ): Boolean;
+var
+  l: Integer;
+  i: Integer;
+  lNames: TStringArray;
+begin
+  if fOnChooseTemplate <> nil then
+  begin
+    l := Length(aList);
+    SetLength(lNames,l);
+    for i := 0 to l - 1 do
+    begin
+      lNames[i] := aList[i].Name;
+    end;
+    fOnChooseTemplate(Self,aDocument,TAttachment.AttachmentKindStrings[aKind],lNames,i,Result);
+    if result then
+    begin
+      if (i >= 0) and (i < l) then
+        aChosen := aList[i]
+      else
+        raise Exception.Create('Invalid choice for template');
+    end;
+
+  end
+  else
+     raise Exception.Create('User has no way to choose templates');
+end;
+
+function TStewProject.DoChooseFileForAttachment(aDocument: TDocumentPath;
+  aKind: TAttachmentKind; aChoices: TFileArray; out aChosen: TFile): Boolean;
+var
+  l: Integer;
+  i: Integer;
+  lNames: TStringArray;
+begin
+  if fOnChooseTemplate <> nil then
+  begin
+    l := Length(aChoices);
+    SetLength(lNames,l);
+    for i := 0 to l - 1 do
+    begin
+      lNames[i] := aChoices[i].Name;
+    end;
+    fOnChooseAttachment(Self,aDocument,TAttachment.AttachmentKindStrings[aKind],lNames,i,Result);
+    if result then
+    begin
+      if (i >= 0) and (i < l) then
+        aChosen := aChoices[i]
+      else
+        raise Exception.Create('Invalid choice for attachment file');
+    end;
+
+  end
+  else
+     raise Exception.Create('User has no way to choose templates');
 end;
 
 class function TStewProject.GetProjectPropertiesPath(aFile: TFile): TFile;

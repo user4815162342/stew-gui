@@ -433,7 +433,7 @@ end;
 procedure TProjectManager.ReloadNode(aNode: TProjectInspectorNode; aProps: TProjectProperties);
 var
   aDoc: TDocumentMetadata;
-  aList: TDocumentList;
+  aList: TDocumentArray;
   i: Integer;
   aChild: TProjectInspectorNode;
   aMatch: TProjectInspectorNode;

@@ -18,26 +18,26 @@ type
     ChoiceList: TListBox;
   private
     function GetCaption: String;
-    function GetChoice: String;
+    function GetChoice: Integer;
     function GetChoices: TStringArray;
     procedure SetCaption(AValue: String);
-    procedure SetChoice(AValue: String);
+    procedure SetChoice(AValue: Integer);
     procedure SetChoices(AValue: TStringArray);
     { private declarations }
   public
     { public declarations }
     property Choices: TStringArray read GetChoices write SetChoices;
-    property Choice: String read GetChoice write SetChoice;
+    property Choice: Integer read GetChoice write SetChoice;
     property Caption: String read GetCaption write SetCaption;
     function Execute: Boolean;
   end;
 
-  function ChoiceQuery(aCaption: String; aChoices: TStringArray; var aChoice: String): Boolean;
+  function ChoiceQuery(aCaption: String; aChoices: TStringArray; var aChoice: Integer): Boolean;
 
 implementation
 
 function ChoiceQuery(aCaption: String; aChoices: TStringArray;
-  var aChoice: String): Boolean;
+  var aChoice: Integer): Boolean;
 begin
   with TListDialog.Create(nil) do
   try
@@ -61,9 +61,9 @@ begin
   result := CaptionLabel.Caption;
 end;
 
-function TListDialog.GetChoice: String;
+function TListDialog.GetChoice: Integer;
 begin
-  result := ChoiceList.Items[ChoiceList.ItemIndex];
+  result := ChoiceList.ItemIndex;
 end;
 
 function TListDialog.GetChoices: TStringArray;
@@ -83,13 +83,9 @@ begin
   CaptionLabel.Caption := AValue;
 end;
 
-procedure TListDialog.SetChoice(AValue: String);
-var
-  idx: Integer;
+procedure TListDialog.SetChoice(AValue: Integer);
 begin
-  idx := ChoiceList.Items.IndexOf(AValue);
-  if idx > - 1 then
-     ChoiceList.ItemIndex := idx;
+  ChoiceList.ItemIndex := AValue;
 
 end;
 

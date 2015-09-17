@@ -51,7 +51,7 @@ type
     procedure AboutMenuItemClick(Sender: TObject);
     procedure DoChooseNewAttachmentTemplate(Sender: TObject;
       {%H-}Document: TDocumentPath; AttachmentName: String; aChoices: TStringArray;
-      var Answer: String; out Accepted: Boolean);
+      var Answer: Integer; out Accepted: Boolean);
     procedure DoConfirmNewAttachment(Sender: TObject; {%H-}Document: TDocumentPath;
       AttachmentName: String; out Answer: Boolean);
     procedure DocumentAttachmentLoading(Sender: TObject; Document: TDocumentPath;
@@ -175,7 +175,7 @@ const ProjectSettingsDocumentID: UTF8String = 'project settings';
 procedure RunNewStewInstance(const aProjectPath: TFile);
 begin
   try
-    RunDetachedProcess(Application.ExeName,[aProjectPath.ID]);
+    TOperatingSystemInterface.RunDetachedProcess(Application.ExeName,[aProjectPath.ID]);
 
   except
     on E: Exception do
@@ -186,7 +186,7 @@ end;
 procedure RunNewStewInstanceWithPrompt;
 begin
   try
-     RunDetachedProcess(Application.ExeName,[PromptForProjectArgument]);
+     TOperatingSystemInterface.RunDetachedProcess(Application.ExeName,[PromptForProjectArgument]);
   except
     on E: Exception do
       ShowMessage(E.Message);
@@ -267,7 +267,7 @@ end;
 
 procedure TMainForm.DoChooseNewAttachmentTemplate(Sender: TObject;
   Document: TDocumentPath; AttachmentName: String; aChoices: TStringArray;
-  var Answer: String; out Accepted: Boolean);
+  var Answer: Integer; out Accepted: Boolean);
 begin
   Accepted := ChoiceQuery('There are multiple templates available for your new ' + AttachmentName + ' file.' + LineEnding +
                           'Please specify which one you would like to use:', aChoices,Answer);

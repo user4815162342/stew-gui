@@ -36,20 +36,32 @@ type
     TLocalFileListTemplatesPromise = class(TFileListTemplatesPromise);
   protected
     fPath: Tfile;
-  {$IFDEF Linux}
+{$IFDEF Linux}
     procedure XdgUserDirDone(Sender: TPromise);
     procedure TemplateFilesListed(Sender: TPromise);
-  {$ENDIF}
+{$ENDIF}
     procedure DoTask; override;
     function CreatePromise: TPromise; override;
   public
     constructor Enqueue(aPath: TFile);
   end platform;
 
-function RunSimpleCommand(aCmd: String; const aArgs: array of string): TRunSimpleCommandTask;
-function CreateFileFromTemplate(aTemplate: TTemplate; aFile: TFile): TFileCopyPromise;
-procedure EditFile(aFile: TFile);
-procedure RunDetachedProcess(const aExecutable: String; aArgs: array of String);
+  // TODO: Add a variable that will allow the internal system to have first
+  // chance at editing files. I might have to refactor this system into a
+  // class.
+  TInternalEditorHandler = procedure(aFile: TFile; out aEdited: Boolean) of object;
+
+  TOperatingSystemInterface = class
+  public
+    class function RunSimpleCommand(aCmd: String; const aArgs: array of string): TRunSimpleCommandTask;
+    class function CreateFileFromTemplate(aTemplate: TTemplate; aFile: TFile): TFileCopyPromise;
+    class procedure EditFile(aFile: TFile);
+    class procedure RunDetachedProcess(const aExecutable: String; aArgs: array of String);
+
+
+  end;
+
+
 
 implementation
 
@@ -58,7 +70,7 @@ uses
 
 
 
-procedure EditFile(aFile: TFile);
+class procedure TOperatingSystemInterface.EditFile(aFile: TFile);
 {$IFDEF Linux}
 var
   lApp: string;
@@ -110,13 +122,13 @@ begin
 {$ENDIF}
 end;
 
-function RunSimpleCommand(aCmd: String; const aArgs: array of string
+class function TOperatingSystemInterface.RunSimpleCommand(aCmd: String; const aArgs: array of string
   ): TRunSimpleCommandTask;
 begin
   result := TRunSimpleCommandTask.Enqueue(aCmd,aArgs);
 end;
 
-function CreateFileFromTemplate(aTemplate: TTemplate; aFile: TFile
+class function TOperatingSystemInterface.CreateFileFromTemplate(aTemplate: TTemplate; aFile: TFile
   ): TFileCopyPromise;
 begin
 {$IFDEF Linux}
@@ -126,7 +138,7 @@ begin
 {$ENDIF}
 end;
 
-procedure RunDetachedProcess(const aExecutable: String; aArgs: array of String);
+class procedure TOperatingSystemInterface.RunDetachedProcess(const aExecutable: String; aArgs: array of String);
 var
   Process: TProcess;
   i: Integer;
