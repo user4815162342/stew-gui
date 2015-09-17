@@ -8,9 +8,6 @@ uses
   Classes, SysUtils, stew_types, contnrs, jsonscanner;
 
 type
-  // TODO: Once everything's using the new stuff, get rid of the old stuff in
-  // stewpersist.
-
    {This is a somewhat more flexible replacement for the fpjson and jsonparser units.
    Features available that weren't provided by the others:
    - More controlled creation of member-values, allowing for context-specific

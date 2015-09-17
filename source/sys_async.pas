@@ -4,9 +4,6 @@ unit sys_async;
 
 interface
 
-// TODO: Once everything's using promises, get rid of the stuff here that
-// doesn't belong.
-
 {This unit allows the other units to easily behave in an asynchronous manner.
 The mechanism isn't to create actual, separate threads, but to split longer
 tasks into smaller tasks and queue them into the application's event loop,
@@ -176,6 +173,7 @@ type
 
   { TDeferredTask2 }
 
+  // TODO: Once the other TDeferredTask is gone, remove the '2'.
   TDeferredTask2 = class(TAsyncTask)
   private
     fInputPromise: TPromise;
@@ -198,9 +196,7 @@ type
   protected
     procedure DoTask({%H-}Input: TPromise); override;
     function CreatePromise: TPromise; override;
-  end;
-
-  // TODO: Should be able to get rid of the following...
+  end deprecated;
 
   // Use this one to create your own deferred code. Just override DoCallback to
   // complete the functionality.
@@ -215,16 +211,16 @@ type
   public
     constructor Create;
     procedure Enqueue;
-  end;
+  end deprecated;
 
-  TDeferredCallback = procedure of object;
-  TDeferredStringCallback = procedure(Data: String) of object;
-  TDeferredBooleanCallback = procedure(Data: Boolean) of object;
-  TDeferredStringArrayCallback = procedure(Data: array of String) of object;
+  TDeferredCallback = procedure of object deprecated;
+  TDeferredStringCallback = procedure(Data: String) of object deprecated;
+  TDeferredBooleanCallback = procedure(Data: Boolean) of object deprecated;
+  TDeferredStringArrayCallback = procedure(Data: array of String) of object deprecated;
   // Exceptions are freed after being caught, so deferring them to pass them onward
   // doesn't work. We need to pass the message instead. Someday, I may need
   // to pass more structured data.
-  TDeferredExceptionCallback = procedure(Data: String) of object;
+  TDeferredExceptionCallback = procedure(Data: String) of object deprecated;
 
   TDeferredTask = class(TDeferredCall)
   private
@@ -235,18 +231,18 @@ type
     property ErrorBack: TDeferredExceptionCallback read fErrorback;
   public
     constructor Create(aErrorBack: TDeferredExceptionCallback);
-  end;
+  end deprecated;
 
   TAsyncCallQueuer = procedure(aCallback: TDeferredCallback);
-
-var
-  AsyncCallQueuer: TAsyncCallQueuer;
 
 procedure SetAsyncCallQueuer(aQueuer: TAsyncCallQueuer);
 procedure RemoveAsyncCallQueuer(aQueuer: TAsyncCallQueuer);
 
 
 implementation
+
+var
+  AsyncCallQueuer: TAsyncCallQueuer;
 
 procedure SetAsyncCallQueuer(aQueuer: TAsyncCallQueuer);
 begin

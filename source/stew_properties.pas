@@ -37,7 +37,7 @@ type
     property publish: boolean read fPublish write fPublish;
     property category: String read fCategory write fCategory;
     property status: String read fStatus write fStatus;
-  end;
+  end deprecated;
 
   { TKeywordDefinition }
 
@@ -49,12 +49,12 @@ type
     procedure BeforeDeserialize({%H-}aLoader: TJSONDeStreamer; aData: TJSONObject);
   public
     property color: TColor read Fcolor write Setcolor;
-  end;
+  end deprecated;
 
   { TKeywordDefinitions }
 
   TKeywordDefinitions = class(TJSONStoreMap)
-  end;
+  end deprecated;
 
   { TCategoryDefinition }
 
@@ -73,22 +73,22 @@ type
     property publishMarkerBefore: Boolean read FpublishMarkerBefore write FpublishMarkerBefore default false;
     property publishMarkerAfter: Boolean read FpublishMarkerAfter write FpublishMarkerAfter default false;
     property publishMarkerBetween: Boolean read FpublishMarkerBetween write FpublishMarkerBetween default false;
-  end;
+  end deprecated;
 
   { TCategoryDefinitions }
 
   TCategoryDefinitions = class(TKeywordDefinitions)
     constructor Create;
-  end;
+  end deprecated;
 
   TStatusDefintion = class(TKeywordDefinition)
-  end;
+  end deprecated;
 
   { TStatusDefinitions }
 
   TStatusDefinitions = class(TKeywordDefinitions)
     constructor Create;
-  end;
+  end deprecated;
 
   { TProjectProperties }
 
@@ -126,10 +126,7 @@ type
     property defaultCategory: String read FdefaultCategory write SetdefaultCategory;
     property statuses: TKeywordDefinitions read fStatuses;
     property defaultStatus: String read FdefaultStatus write SetdefaultStatus;
-  end;
-
-  // TODO: This is the new stuff starting from here... Eventually, convert everything
-  // over to this, and then get rid of the '2' at the end of the class names.
+  end deprecated;
 
   { TProperties }
 
@@ -153,6 +150,7 @@ type
 
   { TDocumentProperties2 }
 
+  // TODO: Once we get rid of the other TDocumentProperties, remove the 2
   TDocumentProperties2 = class(TProperties)
   private
     function GetCategory: UTF8String;
@@ -219,6 +217,7 @@ type
 
   { TCategoryDefinition2 }
 
+  // TODO: Once we get rid of the other TCategoryDefinition remove the 2
   TCategoryDefinition2 = class(TKeywordDefinition2)
   private
     function GetPublishMarkerAfter: Boolean;
@@ -242,12 +241,14 @@ type
     property PublishMarkerBetween: Boolean read GetPublishMarkerBetween write SetPublishMarkerBetween;
   end;
 
+  // TODO: Remove the 2 once the other one is gone.
   TStatusDefinition2 = class(TKeywordDefinition2)
     // just holds color, so nothing special...
   end;
 
   { TKeywordDefinitions2 }
 
+  // TODO: Remove the 2 once the other one is gone
   generic TKeywordDefinitions2<MemberType> = class(TJSObject)
   protected
     function RequestType({%H-}aKey: UTF8String; {%H-}aType: TJSValueClass
@@ -256,12 +257,15 @@ type
     procedure Assign(aValue: TJSValue); override;
   end;
 
+  // TODO: Remove the 2
   TStatusDefinitions2 = specialize TKeywordDefinitions2<TStatusDefinition2>;
 
+  // TODO: Remove the 2
   TCategoryDefinitions2 = specialize TKeywordDefinitions2<TCategoryDefinition2>;
 
   { TProjectProperties2 }
 
+  // TODO: Once we get rid of the other TProjectProperties, remove the 2
   TProjectProperties2 = class(TProperties)
   private
     function GetCategories: TCategoryDefinitions2;

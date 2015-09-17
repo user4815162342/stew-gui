@@ -359,15 +359,13 @@ type
 
   TAttachmentConfirmationEvent = procedure(Sender: TObject; Document: TDocumentPath; AttachmentName: String; out Answer: Boolean) of object;
   TAttachmentChoiceEvent = procedure(Sender: TObject; Document: TDocumentPath; AttachmentName: String; aChoices: TStringArray; var Answer: Integer; out Accepted: Boolean) of object;
-  // TODO: These are old events, which are going to be gone when I've got things figured out.
-  TDocumentNotifyEvent = procedure(Sender: TObject; Document: TDocumentPath) of object;
-  TDocumentExceptionEvent = procedure(Sender: TObject; Document: TDocumentPath; Error: String) of object;
-  TAttachmentNotifyEvent = procedure(Sender: TObject; Document: TDocumentPath; AttachmentName: String) of object;
-  TAttachmentExceptionEvent = procedure(Sender: TObject; Document: TDocumentPath; AttachmentName: String; Error: String) of object;
 
-  TOrderDocumentPosition = (odpBefore,odpAfter);
+  TDocumentNotifyEvent = procedure(Sender: TObject; Document: TDocumentPath) of object deprecated;
+  TDocumentExceptionEvent = procedure(Sender: TObject; Document: TDocumentPath; Error: String) of object deprecated;
+  TAttachmentNotifyEvent = procedure(Sender: TObject; Document: TDocumentPath; AttachmentName: String) of object deprecated;
+  TAttachmentExceptionEvent = procedure(Sender: TObject; Document: TDocumentPath; AttachmentName: String; Error: String) of object deprecated;
 
-  {TODO: Old cache stuff starts here. Get rid of it once I've gotten the new stuff in.}
+  TOrderDocumentPosition = (odpBefore,odpAfter) deprecated;
 
   TDocumentMetadata = class;
 
@@ -389,7 +387,6 @@ type
     procedure FileLoaded(aSender: TPromise); overload;
     procedure FileLoaded(const aData: String; aAge: Longint); overload;
     procedure FileLoadFailed({%H-}aSender: TPromise; Data: String);
-    // TODO: Get rid of this once we're using promises everywhere...
     procedure FileLoadFailedNonPromise(Data: String);
     procedure FileSaveConflictCheck(aSender: TPromise; aData: TPromiseError);
     procedure FileSaveConflicted({%H-}aFileAge: Longint);
@@ -417,7 +414,7 @@ type
     property Contents: String read GetContents write SetContents;
     property Modified: Boolean read fModified;
     property FilingState: TFilingState read fFilingState;
-  end;
+  end deprecated;
 
   { TPrimaryMetadata }
 
@@ -426,7 +423,7 @@ type
     function GetDescriptor: String; override;
     function GetName: String; override;
     function GetDefaultExtension: String; override;
-  end;
+  end deprecated;
 
   { TNotesMetadata }
 
@@ -435,7 +432,7 @@ type
     function GetDescriptor: String; override;
     function GetName: String; override;
     function GetDefaultExtension: String; override;
-  end;
+  end deprecated;
 
   { TSynopsisMetadata }
 
@@ -445,7 +442,7 @@ type
     function GetDescriptor: String; override;
     function GetName: String; override;
     function GetDefaultExtension: String; override;
-  end;
+  end deprecated;
 
   { TDocumentMetadata }
   // FUTURE: Currently, there's no way to *release* the cache, mostly because
@@ -548,138 +545,8 @@ type
     procedure Rename(aOldName: String; aNewName: String);
     procedure MoveDocToHere(aOldChild: TDocumentMetadata);
     procedure OrderDocument(aDoc: TDocumentMetadata; aPosition: TOrderDocumentPosition; aRelative: TDocumentMetadata); overload;
-  end;
+  end deprecated;
 
-
-  {TODO: These cachedItem things were an early attempt at caching the file system
-  that was abandoned, get rid of them.}
-
-  { TCachedItem }
-
-  TCachedData = class(TObject)
-  private
-    fCreated: TDateTime;
-  public
-    constructor Create;
-    property Created: TDateTime read fCreated;
-  end;
-
-  { TCachedFileData }
-
-  TCachedFileData = class(TCachedData)
-  private
-    fPath: TFile;
-  public
-    constructor Create(const aPath: TFile);
-    property Path: TFile read fPath;
-  end;
-
-  TAttachmentArray = array of TCachedFileData;
-
-  { TCachedDocument }
-
-  TCachedDocument = class(TCachedData)
-  private
-    fAttachments: TFPHashObjectList;
-    fName: UTF8String;
-  public
-    constructor Create(const aName: UTF8String);
-    destructor Destroy; override;
-    function GetAttachment(const aDescriptor: UTF8String; aExtension: UTF8String): TCachedFileData;
-    procedure PutAttachment(const aDescriptor: UTF8String; aExtension: UTF8String; aValue: TCachedFileData);
-    function ListAttachments(const aDescriptor: UTF8String): TAttachmentArray;
-    property Attachments[const aDescriptor: UTF8String; aExtension: UTF8String]: TCachedFileData read GetAttachment write PutAttachment; default;
-    property Name: UTF8String read fName;
-  end;
-
-  TCachedDocumentArray = array of TCachedDocument;
-
-  { TCachedDirectory }
-
-  TCachedDirectory = class(TCachedFileData)
-  private
-    fDocuments: TFPHashObjectList;
-  public
-    constructor Create(const aPath: TFile);
-    destructor Destroy; override;
-    function GetDocument(const aName: UTF8String): TCachedDocument;
-    procedure PutDocument(const aName: UTF8String; aValue: TCachedDocument);
-    function ListDocumentNames: TStringArray;
-    function ListDocuments: TCachedDocumentArray;
-    property Documents[const aName: UTF8String]: TCachedDocument read GetDocument write PutDocument; default;
-  end;
-
-  { TCachedFilePromise }
-
-  TCachedFilePromise = class(TCachedFileData)
-  private
-    fPromise: TPromise;
-  public
-    constructor Create(const aPath: TFile; aPromise: TPromise);
-    property Promise: TPromise read fPromise;
-  end;
-
-  { TCachedProjectData }
-
-  TCachedProjectData = class(TCachedData)
-  private
-    // Basically, I'm wrapping a directory and an attachment list, since the
-    // project root keeps it's attachments alongside it's document contents, so
-    // it would be incorrect to call the directory itself an attachment.
-    // This is a sort of kludge, but I don't want to rewrite the code for
-    // these objects. A mixin would be better, but at least I only need one
-    // of these per application. I could use interfaces and implement them
-    // with internal objects, but this shouldn't have to be an interface
-    // because I don't care about type-compatibility with it.
-    fRootDirectory: TCachedDirectory;
-    fProjectAttachments: TCachedDocument;
-    function GetName: UTF8String;
-    function GetPath: TFile;
-  public
-    constructor Create(const aPath: TFile; const aName: UTF8String);
-    destructor Destroy; override;
-    function GetDocument(const aName: UTF8String): TCachedDocument;
-    procedure PutDocument(const aName: UTF8String; aValue: TCachedDocument);
-    function ListDocumentNames: TStringArray;
-    function ListDocuments: TCachedDocumentArray;
-    property Documents[const aName: UTF8String]: TCachedDocument read GetDocument write PutDocument; default;
-    function GetAttachment(const aDescriptor: UTF8String; aExtension: UTF8String): TCachedFileData;
-    procedure PutAttachment(const aDescriptor: UTF8String; aExtension: UTF8String; aValue: TCachedFileData);
-    function ListAttachments(const aDescriptor: UTF8String): TAttachmentArray;
-    property Attachments[const aDescriptor: UTF8String; aExtension: UTF8String]: TCachedFileData read GetAttachment write PutAttachment;
-    property Name: UTF8String read GetName;
-    property Path: TFile read GetPath;
-  end;
-
-  { TCachedAttachmentData }
-
-  generic TCachedAttachmentData<DataType> = class(TCachedFileData)
-  private
-    fData: DataType;
-  public
-    constructor Create(const aPath: TFile; aProperties: DataType);
-    property Data: DataType read fData;
-  end;
-
-  { TCachedAttachmentObject }
-
-  generic TCachedAttachmentObject<DataType> = class(specialize TCachedAttachmentData<DataType>)
-  public
-    // We own the data, so we have to destroy it. Since the superior generic can
-    // allow primitives, we have to override and create a new generic.
-    destructor Destroy; override;
-  end;
-
-
-  { TCachedDocumentProperties }
-
-  TCachedDocumentProperties = specialize TCachedAttachmentObject<TDocumentProperties2>;
-
-  { TCachedProjectProperties }
-
-  TCachedProjectProperties = specialize TCachedAttachmentObject<TProjectProperties2>;
-
-  TCachedSynopsis = specialize TCachedAttachmentData<UTF8String>;
 
 
   { TShadowDocument }
@@ -852,9 +719,8 @@ type
     // this allows me access to the protected events on Project Properties,
     // but avoids making those events accessible from outside of the project,
     // which I don't want.
-    // TODO: Get rid of this eventually.
     TProtectedProjectProperties = class(TProjectProperties)
-    end;
+    end deprecated;
 
     { TProjectOpenTask }
 
@@ -1063,46 +929,43 @@ type
     FOnConfirmNewAttachment: TAttachmentConfirmationEvent;
     fOnChooseAttachment: TAttachmentChoiceEvent;
 
-    // TODO: A lot of the rest are going away once everything's moved over
-    // to updated promises and jsvalues.
+    fMetadataCache: TDocumentMetadata deprecated;
+    FOnDocumentAttachmentError: TAttachmentExceptionEvent deprecated;
+    FOnDocumentAttachmentLoaded: TAttachmentNotifyEvent deprecated;
+    FOnDocumentAttachmentLoading: TAttachmentNotifyEvent deprecated;
+    FOnDocumentAttachmentSaveConflicted: TAttachmentNotifyEvent deprecated;
+    FOnDocumentAttachmentSaved: TAttachmentNotifyEvent deprecated;
+    FOnDocumentAttachmentSaving: TAttachmentNotifyEvent deprecated;
+    FOnDocumentChanged: TDocumentNotifyEvent deprecated;
+    FOnDocumentCreated: TDocumentNotifyEvent deprecated;
+    FOnDocumentRenameFailed: TDocumentExceptionEvent deprecated;
+    fOnDocumentsListed: TDocumentNotifyEvent deprecated;
+    fOnDocumentListError: TDocumentExceptionEvent deprecated;
+    FOnDocumentPropertiesError: TDocumentExceptionEvent deprecated;
+    FOnDocumentPropertiesLoaded: TDocumentNotifyEvent deprecated;
+    fOnDocumentPropertiesLoading: TDocumentNotifyEvent deprecated;
+    fOnDocumentPropertiesSaving: TDocumentNotifyEvent deprecated;
+    FOnDocumentPropertiesSaveConflicted: TDocumentNotifyEvent deprecated;
+    FOnDocumentPropertiesSaved: TDocumentNotifyEvent deprecated;
+    FOnPropertiesLoading: TNotifyEvent deprecated;
+    fOnPropertiesSaving: TNotifyEvent deprecated;
+    fProperties: TProjectProperties deprecated;
+    FOnPropertiesError: TExceptionMessageEvent deprecated;
+    FOnPropertiesLoaded: TNotifyEvent deprecated;
+    FOnPropertiesSaveConflicted: TNotifyEvent deprecated;
+    FOnPropertiesSaved: TNotifyEvent deprecated;
+    function GetIsOpened: Boolean; deprecated;
+    function GetProperties: TProjectProperties; deprecated;
+    function OpenProjectProperties: TFileReadPromise; deprecated;
+    function DoOpened: TFileReadPromise;  deprecated;
+    procedure ProjectPropertiesLoading(Sender: TObject); deprecated;
+    procedure ProjectPropertiesSaving(Sender: TObject); deprecated;
+    procedure ProjectPropertiesLoaded(Sender: TObject); deprecated;
+    procedure ProjectPropertiesLoadFailed(Sender: TObject; aError: String); deprecated;
+    procedure ProjectPropertiesSaveConflicted(Sender: TObject); deprecated;
+    procedure ProjectPropertiesSaved(Sender: TObject); deprecated;
+    procedure ProjectPropertiesSaveFailed(Sender: TObject; aError: String); deprecated;
 
-    fMetadataCache: TDocumentMetadata;
-    FOnDocumentAttachmentError: TAttachmentExceptionEvent;
-    FOnDocumentAttachmentLoaded: TAttachmentNotifyEvent;
-    FOnDocumentAttachmentLoading: TAttachmentNotifyEvent;
-    FOnDocumentAttachmentSaveConflicted: TAttachmentNotifyEvent;
-    FOnDocumentAttachmentSaved: TAttachmentNotifyEvent;
-    FOnDocumentAttachmentSaving: TAttachmentNotifyEvent;
-    FOnDocumentChanged: TDocumentNotifyEvent;
-    FOnDocumentCreated: TDocumentNotifyEvent;
-    FOnDocumentRenameFailed: TDocumentExceptionEvent;
-    fOnDocumentsListed: TDocumentNotifyEvent;
-    fOnDocumentListError: TDocumentExceptionEvent;
-    FOnDocumentPropertiesError: TDocumentExceptionEvent;
-    FOnDocumentPropertiesLoaded: TDocumentNotifyEvent;
-    fOnDocumentPropertiesLoading: TDocumentNotifyEvent;
-    fOnDocumentPropertiesSaving: TDocumentNotifyEvent;
-    FOnDocumentPropertiesSaveConflicted: TDocumentNotifyEvent;
-    FOnDocumentPropertiesSaved: TDocumentNotifyEvent;
-    FOnPropertiesLoading: TNotifyEvent;
-    fOnPropertiesSaving: TNotifyEvent;
-    fProperties: TProjectProperties;
-    FOnPropertiesError: TExceptionMessageEvent;
-    FOnPropertiesLoaded: TNotifyEvent;
-    FOnPropertiesSaveConflicted: TNotifyEvent;
-    FOnPropertiesSaved: TNotifyEvent;
-    function GetIsOpened: Boolean;
-    function GetProperties: TProjectProperties;
-    function OpenProjectProperties: TFileReadPromise;
-    function DoOpened: TFileReadPromise;
-    procedure ProjectPropertiesLoading(Sender: TObject);
-    procedure ProjectPropertiesSaving(Sender: TObject);
-    procedure ProjectPropertiesLoaded(Sender: TObject);
-    procedure ProjectPropertiesLoadFailed(Sender: TObject; aError: String);
-    procedure ProjectPropertiesSaveConflicted(Sender: TObject);
-    procedure ProjectPropertiesSaved(Sender: TObject);
-    procedure ProjectPropertiesSaveFailed(Sender: TObject; aError: String);
-    // TODO: New stuff... A bunch of the stuff above is deprecated.
     procedure ReportEvent(aEvent: TProjectEvent);
     procedure CacheActivity(Sender: TPromise);
     procedure CacheError(Sender: TPromise; aError: TPromiseError);
@@ -1131,41 +994,41 @@ type
     // async in order to check.
     {%H-}constructor Create(const Path: TFile);
   public
-    property OnPropertiesLoaded: TNotifyEvent read FOnPropertiesLoaded write fOnPropertiesLoaded;
-    property OnPropertiesSaved: TNotifyEvent read FOnPropertiesSaved write fOnPropertiesSaved;
-    property OnPropertiesError: TExceptionMessageEvent read FOnPropertiesError write fOnPropertiesError;
-    property OnPropertiesSaveConflicted: TNotifyEvent read FOnPropertiesSaveConflicted write fOnPropertiesSaveConflicted;
-    property OnPropertiesSaving: TNotifyEvent read fOnPropertiesSaving write FOnPropertiesSaving;
-    property OnPropertiesLoading: TNotifyEvent read FOnPropertiesLoading write FOnPropertiesLoading;
-    property OnDocumentPropertiesLoaded: TDocumentNotifyEvent read FOnDocumentPropertiesLoaded write FOnDocumentPropertiesLoaded;
-    property OnDocumentPropertiesSaved: TDocumentNotifyEvent read FOnDocumentPropertiesSaved write FOnDocumentPropertiesSaved ;
-    property OnDocumentPropertiesError: TDocumentExceptionEvent read FOnDocumentPropertiesError write FOnDocumentPropertiesError;
-    property OnDocumentPropertiesSaveConflicted: TDocumentNotifyEvent read FOnDocumentPropertiesSaveConflicted write FOnDocumentPropertiesSaveConflicted;
-    property OnDocumentPropertiesSaving: TDocumentNotifyEvent read fOnDocumentPropertiesSaving write fOnDocumentPropertiesSaving;
-    property OnDocumentPropertiesLoading: TDocumentNotifyEvent read fOnDocumentPropertiesLoading write fOnDocumentPropertiesLoading;
-    property OnDocumentAttachmentLoading: TAttachmentNotifyEvent read FOnDocumentAttachmentLoading write FOnDocumentAttachmentLoading;
-    property OnDocumentAttachmentLoaded: TAttachmentNotifyEvent read FOnDocumentAttachmentLoaded write FOnDocumentAttachmentLoaded;
-    property OnDocumentAttachmentError: TAttachmentExceptionEvent read FOnDocumentAttachmentError write FOnDocumentAttachmentError;
-    property OnDocumentAttachmentSaving: TAttachmentNotifyEvent read FOnDocumentAttachmentSaving write FOnDocumentAttachmentSaving;
-    property OnDocumentAttachmentSaved: TAttachmentNotifyEvent read FOnDocumentAttachmentSaved write FOnDocumentAttachmentSaved;
-    property OnDocumentAttachmentSaveConflicted: TAttachmentNotifyEvent read FOnDocumentAttachmentSaveConflicted write FOnDocumentAttachmentSaveConflicted;
-    property OnDocumentsListed: TDocumentNotifyEvent read fOnDocumentsListed write fOnDocumentsListed;
-    property OnDocumentListError: TDocumentExceptionEvent read fOnDocumentListError write fOnDocumentListError;
-    property OnDocumentCreated: TDocumentNotifyEvent read FOnDocumentCreated write FOnDocumentCreated;
-    property OnDocumentChanged: TDocumentNotifyEvent read FOnDocumentChanged write FOnDocumentChanged;
-    property OnDocumentRenameFailed: TDocumentExceptionEvent read FOnDocumentRenameFailed write FOnDocumentRenameFailed;
+    property OnPropertiesLoaded: TNotifyEvent read FOnPropertiesLoaded write fOnPropertiesLoaded;  deprecated;
+    property OnPropertiesSaved: TNotifyEvent read FOnPropertiesSaved write fOnPropertiesSaved;  deprecated;
+    property OnPropertiesError: TExceptionMessageEvent read FOnPropertiesError write fOnPropertiesError; deprecated;
+    property OnPropertiesSaveConflicted: TNotifyEvent read FOnPropertiesSaveConflicted write fOnPropertiesSaveConflicted; deprecated;
+    property OnPropertiesSaving: TNotifyEvent read fOnPropertiesSaving write FOnPropertiesSaving; deprecated;
+    property OnPropertiesLoading: TNotifyEvent read FOnPropertiesLoading write FOnPropertiesLoading; deprecated;
+    property OnDocumentPropertiesLoaded: TDocumentNotifyEvent read FOnDocumentPropertiesLoaded write FOnDocumentPropertiesLoaded; deprecated;
+    property OnDocumentPropertiesSaved: TDocumentNotifyEvent read FOnDocumentPropertiesSaved write FOnDocumentPropertiesSaved ; deprecated;
+    property OnDocumentPropertiesError: TDocumentExceptionEvent read FOnDocumentPropertiesError write FOnDocumentPropertiesError; deprecated;
+    property OnDocumentPropertiesSaveConflicted: TDocumentNotifyEvent read FOnDocumentPropertiesSaveConflicted write FOnDocumentPropertiesSaveConflicted; deprecated;
+    property OnDocumentPropertiesSaving: TDocumentNotifyEvent read fOnDocumentPropertiesSaving write fOnDocumentPropertiesSaving; deprecated;
+    property OnDocumentPropertiesLoading: TDocumentNotifyEvent read fOnDocumentPropertiesLoading write fOnDocumentPropertiesLoading; deprecated;
+    property OnDocumentAttachmentLoading: TAttachmentNotifyEvent read FOnDocumentAttachmentLoading write FOnDocumentAttachmentLoading; deprecated;
+    property OnDocumentAttachmentLoaded: TAttachmentNotifyEvent read FOnDocumentAttachmentLoaded write FOnDocumentAttachmentLoaded; deprecated;
+    property OnDocumentAttachmentError: TAttachmentExceptionEvent read FOnDocumentAttachmentError write FOnDocumentAttachmentError; deprecated;
+    property OnDocumentAttachmentSaving: TAttachmentNotifyEvent read FOnDocumentAttachmentSaving write FOnDocumentAttachmentSaving; deprecated;
+    property OnDocumentAttachmentSaved: TAttachmentNotifyEvent read FOnDocumentAttachmentSaved write FOnDocumentAttachmentSaved; deprecated;
+    property OnDocumentAttachmentSaveConflicted: TAttachmentNotifyEvent read FOnDocumentAttachmentSaveConflicted write FOnDocumentAttachmentSaveConflicted; deprecated;
+    property OnDocumentsListed: TDocumentNotifyEvent read fOnDocumentsListed write fOnDocumentsListed; deprecated;
+    property OnDocumentListError: TDocumentExceptionEvent read fOnDocumentListError write fOnDocumentListError; deprecated;
+    property OnDocumentCreated: TDocumentNotifyEvent read FOnDocumentCreated write FOnDocumentCreated; deprecated;
+    property OnDocumentChanged: TDocumentNotifyEvent read FOnDocumentChanged write FOnDocumentChanged; deprecated;
+    property OnDocumentRenameFailed: TDocumentExceptionEvent read FOnDocumentRenameFailed write FOnDocumentRenameFailed; deprecated;
 
     property OnConfirmNewAttachment: TAttachmentConfirmationEvent read FOnConfirmNewAttachment write FOnConfirmNewAttachment;
     property OnChooseTemplate: TAttachmentChoiceEvent read FOnChooseTemplate write FOnChooseTemplate;
     property OnChooseAttachment: TAttachmentChoiceEvent read fOnChooseAttachment write fOnChooseAttachment;
   public
-    constructor Create;
+    constructor Create; deprecated;
     destructor Destroy; override;
     property DiskPath: TFile read fDisk;
-    function GetDocument(const aDocumentID: TDocumentPath): TDocumentMetadata;
-    property IsOpened: Boolean read GetIsOpened;
+    function GetDocument(const aDocumentID: TDocumentPath): TDocumentMetadata; deprecated;
+    property IsOpened: Boolean read GetIsOpened; deprecated;
     function GetProjectName: String;
-    property Properties: TProjectProperties read GetProperties;
+    property Properties: TProjectProperties read GetProperties; deprecated;
 
     // A "Shadow" is a document that doesn't have any files to back it up.
     // This can be used to create new documents before they are saved,
@@ -1199,14 +1062,13 @@ type
     function EditDocumentThumbnail(aDocument: TDocumentPath): TRequestEditingAttachmentPromise;
     function EditDocumentAttachment(aDocument: TDocumentPath; aAttachment: TAttachmentKind): TRequestEditingAttachmentPromise;
 
-
-
     // Important maintenance functions for working with the projects themselves.
     procedure AddObserver(aObserver: TProjectObserver);
     procedure RemoveObserver(aObserver: TProjectObserver);
     class function Open(aPath: TFile): TProjectPromise;
     class function OpenInParent(aPath: TFile): TProjectPromise;
     class function CreateNew(aPath: TFile): TProjectPromise;
+
     // utility functions used internally, but here for your pleasure since they
     // don't change anything in the project state.
     function BuildAndSortDocumentList(aParent: TDocumentPath;
@@ -1240,6 +1102,8 @@ type
   function IncludeLeadingSlash(Const Path : UTF8String) : UTF8String;
   function IncludeTrailingSlash(Const Path : UTF8String) : UTF8String;
   function ExcludeTrailingSlash(Const Path: UTF8String): UTF8String;
+
+  function IsNameTroublesome(const aName: UTF8String): Boolean;
 
   const
     AlwaysForbiddenNameCharacters: set of char = [#0..#$1F,#$7F,'<','>',':','"','/','\','|','?','*','%','[',']','~','{','}',';'];
@@ -1280,6 +1144,30 @@ begin
   L:=Length(Result);
   If (L>0) and (Result[L] = '/') then
     Delete(Result,L,1);
+end;
+
+function IsNameTroublesome(const aName: UTF8String): Boolean;
+var
+  i: Integer;
+  l: Integer;
+
+begin
+  result := false;
+  if aName <> '' then
+  begin
+    l := Length(aName);
+    for i := 1 to l do
+    begin
+      result :=
+         (aName[i] in AlwaysForbiddenNameCharacters) or
+         (((i = 1) or (i = l)) and ((aName[i] in WhitespaceCharacters) or (aName[i] = '-'))) or
+         ((i > 1) and (aName[i] in WhitespaceCharacters) and (aName[i-1] in WhitespaceCharacters));
+      if result then
+        break;
+    end;
+  end
+  else
+    result := true;
 end;
 
 function ExcludeLeadingSlash(const Path: UTF8String): UTF8String;
@@ -2623,207 +2511,6 @@ begin
   inherited Enqueue;
 end;
 
-{ TCachedAttachmentObject }
-
-destructor TCachedAttachmentObject.Destroy;
-begin
-  FreeAndNil(fData);
-  inherited Destroy;
-end;
-
-{ TCachedAttachmentData }
-
-constructor TCachedAttachmentData.Create(const aPath: TFile;
-  aProperties: DataType);
-begin
-  inherited Create(aPath);
-  fData := aProperties;
-end;
-
-{ TCachedFilePromise }
-
-constructor TCachedFilePromise.Create(const aPath: TFile; aPromise: TPromise);
-begin
-  inherited Create(aPath);
-  fPromise := aPromise;
-end;
-
-{ TCachedProjectData }
-
-function TCachedProjectData.GetName: UTF8String;
-begin
-  result := fProjectAttachments.Name;
-end;
-
-function TCachedProjectData.GetPath: TFile;
-begin
-  result := fRootDirectory.Path;
-end;
-
-constructor TCachedProjectData.Create(const aPath: TFile; const aName: UTF8String);
-begin
-  inherited Create;
-  fRootDirectory := TCachedDirectory.Create(aPath);
-  fProjectAttachments := TCachedDocument.Create(aName);
-end;
-
-destructor TCachedProjectData.Destroy;
-begin
-  FreeAndNil(fProjectAttachments);
-  FreeAndNil(fRootDirectory);
-  inherited Destroy;
-end;
-
-function TCachedProjectData.GetDocument(const aName: UTF8String
-  ): TCachedDocument;
-begin
-  result := fRootDirectory.GetDocument(aName);
-end;
-
-procedure TCachedProjectData.PutDocument(const aName: UTF8String;
-  aValue: TCachedDocument);
-begin
-  fRootDirectory.PutDocument(aName,aValue);
-end;
-
-function TCachedProjectData.ListDocumentNames: TStringArray;
-begin
-  result := fRootDirectory.ListDocumentNames;
-end;
-
-function TCachedProjectData.ListDocuments: TCachedDocumentArray;
-begin
-  result := fRootDirectory.ListDocuments;
-end;
-
-function TCachedProjectData.GetAttachment(const aDescriptor: UTF8String;
-  aExtension: UTF8String): TCachedFileData;
-begin
-  result := fProjectAttachments.GetAttachment(aDescriptor,aExtension);
-end;
-
-procedure TCachedProjectData.PutAttachment(const aDescriptor: UTF8String;
-  aExtension: UTF8String; aValue: TCachedFileData);
-begin
-  fProjectAttachments.PutAttachment(aDescriptor,aExtension,aValue);
-end;
-
-function TCachedProjectData.ListAttachments(const aDescriptor: UTF8String
-  ): TAttachmentArray;
-begin
-  result := fProjectAttachments.ListAttachments(aDescriptor);
-end;
-
-{ TCachedDirectory }
-
-constructor TCachedDirectory.Create(const aPath: TFile);
-begin
-  inherited Create(aPath);
-  fDocuments := TFPHashObjectList.Create(true);
-end;
-
-destructor TCachedDirectory.Destroy;
-begin
-  FreeAndNil(fDocuments);
-  inherited Destroy;
-end;
-
-function TCachedDirectory.GetDocument(const aName: UTF8String): TCachedDocument;
-begin
-  result := fDocuments.Find(aName) as TCachedDocument;
-end;
-
-procedure TCachedDirectory.PutDocument(const aName: UTF8String;
-  aValue: TCachedDocument);
-begin
-  fDocuments.Add(aName,aValue);
-end;
-
-function TCachedDirectory.ListDocumentNames: TStringArray;
-var
-  i: Integer;
-begin
-  SetLength(result,fDocuments.Count);
-  for i := 0 to fDocuments.Count - 1 do
-  begin
-    result[i] := fDocuments.NameOfIndex(i);
-  end;
-end;
-
-function TCachedDirectory.ListDocuments: TCachedDocumentArray;
-var
-  i: Integer;
-begin
-  SetLength(result,fDocuments.Count);
-  for i := 0 to fDocuments.Count - 1 do
-  begin
-    result[i] := fDocuments.Items[i] as TCachedDocument;
-  end;
-end;
-
-{ TCachedFileData }
-
-constructor TCachedFileData.Create(const aPath: TFile);
-begin
-  inherited Create;
-  fPath := aPath;
-end;
-
-{ TCachedDocument }
-
-constructor TCachedDocument.Create(const aName: UTF8String);
-begin
-  inherited Create;
-  fName := aName;
-  fAttachments := TFPHashObjectList.Create(true);
-end;
-
-destructor TCachedDocument.Destroy;
-begin
-  FreeAndNil(fAttachments);
-  inherited Destroy;
-end;
-
-function TCachedDocument.GetAttachment(const aDescriptor: UTF8String;
-  aExtension: UTF8String): TCachedFileData;
-begin
-  result := fAttachments.Find(BuildFileName('',aDescriptor,aExtension,true)) as TCachedFileData;
-end;
-
-procedure TCachedDocument.PutAttachment(const aDescriptor: UTF8String;
-  aExtension: UTF8String; aValue: TCachedFileData);
-begin
-  fAttachments.Add(BuildFileName('',aDescriptor,aExtension,true),aValue);
-end;
-
-function TCachedDocument.ListAttachments(const aDescriptor: UTF8String
-  ): TAttachmentArray;
-var
-  l: Integer;
-  i: Integer;
-begin
-  l := 0;
-  SetLength(Result,l);
-  for i := 0 to fAttachments.Count - 1 do
-  begin
-    if ExcludeDescriptorDelimiter(ExtractFileDescriptor(fAttachments.NameOfIndex(i))) = aDescriptor then
-    begin
-      l := l + 1;
-      SetLength(Result,l);
-      Result[l - 1] := fAttachments[i] as TCachedFileData;
-    end;
-  end;
-
-
-end;
-
-{ TCachedItem }
-
-constructor TCachedData.Create;
-begin
-  inherited Create;
-  fCreated := Now;
-end;
 
 { TProjectCreateNewTask }
 
@@ -2943,6 +2630,11 @@ end;
 
 function TDocumentPath.GetContainedDocument(aName: UTF8String): TDocumentPath;
 begin
+  // FUTURE: I'm not certain this is where I want to do this. What happens
+  // if the file on the disk already has a troublesome name? It might be
+  // better to put this in the UI itself.
+  if IsNameTroublesome(aName) then
+     raise Exception.Create('Document name "' + aName + '" isn''t going to work.');
   result.fID := IncludeTrailingSlash(fID) + aName;
 end;
 
@@ -4660,7 +4352,6 @@ function TStewProject.EditDocumentAttachment(aDocument: TDocumentPath;
 var
   lListFiles: TFileListPromise;
 begin
-  // TODO: Make sure this works for the root as well...
   lListFiles := fCache.ListFiles(GetDocumentFolderPath(fDisk,aDocument.Container));
   result := TRequestEditAttachmentTask.Defer(aDocument,aAttachment,Self,lListFiles).Promise as TRequestEditingAttachmentPromise;
   result.After(@DocumentEditing,@DocumentEditingError);

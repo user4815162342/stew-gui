@@ -8,6 +8,9 @@ interface
 uses
   Classes, SysUtils, contnrs;
 
+// TODO: This should probably be sys_types, not stew_types.
+// TODO: Also, a bunch of stuff here is probably deprecated go through and clean it out.
+
 type
   TFilingState = (fsNotLoaded, fsLoading, fsLoaded, fsSaving, fsError, fsConflict);
   TListingState = (lsNotListed, lsListing, lsListed);

@@ -7,13 +7,6 @@ interface
 uses
   Classes, SysUtils, test_registry, sys_file, sys_async, stew_project, stew_types;
 
-{
-TODO: Once TStewProject is ready and tested, start deprecating the old stuff,
-and recompile the GUI. Use the deprecated hints to help figure out where things
-need to be fixed.
-
-}
-
 type
 
   TProjectEventArray = array of String;

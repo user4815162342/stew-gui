@@ -1,4 +1,4 @@
-unit stew_persist;
+unit stew_persist deprecated;
 
 {$mode objfpc}{$H+}
 
