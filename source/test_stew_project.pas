@@ -9,12 +9,30 @@ uses
 
 {
 TODO:
-- As we go through, make sure we're supporting the non-file events with
-  each thing.
-- TODO: Make sure all of the 'events' are being notified, or get rid of them.
-- Need Edit Document Attachment
-  - not absolutely sure we need to test this, although I suppose we're testing
-    it at another point where we're getting the xdg-open error.
+- Need Edit Document Attachment Tested.
+  - Before we test this, come up with a mechanism for setting up the application
+    as an editor, a hook which will be called depending on the extension. Then,
+    create a mock hook for this one. This will prevent multiple xdg-open error windows
+    during testing. I don't want to replace the first one, however, as I want to
+    make sure that that stuff is tested on other platforms once I've got it there.
+    - editing can be handled with a function
+    - templates might be able to be handled with an environment variable, at
+      least on Linux.
+  - Make sure we can mock results from the various user-interaction events
+    for this as well.
+  - Need to Test: (Okay, I can't really control what templates are available,
+                   but maybe there's a way I can "mock" something up for that)
+    - No files available
+      - With one possible template
+      - With numerous templates
+      - With no possible templates
+    - One file available
+    - Multiple files available and non that work
+      - With one possible template
+      - With numerous templates
+      - With no possible templates
+    - Multiple files available and one that works
+    - Multiple files available and multiple ones that work
 
 TODO: In the Async code: It would be nice to have some events that get
 passed to the application when tasks are queued. This will allow us to
