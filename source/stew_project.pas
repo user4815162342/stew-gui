@@ -161,6 +161,7 @@ type
     const Root: TDocumentPath = ( fID: '/');
     const Null: TDocumentPath = ( fID: '');
     class function GetSystemDocument(aName: UTF8String): TDocumentPath; static;
+    class operator = (a: TDocumentPath; b: TDocumentPath): Boolean;
   end;
 
   TDocumentArray = array of TDocumentPath;
@@ -252,7 +253,8 @@ type
      paAttachmentLoadingFailed,
      paAttachmentSavingFailed,
      paAttachmentSaveConflictOccurred,
-     paEditingAttachment); // TODO: I'm not doing this... am I?
+     paEditingAttachment,
+     paAttachmentEditingFailed);
 
   { TProjectEvent }
 
@@ -304,7 +306,8 @@ type
      'AttachmentLoadingFailed',
      'AttachmentSavingFailed',
      'AttachmentSaveConflictOccurred',
-     'EditingAttachment');
+     'EditingAttachment',
+     'AttachmentEditingFailed');
 
   end;
 
@@ -416,8 +419,8 @@ type
     const
       AttachmentKindStrings: array[TAttachmentKind] of UTF8String =
     ('unknown',
-     'primary',
      'folder',
+     'primary',
      'properties',
      'notes',
      'thumbnail',
@@ -440,7 +443,17 @@ type
     function GetDescription: UTF8String; override;
   end;
 
-  { TDocumentPropertiesDataReceived }
+  { TAttachmentEditingEvent }
+
+  TAttachmentEditingEvent = class(TAttachmentEvent)
+  private
+    fCancelled: Boolean;
+  public
+    constructor Create(aAction: TProjectEventKind; aDocument: TDocumentPath;
+       aAttachment: TAttachment; aCancelled: Boolean);
+    property Cancelled: Boolean read fCancelled;
+    function GetDescription: UTF8String; override;
+  end;
 
   { TDocumentPropertiesDataReceivedEvent }
 
@@ -963,8 +976,6 @@ type
   { TStewProject }
 
   TStewProject = class
-    procedure DocumentEditing(Sender: TPromise);
-    procedure DocumentEditingError(Sender: TPromise; aError: TPromiseError);
   strict private type
 
     // this allows me access to the protected events on Project Properties,
@@ -1154,8 +1165,6 @@ type
     { TRequestEditAttachmentTask }
 
     TRequestEditAttachmentTask = class(TDeferredTask2)
-      procedure NewAttachment_FileCreated(Sender: TPromise);
-      procedure TooManyAttachment_PropertiesRead(Sender: TPromise);
     private
       fProject: TStewProject;
       fDocument: TDocumentPath;
@@ -1165,8 +1174,11 @@ type
     protected
       procedure DoTask(Input: TPromise); override;
       function CreatePromise: TPromise; override;
+      procedure GetDefaultDescriptorAndExtension(aProps: TProjectProperties2; out aDescriptor: UTF8String; out aExtension: UTF8String);
       procedure NewAttachment_PropertiesRead(Sender: TPromise);
       procedure NewAttachment_TemplatesListed(Sender: TPromise);
+      procedure NewAttachment_FileCreated(Sender: TPromise);
+      procedure TooManyAttachment_PropertiesRead(Sender: TPromise);
     public
       constructor Defer(aDocument: TDocumentPath; aAttachment: TAttachmentKind; aProject: TStewProject; aInputPromise: TFileListPromise);
     end;
@@ -1241,6 +1253,8 @@ type
     procedure DocumentShifted(Sender: TPromise);
     procedure DocumentShiftError(Sender: TPromise; aError: TPromiseError);
     procedure DocumentsRenamed(Sender: TPromise);
+    procedure DocumentEditing(Sender: TPromise);
+    procedure DocumentEditingError(Sender: TPromise; aError: TPromiseError);
   protected
     // NOTE: This is protected because project objects should be created
     // async in order to check.
@@ -1348,10 +1362,13 @@ type
       ProjectPropertiesDescriptor = 'stew';
       DocumentPropertiesDescriptor = 'properties';
       PropertiesExtension = 'json';
+      DefaultDocumentPrimaryExtension = 'txt';
       DocumentSynopsisDescriptor = 'synopsis';
       DocumentSynopsisExtension = 'txt';
       DocumentNotesDescriptor = 'notes';
+      DefaultDocumentNotesExtension = 'txt';
       DocumentThumbnailDescriptor = 'thumbnail';
+      DefaultDocumentThumbnailExtension = 'png';
       DocumentBackupDescriptorPrefix = 'backup-';
   end;
 
@@ -1360,8 +1377,6 @@ type
   function IncludeLeadingSlash(Const Path : UTF8String) : UTF8String;
   function IncludeTrailingSlash(Const Path : UTF8String) : UTF8String;
   function ExcludeTrailingSlash(Const Path: UTF8String): UTF8String;
-
-  operator = (a: TDocumentPath; b: TDocumentPath): Boolean;
 
   const
     AlwaysForbiddenNameCharacters: set of char = [#0..#$1F,#$7F,'<','>',':','"','/','\','|','?','*','%','[',']','~','{','}',';'];
@@ -1414,7 +1429,23 @@ begin
     Delete(Result,1,1);
 end;
 
-operator=(a: TDocumentPath; b: TDocumentPath): Boolean;
+{ TAttachmentEditingEvent }
+
+constructor TAttachmentEditingEvent.Create(aAction: TProjectEventKind;
+  aDocument: TDocumentPath; aAttachment: TAttachment; aCancelled: Boolean);
+begin
+  inherited Create(aAction,aDocument,aAttachment);
+  fCancelled := aCancelled;
+end;
+
+function TAttachmentEditingEvent.GetDescription: UTF8String;
+begin
+  Result:=inherited GetDescription;
+  if fCancelled then
+    result := result + ' <CANCELLED>';
+end;
+
+class operator TDocumentPath.=(a: TDocumentPath; b: TDocumentPath): Boolean;
 begin
   result := CompareText(a.ID,b.ID) = 0;
 end;
@@ -1441,38 +1472,12 @@ end;
 procedure TStewProject.TRequestEditAttachmentTask.NewAttachment_PropertiesRead(
   Sender: TPromise);
 var
-  lProps: TProjectProperties2;
   lDescriptor: UTF8String;
   lExtension: UTF8String;
 begin
   try
-    lProps := (Sender as TProjectPropertiesPromise).Properties;
-    case fAttachment of
-      atPrimary:
-      begin
-        lDescriptor := '';
-        lExtension := lProps.DefaultDocExtension;
-        if lExtension = '' then
-          lExtension := 'txt';
-      end;
-      atNotes:
-      begin
-        lDescriptor := TStewProject.DocumentNotesDescriptor;
-        lExtension := lProps.DefaultNotesExtension;
-        if lExtension = '' then
-          lExtension := 'txt';
-      end;
-      atThumbnail:
-      begin
-        lDescriptor := TStewProject.DocumentThumbnailDescriptor;
-        lExtension := lProps.DefaultThumbnailExtension;
-        if lExtension = '' then
-          lExtension := 'png';
-      end;
-    else
-      Reject('Invalid new attachment type: ' + TAttachment.AttachmentKindStrings[fAttachment]);
-    end;
-    fNewFile :=  fProject.TranslateDocumentAttachmentToFile(fProject.fDisk,fDocument,lDescriptor,lExtension);
+    GetDefaultDescriptorAndExtension((Sender as TProjectPropertiesPromise).Properties,lDescriptor,lExtension);
+    fNewFile := fProject.TranslateDocumentAttachmentToFile(fProject.fDisk,fDocument,lDescriptor,lExtension);
     fNewFile.ListTemplatesFor.After(@NewAttachment_TemplatesListed,@SubPromiseRejected);
   except
     on E: Exception do
@@ -1489,15 +1494,18 @@ begin
   try
     lData := (Sender as TFileListTemplatesPromise).Templates;
     if Length(lData) = 0 then
+    begin
       // create a simple, basic, blank file.
       // this is not cached, because editing is not done through cache.
-       fNewFile.Write('').After(@NewAttachment_FileCreated,@SubPromiseRejected)
+       fNewFile.Write('').After(@NewAttachment_FileCreated,@SubPromiseRejected);
+    end
     else
     begin
       if Length(lData) > 1 then
       begin
         if not fProject.DoChooseTemplate(fDocument,fAttachment,lData,lTemplate) then
         begin
+          (Promise as TRequestEditingAttachmentPromise).fAttachment := fProject.TranslateFileToAttachment(fProject.fDisk,fNewFile);
           (Promise as TRequestEditingAttachmentPromise).fCancelled := true;
           Resolve;
           Exit;
@@ -1518,6 +1526,7 @@ end;
 procedure TStewProject.TRequestEditAttachmentTask.NewAttachment_FileCreated(
   Sender: TPromise);
 begin
+  fNewFile.OpenInEditor;
   (Promise as TRequestEditingAttachmentPromise).fAttachment := fProject.TranslateFileToAttachment(fProject.fDisk,fNewFile);
   (Promise as TRequestEditingAttachmentPromise).fCancelled := false;
   Resolve;
@@ -1526,7 +1535,6 @@ end;
 procedure TStewProject.TRequestEditAttachmentTask.TooManyAttachment_PropertiesRead
   (Sender: TPromise);
 var
-  lProps: TProjectProperties2;
   lDescriptor: UTF8String;
   lExtension: UTF8String;
   lCandidatesLength: Integer;
@@ -1536,32 +1544,7 @@ var
   i: Integer;
 begin
   try
-    lProps := (Sender as TProjectPropertiesPromise).Properties;
-    case fAttachment of
-      atPrimary:
-      begin
-        lDescriptor := '';
-        lExtension := lProps.DefaultDocExtension;
-        if lExtension = '' then
-          lExtension := 'txt';
-      end;
-      atNotes:
-      begin
-        lDescriptor := TStewProject.DocumentNotesDescriptor;
-        lExtension := lProps.DefaultNotesExtension;
-        if lExtension = '' then
-          lExtension := 'txt';
-      end;
-      atThumbnail:
-      begin
-        lDescriptor := TStewProject.DocumentThumbnailDescriptor;
-        lExtension := lProps.DefaultThumbnailExtension;
-        if lExtension = '' then
-          lExtension := 'png';
-      end;
-    else
-      Reject('Invalid new attachment type: ' + TAttachment.AttachmentKindStrings[fAttachment]);
-    end;
+    GetDefaultDescriptorAndExtension((Sender as TProjectPropertiesPromise).Properties,lDescriptor,lExtension);
 
     lCandidatesLength := Length(fCandidates);
     lFilteredLength := 0;
@@ -1578,43 +1561,20 @@ begin
 
     end;
 
-    case lFilteredLength of
-      0:
-      begin
-        if fProject.DoConfirmNewAttachment(fDocument,fAttachment) then
-        begin
-          // Need to create the new attachment, and for that we need to
-          // know what the default is...
-          case fAttachment of
-            atNotes, atThumbnail, atPrimary:
-            // in this case, I *do* have the properties already...
-            // behave as if we need to create a new one...
-              NewAttachment_PropertiesRead(Sender);
-          else
-            // we shouldn't really have gotten this far...
-            Reject('Can''t edit this type of attachment: ' + TAttachment.AttachmentKindStrings[fAttachment]);
-          end;
-        end
-        else
-        begin
-          // all done, and since this was a user cancelling event, it's
-          // not an error
-          (Promise as TRequestEditingAttachmentPromise).fAttachment := TAttachment.MakeUnknown('','');
-          (Promise as TRequestEditingAttachmentPromise).fCancelled := true;
-          Resolve;
-        end;
-      end;
-      1:
-      begin
-        lChosenFile := lFiltered[0];
-        (Promise as TRequestEditingAttachmentPromise).fAttachment :=
-                 TAttachment.Make(fAttachment,
-                                  lChosenFile.Descriptor,
-                                  lChosenFile.Extension);
-        lChosenFile.OpenInEditor;
-        Resolve;
-      end;
+    if lFilteredLength = 1 then
+    begin
+      lChosenFile := lFiltered[0];
+      (Promise as TRequestEditingAttachmentPromise).fAttachment :=
+               TAttachment.Make(fAttachment,
+                                lChosenFile.Descriptor,
+                                lChosenFile.Extension);
+      lChosenFile.OpenInEditor;
+      Resolve;
+    end
     else
+    begin
+      if lFilteredLength = 0 then
+        lFiltered := fCandidates;
       if fProject.DoChooseFileForAttachment(fDocument,fAttachment,lFiltered,lChosenFile) then
       begin
         (Promise as TRequestEditingAttachmentPromise).fAttachment :=
@@ -1632,6 +1592,7 @@ begin
         (Promise as TRequestEditingAttachmentPromise).fCancelled := true;
         Resolve;
       end;
+
     end;
 
   except
@@ -1753,6 +1714,37 @@ end;
 function TStewProject.TRequestEditAttachmentTask.CreatePromise: TPromise;
 begin
   result := TRequestEditingAttachmentPromise.Create(fDocument);
+end;
+
+procedure TStewProject.TRequestEditAttachmentTask.GetDefaultDescriptorAndExtension
+  (aProps: TProjectProperties2; out aDescriptor: UTF8String; out
+  aExtension: UTF8String);
+begin
+  case fAttachment of
+    atPrimary:
+    begin
+      aDescriptor := '';
+      aExtension := aProps.DefaultDocExtension;
+      if aExtension = '' then
+        aExtension := TStewProject.DefaultDocumentPrimaryExtension;
+    end;
+    atNotes:
+    begin
+      aDescriptor := TStewProject.DocumentNotesDescriptor;
+      aExtension := aProps.DefaultNotesExtension;
+      if aExtension = '' then
+        aExtension := TStewProject.DefaultDocumentNotesExtension;
+    end;
+    atThumbnail:
+    begin
+      aDescriptor := TStewProject.DocumentThumbnailDescriptor;
+      aExtension := aProps.DefaultThumbnailExtension;
+      if aExtension = '' then
+        aExtension := TStewProject.DefaultDocumentThumbnailExtension;
+    end;
+  else
+    raise Exception.Create('Invalid new attachment type: ' + TAttachment.AttachmentKindStrings[fAttachment]);
+  end;
 end;
 
 constructor TStewProject.TRequestEditAttachmentTask.Defer(aDocument: TDocumentPath;
@@ -2716,7 +2708,8 @@ begin
                     paDocumentShiftFailed,
                     paDocumentRenamingFailed,
                     paAttachmentLoadingFailed, paAttachmentFileLoadingFailed,
-                    paAttachmentSavingFailed, paAttachmentSaveConflictOccurred, paAttachmentFileSavingFailed];
+                    paAttachmentSavingFailed, paAttachmentSaveConflictOccurred, paAttachmentFileSavingFailed,
+                    paAttachmentEditingFailed];
 end;
 
 function TProjectEvent.GetDescription: UTF8String;
@@ -4565,15 +4558,16 @@ end;
 
 procedure TStewProject.DocumentEditing(Sender: TPromise);
 begin
-  ReportEvent(TAttachmentEvent.Create(paEditingAttachment,
+  ReportEvent(TAttachmentEditingEvent.Create(paEditingAttachment,
                                       (Sender as TRequestEditingAttachmentPromise).Document,
-                                      (Sender as TRequestEditingAttachmentPromise).Attachment));
+                                      (Sender as TRequestEditingAttachmentPromise).Attachment,
+                                      (Sender as TRequestEditingAttachmentPromise).Cancelled));
 end;
 
 procedure TStewProject.DocumentEditingError(Sender: TPromise;
   aError: TPromiseError);
 begin
-  ReportEvent(TAttachmentError.Create(paEditingAttachment,
+  ReportEvent(TAttachmentError.Create(paAttachmentEditingFailed,
                                       (Sender as TRequestEditingAttachmentPromise).Document,
                                       (Sender as TRequestEditingAttachmentPromise).Attachment,
                                       aError));
@@ -4928,7 +4922,7 @@ var
   i: Integer;
   lNames: TStringArray;
 begin
-  if fOnChooseTemplate <> nil then
+  if fOnChooseAttachment <> nil then
   begin
     l := Length(aChoices);
     SetLength(lNames,l);
@@ -4947,7 +4941,7 @@ begin
 
   end
   else
-     raise Exception.Create('User has no way to choose templates');
+     raise Exception.Create('User has no way to choose from multiple attachments');
 end;
 
 class function TStewProject.GetProjectPropertiesPath(aFile: TFile): TFile;

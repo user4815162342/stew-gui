@@ -142,6 +142,7 @@ type
     function WithDifferentPacketName(aName: UTF8String): TFile;
     function Contains(aFile: TFile): Boolean;
     function SplitPath(aBasePath: TFile): TStringArray;
+    class operator = (a: TFile; b: TFile): Boolean;
   end;
 
   TFileArray = array of TFile;
@@ -278,6 +279,7 @@ type
     fTemplates: TTemplateArray;
   public
     constructor Create(aFile: TFile);
+    procedure SetAnswer(aTemplates: TTemplateArray);
     property Templates: TTemplateArray read fTemplates;
     property Path: TFile read fPath;
   end;
@@ -343,13 +345,12 @@ type
     function Count: Integer;
     function IndexOf(aFile: TFile): Integer;
     property Item[Index: Integer]: TFile read GetItem; default;
-  end;
+  end deprecated;
 
   const
     ExtensionDelimiter: Char = '.';
     DescriptorDelimiter: Char = '_';
 
-  operator = (a: TFile; b: TFile): Boolean;
 
 
 
@@ -383,6 +384,11 @@ constructor TFileListTemplatesPromise.Create(aFile: TFile);
 begin
   inherited Create;
   fPath := aFile;
+end;
+
+procedure TFileListTemplatesPromise.SetAnswer(aTemplates: TTemplateArray);
+begin
+  fTemplates := aTemplates;
 end;
 
 { TFileRenamePromise }
@@ -818,7 +824,7 @@ begin
   result := fSystem.CreateFileFromTemplate(Self,aTemplate);
 end;
 
-operator=(a: TFile; b: TFile): Boolean;
+class operator TFile.=(a: TFile; b: TFile): Boolean;
 begin
   result := (a.System = b.System) and (a.ID = b.ID);
 end;

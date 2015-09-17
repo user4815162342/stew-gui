@@ -479,7 +479,7 @@ end;
 
 procedure TJSONAsyncFileStoreContainer.FileLoaded(aSender: TPromise);
 begin
-  if ((aSender as TFileReadPromise).DoesNotExist) then
+  if (not (aSender as TFileReadPromise).Exists) then
   begin
     // the file does not exist yet, so create a blank data object.
     Clear;

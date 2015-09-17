@@ -35,7 +35,7 @@
   },
   "defaultCategory" : "Chapter",
   "defaultDocExtension" : ".txt",
-  "defaultNotesExtension" : ".txt",
+  "defaultNotesExtension" : ".tst",
   "defaultStatus" : "Unwritten",
   "defaultThumbnailExtension" : ".png",
   "statuses" : {

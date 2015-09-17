@@ -184,7 +184,8 @@ begin
       Assert(lProps.Categories.hasOwnProperty('Scene'),'Project categories should work');
       Assert(lProps.DefaultCategory = 'Chapter','Project default category should work');
       Assert(lProps.DefaultDocExtension = 'txt','Project default doc extension should work');
-      Assert(lProps.DefaultNotesExtension = 'txt','Project default notes extension should work');
+      // (sic) I want the default notes extension to be weird, for template testing later.
+      Assert(lProps.DefaultNotesExtension = 'tst','Project default notes extension should work');
       Assert(lProps.DefaultStatus = 'Unwritten','Project default status should work');
       Assert(lProps.DefaultThumbnailExtension = 'png','Project default thumbnail extension should work');
       Assert((lProps.Statuses.Get('Unwritten') as TStatusDefinition2).Color = clRed,'Project statuses should work');

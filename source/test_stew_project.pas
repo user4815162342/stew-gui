@@ -5,35 +5,9 @@ unit test_stew_project;
 interface
 
 uses
-  Classes, SysUtils, test_registry, sys_file, sys_async, stew_project;
+  Classes, SysUtils, test_registry, sys_file, sys_async, stew_project, stew_types;
 
 {
-TODO:
-- Need Edit Document Attachment Tested.
-  - Before we test this, come up with a mechanism for setting up the application
-    as an editor, a hook which will be called depending on the extension. Then,
-    create a mock hook for this one. This will prevent multiple xdg-open error windows
-    during testing. I don't want to replace the first one, however, as I want to
-    make sure that that stuff is tested on other platforms once I've got it there.
-    - editing can be handled with a function
-    - templates might be able to be handled with an environment variable, at
-      least on Linux.
-  - Make sure we can mock results from the various user-interaction events
-    for this as well.
-  - Need to Test: (Okay, I can't really control what templates are available,
-                   but maybe there's a way I can "mock" something up for that)
-    - No files available
-      - With one possible template
-      - With numerous templates
-      - With no possible templates
-    - One file available
-    - Multiple files available and non that work
-      - With one possible template
-      - With numerous templates
-      - With no possible templates
-    - Multiple files available and one that works
-    - Multiple files available and multiple ones that work
-
 TODO: In the Async code: It would be nice to have some events that get
 passed to the application when tasks are queued. This will allow us to
 show a busy signal on the app. Also, another function should force the
@@ -198,11 +172,21 @@ type
   { TProjectSpec }
 
   TProjectSpec = class(TTestSpec)
+    procedure EditChooseAttachment(Sender: TObject; Document: TDocumentPath;
+      AttachmentName: String; aChoices: TStringArray; var Answer: Integer; out
+      Accepted: Boolean);
+    procedure Edit_5(Sender: TPromise);
+    procedure Edit_6(Sender: TPromise);
+    procedure Edit_7(Sender: TPromise);
   private
     fTempDir: String;
     fTestRootDir: TFile;
     fProject: TStewProject;
     fProjectEvents: TProjectEventArray;
+    fEditorCalledFlag: Boolean;
+    fNewAttachmentConfirmedFlag: Boolean;
+    fTemplateChosenFlag: Boolean;
+    fAttachmentChosenFlag: Boolean;
     procedure ClearProjectEvents;
     function VerifyProjectEvents(aExpected: array of String; aTestID: Integer): Boolean;
     procedure ObserveProject(Sender: TStewProject; Event: TProjectEvent);
@@ -238,6 +222,17 @@ type
     procedure Rename_4(Sender: TPromise);
     procedure Rename_5(Sender: TPromise);
     procedure Rename_6(Sender: TPromise);
+    procedure Edit_1(Sender: TPromise);
+    procedure Edit_2(Sender: TPromise);
+    procedure MockEditor(aFile: TFile; out aEdited: Boolean);
+    procedure EditConfirmNewAttachment(Sender: TObject;
+      Document: TDocumentPath; AttachmentName: String; out Answer: Boolean);
+    procedure Edit_3(Sender: TPromise);
+    procedure EditChooseTemplate(Sender: TObject; Document: TDocumentPath;
+      AttachmentName: String; aChoices: TStringArray; var Answer: Integer; out
+      Accepted: Boolean);
+
+    procedure Edit_4(Sender: TPromise);
   public
     procedure SetupTest; override;
     procedure CleanupTest; override;
@@ -254,13 +249,14 @@ type
     procedure Test_Shadows;
     procedure Test_Shift;
     procedure Test_Rename;
+    procedure Test_Edit;
   end;
 
 
 implementation
 
 uses
-  gui_async, FileUtil, sys_localfile, stew_properties, Graphics, stew_types;
+  gui_async, FileUtil, sys_localfile, stew_properties, Graphics, sys_os;
 
 { TProjectSpec }
 
@@ -319,12 +315,16 @@ begin
   AssertAsync(lProps.Categories.hasOwnProperty('Scene'),'Project categories should work',Sender.Tag);
   if not AssertAsync(lProps.DefaultCategory = 'Chapter','Project default category should work',Sender.Tag) then Exit;
   if not AssertAsync(lProps.DefaultDocExtension = 'txt','Project default doc extension should work',Sender.Tag) then Exit;
-  if not AssertAsync(lProps.DefaultNotesExtension = 'txt','Project default notes extension should work',Sender.Tag) then Exit;
+  // (sic) I want the default notes extension to be weird, for template testing later.
+  if not AssertAsync(lProps.DefaultNotesExtension = 'tst','Project default notes extension should work',Sender.Tag) then Exit;
   if not AssertAsync(lProps.DefaultStatus = 'Unwritten','Project default status should work',Sender.Tag) then Exit;
   if not AssertAsync(lProps.DefaultThumbnailExtension = 'png','Project default thumbnail extension should work',Sender.Tag) then Exit;
   AssertAsync((lProps.Statuses.Get('Unwritten') as TStatusDefinition2).Color = clRed,'Project statuses should work',Sender.Tag);
   lProps.DefaultDocExtension := '.doc';
   if not AssertAsync(lProps.DefaultDocExtension = 'doc','Default doc extension should trim off the "." when assigning',Sender.Tag) then Exit;
+  // change it back to 'txt' since I need it for another test.
+  lProps.DefaultDocExtension:='.txt';
+  if not AssertAsync(lProps.DefaultDocExtension = 'txt','Default doc extension should trim off the "." when assigning',Sender.Tag) then Exit;
 
   // now, test changing some things and writing it out.
   lProps.DefaultCategory := 'Tome';
@@ -690,6 +690,190 @@ begin
   EndAsync(Sender.Tag);
 end;
 
+procedure TProjectSpec.Edit_1(Sender: TPromise);
+var
+  lDocument: TDocumentPath;
+begin
+  fProject := (Sender as TProjectPromise).Project;
+  ClearProjectEvents;
+  fEditorCalledFlag := false;
+  fProject.AddObserver(@ObserveProject);
+  fProject.OnConfirmNewAttachment:=@EditConfirmNewAttachment;
+  fProject.OnChooseTemplate:=@EditChooseTemplate;
+  fProject.OnChooseAttachment:=@EditChooseAttachment;
+  // This one should have *just* one existing file available,
+  // so it should work...
+  lDocument := TDocumentPath.Root.GetContainedDocument('Chapter 1');
+  fProject.EditDocument(lDocument).After(@Edit_2,@PromiseFailed).Tag := Sender.Tag;
+
+end;
+
+procedure TProjectSpec.Edit_2(Sender: TPromise);
+var
+  lDocument: TDocumentPath;
+begin
+  if not AssertAsync(fEditorCalledFlag,'Editor was not called',Sender.Tag) then Exit;
+  fEditorCalledFlag := false;
+  fNewAttachmentConfirmedFlag:=false;
+  fTemplateChosenFlag:=false;
+  lDocument := TDocumentPath.Root.GetContainedDocument('Chapter 2');
+  fProject.EditDocument(lDocument).After(@Edit_3,@PromiseFailed).Tag := Sender.Tag;
+
+end;
+
+procedure TProjectSpec.MockEditor(aFile: TFile; out aEdited: Boolean);
+begin
+  Report('Editor requested for ' + aFile.ID);
+  fEditorCalledFlag := true;
+  aEdited := true;
+end;
+
+procedure TProjectSpec.EditConfirmNewAttachment(Sender: TObject;
+  Document: TDocumentPath; AttachmentName: String; out Answer: Boolean);
+begin
+  // always confirm...
+  Report('Confirming new attachment for ' + Document.ID + ': ' + AttachmentName);
+  Answer := true;
+  fNewAttachmentConfirmedFlag := true;
+end;
+
+procedure TProjectSpec.Edit_3(Sender: TPromise);
+var
+  lDocument: TDocumentPath;
+begin
+  if not AssertAsync(fEditorCalledFlag,'Editor was not called',Sender.Tag) then Exit;
+  fEditorCalledFlag := false;
+  if not AssertAsync(fNewAttachmentConfirmedFlag,'New attachment confirmation was not called',Sender.Tag) then Exit;
+  fNewAttachmentConfirmedFlag := false;
+  if not AssertAsync(not fTemplateChosenFlag,'Template choice should not have been presented',Sender.Tag) then Exit;
+  fTemplateChosenFlag:=false;
+  lDocument := TDocumentPath.Root.GetContainedDocument('Chapter 2');
+  fProject.EditDocumentThumbnail(lDocument).After(@Edit_4,@PromiseFailed).Tag := Sender.Tag;
+end;
+
+procedure TProjectSpec.EditChooseTemplate(Sender: TObject;
+  Document: TDocumentPath; AttachmentName: String; aChoices: TStringArray;
+  var Answer: Integer; out Accepted: Boolean);
+var
+  i: Integer;
+  lMessage: String;
+begin
+  // always confirm...
+  lMessage := 'Choosing template for ' + Document.ID + ': ' + AttachmentName + ' from: [';
+  for i := 0 to Length(aChoices) - 1 do
+  begin
+    if i > 0 then
+      lMessage := lMessage + ', ';
+    lMessage := lMessage + aChoices[i];
+  end;
+  lMessage := lMessage + ']';
+  Report(lMessage);
+  Answer := 0;
+  Accepted := true;
+  fTemplateChosenFlag := true;
+end;
+
+procedure TProjectSpec.Edit_4(Sender: TPromise);
+var
+  lDocument: TDocumentPath;
+begin
+  if not AssertAsync(fEditorCalledFlag,'Editor was not called',Sender.Tag) then Exit;
+  fEditorCalledFlag := false;
+  if not AssertAsync(fNewAttachmentConfirmedFlag,'New attachment confirmation was not called',Sender.Tag) then Exit;
+  fNewAttachmentConfirmedFlag := false;
+  if not AssertAsync(fTemplateChosenFlag,'Template choice was not presented',Sender.Tag) then Exit;
+  fTemplateChosenFlag:=false;
+  lDocument := TDocumentPath.Root.GetContainedDocument('Chapter 2');
+  fProject.EditDocumentNotes(lDocument).After(@Edit_5,@PromiseFailed).Tag := Sender.Tag;
+end;
+
+procedure TProjectSpec.EditChooseAttachment(Sender: TObject;
+  Document: TDocumentPath; AttachmentName: String; aChoices: TStringArray;
+  var Answer: Integer; out Accepted: Boolean);
+var
+  i: Integer;
+  lMessage: String;
+begin
+  // always confirm...
+  lMessage := 'Choosing attachment for ' + Document.ID + ': ' + AttachmentName + ' from: [';
+  for i := 0 to Length(aChoices) - 1 do
+  begin
+    if i > 0 then
+      lMessage := lMessage + ', ';
+    lMessage := lMessage + aChoices[i];
+  end;
+  lMessage := lMessage + ']';
+  Report(lMessage);
+  Answer := 0;
+  Accepted := true;
+  fAttachmentChosenFlag := true;
+end;
+
+procedure TProjectSpec.Edit_5(Sender: TPromise);
+var
+  lDocument: TDocumentPath;
+begin
+  if not AssertAsync(fEditorCalledFlag,'Editor was not called',Sender.Tag) then Exit;
+  fEditorCalledFlag := false;
+  if not AssertAsync(fNewAttachmentConfirmedFlag,'New attachment confirmation was not called',Sender.Tag) then Exit;
+  fNewAttachmentConfirmedFlag := false;
+  if not AssertAsync(not fTemplateChosenFlag,'Template choice should not have been presented',Sender.Tag) then Exit;
+  fTemplateChosenFlag:=false;
+  fAttachmentChosenFlag := false;
+  lDocument := TDocumentPath.Root.GetContainedDocument('Notes').GetContainedDocument('Characters').GetContainedDocument('Jack');
+  fProject.EditDocument(lDocument).After(@Edit_6,@PromiseFailed).Tag := Sender.Tag;
+end;
+
+procedure TProjectSpec.Edit_6(Sender: TPromise);
+var
+  lDocument: TDocumentPath;
+begin
+  if not AssertAsync(fEditorCalledFlag,'Editor was not called',Sender.Tag) then Exit;
+  fEditorCalledFlag := false;
+  if not AssertAsync(not fNewAttachmentConfirmedFlag,'New attachment confirmation should not have been called',Sender.Tag) then Exit;
+  fNewAttachmentConfirmedFlag := false;
+  if not AssertAsync(not fTemplateChosenFlag,'Template choice should not have been presented',Sender.Tag) then Exit;
+  fTemplateChosenFlag:=false;
+  if not AssertAsync(fAttachmentChosenFlag,'Attachment choice should have been presented',Sender.Tag) then Exit;
+  fAttachmentChosenFlag := false;
+  lDocument := TDocumentPath.Root.GetContainedDocument('Notes').GetContainedDocument('Characters').GetContainedDocument('Jack');
+  fProject.EditDocumentNotes(lDocument).After(@Edit_7,@PromiseFailed).Tag := Sender.Tag;
+
+end;
+
+procedure TProjectSpec.Edit_7(Sender: TPromise);
+begin
+  if not AssertAsync(fEditorCalledFlag,'Editor was not called',Sender.Tag) then Exit;
+  fEditorCalledFlag := false;
+  if not AssertAsync(not fNewAttachmentConfirmedFlag,'New attachment confirmation should not have been called',Sender.Tag) then Exit;
+  fNewAttachmentConfirmedFlag := false;
+  if not AssertAsync(not fTemplateChosenFlag,'Template choice should not have been presented',Sender.Tag) then Exit;
+  fTemplateChosenFlag:=false;
+  if not AssertAsync(not fAttachmentChosenFlag,'Attachment choice should not have been presented',Sender.Tag) then Exit;
+  fAttachmentChosenFlag := false;
+  if not VerifyProjectEvents([
+          '<ListingDocumentFiles> "/"',
+          '<DocumentFilesListed> "/"',
+          '<EditingAttachment> "/Chapter 1" <primary> "_.txt"',
+          '<LoadingProjectPropertiesFile>',
+          '<ProjectPropertiesFileLoaded>',
+          '<ProjectPropertiesDataReceived>',
+          '<EditingAttachment> "/Chapter 2" <primary> "_.txt"',
+          '<ProjectPropertiesDataReceived>',
+          '<EditingAttachment> "/Chapter 2" <thumbnail> "_thumbnail.png"',
+          '<ProjectPropertiesDataReceived>',
+          '<EditingAttachment> "/Chapter 2" <notes> "_notes.tst"',
+          '<ListingDocumentFiles> "/Notes/Characters"',
+          '<DocumentFilesListed> "/Notes/Characters"',
+          '<ProjectPropertiesDataReceived>',
+          '<EditingAttachment> "/Notes/Characters/Jack" <primary> "_.doc"',
+          '<ProjectPropertiesDataReceived>',
+          '<EditingAttachment> "/Notes/Characters/Jack" <notes> "_notes.tst"'
+  ],Sender.Tag) then Exit;
+  EndAsync(Sender.Tag);
+
+end;
+
 procedure TProjectSpec.ClearProjectEvents;
 begin
   SetLength(fProjectEvents,0);
@@ -783,6 +967,9 @@ begin
     FreeAndNil(fProject);
   DeleteDirectory(fTempDir,false);
   RemoveAsyncCallQueuer(@gui_async.GUIQueueAsyncCall);
+  TOperatingSystemInterface.RemoveInternalEditor(@MockEditor);
+  TOperatingSystemInterface.RemoveTemplateFolder(LocalFile('../test-data/templates'));
+  TOperatingSystemInterface.UseSystemTemplates:=true;
   inherited CleanupTest;
 end;
 
@@ -871,6 +1058,21 @@ begin
   if fProject <> nil then
     FreeAndNil(fProject);
   TStewProject.Open(fTestRootDir).After(@Rename_1,@PromiseFailed).Tag := BeginAsync;
+end;
+
+procedure TProjectSpec.Test_Edit;
+begin
+  if fProject <> nil then
+    FreeAndNil(fProject);
+  // I don't want it attempting to call xdg-open and getting the dialog again
+  // to mess up the test. This mechanism was tested in test_sys_file anyway,
+  // so I can mock it.
+  TOperatingSystemInterface.AddInternalEditor(@MockEditor);
+  // I also want to control the templates more appropriately, again that
+  // was tested in test_sys_file, so it shouldn't be a problem.
+  TOperatingSystemInterface.UseSystemTemplates := false;
+  TOperatingSystemInterface.AddTemplateFolder(LocalFile('../test-data/templates'));
+  TStewProject.Open(fTestRootDir).After(@Edit_1,@PromiseFailed).Tag := BeginAsync;
 end;
 
 end.

@@ -5,7 +5,7 @@ unit sys_os;
 interface
 
 uses
-  Classes, SysUtils, sys_async, sys_file;
+  Classes, SysUtils, sys_async, sys_file, fgl;
 
 type
 
@@ -29,16 +29,24 @@ type
     property Data: String read fData;
   end;
 
+  TTemplateFolderList = specialize TFPGList<TFile>;
+
   { TLocalFileListTemplatesFromOSTask }
 
   TLocalFileListTemplatesFromOSTask = class(TQueuedTask)
   protected type
-    TLocalFileListTemplatesPromise = class(TFileListTemplatesPromise);
+
+    { TListABunchOfFilesTask }
+
   protected
     fPath: Tfile;
+    fFolders: TTemplateFolderList;
+    fTemplates: TTemplateArray;
+    fIndex: Integer;
+    procedure TemplateFilesListed(Sender: TPromise);
+    procedure ListTemplatesInFolders;
 {$IFDEF Linux}
     procedure XdgUserDirDone(Sender: TPromise);
-    procedure TemplateFilesListed(Sender: TPromise);
 {$ENDIF}
     procedure DoTask; override;
     function CreatePromise: TPromise; override;
@@ -46,19 +54,28 @@ type
     constructor Enqueue(aPath: TFile);
   end platform;
 
-  // TODO: Add a variable that will allow the internal system to have first
-  // chance at editing files. I might have to refactor this system into a
-  // class.
   TInternalEditorHandler = procedure(aFile: TFile; out aEdited: Boolean) of object;
+  TInternalEditorHandlerList = specialize TFPGList<TInternalEditorHandler>;
+
+  { TOperatingSystemInterface }
 
   TOperatingSystemInterface = class
+  private
+    class var fEditorHandlers: TInternalEditorHandlerList;
+    class var fTemplateFolders: TTemplateFolderList;
+    class var fUseSystemTemplates: Boolean;
+    class constructor Create;
+    class destructor Destroy;
   public
     class function RunSimpleCommand(aCmd: String; const aArgs: array of string): TRunSimpleCommandTask;
     class function CreateFileFromTemplate(aTemplate: TTemplate; aFile: TFile): TFileCopyPromise;
     class procedure EditFile(aFile: TFile);
     class procedure RunDetachedProcess(const aExecutable: String; aArgs: array of String);
-
-
+    class procedure AddInternalEditor(aHandler: TInternalEditorHandler);
+    class procedure RemoveInternalEditor(aHandler: TInternalEditorHandler);
+    class procedure AddTemplateFolder(aFile: TFile);
+    class procedure RemoveTemplateFolder(aFile: TFile);
+    class property UseSystemTemplates: Boolean read fUseSystemTemplates write fUseSystemTemplates;
   end;
 
 
@@ -68,15 +85,28 @@ implementation
 uses
   lclintf, FileUtil, process, UTF8Process, sys_localfile;
 
-
+{ TLocalFileListTemplatesFromOSTask.TListABunchOfTemplatesTask }
 
 class procedure TOperatingSystemInterface.EditFile(aFile: TFile);
-{$IFDEF Linux}
 var
+  lHandler: TInternalEditorHandler;
+  l: Integer;
+  i: Integer;
+  lHandled: Boolean;
+{$IFDEF Linux}
   lApp: string;
   lArg: String;
 {$ENDIF}
 begin
+  l := fEditorHandlers.Count;
+  for i := 0 to l - 1 do
+  begin
+    lHandler := fEditorHandlers[i];
+    lHandler(aFile,lHandled);
+    if lHandled then
+      Exit;
+
+  end;
 {$IFDEF Linux}
   // The official FPC OpenDocument fails on my linux system (Mint 13 XFCE), at least when
   // the filename contains spaces: the error reported from xdg-open is that
@@ -120,6 +150,19 @@ begin
   if not OpenDocument(aFile) then
      raise Exception.Create('Can''t open file: ' + aFile);
 {$ENDIF}
+end;
+
+class constructor TOperatingSystemInterface.Create;
+begin
+  fEditorHandlers := TInternalEditorHandlerList.Create;
+  fTemplateFolders := TTemplateFolderList.Create;
+  fUseSystemTemplates := true;
+end;
+
+class destructor TOperatingSystemInterface.Destroy;
+begin
+  FreeAndNil(fTemplateFolders);
+  FreeAndNil(fEditorHandlers);
 end;
 
 class function TOperatingSystemInterface.RunSimpleCommand(aCmd: String; const aArgs: array of string
@@ -171,6 +214,28 @@ begin
   finally
     Process.Free;
   end;
+end;
+
+class procedure TOperatingSystemInterface.AddInternalEditor(
+  aHandler: TInternalEditorHandler);
+begin
+  fEditorHandlers.Add(aHandler);
+end;
+
+class procedure TOperatingSystemInterface.RemoveInternalEditor(
+  aHandler: TInternalEditorHandler);
+begin
+  fEditorHandlers.Remove(aHandler);
+end;
+
+class procedure TOperatingSystemInterface.AddTemplateFolder(aFile: TFile);
+begin
+  fTemplateFolders.Add(aFile);
+end;
+
+class procedure TOperatingSystemInterface.RemoveTemplateFolder(aFile: TFile);
+begin
+  fTemplateFolders.Remove(aFile);
 end;
 
 { TRunSimpleCommandTask }
@@ -225,29 +290,44 @@ end;
 procedure TLocalFileListTemplatesFromOSTask.TemplateFilesListed(
   Sender: TPromise);
 var
-  lAnswer: TTemplateArray;
   lExt: String;
-  l: Integer;
+  lInputLength: Integer;
+  lAnswerLength: Integer;
   i: Integer;
-  j: Integer;
   lData: TFileArray;
 begin
   lExt := fPath.Extension;
   lData := (Sender as TFileListPromise).GetJustFiles;
-  l := Length(lData);
-  j := 0;
-  for i := 0 to l - 1 do
+  lInputLength := Length(lData);
+  lAnswerLength := Length(fTemplates);
+  for i := 0 to lInputLength - 1 do
   begin
     if (lExt = '') or (lData[i].Extension = lExt) then
     begin
-      SetLength(lAnswer,j + 1);
-      lAnswer[j].Name := lData[i].BaseName;
-      lAnswer[j].ID := lData[i].ID;
-      j := j + 1;
+      SetLength(fTemplates,lAnswerLength + 1);
+      fTemplates[lAnswerLength].Name := lData[i].BaseName;
+      fTemplates[lAnswerLength].ID := lData[i].ID;
+      lAnswerLength := lAnswerLength + 1;
     end;
   end;
-  (Promise as TLocalFileListTemplatesPromise).fTemplates := lAnswer;
-  Resolve;
+  ListTemplatesInFolders;
+end;
+
+procedure TLocalFileListTemplatesFromOSTask.ListTemplatesInFolders;
+var
+  lNextFolder: TFile;
+begin
+  if fIndex < fFolders.Count then
+  begin
+    lNextFolder := fFolders[fIndex];
+    inc(fIndex);
+    lNextFolder.List.After(@TemplateFilesListed,@SubPromiseRejected);
+  end
+  else
+  begin
+    (Promise as TFileListTemplatesPromise).SetAnswer(fTemplates);
+    Resolve;
+  end;
 end;
 
 procedure TLocalFileListTemplatesFromOSTask.XdgUserDirDone(Sender: TPromise);
@@ -255,11 +335,14 @@ var
   lTemplatePath: String;
 begin
   lTemplatePath := IncludeTrailingPathDelimiter(Trim((Sender as TRunSimpleCommandPromise).Data));
-  LocalFile(lTemplatePath).List.After(@TemplateFilesListed,@SubPromiseRejected);
+  fFolders.Insert(0,LocalFile(lTemplatePath));
+  ListTemplatesInFolders;
 end;
 
 procedure TLocalFileListTemplatesFromOSTask.DoTask;
 begin
+  if TOperatingSystemInterface.UseSystemTemplates then
+  begin
 {$IFDEF Linux}
 { There are two possible ways to do this:
 1. Read the configuration files directly:
@@ -295,17 +378,29 @@ doesn't work. }
      I still have to choose the location when saving the document later,
      this isn't at all helpful.
      - So, I think for the Mac, I have to create my own template directory
-       anyway.}
+       anyway.
+-- Either one, once you get the system templates, call ListTemplatesInFolders
+to get the templates from additional folders registered with TOperatingSystemInterface.
+In fact, use that mechanism (or add them inside this task) to just list files
+in a local directory.
+}
 {$ENDIF}
+  end
+  else
+    ListTemplatesInFolders;
 end;
 
 function TLocalFileListTemplatesFromOSTask.CreatePromise: TPromise;
 begin
-  result := TLocalFileListTemplatesPromise.Create(fPath);
+  result := TFileListTemplatesPromise.Create(fPath);
 end;
 
 constructor TLocalFileListTemplatesFromOSTask.Enqueue(aPath: TFile);
 begin
+  SetLength(fTemplates,0);
+  fFolders := TTemplateFolderList.Create;
+  fFolders.Assign(TOperatingSystemInterface.fTemplateFolders);
+  fIndex := 0;
   fPath := aPath;
   inherited Enqueue;
 end;
