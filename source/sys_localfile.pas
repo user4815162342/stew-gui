@@ -465,7 +465,7 @@ begin
   while (lFile <> aBasePath) and (lFile.ID <> '') do
   begin
     SetLength(lList,l + 1);
-    lList[l] := lFile.BaseName;
+    lList[l] := lFile.Name;
     inc(l);
     lFile := lFile.Directory;
   end;

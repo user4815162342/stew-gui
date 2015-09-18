@@ -801,7 +801,7 @@ begin
     aDescriptor := IncludeDescriptorDelimiter(aDescriptor);
   if dotAndDashify and (aExtension = '') and (Pos(ExtensionDelimiter,aPacketName) > 0) then
     aExtension := ExtensionDelimiter;
-  if dotAndDashify and (aDescriptor = DescriptorDelimiter) and (Pos(DescriptorDelimiter,aPacketName) > 0) then
+  if dotAndDashify and (aDescriptor = '') and (Pos(DescriptorDelimiter,aPacketName) > 0) then
     aDescriptor := DescriptorDelimiter;
   result := aPacketName + aDescriptor + aExtension;
 
@@ -815,8 +815,23 @@ begin
   _p := RPos(DescriptorDelimiter,Result);
   if _p <> 0 then
   begin
-     result := Copy(Result,0,_p - 1);
+     result := Copy(Result,1,_p - 1);
   end;
+
+{
+Result:=AFilename;
+p:=length(Result);
+while (p>0) do begin
+  case Result[p] of
+    PathDelim: exit;
+    {$ifdef windows}
+    '/': if ('/' in AllowDirectorySeparators) then exit;
+    {$endif}
+    '.': exit(copy(Result,1, p-1));
+  end;
+  dec(p);
+end;
+}
 end;
 
 function ExtractFileDescriptor(const Filename: UTF8String): UTF8String;

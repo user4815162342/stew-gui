@@ -41,11 +41,13 @@ type
     function GetContainedDocument(aName: UTF8String): TDocumentPath;
     function Contains(aChild: TDocumentPath): Boolean;
     function Split: TStringArray;
+    function ToFile(aBase: TFile; aDescriptor: UTF8String; aExtension: UTF8String): TFile;
     class function FromString(const aPath: UTF8String): TDocumentPath; static;
     const Root: TDocumentPath = ( fID: '/');
     const Null: TDocumentPath = ( fID: '');
     class function GetSystemDocument(aName: UTF8String): TDocumentPath; static;
     class operator = (a: TDocumentPath; b: TDocumentPath): Boolean;
+    class function FromFile(aBase: TFile; aFile: TFile): TDocumentPath; static;
   end;
 
   TDocumentArray = array of TDocumentPath;
@@ -286,6 +288,7 @@ type
     class function MakeSynopsis: TAttachment; static;
     class function MakeBackup(aDescriptor: UTF8String; aExtension: UTF8String): TAttachment; static;
     class function Make(aKind: TAttachmentKind; aDescriptor: UTF8String; aExtension: UTF8String): TAttachment; static;
+    class function FromFile(aBase: TFile; aFile: TFile): TAttachment; static;
     const
       AttachmentKindStrings: array[TAttachmentKind] of UTF8String =
     ('unknown',
@@ -1076,9 +1079,6 @@ type
     function DoConfirmNewAttachment(aDocument: TDocumentPath; aKind: TAttachmentKind): Boolean;
     function DoChooseTemplate(aDocument: TDocumentPath; aKind: TAttachmentKind; aList: TTemplateArray; out aChosen: TTemplate): Boolean;
     function DoChooseFileForAttachment(aDocument: TDocumentPath; aKind: TAttachmentKind; aChoices: TFileArray; out aChosen: TFile): Boolean;
-    class function TranslateFileToDocument(aBasePath: TFile; aFile: TFile): TDocumentPath;
-    class function TranslateFileToAttachment(aBasePath: TFile; aFile: TFile): TAttachment;
-    class function TranslateDocumentAttachmentToFile(aBasePath: TFile; aDocument: TDocumentPath; aDescriptor: UTF8String; aExtension: UTF8String): TFile;
     class function GetProjectPropertiesPath(aFile: TFile): TFile;
     class function GetDocumentPropertiesPath(aProjectPath: TFile; aDocument: TDocumentPath): TFile;
     class function GetDocumentSynopsisPath(aProjectPath: TFile; aDocument: TDocumentPath): TFile;
@@ -1201,6 +1201,36 @@ begin
   result := CompareText(a.ID,b.ID) = 0;
 end;
 
+class function TDocumentPath.FromFile(aBase: TFile; aFile: TFile
+  ): TDocumentPath;
+var
+  lSplit: TStringArray;
+  i: Integer;
+  lPacket: UTF8String;
+begin
+  if aBase.Contains(aFile) then
+  begin
+    // We want to be able to handle documents that are contained within
+    // attachments, for future compatbility, so we are not looking at just
+    // the packetname for the rest of the path, but we are for the rest,
+    // so first we 'split' the directory after the base path.
+
+    lSplit := aFile.Directory.SplitPath(aBase);
+    result := TDocumentPath.Root;
+    for i := 0 to length(lSplit) - 1 do
+    begin
+      result := Result.GetContainedDocument(lSplit[i]);
+    end;
+    lPacket := aFile.PacketName;
+    if lPacket <> '' then
+      result := result.GetContainedDocument(aFile.PacketName);
+  end
+  else if aBase = aFile then
+    result := TDocumentPath.Root
+  else
+    result := TDocumentPath.Null;
+end;
+
 function SimpleIndexOf(List: TStrings; aText: String): Integer; inline;
 begin
   // TStringList.IndexOf has a little bit of overhead that I don't want
@@ -1228,7 +1258,7 @@ var
 begin
   try
     GetDefaultDescriptorAndExtension((Sender as TProjectPropertiesPromise).Properties,lDescriptor,lExtension);
-    fNewFile := fProject.TranslateDocumentAttachmentToFile(fProject.fDisk,fDocument,lDescriptor,lExtension);
+    fNewFile := fDocument.ToFile(fProject.fDisk,lDescriptor,lExtension);
     fNewFile.ListTemplatesFor.After(@NewAttachment_TemplatesListed,@SubPromiseRejected);
   except
     on E: Exception do
@@ -1256,7 +1286,7 @@ begin
       begin
         if not fProject.DoChooseTemplate(fDocument,fAttachment,lData,lTemplate) then
         begin
-          (Promise as TRequestEditingAttachmentPromise).fAttachment := fProject.TranslateFileToAttachment(fProject.fDisk,fNewFile);
+          (Promise as TRequestEditingAttachmentPromise).fAttachment := TAttachment.FromFile(fProject.fDisk,fNewFile);
           (Promise as TRequestEditingAttachmentPromise).fCancelled := true;
           Resolve;
           Exit;
@@ -1278,7 +1308,7 @@ procedure TStewProject.TRequestEditAttachmentTask.NewAttachment_FileCreated(
   Sender: TPromise);
 begin
   fNewFile.OpenInEditor;
-  (Promise as TRequestEditingAttachmentPromise).fAttachment := fProject.TranslateFileToAttachment(fProject.fDisk,fNewFile);
+  (Promise as TRequestEditingAttachmentPromise).fAttachment := TAttachment.FromFile(fProject.fDisk,fNewFile);
   (Promise as TRequestEditingAttachmentPromise).fCancelled := false;
   Resolve;
 end;
@@ -1369,8 +1399,8 @@ begin
     SetLength(fCandidates,0);
     for i := 0 to lListedLength - 1 do
     begin
-      if (fProject.TranslateFileToDocument(fProject.fDisk,lListedFiles[i]) = fDocument) and
-         (fProject.TranslateFileToAttachment(fProject.fDisk,lListedFiles[i]).Kind = fAttachment) then
+      if (TDocumentPath.FromFile(fProject.fDisk,lListedFiles[i]) = fDocument) and
+         (TAttachment.FromFile(fProject.fDisk,lListedFiles[i]).Kind = fAttachment) then
       begin
         SetLength(fCandidates,lCandidateLength + 1);
         fCandidates[lCandidateLength] := lListedFiles[i];
@@ -1501,16 +1531,15 @@ begin
   SetLength(lNewFiles,0);
   for i := 0 to lListedLength - 1 do
   begin
-    if fProject.TranslateFileToDocument(fProject.fDisk,lListedFiles[i]) = fOldDocument then
+    if TDocumentPath.FromFile(fProject.fDisk,lListedFiles[i]) = fOldDocument then
     begin
       SetLength(lOldFiles,lRenameLength + 1);
       SetLength(lNewFiles,lRenameLength + 1);
       lOldFiles[lRenameLength] := lListedFiles[i];
       lNewFiles[lRenameLength] :=
-          TranslateDocumentAttachmentToFile(fProject.fDisk,
-                                            fNewDocument,
-                                            lListedFiles[i].Descriptor,
-                                            lListedFiles[i].Extension);
+          fNewDocument.ToFile(fProject.fDisk,
+                              lListedFiles[i].Descriptor,
+                              lListedFiles[i].Extension);
       inc(lRenameLength);
     end;
   end;
@@ -1736,7 +1765,7 @@ begin
       l := Length(aFiles);
       for i := 0 to l - 1 do
       begin
-        lDocument := TranslateFileToDocument(aBasePath,aFiles[i].Item);
+        lDocument := TDocumentPath.FromFile(aBasePath,aFiles[i].Item);
         // hide the documents made from folder attachments such
         // as _stew.json and _properties.json in the root.
         if lDocument.Name <> '' then
@@ -2244,6 +2273,42 @@ begin
   result.Extension:= aExtension;
 end;
 
+class function TAttachment.FromFile(aBase: TFile; aFile: TFile): TAttachment;
+begin
+  result := TAttachment.MakeUnknown('','');
+  if aBase.Contains(aFile) then
+  begin
+    begin
+      result.Extension := aFile.Extension;
+      result.Descriptor := aFile.Descriptor;
+      case result.Descriptor of
+        '':
+          if Result.Extension = '' then
+            result.Kind:= atFolder
+          else
+            result.Kind := atPrimary;
+        TStewProject.DocumentSynopsisDescriptor:
+          if result.Extension = TStewProject.DocumentSynopsisExtension then
+            result.Kind := atSynopsis;
+        TStewProject.DocumentPropertiesDescriptor:
+          if result.Extension = TStewProject.PropertiesExtension then
+            result.Kind := atProperties;
+        TStewProject.DocumentNotesDescriptor:
+          result.Kind := atNotes;
+        TStewProject.DocumentThumbnailDescriptor:
+          result.Kind := atThumbnail;
+      else
+        if Pos(TStewProject.DocumentBackupDescriptorPrefix,aFile.Descriptor) = 1 then
+          result.Kind := atBackup;
+      end;
+    end;
+  end
+  else if aBase = aFile then
+     result.Kind := atFolder
+  else
+  // else we're actually not at all interested in this file...
+end;
+
 { TAttachmentError }
 
 constructor TAttachmentError.Create(aAction: TProjectEventKind;
@@ -2678,6 +2743,40 @@ begin
   begin
     SetLength(Result,resultLen + 1);
     Result[resultLen] := Copy(fID, last, cur - last);
+  end;
+end;
+
+function TDocumentPath.ToFile(aBase: TFile; aDescriptor: UTF8String;
+  aExtension: UTF8String): TFile;
+var
+  lSplit: TStringArray;
+  i: Integer;
+begin
+  if Self = TDocumentPath.Root then
+  begin
+    // Root attachments are files *inside* the folder
+
+    if (aDescriptor = '') and (aExtension = '') then
+    // the only 'attachment' on the root that isn't contained inside the
+    // directory is the directory itself.
+      result := aBase
+    else
+      result := aBase.GetContainedFile('',aDescriptor,aExtension,true)
+  end
+  else if Self = TDocumentPath.Null then
+  begin
+    raise Exception.Create('Can''t determine file for null document path')
+  end
+  else
+  begin
+    lSplit := Split;
+    result := aBase;
+    for i := 0 to Length(lSplit) - 1 do
+    begin
+      result := Result.GetContainedFile(lSplit[i]);
+    end;
+    // Can't just switch the descriptor and extension, because we need to dashify and dotify it.
+    Result := Result.Directory.GetContainedFile(Result.Name,aDescriptor,aExtension,true);
   end;
 end;
 
@@ -3797,8 +3896,8 @@ var
     end
     else
     begin
-      lDocument := TranslateFileToDocument(fDisk,Sender.Path);
-      lAttachment := TranslateFileToAttachment(fDisk,Sender.Path);
+      lDocument := TDocumentPath.FromFile(fDisk,Sender.Path);
+      lAttachment := TAttachment.FromFile(fDisk,Sender.Path);
       if Sender.State = psIncomplete then
          ReportEvent(TAttachmentEvent.Create(paLoadingAttachmentFile,lDocument,lAttachment))
       else
@@ -3817,8 +3916,8 @@ var
     end
     else
     begin
-      lAttachment := TranslateFileToAttachment(fDisk,Sender.Path);
-      lDocument := TranslateFileToDocument(fDisk,Sender.Path);
+      lAttachment := TAttachment.FromFile(fDisk,Sender.Path);
+      lDocument := TDocumentPath.FromFile(fDisk,Sender.Path);
       if Sender.State = psIncomplete then
          ReportEvent(TAttachmentEvent.Create(paSavingAttachmentFile,lDocument,lAttachment))
       else
@@ -3830,8 +3929,7 @@ var
   begin
    if not (Sender.Path = GetProjectPropertiesPath(fDisk)) then
     begin
-      lAttachment := TranslateFileToAttachment(fDisk,Sender.Path);
-      lDocument := TranslateFileToDocument(fDisk,Sender.Path);
+      lDocument := TDocumentPath.FromFile(fDisk,Sender.Path);
       if Sender.State = psIncomplete then
          ReportEvent(TDocumentEvent.Create(paListingDocumentFiles,lDocument))
       else
@@ -3845,7 +3943,7 @@ var
   begin
    if ((fDisk = Sender.Path) or fDisk.Contains(Sender.Path)) then
     begin
-      lDocument := TranslateFileToDocument(fDisk,Sender.Path);
+      lDocument := TDocumentPath.FromFile(fDisk,Sender.Path);
       if Sender.State = psIncomplete then
          ReportEvent(TDocumentEvent.Create(paCheckingDocumentFile,lDocument))
       else
@@ -3896,8 +3994,8 @@ var
     end
     else
     begin
-      lDocument := TranslateFileToDocument(fDisk,Sender.Path);
-      lAttachment := TranslateFileToAttachment(fDisk,Sender.Path);
+      lDocument := TDocumentPath.FromFile(fDisk,Sender.Path);
+      lAttachment := TAttachment.FromFile(fDisk,Sender.Path);
       ReportEvent(TAttachmentError.Create(paAttachmentFileLoadingFailed,lDocument,lAttachment,aError));
     end;
   end;
@@ -3910,8 +4008,8 @@ var
     end
     else
     begin
-      lAttachment := TranslateFileToAttachment(fDisk,Sender.Path);
-      lDocument := TranslateFileToDocument(fDisk,Sender.Path);
+      lAttachment := TAttachment.FromFile(fDisk,Sender.Path);
+      lDocument := TDocumentPath.FromFile(fDisk,Sender.Path);
       ReportEvent(TAttachmentError.Create(paAttachmentFileSavingFailed,lDocument,lAttachment,aError));
     end;
   end;
@@ -3920,7 +4018,7 @@ var
   begin
     if not (Sender.Path = GetProjectPropertiesPath(fDisk)) then
     begin
-      lDocument := TranslateFileToDocument(fDisk,Sender.Path);
+      lDocument := TDocumentPath.FromFile(fDisk,Sender.Path);
       ReportEvent(TDocumentError.Create(paDocumentsFileListingFailed,lDocument,aError));
     end
     else
@@ -3931,7 +4029,7 @@ var
   begin
     if ((fDisk = Sender.Path) or fDisk.Contains(Sender.Path)) then
     begin
-      lDocument := TranslateFileToDocument(fDisk,Sender.Path);
+      lDocument := TDocumentPath.FromFile(fDisk,Sender.Path);
       ReportEvent(TDocumentError.Create(paDocumentFileCheckingFailed,lDocument,aError));
     end
     else
@@ -4474,115 +4572,19 @@ end;
 class function TStewProject.GetDocumentPropertiesPath(aProjectPath: TFile;
   aDocument: TDocumentPath): TFile;
 begin
-  result := TranslateDocumentAttachmentToFile(aProjectPath,aDocument,DocumentPropertiesDescriptor,PropertiesExtension);
+  result := aDocument.ToFile(aProjectPath,DocumentPropertiesDescriptor,PropertiesExtension);
 end;
 
 class function TStewProject.GetDocumentSynopsisPath(aProjectPath: TFile;
   aDocument: TDocumentPath): TFile;
 begin
-  result := TranslateDocumentAttachmentToFile(aProjectPath,aDocument,DocumentSynopsisDescriptor,DocumentSynopsisExtension);
+  result := aDocument.ToFile(aProjectPath,DocumentSynopsisDescriptor,DocumentSynopsisExtension);
 end;
 
 class function TStewProject.GetDocumentFolderPath(aProjectPath: TFile;
   aDocument: TDocumentPath): TFile;
 begin
-  result := TranslateDocumentAttachmentToFile(aProjectPath,aDocument,'','');
-end;
-
-class function TStewProject.TranslateFileToDocument(aBasePath: TFile;
-  aFile: TFile): TDocumentPath;
-var
-  lSplit: TStringArray;
-  i: Integer;
-begin
-  if aBasePath.Contains(aFile) then
-  begin
-    // We want to be able to handle documents that are contained within
-    // attachments, for future compatbility, so we are not looking at just
-    // the packetname for the rest of the path, but we are for here,
-    // so the check is against a file without descriptor and extension.
-    lSplit := aFile.WithDifferentDescriptorAndExtension('','').SplitPath(aBasePath);
-    result := TDocumentPath.Root;
-    for i := 0 to length(lSplit) - 1 do
-    begin
-      result := Result.GetContainedDocument(lSplit[i]);
-    end;
-  end
-  else if aBasePath = aFile then
-    result := TDocumentPath.Root
-  else
-    result := TDocumentPath.Null;
-
-end;
-
-class function TStewProject.TranslateFileToAttachment(aBasePath: TFile;
-  aFile: TFile): TAttachment;
-begin
-  result := TAttachment.MakeUnknown('','');
-  if aBasePath.Contains(aFile) then
-  begin
-    begin
-      result.Extension := aFile.Extension;
-      result.Descriptor := aFile.Descriptor;
-      case result.Descriptor of
-        '':
-          if Result.Extension = '' then
-            result.Kind:= atFolder
-          else
-            result.Kind := atPrimary;
-        DocumentSynopsisDescriptor:
-          if result.Extension = DocumentSynopsisExtension then
-            result.Kind := atSynopsis;
-        DocumentPropertiesDescriptor:
-          if result.Extension = PropertiesExtension then
-            result.Kind := atProperties;
-        DocumentNotesDescriptor:
-          result.Kind := atNotes;
-        DocumentThumbnailDescriptor:
-          result.Kind := atThumbnail;
-      else
-        if Pos(DocumentBackupDescriptorPrefix,aFile.Descriptor) = 1 then
-          result.Kind := atBackup;
-      end;
-    end;
-  end
-  else if aBasePath = aFile then
-     result.Kind := atFolder
-  else
-  // else we're actually not at all interested in this file...
-end;
-
-class function TStewProject.TranslateDocumentAttachmentToFile(aBasePath: TFile;
-  aDocument: TDocumentPath; aDescriptor: UTF8String; aExtension: UTF8String
-  ): TFile;
-var
-  lSplit: TStringArray;
-  i: Integer;
-begin
-  if aDocument = TDocumentPath.Root then
-  begin
-    if (aDescriptor = '') and (aExtension = '') then
-    // the only 'attachment' on the root that isn't contained inside the
-    // directory is the directory itself.
-      result := aBasePath
-    else
-      result := aBasePath.GetContainedFile('',aDescriptor,aExtension,true)
-  end
-  else if aDocument = TDocumentPath.Null then
-  begin
-    raise Exception.Create('Can''t determine file for null document path')
-  end
-  else
-  begin
-    lSplit := aDocument.Split;
-    result := aBasePath;
-    for i := 0 to Length(lSplit) - 1 do
-    begin
-      result := Result.GetContainedFile(lSplit[i]);
-    end;
-    result := Result.WithDifferentDescriptorAndExtension(aDescriptor,aExtension);
-  end;
-
+  result := aDocument.ToFile(aProjectPath,'','');
 end;
 
 end.

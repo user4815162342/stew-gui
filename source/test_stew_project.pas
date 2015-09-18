@@ -813,28 +813,89 @@ end;
 
 procedure TProjectSpec.Test_01_DocumentPath;
 var
-  lPath: TDocumentPath;
   lSplit: TStringArray;
+  lDocument: TDocumentPath;
+  lFile: TFile;
 begin
-  lPath := TDocumentPath.Root;
-  lSplit := lPath.Split;
+  lDocument := TDocumentPath.Root;
+  lSplit := lDocument.Split;
   Assert(Length(lSplit) = 0,'Split of root should be 0');
-  lPath := TDocumentPath.Root.GetContainedDocument('Foo');
-  lSplit := lPath.Split;
+  lDocument := TDocumentPath.Root.GetContainedDocument('Foo');
+  lSplit := lDocument.Split;
   Assert(Length(lSplit) = 1,'Split of single path should be 1');
   Assert(lSplit[0] = 'Foo','Split should work right [1]');
-  lPath := TDocumentPath.Root.GetContainedDocument('Foo').GetContainedDocument('Bar');
-  lSplit := lPath.Split;
+  lDocument := TDocumentPath.Root.GetContainedDocument('Foo').GetContainedDocument('Bar');
+  lSplit := lDocument.Split;
   Assert(Length(lSplit) = 2,'Split should work right [2]');
   Assert(lSplit[0] = 'Foo','Split should work right [3]');
   Assert(lSplit[1] = 'Bar','Split should work right [4]');
-  lPath := TDocumentPath.Root.GetContainedDocument('Foo').GetContainedDocument('Bar').GetContainedDocument('Fooze');
-  lSplit := lPath.Split;
+  lDocument := TDocumentPath.Root.GetContainedDocument('Foo').GetContainedDocument('Bar').GetContainedDocument('Fooze');
+  lSplit := lDocument.Split;
   Assert(Length(lSplit) = 3,'Split should work right [5]');
   Assert(lSplit[0] = 'Foo','Split should work right [6]');
   Assert(lSplit[1] = 'Bar','Split should work right [7]');
   Assert(lSplit[2] = 'Fooze','Split should work right [8]');
 
+  lDocument := TDocumentPath.Root;
+  lFile := lDocument.ToFile(fTestRootDir,'','');
+  Assert(lFile = fTestRootDir,'No extension or descriptor on a root document should return the base path.');
+  Assert(TDocumentPath.FromFile(fTestRootDir,lFile) = lDocument,'Translating back should work right [1]');
+  lFile := lDocument.ToFile(fTestRootDir,'stew','');
+  Assert(lFile = fTestRootDir.GetContainedFile('_stew'),'A single descriptor on a root document should return a file inside the base path.');
+  Assert(TDocumentPath.FromFile(fTestRootDir,lFile) = lDocument,'Translating back should work right [2]');
+  lFile := lDocument.ToFile(fTestRootDir,'','txt');
+  Assert(lFile = fTestRootDir.GetContainedFile('.txt'),'A single extension on a root document should return a file inside the base path.');
+  Assert(TDocumentPath.FromFile(fTestRootDir,lFile) = lDocument,'Translating back should work right [3]');
+  lFile := lDocument.ToFile(fTestRootDir,'stew','txt');
+  Assert(lFile = fTestRootDir.GetContainedFile('_stew.txt'),'A descriptor and extension on a root document should return a file inside the base path.');
+  Assert(TDocumentPath.FromFile(fTestRootDir,lFile) = lDocument,'Translating back should work right [4]');
+
+  lDocument := lDocument.GetContainedDocument('Test');
+  lFile := lDocument.ToFile(fTestRootDir,'','');
+  Assert(lFile = fTestRootDir.GetContainedFile('Test'),'No extension or descriptor on a document should return a file in the base path.');
+  Assert(TDocumentPath.FromFile(fTestRootDir,lFile) = lDocument,'Translating back should work right [5]');
+  lFile := lDocument.ToFile(fTestRootDir,'stew','');
+  Assert(lFile = fTestRootDir.GetContainedFile('Test_stew'),'A single descriptor on a document should return a file inside the base path.');
+  Assert(TDocumentPath.FromFile(fTestRootDir,lFile) = lDocument,'Translating back should work right [6]');
+  lFile := lDocument.ToFile(fTestRootDir,'','txt');
+  Assert(lFile = fTestRootDir.GetContainedFile('Test.txt'),'A single extension on a document should return a file inside the base path.');
+  Assert(TDocumentPath.FromFile(fTestRootDir,lFile) = lDocument,'Translating back should work right [7]');
+  lFile := lDocument.ToFile(fTestRootDir,'stew','txt');
+  Assert(lFile = fTestRootDir.GetContainedFile('Test_stew.txt'),'A descriptor and extension on a document should return a file inside the base path.');
+  Assert(TDocumentPath.FromFile(fTestRootDir,lFile) = lDocument,'Translating back should work right [8]');
+
+  lDocument := TDocumentPath.Root.GetContainedDocument('II. Test');
+  lFile := lDocument.ToFile(fTestRootDir,'','');
+  Assert(lFile = fTestRootDir.GetContainedFile('II. Test.'),'Periods in filenames should work [1]');
+  Assert(TDocumentPath.FromFile(fTestRootDir,lFile) = lDocument,'Translating back should work right [9]');
+  lFile := lDocument.ToFile(fTestRootDir,'stew','');
+  Assert(lFile = fTestRootDir.GetContainedFile('II. Test_stew.'),'Periods in filenames should work [2]');
+  Assert(TDocumentPath.FromFile(fTestRootDir,lFile) = lDocument,'Translating back should work right [10]');
+  lFile := lDocument.ToFile(fTestRootDir,'','txt');
+  Assert(lFile = fTestRootDir.GetContainedFile('II. Test.txt'),'Periods in filenames should work [3]');
+  Assert(TDocumentPath.FromFile(fTestRootDir,lFile) = lDocument,'Translating back should work right [11]');
+  lFile := lDocument.ToFile(fTestRootDir,'stew','txt');
+  Assert(lFile = fTestRootDir.GetContainedFile('II. Test_stew.txt'),'Periods in filenames should work [4]');
+  Assert(TDocumentPath.FromFile(fTestRootDir,lFile) = lDocument,'Translating back should work right [12]');
+
+  lDocument := TDocumentPath.Root.GetContainedDocument('II_ Test');
+  lFile := lDocument.ToFile(fTestRootDir,'','');
+  Assert(lFile = fTestRootDir.GetContainedFile('II_ Test_'),'Underscores in filenames should work [1]');
+  Assert(TDocumentPath.FromFile(fTestRootDir,lFile) = lDocument,'Translating back should work right [13]');
+  lFile := lDocument.ToFile(fTestRootDir,'stew','');
+  Assert(lFile = fTestRootDir.GetContainedFile('II_ Test_stew'),'Underscores in filenames should work [2]');
+  Assert(TDocumentPath.FromFile(fTestRootDir,lFile) = lDocument,'Translating back should work right [14]');
+  lFile := lDocument.ToFile(fTestRootDir,'','txt');
+  Assert(lFile = fTestRootDir.GetContainedFile('II_ Test_.txt'),'Underscores in filenames should work [3]');
+  Assert(TDocumentPath.FromFile(fTestRootDir,lFile) = lDocument,'Translating back should work right [15]');
+  lFile := lDocument.ToFile(fTestRootDir,'stew','txt');
+  Assert(lFile = fTestRootDir.GetContainedFile('II_ Test_stew.txt'),'Underscores in filenames should work [4]');
+  Assert(TDocumentPath.FromFile(fTestRootDir,lFile) = lDocument,'Translating back should work right [16]');
+
+  // NOTE: There's a possibility where we've got a file that's been added in, but contains underscores. For
+  // example: Text_Summary.txt. This is going to show up as a document called Text, and
+  // that "_Summary" attachment will not be seen in the UI. Trying to fix this issue
+  // is out of scope at this point.
 end;
 
 procedure TProjectSpec.Test_02_Open_Project;
