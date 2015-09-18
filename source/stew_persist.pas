@@ -5,7 +5,7 @@ unit stew_persist deprecated;
 interface
 
 uses
-  Classes, SysUtils, stew_types, fpjson, fpjsonrtti, sys_file, sys_async;
+  Classes, SysUtils, sys_types, fpjson, fpjsonrtti, sys_file, sys_async;
 
 
 {$Interfaces CORBA}

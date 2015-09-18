@@ -5,7 +5,7 @@ unit sys_json;
 interface
 
 uses
-  Classes, SysUtils, stew_types, contnrs, jsonscanner;
+  Classes, SysUtils, sys_types, contnrs, jsonscanner;
 
 type
    {This is a somewhat more flexible replacement for the fpjson and jsonparser units.

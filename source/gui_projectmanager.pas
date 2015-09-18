@@ -82,7 +82,7 @@ type
 implementation
 
 uses
-  dialogs, stew_types;
+  dialogs, sys_types;
 
 {$R *.lfm}
 

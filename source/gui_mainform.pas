@@ -7,7 +7,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, Menus,
   ExtCtrls, Buttons, ComCtrls, stew_project, fgl, gui_config, contnrs,
-  simpleipc, gui_editorframe, stew_types, sys_async, sys_file, sys_os;
+  simpleipc, gui_editorframe, sys_types, sys_async, sys_file, sys_os;
 
 type
 

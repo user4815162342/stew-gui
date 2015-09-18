@@ -6,7 +6,7 @@ unit sys_file;
 interface
 
 uses
-  Classes, SysUtils, sys_async, stew_types;
+  Classes, SysUtils, sys_async, sys_types;
 
 const NewFileAge: Longint = -1;
 

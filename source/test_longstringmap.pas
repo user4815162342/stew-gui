@@ -5,7 +5,7 @@ unit test_longstringmap;
 interface
 
 uses
-  Classes, SysUtils, test_registry, sys_filecache, stew_types;
+  Classes, SysUtils, test_registry, sys_filecache, sys_types;
 
 type
 // This is important to the workings of CachedFiles, and I did a few

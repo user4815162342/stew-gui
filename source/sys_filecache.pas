@@ -5,7 +5,7 @@ unit sys_filecache;
 interface
 
 uses
-  Classes, SysUtils, sys_file, contnrs, stew_types, sys_async;
+  Classes, SysUtils, sys_file, contnrs, sys_types, sys_async;
 
 type
 

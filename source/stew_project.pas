@@ -6,7 +6,7 @@ unit stew_project;
 interface
 
 uses
-  Classes, SysUtils, sys_file, sys_async, stew_properties, stew_types, contnrs, sys_filecache, fgl;
+  Classes, SysUtils, sys_file, sys_async, stew_properties, sys_types, contnrs, sys_filecache, fgl;
 
 {
 FUTURE: Something I might add later, if I feel it's necessary. Loading should have a refresh mode, I think I've put this elsewhere:

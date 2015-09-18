@@ -66,7 +66,7 @@ the file exists already. Or, we need to come up with a different way of doing th
 implementation
 
 uses
-  Dialogs, stew_properties, stew_types, fpjson;
+  Dialogs, stew_properties, sys_types, fpjson;
 
 {$R *.lfm}
 

@@ -5,7 +5,7 @@ unit sys_localfile;
 interface
 
 uses
-  Classes, SysUtils, sys_file, sys_async, FileUtil, stew_types;
+  Classes, SysUtils, sys_file, sys_async, FileUtil, sys_types;
 
 type
 

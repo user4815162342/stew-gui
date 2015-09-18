@@ -98,7 +98,7 @@ type
 implementation
 
 uses
-  fpjson, stew_types;
+  fpjson, sys_types;
 
 type
   TDefColumnKind = (ckString, ckInteger, ckBoolean, ckRadio, ckColor);

@@ -5,7 +5,7 @@ unit test_stew_project;
 interface
 
 uses
-  Classes, SysUtils, test_registry, sys_file, sys_async, stew_project, stew_types;
+  Classes, SysUtils, test_registry, sys_file, sys_async, stew_project, sys_types;
 
 type
 
