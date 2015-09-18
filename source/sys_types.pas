@@ -11,11 +11,11 @@ uses
 // TODO: Also, a bunch of stuff here is probably deprecated go through and clean it out.
 
 type
-  TFilingState = (fsNotLoaded, fsLoading, fsLoaded, fsSaving, fsError, fsConflict);
-  TListingState = (lsNotListed, lsListing, lsListed);
+  TFilingState = (fsNotLoaded, fsLoading, fsLoaded, fsSaving, fsError, fsConflict) deprecated;
+  TListingState = (lsNotListed, lsListing, lsListed) deprecated;
 
-  TExceptionEvent = procedure(Sender: TObject; aError: Exception) of object;
-  TExceptionMessageEvent = procedure(Sender: TObject; aError: String) of object;
+  TExceptionEvent = procedure(Sender: TObject; aError: Exception) of object deprecated;
+  TExceptionMessageEvent = procedure(Sender: TObject; aError: String) of object deprecated;
 
   TStringArray = array of string;
 
@@ -49,7 +49,7 @@ type
     destructor Destroy; override;
     property Map: TMappedCollection read fMap;
     property Key: String read GetKey;
-  end;
+  end deprecated;
 
   TMappedCollectionItemClass = class of TMappedCollectionItem;
 
@@ -91,7 +91,7 @@ type
     property Names[const Index: Integer]: String read GetName;
     function GetNameList: TStringArray;
 
-  end;
+  end deprecated;
 
   { GSimpleArray }
 
@@ -103,7 +103,7 @@ type
   // arrays.
   // - a separate 'length' private field would allow me to increase capacity in
   // large jumps instead of one at a time, which may or may not work.
-  generic GSimpleArray<ItemType> = record
+  generic GArray<ItemType> = record
   public type
     ArrayType = array of ItemType;
   private
@@ -118,14 +118,14 @@ type
     property Items[Index: Integer]: ItemType read GetItem write SetItem; default;
   end;
 
-  TSimpleStringArray = specialize GSimpleArray<UTF8String>;
+  TStringArray2 = specialize GArray<UTF8String>;
 
 
 implementation
 
 { GSimpleList }
 
-function GSimpleArray.GetItem(Index: Integer): ItemType;
+function GArray.GetItem(Index: Integer): ItemType;
 begin
   if (Index >= 0) and (Index < Count) then
     result := fItems[Index]
@@ -133,12 +133,12 @@ begin
     raise Exception.Create('Invalid index');
 end;
 
-function GSimpleArray.GetCount: Integer;
+function GArray.GetCount: Integer;
 begin
   result := Length(fItems);
 end;
 
-procedure GSimpleArray.SetItem(Index: Integer; AValue: ItemType);
+procedure GArray.SetItem(Index: Integer; AValue: ItemType);
 begin
   if (Index >= 0) then
   begin
@@ -150,12 +150,12 @@ begin
     raise Exception.Create('Invalid index');
 end;
 
-procedure GSimpleArray.SetCount(AValue: Integer);
+procedure GArray.SetCount(AValue: Integer);
 begin
   SetLength(fItems,AValue);
 end;
 
-procedure GSimpleArray.Add(Item: ItemType);
+procedure GArray.Add(Item: ItemType);
 begin
   Items[Count] := Item;
 
