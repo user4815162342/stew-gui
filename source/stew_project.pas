@@ -209,6 +209,7 @@ type
   public
     constructor Create(aAction: TProjectEventKind; aError: TPromiseError);
     function GetDescription: UTF8String; override;
+    property Error: TPromiseError read fError;
   end;
 
   { TDocumentEvent }
@@ -292,11 +293,11 @@ type
     class function FromFile(aBase: TFile; aFile: TFile): TAttachment; static;
     const
       AttachmentKindStrings: array[TAttachmentKind] of UTF8String =
-    ('unknown',
+    ('unknown file',
      'folder',
      'primary',
-     'properties',
-     'notes',
+     'property file',
+     'note',
      'thumbnail',
      'synopsis',
      'backup'
@@ -314,6 +315,7 @@ type
     property Attachment: TAttachmentKind read fAttachment.Kind;
     property Extension: UTF8String read fAttachment.Extension;
     property Descriptor: UTF8String read fAttachment.Descriptor;
+    function AttachmentName: UTF8String;
     function GetDescription: UTF8String; override;
   end;
 
@@ -2379,6 +2381,11 @@ constructor TAttachmentEvent.Create(aAction: TProjectEventKind;
 begin
   inherited Create(aAction,aDocument);
   fAttachment := aAttachment;
+end;
+
+function TAttachmentEvent.AttachmentName: UTF8String;
+begin
+  result := TAttachment.AttachmentKindStrings[fAttachment.Kind];
 end;
 
 function TAttachmentEvent.GetDescription: UTF8String;

@@ -208,12 +208,12 @@ end;
 procedure TProjectSpec.Document_Properties_4(Sender: TPromise);
 begin
   AssertAsync((Sender as TDocumentPropertiesPromise).Properties.Title = 'The Cottage Not in the Woods','Changes should have been saved',Sender.Tag);
-  if not VerifyProjectEvents(['<LoadingAttachmentFile> "/Chapter 1" <properties> "_properties.json"',
-                              '<AttachmentFileLoaded> "/Chapter 1" <properties> "_properties.json"',
-                              '<AttachmentDataReceived> "/Chapter 1" <properties> "_properties.json"',
-                              '<SavingAttachmentFile> "/Chapter 1" <properties> "_properties.json"',
-                              '<AttachmentFileSaved> "/Chapter 1" <properties> "_properties.json"',
-                              '<AttachmentDataReceived> "/Chapter 1" <properties> "_properties.json"'],Sender.Tag) then
+  if not VerifyProjectEvents(['<LoadingAttachmentFile> "/Chapter 1" <property file> "_properties.json"',
+                              '<AttachmentFileLoaded> "/Chapter 1" <property file> "_properties.json"',
+                              '<AttachmentDataReceived> "/Chapter 1" <property file> "_properties.json"',
+                              '<SavingAttachmentFile> "/Chapter 1" <property file> "_properties.json"',
+                              '<AttachmentFileSaved> "/Chapter 1" <property file> "_properties.json"',
+                              '<AttachmentDataReceived> "/Chapter 1" <property file> "_properties.json"'],Sender.Tag) then
     Exit;
   EndAsync(Sender.Tag);
 end;
@@ -249,9 +249,9 @@ begin
   VerifyProjectEvents([
 '<ListingDocumentFiles> "/"',
 '<DocumentFilesListed> "/"',
-'<LoadingAttachmentFile> "/" <properties> "_properties.json"',
-'<AttachmentFileLoaded> "/" <properties> "_properties.json"',
-'<AttachmentDataReceived> "/" <properties> "_properties.json"',
+'<LoadingAttachmentFile> "/" <property file> "_properties.json"',
+'<AttachmentFileLoaded> "/" <property file> "_properties.json"',
+'<AttachmentDataReceived> "/" <property file> "_properties.json"',
 '<DocumentListDataReceived> "/" [ "/Chapter 1", "/Chapter 2", "/Chapter 3", "/Chapter 4", "/Chapter 5", "/Epilogue", "/Notes" <FOLDER>]'
   ],Sender.Tag);
   EndAsync(Sender.Tag);
@@ -377,9 +377,9 @@ begin
     '<DocumentFileChecked> "/Chapter 1"',
     '<ListingDocumentFiles> "/Chapter 1"',
     '<DocumentFilesListed> "/Chapter 1"',
-    '<LoadingAttachmentFile> "/Chapter 1" <properties> "_properties.json"',
-    '<AttachmentFileLoaded> "/Chapter 1" <properties> "_properties.json"',
-    '<AttachmentDataReceived> "/Chapter 1" <properties> "_properties.json"',
+    '<LoadingAttachmentFile> "/Chapter 1" <property file> "_properties.json"',
+    '<AttachmentFileLoaded> "/Chapter 1" <property file> "_properties.json"',
+    '<AttachmentDataReceived> "/Chapter 1" <property file> "_properties.json"',
     '<DocumentListDataReceived> "/Chapter 1" [ "/Chapter 1/Notes" <SHADOW>]'
   ],Sender.Tag) then
     Exit;
@@ -425,13 +425,13 @@ begin
   VerifyProjectEvents([
 '<ListingDocumentFiles> "/"',
 '<DocumentFilesListed> "/"',
-'<LoadingAttachmentFile> "/" <properties> "_properties.json"',
-'<AttachmentFileLoaded> "/" <properties> "_properties.json"',
-'<AttachmentDataReceived> "/" <properties> "_properties.json"',
-'<SavingAttachmentFile> "/" <properties> "_properties.json"',
-'<AttachmentFileSaved> "/" <properties> "_properties.json"',
+'<LoadingAttachmentFile> "/" <property file> "_properties.json"',
+'<AttachmentFileLoaded> "/" <property file> "_properties.json"',
+'<AttachmentDataReceived> "/" <property file> "_properties.json"',
+'<SavingAttachmentFile> "/" <property file> "_properties.json"',
+'<AttachmentFileSaved> "/" <property file> "_properties.json"',
 '<DocumentShifted> "/Notes"',
-'<AttachmentDataReceived> "/" <properties> "_properties.json"',
+'<AttachmentDataReceived> "/" <property file> "_properties.json"',
 '<DocumentListDataReceived> "/" [ "/Chapter 1", "/Chapter 2", "/Chapter 3", "/Chapter 4", "/Notes" <FOLDER>, "/Chapter 5", "/Epilogue"]'
   ],Sender.Tag);
   EndAsync(Sender.Tag);
@@ -508,21 +508,21 @@ begin
          '<DocumentRenamed> "/Epilogue" TO: /Chapter 6',
          '<ListingDocumentFiles> "/"',
          '<DocumentFilesListed> "/"',
-         '<LoadingAttachmentFile> "/" <properties> "_properties.json"',
-         '<AttachmentFileLoaded> "/" <properties> "_properties.json"',
-         '<AttachmentDataReceived> "/" <properties> "_properties.json"',
+         '<LoadingAttachmentFile> "/" <property file> "_properties.json"',
+         '<AttachmentFileLoaded> "/" <property file> "_properties.json"',
+         '<AttachmentDataReceived> "/" <property file> "_properties.json"',
          '<DocumentListDataReceived> "/" [ "/Chapter 1", "/Chapter 2", "/Chapter 3", "/Chapter 4", "/Notes" <FOLDER>, "/Chapter 5", "/Chapter 6"]',
          '<RenamingDocument> "/Chapter 6" TO: /Notes/Chapter 6',
          '<DocumentRenamed> "/Chapter 6" TO: /Notes/Chapter 6',
          '<ListingDocumentFiles> "/"',
          '<DocumentFilesListed> "/"',
-         '<AttachmentDataReceived> "/" <properties> "_properties.json"',
+         '<AttachmentDataReceived> "/" <property file> "_properties.json"',
          '<DocumentListDataReceived> "/" [ "/Chapter 1", "/Chapter 2", "/Chapter 3", "/Chapter 4", "/Notes" <FOLDER>, "/Chapter 5"]',
          '<ListingDocumentFiles> "/Notes"',
          '<DocumentFilesListed> "/Notes"',
-         '<LoadingAttachmentFile> "/Notes" <properties> "_properties.json"',
-         '<AttachmentFileLoaded> "/Notes" <properties> "_properties.json"',
-         '<AttachmentDataReceived> "/Notes" <properties> "_properties.json"',
+         '<LoadingAttachmentFile> "/Notes" <property file> "_properties.json"',
+         '<AttachmentFileLoaded> "/Notes" <property file> "_properties.json"',
+         '<AttachmentDataReceived> "/Notes" <property file> "_properties.json"',
          '<DocumentListDataReceived> "/Notes" [ "/Notes/Chapter 6", "/Notes/Characters" <FOLDER>]'
      ],Sender.Tag) then Exit;
   EndAsync(Sender.Tag);
@@ -700,13 +700,13 @@ begin
           '<ProjectPropertiesDataReceived>',
           '<EditingAttachment> "/Chapter 2" <thumbnail> "_thumbnail.png"',
           '<ProjectPropertiesDataReceived>',
-          '<EditingAttachment> "/Chapter 2" <notes> "_notes.tst"',
+          '<EditingAttachment> "/Chapter 2" <note> "_notes.tst"',
           '<ListingDocumentFiles> "/Notes/Characters"',
           '<DocumentFilesListed> "/Notes/Characters"',
           '<ProjectPropertiesDataReceived>',
           '<EditingAttachment> "/Notes/Characters/Jack" <primary> "_.doc"',
           '<ProjectPropertiesDataReceived>',
-          '<EditingAttachment> "/Notes/Characters/Jack" <notes> "_notes.tst"'
+          '<EditingAttachment> "/Notes/Characters/Jack" <note> "_notes.tst"'
   ],Sender.Tag) then Exit;
   EndAsync(Sender.Tag);
 

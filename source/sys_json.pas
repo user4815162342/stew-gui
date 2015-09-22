@@ -321,12 +321,18 @@ type
     function GetAsNumber: Double; override;
     function GetAsString: UTF8String; override;
     function GetAsBoolean: Boolean; override;
+    procedure Unshift;
   public
     const LengthKey: UTF8String = 'length';
     constructor Create; override;
     destructor Destroy; override;
     property Length: Integer read GetLength write SetLength;
     function Join(sep: UTF8String = ','): UTF8String;
+    function IndexOf(aValue: TJSValue): Integer;
+    function IndexOf(aValue: UTF8String): Integer;
+    function IndexOf(aValue: Double): Integer;
+    procedure Unshift(aValue: UTF8String);
+    procedure Unshift(aValue: Double);
   end;
 
   { TJSONParser }
@@ -384,6 +390,7 @@ type
     function ParseBoolean(aClass: TJSValueClass; aCreationName: UTF8String; aParent: TJSValue): TJSValue;
     function ParseNull(aClass: TJSValueClass; aCreationName: UTF8String; aParent: TJSValue): TJSValue;
     function ParseObject(aClass: TJSValueClass; aCreationName: UTF8String; aParent: TJSValue): TJSValue;
+    procedure ParseObject(aObject: TJSObject);
     function ParseArray(aClass: TJSValueClass; aCreationName: UTF8String; aParent: TJSValue): TJSValue;
   end;
 
@@ -401,6 +408,7 @@ type
   function FromJSON(aClass: TJSValueClass; aData: UTF8String): TJSValue;
   function FromJSON(aData: UTF8String): TJSValue;
   function FromJSON(aStream: TStream): TJSValue;
+  procedure FromJSON(aObject: TJSObject; aStream: TStream);
 
   const NullText: UTF8String = 'null';
   const TrueText: UTF8String = 'true';
@@ -734,6 +742,18 @@ begin
   end;
 end;
 
+procedure FromJSON(aObject: TJSObject; aStream: TStream);
+var
+  lParser: TJSONParser;
+begin
+  lParser := TJSONParser.Create(aStream);
+  try
+    lParser.ParseObject(aObject);
+  finally
+    lParser.Free;
+  end;
+end;
+
 { TJSONParser }
 
 procedure TJSONParser.SkipWhitespace;
@@ -856,36 +876,8 @@ begin
     end;
 
     try
+      ParseObject(result as TJSObject);
 
-      SkipWhitespace;
-      if fScanner.CurToken <> tkCurlyBraceOpen then
-        Expected('object start');
-      fScanner.FetchToken;
-      SkipWhitespace;
-      // look for a property
-      while not (fScanner.CurToken in [tkCurlyBraceClose,tkEOF]) do
-      begin
-        if fScanner.CurToken <> tkString then
-          Expected('property name');
-        lKey := fScanner.CurTokenString;
-        fScanner.FetchToken;
-        SkipWhitespace;
-        if fScanner.CurToken <> tkColon then
-          Expected('colon');
-        fScanner.FetchToken;
-        Parse(nil,lKey,result);
-        SkipWhitespace;
-        if fScanner.CurToken = tkComma then
-        begin
-          fScanner.FetchToken;
-          SkipWhitespace;
-        end
-        else if fScanner.CurToken <> tkCurlyBraceClose then
-          Expected('comma');
-      end;
-      if fScanner.CurToken <> tkCurlyBraceClose then
-        Expected('object end');
-      fScanner.FetchToken;
 
       // if we are assigning to an actual object, do the
       // assignment.
@@ -909,6 +901,42 @@ begin
        FreeAndNil(result);
     raise;
   end;
+
+end;
+
+procedure TJSONParser.ParseObject(aObject: TJSObject);
+var
+  lKey: UTF8String;
+begin
+  SkipWhitespace;
+  if fScanner.CurToken <> tkCurlyBraceOpen then
+    Expected('object start');
+  fScanner.FetchToken;
+  SkipWhitespace;
+  // look for a property
+  while not (fScanner.CurToken in [tkCurlyBraceClose,tkEOF]) do
+  begin
+    if fScanner.CurToken <> tkString then
+      Expected('property name');
+    lKey := fScanner.CurTokenString;
+    fScanner.FetchToken;
+    SkipWhitespace;
+    if fScanner.CurToken <> tkColon then
+      Expected('colon');
+    fScanner.FetchToken;
+    Parse(nil,lKey,aObject);
+    SkipWhitespace;
+    if fScanner.CurToken = tkComma then
+    begin
+      fScanner.FetchToken;
+      SkipWhitespace;
+    end
+    else if fScanner.CurToken <> tkCurlyBraceClose then
+      Expected('comma');
+  end;
+  if fScanner.CurToken <> tkCurlyBraceClose then
+    Expected('object end');
+  fScanner.FetchToken;
 
 end;
 
@@ -1173,6 +1201,19 @@ begin
   result := true;
 end;
 
+procedure TJSArray.Unshift;
+var
+  l: Integer;
+  i: Integer;
+begin
+  l := Length;
+  Length := Length + 1;
+  for i := l downto 1 do
+  begin
+    Move(IntToStr(i - 1),IntToStr(i));
+  end;
+end;
+
 function TJSArray.Join(sep: UTF8String): UTF8String;
 var
   len: Integer;
@@ -1208,6 +1249,50 @@ begin
     k := k + 1;
   end;
   result := R;
+end;
+
+function TJSArray.IndexOf(aValue: TJSValue): Integer;
+begin
+  for result := 0 to Length - 1 do
+  begin
+    if Get(result) = aValue then
+       Exit;
+  end;
+  result := -1;
+end;
+
+function TJSArray.IndexOf(aValue: UTF8String): Integer;
+begin
+  for result := 0 to Length - 1 do
+  begin
+    if Get(result).AsString = aValue then
+       Exit;
+  end;
+  result := -1;
+
+end;
+
+function TJSArray.IndexOf(aValue: Double): Integer;
+begin
+  for result := 0 to Length - 1 do
+  begin
+    if Get(result).AsNumber = aValue then
+       Exit;
+  end;
+  result := -1;
+
+end;
+
+procedure TJSArray.Unshift(aValue: UTF8String);
+begin
+  Unshift;
+  Put('0',aValue);
+end;
+
+procedure TJSArray.Unshift(aValue: Double);
+begin
+  Unshift;
+  Put('0',aValue);
 end;
 
 { TJSUndefined }

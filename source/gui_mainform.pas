@@ -11,6 +11,11 @@ uses
 
 type
 
+  // TODO: Change MainConfig over to new JSON structure.
+  // TODO: Add in support so the other UI modules can access the new architecture.
+  // TODO: Then, start working on the other UI modules
+  // TODO: Finally, once everything's working get rid of deprecated stuff.
+
   TMainFormAction = (mfaProjectPropertiesLoading,
                      mfaProjectPropertiesLoaded,
                      mfaProjectPropertiesSaving,
@@ -26,9 +31,15 @@ type
                      mfaDocumentSynopsisSaved,
                      mfaDocumentSynopsisSaveConflicted,
                      mfaDocumentChanged,
-                     mfaDocumentCreated);
-  TMainFormObserverHandler = procedure(aAction: TMainFormAction; aDocument: TDocumentPath) of object;
-  TMainFormObserverList = specialize TFPGList<TMainFormObserverHandler>;
+                     mfaDocumentCreated) deprecated;
+  TMainFormObserverHandler = procedure(aAction: TMainFormAction; aDocument: TDocumentPath) of object; deprecated;
+  TMainFormObserverList = specialize TFPGList<TMainFormObserverHandler> deprecated;
+
+  TMainForm = class;
+  // TODO: Get rid of the '2' on these once the other stuff is no longer used.
+  TMainFormAction2 = (mfaProjectOpened, mfaProjectClosed);
+  TMainFormObserverHandler2 = procedure(Sender: TMainForm; Action: TMainFormAction2) of object;
+  TMainFormObserverList2 = specialize TFPGList<TMainFormObserverHandler2>;
 
   { TMainForm }
 
@@ -49,32 +60,35 @@ type
     ExitMenuItem: TMenuItem;
     OpenProjectDialog: TSelectDirectoryDialog;
     procedure AboutMenuItemClick(Sender: TObject);
+    procedure DoChooseAttachment(Sender: TObject; Document: TDocumentPath;
+      AttachmentName: String; aChoices: TStringArray; var Answer: Integer; out
+      Accepted: Boolean);
     procedure DoChooseNewAttachmentTemplate(Sender: TObject;
       {%H-}Document: TDocumentPath; AttachmentName: String; aChoices: TStringArray;
       var Answer: Integer; out Accepted: Boolean);
     procedure DoConfirmNewAttachment(Sender: TObject; {%H-}Document: TDocumentPath;
       AttachmentName: String; out Answer: Boolean);
     procedure DocumentAttachmentLoading(Sender: TObject; Document: TDocumentPath;
-      AttachmentName: String);
+      AttachmentName: String); deprecated;
     procedure DocumentAttachmentSaveConflicted(Sender: TObject;
-      Document: TDocumentPath; AttachmentName: String);
+      Document: TDocumentPath; AttachmentName: String); deprecated;
     procedure DocumentAttachmentSaved(Sender: TObject; Document: TDocumentPath;
-      AttachmentName: String);
+      AttachmentName: String); deprecated;
     procedure DocumentAttachmentSaving(Sender: TObject; Document: TDocumentPath;
-      AttachmentName: String);
-    procedure DocumentChanged(Sender: TObject; Document: TDocumentPath);
-    procedure DocumentCreated(Sender: TObject; Document: TDocumentPath);
+      AttachmentName: String); deprecated;
+    procedure DocumentChanged(Sender: TObject; Document: TDocumentPath); deprecated;
+    procedure DocumentCreated(Sender: TObject; Document: TDocumentPath); deprecated;
     procedure DocumentListError(Sender: TObject; Document: TDocumentPath;
-      Error: String);
-    procedure DocumentPropertiesLoading(Sender: TObject; Document: TDocumentPath);
-    procedure DocumentPropertiesSaving(Sender: TObject; Document: TDocumentPath);
+      Error: String); deprecated;
+    procedure DocumentPropertiesLoading(Sender: TObject; Document: TDocumentPath); deprecated;
+    procedure DocumentPropertiesSaving(Sender: TObject; Document: TDocumentPath); deprecated;
     procedure DocumentRenameFailed(Sender: TObject; Document: TDocumentPath;
-      Error: String);
-    procedure DocumentsListed(Sender: TObject; Document: TDocumentPath);
+      Error: String); deprecated;
+    procedure DocumentsListed(Sender: TObject; Document: TDocumentPath); deprecated;
     procedure DocumentAttachmentLoaded(Sender: TObject; Document: TDocumentPath;
-      Attachment: String);
+      Attachment: String); deprecated;
     procedure DocumentAttachmentError(Sender: TObject; Document: TDocumentPath;
-      Attachment: String; Error: String);
+      Attachment: String; Error: String); deprecated;
     procedure DocumentTabCloseRequested(Sender: TObject);
     procedure ExitMenuItemClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var {%H-}CloseAction: TCloseAction);
@@ -83,17 +97,20 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure NewProjectMenuItemClick(Sender: TObject);
+    procedure ObserveProject(Sender: TStewProject; Event: TProjectEvent);
+    procedure ShowProjectError(Event: TProjectEvent);
     procedure OpenProjectMenuItemClick(Sender: TObject);
     procedure PreferencesMenuItemClick(Sender: TObject);
-    procedure ProjectPropertiesLoading(Sender: TObject);
-    procedure ProjectPropertiesSaving(Sender: TObject);
+    procedure ProjectPropertiesLoading(Sender: TObject); deprecated;
+    procedure ProjectPropertiesSaving(Sender: TObject); deprecated;
     procedure ProjectSettingsMenuItemClick(Sender: TObject);
     procedure RefreshProjectMenuItemClick(Sender: TObject);
   private
     { private declarations }
     fProject: TStewProject;
-    fConfig: TStewApplicationConfig;
+    fConfig: TStewApplicationConfig2;
     fObservers: TMainFormObserverList;
+    fObservers2: TMainFormObserverList2;
     fFrames: array[TAlign] of TControl;
     fSplitters: array[TAlign] of TControl;
     fDocumentPane: TAlign;
@@ -101,16 +118,16 @@ type
     fOpenDocuments: TObjectList;
     procedure DocumentPropertiesError(Sender: TObject; Document: TDocumentPath;
       Error: String);
-    procedure DocumentPropertiesLoaded(Sender: TObject; Document: TDocumentPath);
+    procedure DocumentPropertiesLoaded(Sender: TObject; Document: TDocumentPath); deprecated;
     procedure DocumentPropertiesSaveConflicted(Sender: TObject;
-      Document: TDocumentPath);
-    procedure DocumentPropertiesSaved(Sender: TObject; Document: TDocumentPath);
+      Document: TDocumentPath); deprecated;
+    procedure DocumentPropertiesSaved(Sender: TObject; Document: TDocumentPath); deprecated;
     function GetProject: TStewProject;
-    procedure ProjectLoadFailed(E: String);
-    procedure ProjectPropertiesError(Sender: TObject; aError: String);
-    procedure ProjectPropertiesLoaded(Sender: TObject);
-    procedure ProjectPropertiesSaveConflicted(Sender: TObject);
-    procedure ProjectPropertiesSaved(Sender: TObject);
+    procedure ProjectLoadFailed(E: String); deprecated;
+    procedure ProjectPropertiesError(Sender: TObject; aError: String); deprecated;
+    procedure ProjectPropertiesLoaded(Sender: TObject); deprecated;
+    procedure ProjectPropertiesSaveConflicted(Sender: TObject); deprecated;
+    procedure ProjectPropertiesSaved(Sender: TObject); deprecated;
   protected
     procedure OpenProject(aPath: TFile);
     procedure InitializeProject;
@@ -119,7 +136,8 @@ type
     procedure AfterProjectCreateNew(Sender: TPromise);
     procedure ProjectOpenFailed(Sender: TPromise; Error: TPromiseError);
     procedure StartupAskForProject({%H-}Data: PtrInt);
-    procedure NotifyObservers(aAction: TMainFormAction; aDocument: TDocumentPath);
+    procedure NotifyObservers(aAction: TMainFormAction; aDocument: TDocumentPath); deprecated;
+    procedure NotifyObservers2(aAction: TMainFormAction2);
     procedure ReadUISettings;
     procedure WriteUISettings;
     procedure LayoutFrames;
@@ -129,8 +147,10 @@ type
     function OpenDocument(aDocument: TDocumentPath): TEditorFrame;
     procedure OpenPreferences;
     procedure OpenProjectSettings;
-    procedure Observe(aObserver: TMainFormObserverHandler);
-    procedure Unobserve(aObserver: TMainFormObserverHandler);
+    procedure Observe(aObserver: TMainFormObserverHandler); deprecated;
+    procedure Unobserve(aObserver: TMainFormObserverHandler); deprecated;
+    procedure Observe2(aObserver: TMainFormObserverHandler2);
+    procedure Unobserve2(aObserver: TMainFormObserverHandler2);
     procedure RequestTabClose(aFrame: TEditorFrame);
     // NOTE: I've made these public to make it easier to 'extend' the application,
     // but these layout functions really should only be used during app initialization
@@ -211,6 +231,14 @@ end;
 procedure TMainForm.AboutMenuItemClick(Sender: TObject);
 begin
   AboutForm.ShowModal;
+end;
+
+procedure TMainForm.DoChooseAttachment(Sender: TObject;
+  Document: TDocumentPath; AttachmentName: String; aChoices: TStringArray;
+  var Answer: Integer; out Accepted: Boolean);
+begin
+  Accepted := ChoiceQuery('There are multiple ' + AttachmentName + ' files on the disk for the document ' + Document.Name + '.' + LineEnding +
+                          'Please specify which one you would like to work with:', aChoices,Answer);
 end;
 
 procedure TMainForm.AfterProjectCreateNew(Sender: TPromise);
@@ -358,7 +386,7 @@ end;
 procedure TMainForm.DocumentRenameFailed(Sender: TObject;
   Document: TDocumentPath; Error: String);
 begin
-  ShowMessage('An error occurred while renaming a document properties.' + LineEnding +
+  ShowMessage('An error occurred while renaming a document.' + LineEnding +
               'The rename may be incomplete.' + LineEnding +
               'The document''s ID was ' + Document.ID + '.' + LineEnding +
               Error + LineEnding +
@@ -425,25 +453,33 @@ type
 
   { TCloseTab }
 
-  TCloseTab = class(TDeferredCall)
+  TCloseTab = class(TQueuedTask)
   private
     fTab: TTabSheet;
   protected
-    procedure DoCallback; override;
+    procedure DoTask; override;
+    function CreatePromise: TPromise; override;
   public
-    constructor Create(aTab: TTabSheet);
+    constructor Enqueue(aTab: TTabSheet);
   end;
 
 { TCloseTab }
 
-procedure TCloseTab.DoCallback;
+procedure TCloseTab.DoTask;
 begin
   fTab.Free;
+  Resolve;
 end;
 
-constructor TCloseTab.Create(aTab: TTabSheet);
+function TCloseTab.CreatePromise: TPromise;
+begin
+  result := TPromise.Create;
+end;
+
+constructor TCloseTab.Enqueue(aTab: TTabSheet);
 begin
   fTab := aTab;
+  inherited Enqueue;
 end;
 
 procedure TMainForm.DocumentTabCloseRequested(Sender: TObject);
@@ -484,7 +520,7 @@ begin
     begin
       // delay destroying the tab until later, in case there are
       // some messages that still have to be processed.
-      TCloseTab.Create(Tab).Enqueue;
+      TCloseTab.Enqueue(Tab);
     end;
   end;
 end;
@@ -537,14 +573,16 @@ begin
   stewFolder := LocalFile('');
   fProject := nil;
 
-  fConfig := TStewApplicationConfig.Create;
+  fConfig := TStewApplicationConfig2.Create;
   try
      fConfig.Load;
   except
     on E: Exception do
+    begin
       ShowMessage('The settings file could not be loaded for some reason.' + LineEnding +
                   'The Error Message Was: ' + E.Message + LineEnding +
                   'Default settings will be used, and the current settings will be overwritten.');
+    end;
   end;
 
   LayoutFrames;
@@ -576,8 +614,11 @@ end;
 
 procedure TMainForm.FormDestroy(Sender: TObject);
 begin
+
   if fProject <> nil then
   begin
+    NotifyObservers2(mfaProjectClosed);
+    fProject.RemoveObserver(@ObserveProject);
     FreeAndNil(fProject);
   end;
   FreeAndNil(fConfig);
@@ -596,6 +637,61 @@ end;
 procedure TMainForm.NewProjectMenuItemClick(Sender: TObject);
 begin
   RunNewStewInstanceWithPrompt;
+end;
+
+procedure TMainForm.ObserveProject(Sender: TStewProject; Event: TProjectEvent);
+begin
+  if Event.IsError then
+    ShowProjectError(Event);
+end;
+
+procedure TMainForm.ShowProjectError(Event: TProjectEvent);
+var
+  lMessage: String;
+  lError: String;
+begin
+  lMessage := 'An error occurred';
+  case Event.Action of
+     paProjectPropertiesLoadingFailed, paProjectPropertiesSavingFailed:
+       lMessage := lMessage + ' while loading or saving the project properties.';
+     paDocumentsListingFailed:
+       lMessage := lMessage + ' while listing the contents of a folder.';
+     paDocumentFolderCheckFailed:
+       lMessage := lMessage + ' while checking a document.';
+     paDocumentShiftFailed:
+       lMessage := lMessage + ' while shifting a document up or down.';
+     paDocumentRenamingFailed:
+       lMessage := lMessage + ' while renaming a document.';
+     paAttachmentLoadingFailed, paAttachmentSavingFailed:
+       lMessage := lMessage + ' while loading or saving a ' + (Event as TAttachmentEvent).AttachmentName + '.';
+     paAttachmentEditingFailed:
+       lMessage := lMessage + ' while attempting to edit a ' + (Event as TAttachmentEvent).AttachmentName + '.';
+     paUnexpectedProjectError:
+       lMessage := lMessage + '.';
+     paUnexpectedDocumentError:
+       lMessage := lMessage + ' while working with a document.';
+     paUnexpectedAttachmentError:
+       lMessage := lMessage + ' while working with a ' + (Event as TAttachmentEvent).AttachmentName + '.';
+  end;
+  if Event is TDocumentError then
+  begin
+    lMessage := lMessage + LineEnding;
+    lMessage := 'The document''s ID was ' + (Event as TDocumentEvent).Document.ID + '.' + LineEnding;
+    lMessage := lMessage + (Event as TDocumentError).Error + LineEnding;
+  end
+  else if Event is TAttachmentError then
+  begin
+    lMessage := lMessage + LineEnding;
+    lMessage := 'The document''s ID was ' + (Event as TDocumentEvent).Document.ID + '.' + LineEnding;
+    lMessage := lMessage + (Event as TAttachmentError).Error + LineEnding;
+  end
+  else if Event is TProjectError then
+  begin
+    lMessage := lMessage + LineEnding;
+    lMessage := lMessage + (Event as TProjectError).Error + LineEnding;
+  end;
+  ShowMessage(lMessage +
+             'You may want to restart the program, or wait and try your task again later');
 end;
 
 procedure TMainForm.OpenProjectMenuItemClick(Sender: TObject);
@@ -697,8 +793,11 @@ begin
   fProject.OnDocumentCreated:=@DocumentCreated;
   fProject.OnDocumentChanged:=@DocumentChanged;
   fProject.OnDocumentRenameFailed:=@DocumentRenameFailed;
+
+  fProject.AddObserver(@ObserveProject);
   fProject.OnConfirmNewAttachment:=@DoConfirmNewAttachment;
   fProject.OnChooseTemplate:=@DoChooseNewAttachmentTemplate;
+  fProject.OnChooseAttachment:=@DoChooseAttachment;
 
   // FUTURE: Someday, will have to store the system type as well.
   fConfig.MRUProject := fProject.DiskPath;
@@ -707,6 +806,7 @@ begin
   fConfig.Save;
   Self.Caption := Application.Title + ' - ' + fProject.GetProjectName;
   Enabled := true;
+  // TODO: Should be able to get rid of this completely once I'm done...
   with fProject.GetDocument(TDocumentPath.Root) do
   begin
     Properties.Load;
@@ -715,18 +815,20 @@ begin
 
   // put the recent projects in the MRU menu, but not this current one...
   RecentProjectsMenuItem.Clear;
-  for i := 0 to fConfig.mruProjects.Count - 1 do
+  for i := 0 to fConfig.mruProjects.Length - 1 do
   begin
-    mru := LocalFile(fConfig.mruProjects[i]);
+    mru := LocalFile(fConfig.mruProjects.Get(i).AsString);
     if mru <> fProject.DiskPath then
     begin
       item := TMRUMenuItem.Create(RecentProjectsMenuItem);
-      item.ProjectPath := LocalFile(fConfig.mruProjects[i]);
+      item.ProjectPath := LocalFile(fConfig.mruProjects.Get(i).AsString);
       item.Caption := item.ProjectPath.PacketName;
       RecentProjectsMenuItem.Add(item);
     end;
   end;
   RecentProjectsMenuItem.Enabled := (RecentProjectsMenuItem.Count > 0);
+
+  NotifyObservers2(mfaProjectOpened);
 
 end;
 
@@ -737,7 +839,14 @@ end;
 
 procedure TMainForm.RefreshProjectMenuItemClick(Sender: TObject);
 begin
+  // TODO: Get rid of this once everything else is using the new
+  // architecture.
   Project.GetDocument(TDocumentPath.Root).ListDocuments(true);
+  // TODO: This should cause a ListingDataReceived event (or something
+  // like that) on the project, and the explorer can get that information.
+  // Note that we're no longer doing recursive. Maybe that's something the
+  // project explorer will end up doing on it's own.
+  Project.ListDocumentsInFolder(TDocumentPath.Root,true);
 end;
 
 procedure TMainForm.StartupAskForProject(Data: PtrInt);
@@ -763,6 +872,19 @@ begin
     for i := fObservers.Count - 1 downto 0 do
     begin
       fObservers[i](aAction,aDocument);
+    end;
+  end;
+end;
+
+procedure TMainForm.NotifyObservers2(aAction: TMainFormAction2);
+var
+  i: Integer;
+begin
+  if fObservers2 <> nil then
+  begin
+    for i := fObservers2.Count - 1 downto 0 do
+    begin
+      fObservers2[i](Self,aAction);
     end;
   end;
 end;
@@ -898,6 +1020,29 @@ begin
       fObservers := nil;
     end;
   end;
+end;
+
+procedure TMainForm.Observe2(aObserver: TMainFormObserverHandler2);
+begin
+  if fObservers2 = nil then
+  begin
+    fObservers2 := TMainFormObserverList2.Create;
+  end;
+  fObservers2.Add(aObserver);
+end;
+
+procedure TMainForm.Unobserve2(aObserver: TMainFormObserverHandler2);
+begin
+  if fObservers2 <> nil then
+  begin
+    fObservers2.Remove(aObserver);
+    if fObservers2.Count = 0 then
+    begin
+      fObservers2.Free;
+      fObservers2 := nil;
+    end;
+  end;
+
 end;
 
 procedure TMainForm.RequestTabClose(aFrame: TEditorFrame);
