@@ -380,7 +380,7 @@ begin
     '<LoadingAttachmentFile> "/Chapter 1" <properties> "_properties.json"',
     '<AttachmentFileLoaded> "/Chapter 1" <properties> "_properties.json"',
     '<AttachmentDataReceived> "/Chapter 1" <properties> "_properties.json"',
-    '<DocumentListDataReceived> "/Chapter 1" [ "/Chapter 1/Notes"]'
+    '<DocumentListDataReceived> "/Chapter 1" [ "/Chapter 1/Notes" <SHADOW>]'
   ],Sender.Tag) then
     Exit;
   EndAsync(Sender.Tag);

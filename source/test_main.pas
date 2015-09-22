@@ -57,7 +57,18 @@ implementation
 
 uses
   test_test, test_sys_json, test_sys_async, test_sys_localfile, test_stew_properties,
-  test_stew_project, test_longstringmap, test_sys_filecache_local;
+  test_stew_project, test_longstringmap, test_sys_filecache_local, test_gui;
+
+const
+  TestsToRun: array[0..7] of TTestSpecClass =
+    (TJSONSpec,
+     TAsyncSpec,
+     TLocalFileSpec,
+     TLongStringMapSpec,
+     TLocalFileCacheSpec,
+     TPropertiesSpec,
+     TProjectSpec,
+     TGUISpec);
 
 {$R *.lfm}
 
@@ -145,6 +156,8 @@ begin
 end;
 
 procedure TMainForm.InitRegistry(aTestTester: Boolean);
+var
+  i: Integer;
 begin
   if fRegistry = nil then
   begin
@@ -167,13 +180,10 @@ begin
     // Create the various test objects and register them
     // in order, here. I don't do this with 'initialization' because
     // I want to control the order.
-    fRegistry.AddTests(TJSONSpec);
-    fRegistry.AddTests(TAsyncSpec);
-    fRegistry.AddTests(TLocalFileSpec);
-    fRegistry.AddTests(TLongStringMapSpec);
-    fRegistry.AddTests(TLocalFileCacheSpec);
-    fRegistry.AddTests(TPropertiesSpec);
-    fRegistry.AddTests(TProjectSpec);
+    for i := 0 to Length(TestsToRun) - 1 do
+    begin
+      fRegistry.AddTests(TestsToRun[i]);
+    end;
   end;
 end;
 

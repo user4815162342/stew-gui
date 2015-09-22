@@ -55,6 +55,7 @@ type
   TDocumentInfo = record
     Document: TDocumentPath;
     IsFolder: Boolean;
+    IsShadow: Boolean;
   end;
 
   TDocumentInfoArray = array of TDocumentInfo;
@@ -1043,6 +1044,11 @@ type
     // saving properties.
     procedure CreateShadow(aDocument: TDocumentPath);
     // Returns true if the document is in the shadow list.
+    // NOTE: Sometimes, a document may return true here, but show up as false
+    // in the TDocumentInfo.IsShadow received from ListDocuments. In that case,
+    // the document may still be shadowed, but because it has actual files backing
+    // it up, it shouldn't be treated as a shadow (and it can be safely deleted
+    // using DeleteShadow).
     function IsShadow(aDocument: TDocumentPath): Boolean;
     // Removes the "shadow" from the list of documents.
     procedure DeleteShadow(aDocument: TDocumentPath);
@@ -1717,6 +1723,7 @@ function TStewProject.TDocumentListBuilder.Build(aProperties: TDocumentPropertie
 var
   lList: TEZSortStringList;
   lFolders: TStringList;
+  lShadows: TStringList;
   lInfo: TDocumentInfo;
   lDocument: TDocumentPath;
   lIsFolder: Boolean;
@@ -1760,48 +1767,72 @@ begin
       lFolders.Duplicates:=dupIgnore;
       lFolders.CaseSensitive:= false;
 
+      // And, we need to track the ones entered as 'shadows', so
+      // we can put that data in the info as well.
+      lShadows := TStringList.Create;
 
-      // now, start adding the files as documents...
-      l := Length(aFiles);
-      for i := 0 to l - 1 do
-      begin
-        lDocument := TDocumentPath.FromFile(aBasePath,aFiles[i].Item);
-        // hide the documents made from folder attachments such
-        // as _stew.json and _properties.json in the root.
-        if lDocument.Name <> '' then
+      try
+        lShadows.Sorted := true;
+        lShadows.Duplicates:=dupIgnore;
+        lShadows.CaseSensitive := false;
+
+        // now, start adding the files as documents...
+        l := Length(aFiles);
+        for i := 0 to l - 1 do
         begin
-          lIsFolder := aFiles[i].IsFolder and
-             (aFiles[i].Item.Descriptor = '') and
-             (aFiles[i].Item.Extension = '');
-          lList.Add(lDocument.ID);
-          if lIsFolder then
+          lDocument := TDocumentPath.FromFile(aBasePath,aFiles[i].Item);
+          // hide the documents made from folder attachments such
+          // as _stew.json and _properties.json in the root.
+          if lDocument.Name <> '' then
+          begin
+            lIsFolder := aFiles[i].IsFolder and
+               (aFiles[i].Item.Descriptor = '') and
+               (aFiles[i].Item.Extension = '');
+            lList.Add(lDocument.ID);
+            if lIsFolder then
+              lFolders.Add(lDocument.ID);
+          end;
+        end;
+
+        // also add the shadows so they show up in the list.
+        l := Length(aShadows);
+        for i := 0 to l - 1 do
+        begin
+          lDocument := aShadows[i].Document;
+          lIsFolder := aShadows[i].IsFolder;
+          // Don't add to the 'shadows' list unless it's not already
+          // found. I don't want it showing up as a "shadow" if there
+          // is actually files backing it up.
+          if lList.IndexOf(lDocument.ID) = -1 then
+          begin
+            lShadows.Add(lDocument.ID);
+            lList.Add(lDocument.ID);
+            if lIsFolder then
+              lFolders.Add(lDocument.ID);
+          end
+          else if lIsFolder and (lFolders.IndexOf(lDocument.ID) = -1) then
+            // even if the document is not technically a shadow, it might
+            // be a folder as a shadow, so we need to add that as well.
             lFolders.Add(lDocument.ID);
         end;
-      end;
 
-      // also add the shadows so they show up in the list.
-      l := Length(aShadows);
-      for i := 0 to l - 1 do
-      begin
-        lDocument := aShadows[i].Document;
-        lIsFolder := aShadows[i].IsFolder;
-        lList.Add(lDocument.ID);
-        if lIsFolder then
-          lFolders.Add(lDocument.ID);
-      end;
+        // we should just have an item for each document now. Now,
+        // we have to change the sorting to sort by index.
+        lList.Sorted := false;
+        lList.OnEZSort:=@SortDocuments;
+        lList.EZSort;
+        l := lList.Count;
+        SetLength(Result,l);
+        for i := 0 to l - 1 do
+        begin
+          lInfo.Document := TDocumentPath.FromString(lList[i]);
+          lInfo.IsFolder := lFolders.IndexOf(lList[i]) > -1;
+          lInfo.IsShadow := lShadows.IndexOf(lList[i]) > -1;
+          Result[i] := lInfo;
+        end;
+      finally
 
-      // we should just have an item for each document now. Now,
-      // we have to change the sorting to sort by index.
-      lList.Sorted := false;
-      lList.OnEZSort:=@SortDocuments;
-      lList.EZSort;
-      l := lList.Count;
-      SetLength(Result,l);
-      for i := 0 to l - 1 do
-      begin
-        lInfo.Document := TDocumentPath.FromString(lList[i]);
-        lInfo.IsFolder := lFolders.IndexOf(lList[i]) > -1;
-        Result[i] := lInfo;
+        lShadows.Free;
       end;
 
     finally
@@ -1864,6 +1895,7 @@ begin
       lChild := lShadow.fContents[i] as TShadowDocument;
       lInfo.Document := aDocument.GetContainedDocument(lChildName);
       lInfo.IsFolder := lChild.IsFolder;
+      lInfo.IsShadow := true;
       Result[i] := lInfo;
     end;
 
@@ -2394,6 +2426,8 @@ begin
        result := result + ' <BLANK DOCUMENT PATH>';
     if fList[i].IsFolder then
        result := result + ' <FOLDER>';
+    if fList[i].IsShadow then
+       result := result + ' <SHADOW>';
   end;
   result := result + ']';
 end;
