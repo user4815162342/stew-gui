@@ -111,8 +111,21 @@ type
   protected
     function RequestType(aKey: UTF8String; aType: TJSValueClass
        ): TJSValueClass; override;
+  public
+    function Find(aFile: TFile): Integer;
   end;
 
+  TMRUProject = class(TJSObject)
+  private
+    function GetPath: TFile;
+    procedure SetPath(AValue: TFile);
+  protected
+    function RequestType(aKey: UTF8String; aType: TJSValueClass
+       ): TJSValueClass; override;
+  public
+    constructor CreateString(aValue: UTF8String); override;
+    property Path: TFile read GetPath write SetPath;
+  end;
 
   { TStewApplicationConfig2 }
 
@@ -142,15 +155,75 @@ implementation
 uses
   jsonparser, FileUtil, sys_localfile;
 
+{ TMRUProject }
+
+function TMRUProject.GetPath: TFile;
+begin
+  case Get('system').AsString of
+    'local':
+      result := LocalFile(Get('fileID').AsString);
+  else
+    // we can't handle any other systems right now...
+    result := LocalFile('');
+  end;
+end;
+
+procedure TMRUProject.SetPath(AValue: TFile);
+begin
+  if AValue.System = TLocalFileSystem then
+  begin
+    Put('system','local');
+  end
+  else
+  begin
+    raise Exception.Create('MRU Project configuration can only handle local file systems right now');
+  end;
+  Put('fileID',AValue.ID);
+end;
+
+function TMRUProject.RequestType(aKey: UTF8String; aType: TJSValueClass
+  ): TJSValueClass;
+begin
+  case aKey of
+    'system':
+      result := TJSString;
+    'fileID':
+      result := TJSString;
+  else
+    Result:=inherited RequestType(aKey, aType);
+  end;
+end;
+
+constructor TMRUProject.CreateString(aValue: UTF8String);
+begin
+  // To support some older formats which only had strings, accept
+  // the creation with a string value.
+  Create;
+  Path := LocalFile(aValue);
+end;
+
 { TMRUProjects }
 
 function TMRUProjects.RequestType(aKey: UTF8String; aType: TJSValueClass
   ): TJSValueClass;
 begin
   if aKey <> LengthKey then
-     result := TJSString
+     result := TMRUProject
   else
      Result:=inherited RequestType(aKey, aType);
+end;
+
+function TMRUProjects.Find(aFile: TFile): Integer;
+var
+  l: Integer;
+begin
+  l := Length;
+  for result := 0 to l - 1 do
+  begin
+    if (Get(result) as TMRUProject).Path = aFile then
+       Exit;
+  end;
+  result := -1;
 end;
 
 { TStewApplicationConfig2 }
@@ -163,7 +236,7 @@ end;
 function TStewApplicationConfig2.GetMRUProject: TFile;
 begin
   if mruProjects.Length > 0 then
-     result := LocalFile(mruProjects.Get(0).AsString)
+     result := (mruProjects.Get(0) as TMRUProject).Path
   else
     result := LocalFile('');
 
@@ -179,13 +252,21 @@ var
   index: Integer;
   aID: String;
 begin
-  aID := ExcludeTrailingPathDelimiter(AValue.ID);
-  index := MRUProjects.IndexOf(aID);
-  if index > -1 then
-    MRUProjects.Delete(index);
-  MRUProjects.Unshift(aID);
-  while MRUProjects.Length > MRUListMaxSize do
-    MRUProjects.Length := MRUListMaxSize;
+  // I shouldn't have to do this, but I was seeing some cases where
+  // it was happening. This fix may be unnecessary, but I'm not absolutely
+  // sure the problem is gone because I don't remember where it was.
+  index := MRUProjects.Find(aValue);
+  if index <> 0 then
+  begin
+    if index > -1 then
+    begin
+      mruProjects.Splice(index,1);
+    end;
+    MRUProjects.Unshift;
+    (MRUProjects.PutNewObject('0') as TMRUProject).Path := AValue;
+    if MRUProjects.Length > MRUListMaxSize then
+      MRUProjects.Length := MRUListMaxSize;
+  end;
 end;
 
 function TStewApplicationConfig2.RequestType(aKey: UTF8String;

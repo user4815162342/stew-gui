@@ -11,7 +11,7 @@ uses
 
 type
 
-  // TODO: Change MainConfig over to new JSON structure.
+  // TODO: There's a problem with the MRU menu for displaying project names.
   // TODO: Add in support so the other UI modules can access the new architecture.
   // TODO: Then, start working on the other UI modules
   // TODO: Finally, once everything's working get rid of deprecated stuff.
@@ -817,11 +817,11 @@ begin
   RecentProjectsMenuItem.Clear;
   for i := 0 to fConfig.mruProjects.Length - 1 do
   begin
-    mru := LocalFile(fConfig.mruProjects.Get(i).AsString);
+    mru := (fConfig.mruProjects.Get(i) as TMRUProject).Path;
     if mru <> fProject.DiskPath then
     begin
       item := TMRUMenuItem.Create(RecentProjectsMenuItem);
-      item.ProjectPath := LocalFile(fConfig.mruProjects.Get(i).AsString);
+      item.ProjectPath := mru;
       item.Caption := item.ProjectPath.PacketName;
       RecentProjectsMenuItem.Add(item);
     end;

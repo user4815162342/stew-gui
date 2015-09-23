@@ -321,7 +321,6 @@ type
     function GetAsNumber: Double; override;
     function GetAsString: UTF8String; override;
     function GetAsBoolean: Boolean; override;
-    procedure Unshift;
   public
     const LengthKey: UTF8String = 'length';
     constructor Create; override;
@@ -331,8 +330,8 @@ type
     function IndexOf(aValue: TJSValue): Integer;
     function IndexOf(aValue: UTF8String): Integer;
     function IndexOf(aValue: Double): Integer;
-    procedure Unshift(aValue: UTF8String);
-    procedure Unshift(aValue: Double);
+    procedure Unshift;
+    procedure Splice(aStart: Integer; aDeleteCount: Integer; aInsertCount: Integer = 0);
   end;
 
   { TJSONParser }
@@ -1202,16 +1201,87 @@ begin
 end;
 
 procedure TJSArray.Unshift;
-var
-  l: Integer;
-  i: Integer;
 begin
-  l := Length;
-  Length := Length + 1;
-  for i := l downto 1 do
+  Splice(0,0,1);
+end;
+
+procedure TJSArray.Splice(aStart: Integer; aDeleteCount: Integer;
+  aInsertCount: Integer);
+var
+  i: Integer;
+  l: Integer;
+var
+  O: TJSObject;
+  lenVal: TJSValue;
+  len: Integer;
+  relativeStart: Integer;
+  actualStart: Integer;
+  actualDeleteCount: Integer;
+  from: UTF8String;
+  &to: UTF8String;
+  fromPresent: Boolean;
+  fromValue: TJSValue;
+  itemCount: Integer;
+  k: Integer;
+begin
+  // Follow the algorithm, except:
+  // - the insert count simply indicates how many indices to leave blank,
+  // they must be filled in later.
+  // - do not return the array of deleted items. I don't need it, do you?
+  O := Self;
+  lenVal := O.Get('length');
+  len := trunc(lenVal.AsNumber);
+  relativeStart:=aStart;
+  if relativeStart < 0 then
+     actualStart := Math.Max((len + relativeStart),0)
+  else
+     actualStart := math.Min(relativeStart,len);
+  actualDeleteCount := math.Min(math.Max(aDeleteCount,0), len - actualStart);
+  k := 0;
+  itemCount:=aInsertCount;
+  if itemCount < actualDeleteCount then
   begin
-    Move(IntToStr(i - 1),IntToStr(i));
+    k := actualStart;
+    while k < (len - actualDeleteCount) do
+    begin
+      from := IntToStr(k + actualDeleteCount);
+      &to := IntToStr(k + itemCount);
+      fromPresent:=O.hasOwnProperty(from);
+      if fromPresent then
+      begin
+        O.Move(from,&to);
+      end
+      else
+        O.delete(&to);
+      inc(k)
+    end;
+    k := len;
+    while k > (len - actualDeleteCount + itemCount) do
+    begin
+      O.delete(IntToStr(k - 1));
+      Dec(k);
+
+    end;
+  end
+  else if itemCount > actualDeleteCount then
+  begin
+    k := (len - actualDeleteCount);
+    while k > actualStart do
+    begin
+      from := IntToStr(k + actualDeleteCount - 1);
+      &to := IntToStr(k + itemCount - 1);
+      fromPresent := O.hasOwnProperty(from);
+      if fromPresent then
+      begin
+        O.Move(from,&to);
+      end
+      else
+        O.delete(&to);
+      Dec(k);
+    end;
   end;
+  k := actualStart;
+  O.Put('length',(len - actualDeleteCount + itemCount));
 end;
 
 function TJSArray.Join(sep: UTF8String): UTF8String;
@@ -1281,18 +1351,6 @@ begin
   end;
   result := -1;
 
-end;
-
-procedure TJSArray.Unshift(aValue: UTF8String);
-begin
-  Unshift;
-  Put('0',aValue);
-end;
-
-procedure TJSArray.Unshift(aValue: Double);
-begin
-  Unshift;
-  Put('0',aValue);
 end;
 
 { TJSUndefined }
