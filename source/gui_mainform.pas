@@ -11,9 +11,8 @@ uses
 
 type
 
-  // TODO: There's a problem with the MRU menu for displaying project names.
-  // TODO: Add in support so the other UI modules can access the new architecture.
-  // TODO: Then, start working on the other UI modules
+  // TODO: Start working on converting the other UI modules
+  //       - the project explorer is the base for everything, so start there.
   // TODO: Finally, once everything's working get rid of deprecated stuff.
 
   TMainFormAction = (mfaProjectPropertiesLoading,

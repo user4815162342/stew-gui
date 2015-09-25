@@ -20,6 +20,12 @@ error if an error occurs, and a standard "ok" response if the test works.
 The test methods on this spec will all just run the scripts in a TProcess, then
 check for the "ok" in the output, or fail on whatever message *is* shown.
 
+- config testing (probably after opening the initial project):
+  - open up the GUI, maximize it, close it and reopen, make sure it's still maximized
+  - shrink it to a certain size, close it and reopen, and make sure it's got the same
+    dimensions.
+  - do something similar with the width of the project explorer panel
+  - make sure the MRU project thing lists things appropriately.
 - open project that doesn't exist
 - open project from a subfolder of an existing project
 - open an existing project
