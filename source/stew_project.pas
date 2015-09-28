@@ -52,10 +52,13 @@ type
 
   TDocumentArray = array of TDocumentPath;
 
+  { TDocumentInfo }
+
   TDocumentInfo = record
     Document: TDocumentPath;
     IsFolder: Boolean;
     IsShadow: Boolean;
+    class function Make(aDocument: TDocumentPath; aIsFolder: Boolean; aIsShadow: Boolean): TDocumentInfo; static;
   end;
 
   TDocumentInfoArray = array of TDocumentInfo;
@@ -681,8 +684,6 @@ type
     property IsFolder: Boolean read fIsFolder;
   end;
 
-  { TShiftDocumentPromise }
-
   TShiftDocumentPromise = class(TPromise)
   private
     fDocument: TDocumentPath;
@@ -873,21 +874,22 @@ type
       constructor Defer(aDocument: TDocumentPath; aProject: TStewProject; aPromise: TFileExistencePromise);
     end;
 
-    { TShiftDocumentByTask }
+    { TShiftDocumentTask }
 
-    TShiftDocumentByTask = class(TDeferredTask2)
+    TShiftDocumentTask = class(TDeferredTask2)
     private
       fProject: TStewProject;
       fDocument: TDocumentPath;
       fFiles: TFileInfoArray;
-      fDelta: Integer;
+      fShiftDeltaOrIndex: Integer;
+      fRelativeTo: TDocumentPath;
     protected
       procedure DoTask(Input: TPromise); override;
       function CreatePromise: TPromise; override;
       procedure PropertiesReceived(Sender: TPromise);
       procedure PropertiesWritten(Sender: TPromise);
     public
-      constructor Defer(aDocument: TDocumentPath; aProject: TStewProject; aDelta: Integer; aPromise: TFileListPromise);
+      constructor Defer(aDocument: TDocumentPath; aNewIndexOrDelta: Integer; aRelativeTo: TDocumentPath; aProject: TStewProject; aPromise: TFileListPromise);
     end;
 
     { TRenameDocumentTask }
@@ -1067,6 +1069,8 @@ type
     function ShiftDocumentBy(aDocument: TDocumentPath; aDelta: Integer): TShiftDocumentPromise;
     function ShiftDocumentUp(aDocument: TDocumentPath): TShiftDocumentPromise;
     function ShiftDocumentDown(aDocument: TDocumentPath): TShiftDocumentPromise;
+    function ShiftDocumentTo(aDocument: TDocumentPath; aIndex: Integer): TShiftDocumentPromise;
+    function ShiftDocumentRelativeTo(aDocument: TDocumentPath; aRelative: TDocumentPath; aDelta: Integer): TShiftDocumentPromise;
     function RenameDocument(aDocument: TDocumentPath; aNewDocument: TDocumentPath): TRenameDocumentPromise;
     function EditDocument(aDocument: TDocumentPath): TRequestEditingAttachmentPromise;
     function EditDocumentNotes(aDocument: TDocumentPath): TRequestEditingAttachmentPromise;
@@ -1186,6 +1190,16 @@ begin
   L:=Length(Result);
   If (L>0) and (Result[1] = '/') then
     Delete(Result,1,1);
+end;
+
+{ TDocumentInfo }
+
+class function TDocumentInfo.Make(aDocument: TDocumentPath; aIsFolder: Boolean;
+  aIsShadow: Boolean): TDocumentInfo;
+begin
+  result.Document := aDocument;
+  result.IsFolder := aIsFolder;
+  result.IsShadow := aIsShadow;
 end;
 
 { TAttachmentEditingEvent }
@@ -1576,14 +1590,14 @@ begin
   fDocument := aDocument;
 end;
 
-{ TStewProject.TShiftDocumentByTask }
+{ TStewProject.TShiftDocumentTask }
 
-procedure TStewProject.TShiftDocumentByTask.PropertiesWritten(Sender: TPromise);
+procedure TStewProject.TShiftDocumentTask.PropertiesWritten(Sender: TPromise);
 begin
   Resolve;
 end;
 
-procedure TStewProject.TShiftDocumentByTask.DoTask(Input: TPromise);
+procedure TStewProject.TShiftDocumentTask.DoTask(Input: TPromise);
 var
   lReadProperties: TDocumentPropertiesPromise;
 begin
@@ -1593,12 +1607,12 @@ begin
   lReadProperties.After(@PropertiesReceived,@SubPromiseRejected);
 end;
 
-function TStewProject.TShiftDocumentByTask.CreatePromise: TPromise;
+function TStewProject.TShiftDocumentTask.CreatePromise: TPromise;
 begin
   result := TShiftDocumentPromise.Create(fDocument);
 end;
 
-procedure TStewProject.TShiftDocumentByTask.PropertiesReceived(Sender: TPromise
+procedure TStewProject.TShiftDocumentTask.PropertiesReceived(Sender: TPromise
   );
 var
   lDirectory: TDocumentPath;
@@ -1622,18 +1636,35 @@ begin
     // of annoying that we have to loop twice, but I'm not certain that
     // there's a better way.
     lIndex := -1;
+    lNewIndex := -1;
     for i := 0 to l - 1 do
     begin
       if lDocuments[i].Document = fDocument then
       begin
         lIndex := i;
-        break;
+        if (fRelativeTo = TDocumentPath.Null) or (lNewIndex > -1) then
+           break;
+      end;
+      if (fRelativeTo <> TDocumentPath.Null) and (lDocuments[i].Document = fRelativeTo) then
+      begin
+        lNewIndex := i;
+        if lIndex > -1 then
+          break;
       end;
     end;
 
-    if lIndex <> -1 then
+
+    if (lIndex <> -1) and ((fRelativeTo = TDocumentPath.Null) or (lNewIndex <> -1)) then
     begin
-      lNewIndex := lIndex + fDelta;
+      // we have to determine the new index as well..
+      if fRelativeTo <> TDocumentPath.Null then
+      begin
+        lNewIndex := lNewIndex + fShiftDeltaOrIndex;
+      end
+      else
+      begin
+        lNewIndex := fShiftDeltaOrIndex;
+      end;
       if lNewIndex < 0 then
         lNewIndex := 0
       else if lNewIndex > (l - 1) then
@@ -1684,12 +1715,14 @@ begin
   end;
 end;
 
-constructor TStewProject.TShiftDocumentByTask.Defer(aDocument: TDocumentPath;
-  aProject: TStewProject; aDelta: Integer; aPromise: TFileListPromise);
+constructor TStewProject.TShiftDocumentTask.Defer(aDocument: TDocumentPath;
+  aNewIndexOrDelta: Integer; aRelativeTo: TDocumentPath;
+  aProject: TStewProject; aPromise: TFileListPromise);
 begin
   fDocument := aDocument;
+  fShiftDeltaOrIndex := aNewIndexOrDelta;
+  fRelativeTo := aRelativeTo;
   fProject := aProject;
-  fDelta := aDelta;
   inherited Defer(aPromise);
 end;
 
@@ -4431,14 +4464,9 @@ var
   lFolderFile: TFile;
   lListFiles: TFileListPromise;
 begin
-  if aDocument = TDocumentPath.Root then
-    raise Exception.Create('Can''t shift the document root');
   if aDelta = 0 then
     raise Exception.Create('Delta can''t be 0');
-  lFolderFile := GetDocumentFolderPath(fDisk,aDocument.Container);
-  lListFiles := fCache.ListFiles(lFolderFile);
-  result := TShiftDocumentByTask.Defer(aDocument,Self,aDelta,lListFiles).Promise as TShiftDocumentPromise;
-  result.After(@DocumentShifted,@DocumentShiftError);
+  result := ShiftDocumentRelativeTo(aDocument,aDocument,aDelta);
 end;
 
 function TStewProject.ShiftDocumentUp(aDocument: TDocumentPath
@@ -4451,6 +4479,29 @@ function TStewProject.ShiftDocumentDown(aDocument: TDocumentPath
   ): TShiftDocumentPromise;
 begin
   result := ShiftDocumentBy(aDocument,1);
+end;
+
+function TStewProject.ShiftDocumentTo(aDocument: TDocumentPath; aIndex: Integer
+  ): TShiftDocumentPromise;
+var
+  lFolderFile: TFile;
+  lListFiles: TFileListPromise;
+begin
+  result := ShiftDocumentRelativeTo(aDocument,TDocumentPath.Null,aIndex);
+end;
+
+function TStewProject.ShiftDocumentRelativeTo(aDocument: TDocumentPath;
+  aRelative: TDocumentPath; aDelta: Integer): TShiftDocumentPromise;
+var
+  lFolderFile: TFile;
+  lListFiles: TFileListPromise;
+begin
+  if aDocument = TDocumentPath.Root then
+    raise Exception.Create('Can''t shift the document root');
+  lFolderFile := GetDocumentFolderPath(fDisk,aDocument.Container);
+  lListFiles := fCache.ListFiles(lFolderFile);
+  result := TShiftDocumentTask.Defer(aDocument,aDelta,aRelative,Self,lListFiles).Promise as TShiftDocumentPromise;
+  result.After(@DocumentShifted,@DocumentShiftError);
 end;
 
 function TStewProject.RenameDocument(aDocument: TDocumentPath;

@@ -36,8 +36,8 @@ type
 
   TMainForm = class;
   // TODO: Get rid of the '2' on these once the other stuff is no longer used.
-  TMainFormAction2 = (mfaProjectOpened, mfaProjectClosed);
-  TMainFormObserverHandler2 = procedure(Sender: TMainForm; Action: TMainFormAction2) of object;
+  TMainFormAction2 = (mfaProjectOpened, mfaProjectClosed, mfaDocumentOpened, mfaDocumentClosed);
+  TMainFormObserverHandler2 = procedure(Sender: TMainForm; Action: TMainFormAction2; aDocument: TDocumentPath) of object;
   TMainFormObserverList2 = specialize TFPGList<TMainFormObserverHandler2>;
 
   { TMainForm }
@@ -136,10 +136,11 @@ type
     procedure ProjectOpenFailed(Sender: TPromise; Error: TPromiseError);
     procedure StartupAskForProject({%H-}Data: PtrInt);
     procedure NotifyObservers(aAction: TMainFormAction; aDocument: TDocumentPath); deprecated;
-    procedure NotifyObservers2(aAction: TMainFormAction2);
+    procedure NotifyObservers2(aAction: TMainFormAction2; aDocument: TDocumentPath);
     procedure ReadUISettings;
     procedure WriteUISettings;
     procedure LayoutFrames;
+    function FindFrameForDocument(aDocument: TDocumentPath): TEditorFrame;
   public
     { public declarations }
     property Project: TStewProject read GetProject;
@@ -150,6 +151,7 @@ type
     procedure Unobserve(aObserver: TMainFormObserverHandler); deprecated;
     procedure Observe2(aObserver: TMainFormObserverHandler2);
     procedure Unobserve2(aObserver: TMainFormObserverHandler2);
+    function IsDocumentOpen(aDocument: TDocumentPath): Boolean;
     procedure RequestTabClose(aFrame: TEditorFrame);
     // NOTE: I've made these public to make it easier to 'extend' the application,
     // but these layout functions really should only be used during app initialization
@@ -510,10 +512,13 @@ begin
       CanClose := Frame.CloseQuery;
 
       if CanClose then
+      begin
       // remove from the list, so it doesn't get found again,
       // and so the open document doesn't save. There's a small chance
       // for exception later, but this should still happen.
          fOpenDocuments.Remove(Frame);
+         NotifyObservers2(mfaDocumentClosed,Frame.Document);
+      end;
     end;
     if CanClose then
     begin
@@ -616,7 +621,7 @@ begin
 
   if fProject <> nil then
   begin
-    NotifyObservers2(mfaProjectClosed);
+    NotifyObservers2(mfaProjectClosed,TDocumentPath.Null);
     fProject.RemoveObserver(@ObserveProject);
     FreeAndNil(fProject);
   end;
@@ -675,13 +680,13 @@ begin
   if Event is TDocumentError then
   begin
     lMessage := lMessage + LineEnding;
-    lMessage := 'The document''s ID was ' + (Event as TDocumentEvent).Document.ID + '.' + LineEnding;
+    lMessage := lMessage + 'The document''s ID was ' + (Event as TDocumentEvent).Document.ID + '.' + LineEnding;
     lMessage := lMessage + (Event as TDocumentError).Error + LineEnding;
   end
   else if Event is TAttachmentError then
   begin
     lMessage := lMessage + LineEnding;
-    lMessage := 'The document''s ID was ' + (Event as TDocumentEvent).Document.ID + '.' + LineEnding;
+    lMessage := lMessage + 'The document''s ID was ' + (Event as TDocumentEvent).Document.ID + '.' + LineEnding;
     lMessage := lMessage + (Event as TAttachmentError).Error + LineEnding;
   end
   else if Event is TProjectError then
@@ -827,7 +832,7 @@ begin
   end;
   RecentProjectsMenuItem.Enabled := (RecentProjectsMenuItem.Count > 0);
 
-  NotifyObservers2(mfaProjectOpened);
+  NotifyObservers2(mfaProjectOpened,TDocumentPath.Null);
 
 end;
 
@@ -875,7 +880,8 @@ begin
   end;
 end;
 
-procedure TMainForm.NotifyObservers2(aAction: TMainFormAction2);
+procedure TMainForm.NotifyObservers2(aAction: TMainFormAction2;
+  aDocument: TDocumentPath);
 var
   i: Integer;
 begin
@@ -883,7 +889,7 @@ begin
   begin
     for i := fObservers2.Count - 1 downto 0 do
     begin
-      fObservers2[i](Self,aAction);
+      fObservers2[i](Self,aAction,aDocument);
     end;
   end;
 end;
@@ -946,16 +952,10 @@ begin
 
 end;
 
-function TMainForm.OpenDocument(aDocument: TDocumentPath): TEditorFrame;
+function TMainForm.FindFrameForDocument(aDocument: TDocumentPath): TEditorFrame;
 var
-  EditorClass: TEditorFrameClass;
   i: Integer;
 begin
-  if fDocumentPane = alNone then
-  begin
-    raise Exception.Create('There''s no place to open documents yet.');
-  end;
-
   Result := nil;
   // FUTURE: Again, if fOpenDocuments were a hash, this would be easier.
   for i := 0 to fOpenDocuments.Count - 1 do
@@ -969,6 +969,19 @@ begin
          Result := nil;
     end;
   end;
+
+end;
+
+function TMainForm.OpenDocument(aDocument: TDocumentPath): TEditorFrame;
+var
+  EditorClass: TEditorFrameClass;
+begin
+  if fDocumentPane = alNone then
+  begin
+    raise Exception.Create('There''s no place to open documents yet.');
+  end;
+
+  Result := FindFrameForDocument(aDocument);
 
   if Result = nil then
   begin
@@ -984,6 +997,7 @@ begin
     Result := (LayoutFrame(EditorClass,fDocumentPane) as TEditorFrame);
     Result.Document := aDocument;
     fOpenDocuments.Add(Result);
+    NotifyObservers2(mfaDocumentOpened,aDocument);
   end;
   Result.Show;
 end;
@@ -1042,6 +1056,11 @@ begin
     end;
   end;
 
+end;
+
+function TMainForm.IsDocumentOpen(aDocument: TDocumentPath): Boolean;
+begin
+  result := FindFrameForDocument(aDocument) <> nil;
 end;
 
 procedure TMainForm.RequestTabClose(aFrame: TEditorFrame);

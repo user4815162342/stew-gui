@@ -141,8 +141,11 @@ begin
   for i := 0 to Length(fSource) - 1 do
   begin
     if fSource[i] <> fTarget[i] then
-      if not RenameFile(fSource[i].ID,fTarget[i].ID) then
+    begin
+      if (not ForceDirectories(fTarget[i].Directory.ID)) or
+         (not RenameFile(fSource[i].ID,fTarget[i].ID)) then
          raise Exception.Create('An error occurred while renaming ' + fSource[i].ID + ' to ' + fTarget[i].ID);
+    end;
   end;
   Resolve;
 end;

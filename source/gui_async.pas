@@ -4,39 +4,60 @@ unit gui_async;
 
 {Required in order to make use of sys_async in a GUI environment.}
 
+{
+FUTURE:
+One issue with the way this is done. If you were to queue up a lot of tasks,
+the application will still block while waiting for those tasks to complete --
+the async queue runs *after* process messages, and doesn't return to processing
+messages until it's done, and the OnIdle event is called after. So far, this
+hasn't been a problem. It is possible to set some timer code in here, and the
+longest I've seen a single queue of tasks takes is 100ms before returning to
+processmessages.
+
+However, if it does appear to become a problem, there are a few solutions, but
+they're more complicated. Most of them involve keeping my own queue of tasks,
+and limiting the number that can be run at one time. Which means I'm just rewriting
+the asynccallqueue stuff anyway. A better solution would be a minor modification
+to application.inc that would limit these things, but I'm not sure if that would
+even happen if I suggested it.
+
+}
+
 interface
 
 uses
-  Classes, SysUtils, sys_async;
+  Classes, SysUtils;
 
 type
-  { TAsyncCallback }
+  { TQueuedCall }
 
-  TAsyncCallback = class
+  TQueuedCallback = procedure of object;
+
+  TQueuedCall = class
     procedure Callback({%H-}Data: PtrInt);
   private
-    fCallback: TDeferredCallback;
+    fCallback: TQueuedCallback;
   public
-    constructor Create(aCallback: TDeferredCallback);
+    constructor Create(aCallback: TQueuedCallback);
     procedure Enqueue;
   end;
 
 
-procedure GUIQueueAsyncCall(aCallback: TDeferredCallback);
+procedure GUIQueueAsyncCall(aCallback: TQueuedCallback);
 
 implementation
 
 uses
-  Forms;
+  Forms, LCLIntf;
 
-procedure GUIQueueAsyncCall(aCallback: TDeferredCallback);
+procedure GUIQueueAsyncCall(aCallback: TQueuedCallback);
 begin
-  TAsyncCallback.Create(aCallback).Enqueue;
+  TQueuedCall.Create(aCallback).Enqueue;
 end;
 
-{ TAsyncCallback }
+{ TQueuedCall }
 
-procedure TAsyncCallback.Callback(Data: PtrInt);
+procedure TQueuedCall.Callback(Data: PtrInt);
 begin
   try
     try
@@ -51,19 +72,21 @@ begin
   end;
 end;
 
-constructor TAsyncCallback.Create(aCallback: TDeferredCallback);
+constructor TQueuedCall.Create(aCallback: TQueuedCallback);
 begin
   inherited Create;
   fCallback := aCallback;
 end;
 
-procedure TAsyncCallback.Enqueue;
+procedure TQueuedCall.Enqueue;
 begin
   // Notice that I'm sending 0 as the data parameter to the Deferred call. Rather
   // then dealing with pointers, I've already got a pointer to the object in the
   // method, so I can store the data on there.
   Application.QueueAsyncCall(@Callback,0);
 end;
+
+
 
 end.
 

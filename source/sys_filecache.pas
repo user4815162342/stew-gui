@@ -708,11 +708,14 @@ begin
       if (aFiles[j] = lCheckFile) or aFiles[j].Contains(lCheckFile) then
       begin
          aCache.Delete(lKeys[i]);
-         // and delete the list key that contains it
-         aCache.Delete(ListKey(lCheckFile.Directory));
          break;
       end;
     end;
+  end;
+  // also delete the 'lists' which directly contain the files..
+  for j := 0 to lFilesLen - 1 do
+  begin
+    aCache.Delete(ListKey(aFiles[j].Directory));
   end;
 end;
 

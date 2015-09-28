@@ -214,6 +214,7 @@ type
   end deprecated;
 
   TDeferredCallback = procedure of object deprecated;
+
   TDeferredStringCallback = procedure(Data: String) of object deprecated;
   TDeferredBooleanCallback = procedure(Data: Boolean) of object deprecated;
   TDeferredStringArrayCallback = procedure(Data: array of String) of object deprecated;

@@ -51,10 +51,12 @@ Additional filter operations:
 TFilter:
 - RequiresProperties: Boolean
 - RequiresSynopsis: Boolean
-- Recursive: Boolean
 - MatchesPathFilter(TDocument): Boolean
 - MatchesPropertiesFilter(TDocumentProperties): Boolean
 - MatchesSynopsisFilter(String): Boolean
+- RecursePathFilter(TDocument): Boolean
+- RecursePropertiesFilter(TDocumentProperties): Boolean
+- RecurseSynopsisFilter(String): Boolean
 - Subclasses for TFilter will be created for each type of field, and
   each type of operation.
 - For the TFilter operations, the Requires* properties and Recursive property
@@ -81,9 +83,9 @@ TUpdator:
 - Subclasses for TUpdator will be created for each kind of field that can
   be updated and for the various updating methods.
 
-TSelect: This would be a class which would be used for building up the query.
-- AddSelector(TSelector):
+TQuery: This would be a general query class that gets the data given a filter.
 - SetFilter(TFilter)
+- MatchFound(TDocument,TDocumentProperties,Synopsis); abstract;
 - Run(TDocument)
   - the parameter is the 'base' document to run against.
   - The algorithm looks like the following:
@@ -91,42 +93,44 @@ TSelect: This would be a class which would be used for building up the query.
     2. Go through Selectors and filter and find out whether any need properties.
     3. Go through selectors and filter and find out whether any need synopsis
     4. The remaining operations have a lot of async, so it's going to get complex.
-       In general, what will happen is that we'll keep a list of promises that
-       we are waiting for. As the promises completes, the result is placed into the
-       list in place of the promise.
-       1. Do a list of the base.
-       2. For each document in the list:
-          1. If the filter is recursive, then properties are required. Go get the
-             properties.
-             1. Once we have properties for the recursive call, build the list of
-                children and pass it back to the 4.2 for further processing. Use
-                the same document list building algorithm as the project does in
-                ListDocumentsInFolder. We do this first because it's possible
-                that the document itself doesn't match, but that a child does.
-          2. If the filter.MatchesPathFilter(document) returns false, then continue
-             onto the next one.
-          3. If properties are required, and we don't already have them from recursion,
-             then go get the properties.
-          4. If the filter.MatchesProperties(properties) returns false, then continue
-             onto the next one.
-          5. If synopsis is required, go get the synopsis.
-          6. If the filter.MatchesSynopsis(synopsos) returns false, then continue
-             onto the next one.
-          7. For each selector:
-             1. Call 'GetValue' with the data we now have. Add it to the result list.
+       In general, what will probably happen is that we'll keep a list of promises
+       that we are waiting for. As the promises completes, the result is placed
+       into the list in place of the promise.
+       1. Set result list to an empty list.
+       2. Set candidate list to a list from the base
+       3. While the candidate list is not empty:
+          1. Grab the first item off of the list.
+          2. If the filter, selector or updator requires the properties, then go get them, defer the
+             rest of this until we do.
+          3. If the filter, selector or updator  requires the synopsis, then go get them, defer the
+             rest of this until we do.
+          4. Set matched = filter.MatchesPathFilter and filter.MatchesPropertiesFilter
+                           and filter.MatchesSynopsisFilter
+          5. Set recurse = filter.RecursePathFilter and filter.RecursePropertiesFilter
+                           and filter.RecurseSynopsisFilter
+          6. If matched then call MatchFound(document,properties,synopsis)
+          7. If recurse then get the list of sub-documents in this folder
+             and *insert* them at the top of the candidate list (so the
+             results will stay in the same order)
 
-TUpdate: This would be a class which would be used for doing mass updates.
+TSelect (TQuery): This would be a class which would be used for building up the query.
+- AddSelector(TSelector):
+- MatchFound:
+  1. call 'GetValue' on each selector with the data we
+     now have and put into an array. Append that array to the result list
+     along with the document path.
+- Run:
+  1. Create a result list and then call inherited. Return a promise that resolves
+     with that result list once the inherited Run resolves.
+
+TUpdate (TQuery): This would be a class which would be used for doing mass updates.
 - AddUpdator(TUpdator)
-- SetFilter(TFilter)
-- Run(TDocument)
-  - the parameter is the 'base' document to run against.
-  - The algorithm looks very much like TQuery, except starting a 4.7:
-          7. For each updator:
-             1. Call 'UpdateProperties' and 'UpdateSynopsis' as necessary.
-             -- Note that if, for some reason, the updators update the same field,
-                they are updated in order.
-          8. If the updators update properties, then write the properties.
-          9. If the updators update the synopsis, then write the synopsis.
+- MatchFound:
+  1. for each updator, call UpdateProperties and UpdateSynopsis. If it is supposed
+     to change either of them, save those values.
+- Run:
+  2. Return a promise that resolves after the inherited Run resolves and all 'saves'
+     are complete from MatchFound.
 
 }
 
