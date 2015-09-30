@@ -258,10 +258,22 @@ type
   end;
 
   // TODO: Remove the 2
-  TStatusDefinitions2 = specialize TKeywordDefinitions2<TStatusDefinition2>;
+
+  { TStatusDefinitions2 }
+
+  TStatusDefinitions2 = class(specialize TKeywordDefinitions2<TStatusDefinition2>)
+  public
+    function GetStatus(aKey: UTF8String): TStatusDefinition2;
+  end;
 
   // TODO: Remove the 2
-  TCategoryDefinitions2 = specialize TKeywordDefinitions2<TCategoryDefinition2>;
+
+  { TCategoryDefinitions2 }
+
+  TCategoryDefinitions2 = class(specialize TKeywordDefinitions2<TCategoryDefinition2>)
+  public
+    function GetCategory(aKey: UTF8String): TCategoryDefinition2;
+  end;
 
   { TProjectProperties2 }
 
@@ -324,6 +336,33 @@ implementation
 
 uses
   LCLProc;
+
+{ TCategoryDefinitions2 }
+
+function TCategoryDefinitions2.GetCategory(aKey: UTF8String
+  ): TCategoryDefinition2;
+var
+  lResult: TJSValue;
+begin
+  lResult := Get(aKey);
+  if lResult is TJSUndefined then
+    result := nil
+  else
+    result := lResult as TCategoryDefinition2;
+end;
+
+{ TStatusDefinitions2 }
+
+function TStatusDefinitions2.GetStatus(aKey: UTF8String): TStatusDefinition2;
+var
+  lResult: TJSValue;
+begin
+  lResult := Get(aKey);
+  if lResult is TJSUndefined then
+    result := nil
+  else
+    result := lResult as TStatusDefinition2;
+end;
 
 { TProperties }
 

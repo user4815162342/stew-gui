@@ -68,13 +68,6 @@ type
 
   TMainWindowConfig2 = class(TJSObject)
   private
-    FBottomPaneHeight: Integer;
-    FHeight: Integer;
-    FLeftPaneWidth: Integer;
-    FMaximized: Boolean;
-    FRightPaneWidth: Integer;
-    FTopPaneHeight: Integer;
-    FWidth: Integer;
     const DefaultWidth: Integer = 600;
     const DefaultHeight: Integer = 450;
     const DefaultVerticalPaneWidth: Integer = 200;
@@ -94,7 +87,7 @@ type
     procedure SetTopPaneHeight(AValue: Integer);
     procedure SetWidth(AValue: Integer);
   public
-    constructor Create;
+    constructor Create; override;
   published
     property height: Integer read GetHeight write SetHeight;
     property width: Integer read GetWidth write SetWidth;
@@ -140,7 +133,7 @@ type
     function RequestType(aKey: UTF8String; aType: TJSValueClass
        ): TJSValueClass; override;
   public
-    constructor Create;
+    constructor Create; override;
     property MRUProject: TFile read GetMRUProject write SetMRUProject;
     procedure Load;
     class function FileName: UTF8String;
@@ -250,7 +243,6 @@ end;
 procedure TStewApplicationConfig2.SetMRUProject(AValue: TFile);
 var
   index: Integer;
-  aID: String;
 begin
   // I shouldn't have to do this, but I was seeing some cases where
   // it was happening. This fix may be unnecessary, but I'm not absolutely

@@ -7,7 +7,12 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, ExtCtrls, ComCtrls, StdCtrls,
   Grids, Dialogs, gui_editorframe, stew_properties, gui_mainform,
-  gui_jsoneditor, stew_project, graphics, Menus;
+  gui_jsoneditor, stew_project, graphics, Menus, sys_async;
+
+{
+TODO: My only noticeable issue is that we don't do a closequery if the
+data is modified.
+}
 
 // FUTURE: More properties that need to be handled.
 //    - editors for certain file extensions (See Preferences Menu).
@@ -72,21 +77,33 @@ type
     procedure DeleteCategoryButtonClick(Sender: TObject);
     procedure DeleteStatusButtonClick(Sender: TObject);
     procedure EditNotesButtonClick(Sender: TObject);
-    procedure ObserveMainForm(aAction: TMainFormAction; {%H-}aDocument: TDocumentPath);
+    procedure ObserveMainForm(Sender: TMainForm; aAction: TMainFormAction2;
+      {%H-}aDocument: TDocumentPath);
+    procedure ObserveProject(Sender: TStewProject; Event: TProjectEvent);
     procedure RefreshButtonClick(Sender: TObject);
     procedure SaveButtonClick(Sender: TObject);
-  private
-    procedure SetupControls;
-    procedure SetupColorMenu;
+    procedure WriteData_Read(Sender: TPromise);
+    procedure WriteData_Written(Sender: TPromise);
   private
     { private declarations }
     fUserPropertiesEditor: TJSONEditor;
-    procedure ShowDataToUser;
-    function WriteDataFromUser: Boolean;
+    fUIUpdateCount: Integer;
+    fDataAvailable: Boolean;
+    fWriting: Boolean;
+    procedure ClearData;
+    procedure ClearModified;
+    function IsModified: Boolean;
+    procedure ShowData(aData: TProjectProperties2);
+    procedure WriteData;
+    procedure BeginUIUpdate;
+    procedure EndUIUpdate;
+    procedure SetupControls;
+    procedure SetupColorMenu;
   public
     { public declarations }
     constructor Create(TheOwner: TComponent); override;
     destructor Destroy; override;
+    function CloseQuery: Boolean; override;
   end;
 
   function StrToColor(const aValue: String): TColor;
@@ -98,7 +115,7 @@ type
 implementation
 
 uses
-  fpjson, sys_types;
+  sys_types, sys_json;
 
 type
   TDefColumnKind = (ckString, ckInteger, ckBoolean, ckRadio, ckColor);
@@ -143,30 +160,152 @@ end;
 
 procedure TProjectSettingsEditor.RefreshButtonClick(Sender: TObject);
 begin
-  if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
-  begin
-       MainForm.Project.Properties.Load;
-       // this should automatically call something on the main form
-       // which will notify that the project has refreshed, and do so.
-  end;
+  ClearModified;
+  MainForm.Project.ReadProjectProperties(true);
 end;
 
 procedure TProjectSettingsEditor.SaveButtonClick(Sender: TObject);
 begin
   ShowMessage('The old version will be backed up in case this doesn''t work.');
-  WriteDataFromUser;
+  WriteData;
+end;
+
+procedure TProjectSettingsEditor.WriteData_Read(Sender: TPromise);
+var
+  lProps: TProjectProperties2;
+  lUser: TJSObject;
+  i: Integer;
+  j: Integer;
+  lFound: Boolean;
+  lLevel: Integer;
+  lNames: TStringArray;
+  lCat: TCategoryDefinition2;
+  lStat: TStatusDefinition2;
+begin
+  lProps := (Sender as TProjectPropertiesPromise).Properties.Clone as TProjectProperties2;
+  try
+    lProps.defaultDocExtension := DefaultDocExtensionEdit.Text;
+    lProps.defaultNotesExtension:= DefaultNotesExtensionEdit.Text;
+    lProps.defaultThumbnailExtension:=DefaultThumbnailExtensionEdit.Text;
+
+
+    with CategoryDefinitionsGrid do
+    begin
+      // changes and new items
+      // we're skipping the first row, which is the header row.
+      for i := 1 to RowCount - 1 do
+      begin
+        lCat := lProps.categories.GetCategory(Cells[CatNameCol,i]);
+        if lCat = nil then
+          lCat := lProps.Categories.PutNewObject(Cells[CatNameCol,i]) as TCategoryDefinition2;
+        lCat.color := StrToColor(Cells[CatColorCol,i]);
+        lCat.publishTitle:=Cells[CatPTitleCol,i] = TrueValue;
+        if TryStrToInt(Cells[CatPTitleLevelCol,i],lLevel) then
+           lCat.publishTitleLevel := lLevel;
+        lCat.publishTitlePrefix := Cells[CatPTitlePrefixCol,i];
+        lCat.publishMarkerAfter:=Cells[CatPMarkerAfterCol,i] = TrueValue;
+        lCat.publishMarkerBefore:=Cells[CatPMarkerBeforeCol,i] = TrueValue;
+        lCat.publishMarkerBetween:=Cells[CatPMarkerBetweenCol,i] = TrueValue;
+
+        if Cells[CatDefaultCol,i] = TrueValue then
+          lProps.defaultCategory:=Cells[CatNameCol,i];
+      end;
+
+      // deletions
+      lNames := lProps.Categories.keys;
+
+      for i := 0 to Length(lNames) - 1 do
+      begin
+        lFound := false;
+        for j := 0 to RowCount - 1 do
+        begin
+          if Cells[CatNameCol,j] = lNames[i] then
+          begin
+            lFound := true;
+            break;
+          end;
+        end;
+        if not lFound then
+           lProps.categories.Delete(lNames[i]);
+      end;
+
+    end;
+
+    with StatusDefinitionsGrid do
+    begin
+      // changes and new items
+      // we're skipping the first row, which is the header row.
+      for i := 1 to RowCount - 1 do
+      begin
+        lStat := lProps.statuses.GetStatus(Cells[StatNameCol,i]);
+        if lStat = nil then
+          lStat := lProps.statuses.PutNewObject(Cells[StatNameCol,i]) as TStatusDefinition2;
+        lStat.color := StrToColor(Cells[StatColorCol,i]);
+        if Cells[StatDefaultCol,i] = TrueValue then
+          lProps.defaultStatus:=Cells[StatNameCol,i];
+      end;
+
+      // deletions
+      lNames := lProps.statuses.keys;
+
+      for i := 0 to Length(lNames) - 1 do
+      begin
+        lFound := false;
+        for j := 0 to RowCount - 1 do
+        begin
+          if Cells[StatNameCol,j] = lNames[i] then
+          begin
+            lFound := true;
+            break;
+          end;
+        end;
+        if not lFound then
+           lProps.statuses.Delete(lNames[i]);
+      end;
+
+    end;
+
+
+
+    // I need to create and destroy this object because
+    // it gets cloned when setting the property.
+    lUser := fUserPropertiesEditor.CreateJSON2;
+    if lUser <> nil then
+      try
+        // TODO: This is a problem, because user is now always a TJSObject,
+        // and now it's not.
+        lProps.User.Assign(lUser);
+      finally
+        lUser.Free;
+      end
+    else
+      lProps.delete('user');
+
+    MainForm.Project.WriteProjectProperties(lProps).After(@WriteData_Written);
+
+  finally
+    lProps.Free;
+  end;
+
+end;
+
+procedure TProjectSettingsEditor.WriteData_Written(Sender: TPromise);
+begin
+  ClearModified;
+  fWriting := False;
+  MainForm.Project.ReadProjectProperties;
+  SetupControls;
 end;
 
 procedure TProjectSettingsEditor.SetupControls;
 var
   canEdit: Boolean;
 begin
-  canEdit := (MainForm.Project <> nil) and
-             (MainForm.Project.IsOpened) and
-             (MainForm.Project.Properties.FilingState in [fsLoaded]);
+  canEdit := fDataAvailable and (not fWriting) and (fUIUpdateCount = 0);
   RefreshButton.Enabled := canEdit;
   SaveButton.Enabled := canEdit;
   EditNotesButton.Enabled := canEdit;
+
   DefaultDocExtensionLabel.Enabled := canEdit;
   DefaultDocExtensionEdit.Enabled := canEdit;
   DefaultNotesExtensionLabel.Enabled := canEdit;
@@ -218,22 +357,43 @@ begin
   end;
 end;
 
-procedure TProjectSettingsEditor.ObserveMainForm(aAction: TMainFormAction;
-  aDocument: TDocumentPath);
+procedure TProjectSettingsEditor.ObserveMainForm(Sender: TMainForm;
+  aAction: TMainFormAction2; aDocument: TDocumentPath);
 begin
   case aAction of
-    mfaProjectPropertiesLoaded, mfaProjectPropertiesLoading, mfaProjectPropertiesSaved, mfaDocumentPropertiesSaving:
-      ShowDataToUser;
+    mfaProjectOpened:
+    begin
+      MainForm.Project.AddObserver(@ObserveProject);
+      MainForm.Project.ReadProjectProperties;
+    end;
+    mfaProjectClosed:
+    begin
+      MainForm.Project.RemoveObserver(@ObserveProject);
+      ClearData;
+    end;
+  end;
+end;
+
+procedure TProjectSettingsEditor.ObserveProject(Sender: TStewProject;
+  Event: TProjectEvent);
+begin
+  case Event.Action of
+    paLoadingProjectPropertiesFile,
+    paSavingProjectPropertiesFile:
+       BeginUIUpdate;
+    paProjectPropertiesFileLoaded,
+    paProjectPropertiesFileLoadingFailed,
+    paProjectPropertiesFileSaved,
+    paProjectPropertiesFileSavingFailed:
+       EndUIUpdate;
+    paProjectPropertiesDataReceived:
+       ShowData((Event as TProjectPropertiesDataReceivedEvent).Properties);
   end;
 end;
 
 procedure TProjectSettingsEditor.EditNotesButtonClick(Sender: TObject);
 begin
-  if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
-  begin
-       MainForm.Project.GetDocument(TDocumentPath.Root).Notes.OpenInEditor;
-  end;
-
+  MainForm.Project.EditDocumentNotes(TDocumentPath.Root);
 end;
 
 procedure TProjectSettingsEditor.AddCategoryButtonClick(Sender: TObject);
@@ -397,183 +557,157 @@ begin
   end;
 end;
 
-procedure TProjectSettingsEditor.ShowDataToUser;
-var
-  props: TProjectProperties;
-  aCat: TCategoryDefinition;
-  i: Integer;
-  aName: String;
-  j: Integer;
+procedure TProjectSettingsEditor.ClearData;
 begin
-  props := nil;
-  if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) and (MainForm.Project.Properties.FilingState in [fsLoaded]) then
-  begin
-    props := MainForm.Project.Properties;
-    DefaultDocExtensionEdit.Text := props.defaultDocExtension;
-    DefaultNotesExtensionEdit.Text := props.defaultNotesExtension;
-    DefaultThumbnailExtensionEdit.Text := props.defaultThumbnailExtension;
+  fDataAvailable := false;
+  DefaultDocExtensionEdit.Text := '';
+  DefaultNotesExtensionEdit.Text := '';
+  DefaultThumbnailExtensionEdit.Text := '';
 
-    with CategoryDefinitionsGrid do
-    begin
-      Clear;
-      // add one in for the fixed column header.
-      RowCount := 1;
-      for i := 0 to props.categories.NameCount - 1 do
-      begin
-        j := RowCount;
-        aName := props.categories.Names[i];
-        aCat := props.categories[aName] as TCategoryDefinition;
-        RowCount := RowCount + 1;
-        Cells[CatNameCol,j] := aName;
-        Cells[CatColorCol,j] := ColorToStr(aCat.color);
-        Cells[CatDefaultCol,j] := BoolToStr(props.defaultCategory = aName,TrueValue,FalseValue);
-        Cells[CatPTitleCol,j] := BoolToStr(aCat.publishTitle,TrueValue,FalseValue);
-        Cells[CatPTitleLevelCol,j] := IntToStr(aCat.publishTitleLevel);
-        Cells[CatPTitlePrefixCol,j] := aCat.publishTitlePrefix;
-        Cells[CatPMarkerBeforeCol,j] := BoolToStr(aCat.publishMarkerBefore,TrueValue,FalseValue);
-        Cells[CatPMarkerAfterCol,j] := BoolToStr(aCat.publishMarkerAfter,TrueValue,FalseValue);
-        Cells[CatPMarkerBetweenCol,j] := BoolToStr(aCat.publishMarkerBetween,TrueValue,FalseValue);
+  CategoryDefinitionsGrid.Clear;
+  // add one in for the fixed column header.
+  CategoryDefinitionsGrid.RowCount := 1;
 
-      end;
-      AutoSizeColumns;
-    end;
+  StatusDefinitionsGrid.Clear;
+  StatusDefinitionsGrid.RowCount := 1;
 
-    with StatusDefinitionsGrid do
-    begin
-      Clear;
-      // add one in for the fixed column header.
-      RowCount := 1;
-      for i := 0 to props.statuses.NameCount - 1 do
-      begin
-        aName := props.statuses.Names[i];
-        j := RowCount;
-        RowCount := RowCount + 1;
-        Cells[StatNameCol,j] := aName;
-        Cells[StatColorCol,j] := ColorToStr((props.statuses[aName] as TStatusDefintion).color);
-        Cells[StatDefaultCol,j] := BoolToStr(props.defaultStatus = aName,TrueValue,FalseValue);
-      end;
-      AutoSizeColumns;
-    end;
-
-    fUserPropertiesEditor.SetJSON(props.user);
-
-  end;
+  fUserPropertiesEditor.SetJSON(TJSObject(nil));
+  ClearModified;
   SetupControls;
 end;
 
-function TProjectSettingsEditor.WriteDataFromUser: Boolean;
+procedure TProjectSettingsEditor.ClearModified;
+begin
+  DefaultDocExtensionEdit.Modified := false;
+  DefaultNotesExtensionEdit.Modified := false;
+  DefaultThumbnailExtensionEdit.Modified := false;
+  CategoryDefinitionsGrid.Modified := false;
+  StatusDefinitionsGrid.Modified := false;
+  fUserPropertiesEditor.Modified := false;
+
+end;
+
+function TProjectSettingsEditor.IsModified: Boolean;
+begin
+  result := DefaultDocExtensionEdit.Modified or
+            DefaultNotesExtensionEdit.Modified or
+            DefaultThumbnailExtensionEdit.Modified or
+            CategoryDefinitionsGrid.Modified or
+            StatusDefinitionsGrid.Modified or
+            fUserPropertiesEditor.Modified;
+
+end;
+
+procedure TProjectSettingsEditor.ShowData(aData: TProjectProperties2);
 var
-  props: TProjectProperties;
-  aUser: TJSONData;
   i: Integer;
   j: Integer;
-  aFound: Boolean;
-  aLevel: Integer;
-  aNames: TStringArray;
-  aCat: TCategoryDefinition;
-  aStat: TStatusDefintion;
+  lKeys: TStringArray;
+  lCat: TCategoryDefinition2;
 begin
-  result := false;
-  props := nil;
-  if (MainForm.Project <> nil) and (MainForm.Project.IsOpened) then
+  fDataAvailable := true;
+
+  if not DefaultDocExtensionEdit.Modified then
   begin
-    props := MainForm.Project.Properties;
-    props.defaultDocExtension := DefaultDocExtensionEdit.Text;
-    props.defaultNotesExtension:= DefaultNotesExtensionEdit.Text;
-    props.defaultThumbnailExtension:=DefaultThumbnailExtensionEdit.Text;
+     DefaultDocExtensionEdit.Text := aData.defaultDocExtension;
+     DefaultDocExtensionEdit.Modified:=false;
+  end;
+  if not DefaultNotesExtensionEdit.Modified then
+  begin
+     DefaultNotesExtensionEdit.Text := aData.defaultNotesExtension;
+     DefaultNotesExtensionEdit.Modified := false;
+  end;
+  if not DefaultThumbnailExtensionEdit.Modified then
+  begin
+     DefaultThumbnailExtensionEdit.Text := aData.defaultThumbnailExtension;
+     DefaultThumbnailExtensionEdit.Modified := false;
+  end;
 
-
-    with CategoryDefinitionsGrid do
+  with CategoryDefinitionsGrid do
+  begin
+    if not Modified then
     begin
-      // changes and new items
-      // we're skipping the first row, which is the header row.
-      for i := 1 to RowCount - 1 do
+      Clear;
+      // add one in for the fixed column header.
+      RowCount := 1;
+      lKeys := aData.Categories.keys;
+      for i := 0 to Length(lKeys) - 1 do
       begin
-        aCat := props.categories.Find(Cells[CatNameCol,i]) as TCategoryDefinition;
-        if aCat = nil then
-          aCat := props.categories.Add(Cells[CatNameCol,i]) as TCategoryDefinition;
-        aCat.color := StrToColor(Cells[CatColorCol,i]);
-        aCat.publishTitle:=Cells[CatPTitleCol,i] = TrueValue;
-        if TryStrToInt(Cells[CatPTitleLevelCol,i],aLevel) then
-           aCat.publishTitleLevel := aLevel;
-        aCat.publishTitlePrefix := Cells[CatPTitlePrefixCol,i];
-        aCat.publishMarkerAfter:=Cells[CatPMarkerAfterCol,i] = TrueValue;
-        aCat.publishMarkerBefore:=Cells[CatPMarkerBeforeCol,i] = TrueValue;
-        aCat.publishMarkerBetween:=Cells[CatPMarkerBetweenCol,i] = TrueValue;
+        j := RowCount;
+        lCat := aData.Categories.Get(lKeys[i]) as TCategoryDefinition2;
+        RowCount := RowCount + 1;
+        Cells[CatNameCol,j] := lKeys[i];
+        Cells[CatColorCol,j] := ColorToStr(lCat.Color);
+        Cells[CatDefaultCol,j] := BoolToStr(aData.defaultCategory = lKeys[i],TrueValue,FalseValue);
+        Cells[CatPTitleCol,j] := BoolToStr(lCat.publishTitle,TrueValue,FalseValue);
+        Cells[CatPTitleLevelCol,j] := IntToStr(lCat.publishTitleLevel);
+        Cells[CatPTitlePrefixCol,j] := lCat.publishTitlePrefix;
+        Cells[CatPMarkerBeforeCol,j] := BoolToStr(lCat.publishMarkerBefore,TrueValue,FalseValue);
+        Cells[CatPMarkerAfterCol,j] := BoolToStr(lCat.publishMarkerAfter,TrueValue,FalseValue);
+        Cells[CatPMarkerBetweenCol,j] := BoolToStr(lCat.publishMarkerBetween,TrueValue,FalseValue);
 
-        if Cells[CatDefaultCol,i] = TrueValue then
-          props.defaultCategory:=Cells[CatNameCol,i];
       end;
-
-      // deletions
-      aNames := props.categories.GetNameList;
-
-      for i := 0 to Length(aNames) - 1 do
-      begin
-        aFound := false;
-        for j := 0 to RowCount - 1 do
-        begin
-          if Cells[CatNameCol,j] = aNames[i] then
-          begin
-            aFound := true;
-            break;
-          end;
-        end;
-        if not aFound then
-           props.categories.Delete(aNames[i]);
-      end;
-
+      AutoSizeColumns;
+      Modified := false;
     end;
+  end;
 
-    with StatusDefinitionsGrid do
+  with StatusDefinitionsGrid do
+  begin
+    if not Modified then
     begin
-      // changes and new items
-      // we're skipping the first row, which is the header row.
-      for i := 1 to RowCount - 1 do
+      Clear;
+      // add one in for the fixed column header.
+      RowCount := 1;
+      lKeys := aData.Statuses.keys;
+      for i := 0 to Length(lKeys) - 1 do
       begin
-        aStat := props.statuses.Find(Cells[StatNameCol,i]) as TStatusDefintion;
-        if aStat = nil then
-          aStat := props.statuses.Add(Cells[StatNameCol,i]) as TStatusDefintion;
-        aStat.color := StrToColor(Cells[StatColorCol,i]);
-        if Cells[StatDefaultCol,i] = TrueValue then
-          props.defaultStatus:=Cells[StatNameCol,i];
+        j := RowCount;
+        RowCount := RowCount + 1;
+        Cells[StatNameCol,j] := lKeys[i];
+        Cells[StatColorCol,j] := ColorToStr((aData.Statuses.Get(lKeys[i]) as TStatusDefinition2).color);
+        Cells[StatDefaultCol,j] := BoolToStr(aData.defaultStatus = lKeys[i],TrueValue,FalseValue);
       end;
-
-      // deletions
-      aNames := props.statuses.GetNameList;
-
-      for i := 0 to Length(aNames) - 1 do
-      begin
-        aFound := false;
-        for j := 0 to RowCount - 1 do
-        begin
-          if Cells[StatNameCol,j] = aNames[i] then
-          begin
-            aFound := true;
-            break;
-          end;
-        end;
-        if not aFound then
-           props.statuses.Delete(aNames[i]);
-      end;
+      AutoSizeColumns;
+      Modified := false;
 
     end;
+  end;
 
+  if not fUserPropertiesEditor.Modified then
+  begin
+     fUserPropertiesEditor.SetJSON(aData.User);
+     fUserPropertiesEditor.Modified := false;
+  end;
 
+  SetupControls;
+end;
 
-    // I need to create and destroy this object because
-    // it gets cloned when setting the property.
-    aUser := fUserPropertiesEditor.CreateJSON;
-    try
-      props.user := aUser;
-    finally
-      aUser.Free;
-    end;
+procedure TProjectSettingsEditor.WriteData;
+begin
+  fWriting := true;
+  // retrieve the data first, then write it, so we have the most up-to-date
+  // stuff, including any "unknowns".
+  MainForm.Project.ReadProjectProperties.After(@WriteData_Read);
+  SetupControls;
+end;
 
-    props.Save;
-    result := true;
+procedure TProjectSettingsEditor.BeginUIUpdate;
+begin
+  inc(fUIUpdateCount);
+  if fUIUpdateCount = 1 then
+  begin
+    SetupControls;
+  end;
+end;
 
-  end
+procedure TProjectSettingsEditor.EndUIUpdate;
+begin
+  dec(fUIUpdateCount);
+  if fUIUpdateCount = 0 then
+  begin
+    SetupControls;
+  end;
 end;
 
 constructor TProjectSettingsEditor.Create(TheOwner: TComponent);
@@ -623,14 +757,57 @@ begin
   AddColumn(StatusDefinitionsGrid,StatDefaultCol,'Default',ckRadio);
   StatusDefinitionsGrid.FixedRows := 1;
 
-  ShowDataToUser;
-  MainForm.Observe(@ObserveMainForm);
+  MainForm.Observe2(@ObserveMainForm);
+  // if the project is already opened, then notify self to make sure
+  // we hook up to it.
+  if MainForm.Project <> nil then
+     ObserveMainForm(MainForm,mfaProjectOpened,TDocumentPath.Null);
 end;
 
 destructor TProjectSettingsEditor.Destroy;
 begin
-  MainForm.Unobserve(@ObserveMainForm);
+  if MainForm.Project <> nil then
+     MainForm.Project.RemoveObserver(@ObserveProject);
+  MainForm.Unobserve2(@ObserveMainForm);
   inherited Destroy;
+end;
+
+function TProjectSettingsEditor.CloseQuery: Boolean;
+begin
+  if IsModified then
+  begin
+    SetFocus;
+    {
+    NOTE: The convention is to ask "Do You want to Save?" with a Yes/No/Cancel.
+    Where the 'Yes' causes the save and still closes the document.
+
+    But, why? Just because it's always been done that way?
+
+    Here's my theory: Most of the time, when I get this message, I'm going to
+    hit cancel, because I realized that there was some stuff I had to do yet.
+    Sure, occasionally I just want to close and save, but usually I want to
+    check on what I've got and decide whether I want to change.
+
+    Since two options are always better for UI than three, I'm just getting
+    rid of the 'Yes' here and leaving the 'Cancel'.
+
+    And yes, I'm going to confess that since my saving is not an instantaneous
+    process, following the original conventions is going to take a bit of work,
+    and it's possible I'm rationalizing to avoid that work:
+    I have to return false here, but once the document is saved, then close the
+    tab. And, this gets even more complicated when the closequery is initiated
+    by an application close.
+
+    To avoid the convention, I'm making sure to specify custom button captions
+    for the message box.
+
+    }
+
+    result := MainForm.MessageDialog('You are about to lose your changes to the project settings.' + LineEnding +
+               'Are you sure you want to close?',mtWarning,mbYesNo,['Close Without Saving','Don''t Close']) = mrYes;
+  end
+  else
+    result := true;
 end;
 
 end.

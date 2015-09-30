@@ -818,20 +818,6 @@ begin
      result := Copy(Result,1,_p - 1);
   end;
 
-{
-Result:=AFilename;
-p:=length(Result);
-while (p>0) do begin
-  case Result[p] of
-    PathDelim: exit;
-    {$ifdef windows}
-    '/': if ('/' in AllowDirectorySeparators) then exit;
-    {$endif}
-    '.': exit(copy(Result,1, p-1));
-  end;
-  dec(p);
-end;
-}
 end;
 
 function ExtractFileDescriptor(const Filename: UTF8String): UTF8String;

@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, ExtCtrls,
-  Menus, ComCtrls, fpjson;
+  Menus, ComCtrls, fpjson, sys_json;
 
 type
 
@@ -14,7 +14,7 @@ type
 
   TJSONTreeNode = class(TTreeNode)
   private
-    FDataType: TJSONtype;
+    FDataType: TJSValueClass;
     function GetAsBoolean: Boolean;
     function GetAsNumber: Double;
     function GetAsString: String;
@@ -23,7 +23,7 @@ type
     procedure SetAsBoolean(AValue: Boolean);
     procedure SetAsNumber(AValue: Double);
     procedure SetAsString(AValue: String);
-    procedure SetDataType(AValue: TJSONtype);
+    procedure SetDataType(AValue: TJSValueClass);
     procedure ExtractKeyAndValue(out aKey: String; out aValue: String);
     procedure SetKey(AValue: String);
     procedure SetKeyAndValue(const aKey: String; const aValue: String);
@@ -31,17 +31,20 @@ type
     function IsValidTextValue(const aValue: String): Boolean;
     function IsValidKey(const aValue: String): Boolean;
   public
-    property DataType: TJSONtype read fDataType write SetDataType;
+    property DataType: TJSValueClass read fDataType write SetDataType;
     property AsBoolean: Boolean read GetAsBoolean write SetAsBoolean;
     property AsNumber: Double read GetAsNumber write SetAsNumber;
     property AsString: String read GetAsString write SetAsString;
     property Key: String read GetKey;
     property TextValue: String read GetTextValue;
     function IsProperty: Boolean;
-    procedure Edited(var NewText: String);
+    function Edited(var NewText: String): Boolean;
     procedure Editing(var AllowEdit: Boolean);
-    procedure SetJSON(aJSON: TJSONData);
-    function CreateJSON: TJSONData;
+    procedure SetJSON(aJSON: TJSONData); deprecated;
+    procedure SetJSON(aJSON: TJSValue);
+    function CreateJSON: TJSONData; deprecated;
+    // TODO: Get rid of 2 in this unit.
+    function AddToJSON(aParent: TJSValue; aKey: UTF8String): TJSValue;
   end;
 
   { TJSONEditor }
@@ -56,13 +59,16 @@ type
     AddBooleanButton: TToolButton;
     AddNumberButton: TToolButton;
     AddStringButton: TToolButton;
-    AddNullButton: TToolButton;
     procedure DeleteElementButtonClick(Sender: TObject);
+    procedure JSONTreeAddition(Sender: TObject; Node: TTreeNode);
     procedure JSONTreeCreateNodeClass(Sender: TCustomTreeView;
       var NodeClass: TTreeNodeClass);
+    procedure JSONTreeDeletion(Sender: TObject; Node: TTreeNode);
     procedure JSONTreeEdited(Sender: TObject; Node: TTreeNode; var S: string);
     procedure JSONTreeEditing(Sender: TObject; Node: TTreeNode;
       var AllowEdit: Boolean);
+    procedure JSONTreeMouseUp(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
     procedure JSONTreeSelectionChanged(Sender: TObject);
     procedure AddArrayButtonClick(Sender: TObject);
     procedure AddBooleanButtonClick(Sender: TObject);
@@ -72,66 +78,78 @@ type
     procedure AddStringButtonClick(Sender: TObject);
   private
     { private declarations }
-    procedure AddNode(aDataType: TJSONtype);
+    fModified: Boolean;
+    procedure AddNode(aDataType: TJSValueClass);
     procedure EnableDisable;
+    function GetModified: Boolean;
+    procedure SetModified(AValue: Boolean);
   public
     { public declarations }
     constructor Create(TheOwner: TComponent); override;
-    procedure SetJSON(aData: TJSONData);
-    function CreateJSON: TJSONData;
+    procedure SetJSON(aData: TJSONData); deprecated;
+    procedure SetJSON(aData: TJSObject);
+    function CreateJSON: TJSONData; deprecated;
+    function CreateJSON2: TJSObject;
+    property Modified: Boolean read GetModified write SetModified;
   end;
 
 implementation
 
 uses
-  Dialogs;
+  Dialogs, sys_types;
 
 const
-  TrueCaption: String = 'true';
-  FalseCaption: String = 'false';
+  TrueCaption: String = 'yes';
+  FalseCaption: String = 'no';
 
 {$R *.lfm}
 
 { TJSONTreeNode }
 
-procedure TJSONTreeNode.SetDataType(AValue: TJSONtype);
+procedure TJSONTreeNode.SetDataType(AValue: TJSValueClass);
 begin
   if FDataType=AValue then Exit;
 
   // clear all the data from the old data type
   DeleteChildren;
   FDataType := AValue;
-  ImageIndex := ord(FDataType);
-  case FDataType of
-    jtBoolean:
+  ImageIndex := ord(AValue.GetTypeOf);
+  case AValue.GetTypeOf of
+    jstBoolean:
       AsBoolean := false;
-    jtNumber:
+    jstNumber:
       AsNumber := 0;
-    jtString:
+    jstString:
       AsString := '';
   else
     SetTextValue('');
   end;
 end;
 
-function CorrectTypeText(aType: TJSONType; const aValue: String): String;
+function CorrectTypeText(aClass: TJSValueClass; const aValue: String): String;
 begin
-  case aType of
-    jtArray:
-      result := '<array>';
-    jtObject:
-      result := '<object>';
-    jtNull:
-      result := '<null>';
-    jtUnknown:
-      result := '<undefined>';
+  if aClass = nil then
+    result := aValue
   else
-    result := aValue;
+  begin
+    case aClass.GetTypeOf of
+      jstObject:
+        if aClass.InheritsFrom(TJSArray) then
+           result := '<array>'
+        else
+           result := '<object>';
+      jstNull:
+        result := '<null>';
+      jstUndefined:
+        result := '<undefined>';
+    else
+      result := aValue;
+    end;
   end;
 
 end;
 
-function BuildKeyAndValue(aType: TJSONtype; const aKey: String; const aValue: String): String;
+function BuildKeyAndValue(aType: TJSValueClass; const aKey: String; const aValue: String): String;
 begin
   result := aKey + ': ' + CorrectTypeText(aType,aValue);
 end;
@@ -198,16 +216,16 @@ var
   aDummy1: Boolean;
   aDummy2: Double;
 begin
-  case FDataType of
-    jtArray, jtUnknown, jtNull, jtObject:
+  case FDataType.GetTypeOf of
+    jstUndefined, jstNull, jstObject:
       // accepts any value, but it will just be switched back to the type. This
       // makes it possible to change the key.
       result := false;
-    jtBoolean:
+    jstBoolean:
       result := TryStrToBool(aValue,aDummy1);
-    jtNumber:
+    jstNumber:
       result := TryStrToFloat(aValue,aDummy2);
-    jtString:
+    jstString:
       result := true;
   end;
 end;
@@ -219,7 +237,10 @@ begin
   result := true;
   if IsProperty then
   begin
-    aSibling := Parent.GetFirstChild as TJSONTreeNode;
+    if Parent = nil then
+       aSibling := TreeNodes.GetFirstNode as TJSONTreeNode
+    else
+       aSibling := Parent.GetFirstChild as TJSONTreeNode;
     while (aSibling <> nil) do
     begin
       if (aSibling <> Self) and (aSibling.Key = aValue) then
@@ -237,10 +258,10 @@ var
   aParent: TJSONTreeNode;
 begin
   aParent := Parent as TJSONTreeNode;
-  result := (aParent <> nil) and (aParent.DataType = jtObject);
+  result := (aParent = nil) or ((aParent.DataType.GetTypeOf = jstObject) and (not aParent.DataType.InheritsFrom(TJSArray)));
 end;
 
-procedure TJSONTreeNode.Edited(var NewText: String);
+function TJSONTreeNode.Edited(var NewText: String): Boolean;
 var
   aKey: String;
   aValue: String;
@@ -251,7 +272,7 @@ begin
     begin
       // the user didn't assign a property name, so we're going to make
       // some assumptions here:
-      if FDataType in [jtArray,jtNull,jtObject,jtUnknown] then
+      if FDataType.GetTypeOf in [jstNull,jstObject,jstUndefined] then
       begin
         // if this is a non-editable value, then assume the change was
         // supposed to be the property name.
@@ -268,7 +289,7 @@ begin
     // now, since the value is being changed, make sure it's valid,
     // and if so, make sure the new text has the key in there.
     if IsValidKey(aKey) and
-       ((FDataType in [jtArray,jtNull,jtObject,jtUnknown]) or
+       ((FDataType.GetTypeOf in [jstNull,jstObject,jstUndefined]) or
         IsValidTextValue(aValue)) then
        NewText := BuildKeyAndValue(FDataType,aKey,aValue)
     else
@@ -279,12 +300,13 @@ begin
     if not IsValidTextValue(NewText) then
       NewText := Text;
   end;
+  result := NewText <> Text;
 
 end;
 
 procedure TJSONTreeNode.Editing(var AllowEdit: Boolean);
 begin
-  AllowEdit := (DataType in [jtBoolean,jtNumber,jtString]) or IsProperty;
+  AllowEdit := (DataType.GetTypeOf in [jstBoolean,jstNumber,jstString]) or IsProperty;
 end;
 
 procedure TJSONTreeNode.SetJSON(aJSON: TJSONData);
@@ -292,7 +314,7 @@ var
   i: Integer;
   aChild: TJSONTreeNode;
 begin
-  DataType := aJSON.JSONType;
+  DataType := TJSObject;
   DeleteChildren;
   case aJSON.JSONType of
     jtObject:
@@ -324,43 +346,133 @@ begin
   end;
 end;
 
+procedure TJSONTreeNode.SetJSON(aJSON: TJSValue);
+var
+  i: Integer;
+  l: Integer;
+  aChild: TJSONTreeNode;
+  lKeys: TStringArray;
+begin
+  DataType := TJSValueClass(aJSON.ClassType);
+  DeleteChildren;
+  case DataType.GetTypeOf of
+    jstObject:
+      if DataType.InheritsFrom(TJSArray) then
+      begin
+        l := trunc(aJSON.Get('length').AsNumber);
+        for i := 0 to l - 1 do
+        begin
+          aChild := TreeNodes.AddChild(Self,'') as TJSONTreeNode;
+          aChild.SetKey(IntToStr(i));
+          aChild.SetJSON(aJSON.Get(i));
+        end;
+
+      end
+      else
+      begin
+        lKeys := aJSON.keys;
+        for i := 0 to Length(lKeys) -1 do
+        begin
+          aChild := TreeNodes.AddChild(Self,'') as TJSONTreeNode;
+          aChild.SetKey(lKeys[i]);
+          aChild.SetJSON(aJSON.Get(lkeys[i]));
+        end;
+        Expanded := true;
+      end;
+    jstNumber:
+      AsNumber := aJSON.AsNumber;
+    jstString:
+      AsString := aJSON.AsString;
+    jstBoolean:
+      AsBoolean := aJSON.AsBoolean;
+  end;
+end;
+
 function TJSONTreeNode.CreateJSON: TJSONData;
 var
   rObject: TJSONObject;
   rArray: TJSONArray;
   aChild: TJSONTreeNode;
 begin
-  case FDataType of
-    jtUnknown:
+  case FDataType.GetTypeOf of
+    jstUndefined:
       ;
-    jtNull:
+    jstNull:
       result := fpjson.CreateJSON;
-    jtBoolean:
+    jstBoolean:
       result := fpjson.CreateJSON(AsBoolean);
-    jtNumber:
+    jstNumber:
       result := fpjson.CreateJSON(AsNumber);
-    jtString:
+    jstString:
       result := fpjson.CreateJSON(AsString);
-    jtArray:
+    jstObject:
       begin
-        rArray := fpjson.CreateJSONArray([]);
-        result := rArray;
-        aChild := GetFirstChild as TJSONTreeNode;
-        while aChild <> nil do
+        if FDataType.InheritsFrom(TJSArray) then
         begin
-          rArray.Add(aChild.CreateJSON);
-          aChild := aChild.GetNextSibling as TJSONTreeNode;
+          rArray := fpjson.CreateJSONArray([]);
+          result := rArray;
+          aChild := GetFirstChild as TJSONTreeNode;
+          while aChild <> nil do
+          begin
+            rArray.Add(aChild.CreateJSON);
+            aChild := aChild.GetNextSibling as TJSONTreeNode;
+          end;
+        end
+        else
+        begin
+          rObject := fpjson.CreateJSONObject([]);
+          result := rObject;
+          aChild := GetFirstChild as TJSONTreeNode;
+          while aChild <> nil do
+          begin
+            rObject.Add(aChild.GetKey,aChild.CreateJSON);
+            aChild := aChild.GetNextSibling as TJSONTreeNode;
+          end;
         end;
       end;
-    jtObject:
+  end;
+end;
+
+function TJSONTreeNode.AddToJSON(aParent: TJSValue; aKey: UTF8String): TJSValue;
+var
+  rObject: TJSObject;
+  rArray: TJSArray;
+  aChild: TJSONTreeNode;
+begin
+  case FDataType.GetTypeOf of
+    jstUndefined:
+      ;
+    jstNull:
+      result := aParent.PutNull(aKey);
+    jstBoolean:
+      result := aParent.Put(aKey,AsBoolean);
+    jstNumber:
+      result := aParent.Put(aKey,AsNumber);
+    jstString:
+      result := aParent.Put(aKey,AsString);
+    jstObject:
       begin
-        rObject := fpjson.CreateJSONObject([]);
-        result := rObject;
-        aChild := GetFirstChild as TJSONTreeNode;
-        while aChild <> nil do
+        if FDataType.InheritsFrom(TJSArray) then
         begin
-          rObject.Add(aChild.GetKey,aChild.CreateJSON);
-          aChild := aChild.GetNextSibling as TJSONTreeNode;
+          rArray := aParent.PutNewArray(aKey) as TJSArray;
+          result := rArray;
+          aChild := GetFirstChild as TJSONTreeNode;
+          while aChild <> nil do
+          begin
+            aChild.AddToJSON(rArray,IntToStr(rArray.Length));
+            aChild := aChild.GetNextSibling as TJSONTreeNode;
+          end;
+        end
+        else
+        begin
+          rObject := aParent.PutNewObject(aKey) as TJSObject;
+          result := rObject;
+          aChild := GetFirstChild as TJSONTreeNode;
+          while aChild <> nil do
+          begin
+            aChild.AddToJSON(rObject,aChild.GetKey);
+            aChild := aChild.GetNextSibling as TJSONTreeNode;
+          end;
         end;
       end;
   end;
@@ -368,32 +480,32 @@ end;
 
 function TJSONTreeNode.GetAsBoolean: Boolean;
 begin
-  case FDataType of
-    jtNumber:
+  case FDataType.GetTypeOf of
+    jstNumber:
       result := TextValue <> '0';
-    jtString:
+    jstString:
       result := TextValue <> '';
-    jtBoolean:
+    jstBoolean:
       result := TextValue = TrueCaption;
-    jtNull, jtUnknown:
+    jstNull, jstUndefined:
       result := false;
-    jtObject, jtArray:
+    jstObject:
       result := true;
   end;
 end;
 
 function TJSONTreeNode.GetAsNumber: Double;
 begin
-  case FDataType of
-    jtNumber, jtString:
+  case FDataType.GetTypeOf of
+    jstNumber, jstString:
       if not TryStrToFloat(TextValue,result) then
          result := 0;
-    jtBoolean:
+    jstBoolean:
       if TextValue = TrueCaption then
         result := 1
       else
         result := 0;
-    jtNull, jtUnknown, jtObject, jtArray:
+    jstNull, jstUndefined, jstObject:
       result := 0;
   end;
 
@@ -420,42 +532,42 @@ end;
 
 procedure TJSONTreeNode.SetAsBoolean(AValue: Boolean);
 begin
-  case FDataType of
-    jtNumber:
+  case FDataType.GetTypeOf of
+    jstNumber:
       AsNumber := ord(AValue);
-    jtString:
+    jstString:
       AsString := BoolToStr(aValue,TrueCaption,FalseCaption);
-    jtBoolean:
+    jstBoolean:
       SetTextValue(BoolToStr(aValue,TrueCaption,FalseCaption));
-    jtNull, jtUnknown,jtObject,jtArray:
-      // nothing
+  else
+    // nothing
   end;
 end;
 
 procedure TJSONTreeNode.SetAsNumber(AValue: Double);
 begin
-  case FDataType of
-    jtNumber:
+  case FDataType.GetTypeOf of
+    jstNumber:
       SetTextValue(FloatToStr(AValue));
-    jtString:
+    jstString:
       AsString := FloatToStr(AValue);
-    jtBoolean:
+    jstBoolean:
       AsBoolean := aValue <> 0;
-    jtNull, jtUnknown, jtObject, jtArray:
+  else
       // nothing
   end;
 end;
 
 procedure TJSONTreeNode.SetAsString(AValue: String);
 begin
-  case FDataType of
-    jtNumber:
+  case FDataType.GetTypeOf of
+    jstNumber:
       AsNumber := StrToFloat(AValue);
-    jtBoolean:
+    jstBoolean:
       AsBoolean := StrToBool(aValue);
-    jtString:
+    jstString:
       SetTextValue(aValue);
-    jtNull, jtUnknown, jtObject, jtArray:
+  else
       // nothing;
   end;
 end;
@@ -464,32 +576,32 @@ end;
 
 procedure TJSONEditor.AddArrayButtonClick(Sender: TObject);
 begin
-  AddNode(jtArray);
+  AddNode(TJSArray);
 end;
 
 procedure TJSONEditor.AddBooleanButtonClick(Sender: TObject);
 begin
-  AddNode(jtBoolean);
+  AddNode(TJSBoolean);
 end;
 
 procedure TJSONEditor.AddNullButtonClick(Sender: TObject);
 begin
-  AddNode(jtNull);
+  AddNode(TJSNull);
 end;
 
 procedure TJSONEditor.AddNumberButtonClick(Sender: TObject);
 begin
-  AddNode(jtNumber);
+  AddNode(TJSNumber);
 end;
 
 procedure TJSONEditor.AddObjectButtonClick(Sender: TObject);
 begin
-  AddNode(jtObject);
+  AddNode(TJSObject);
 end;
 
 procedure TJSONEditor.AddStringButtonClick(Sender: TObject);
 begin
-  AddNode(jtString);
+  AddNode(TJSString);
 end;
 
 procedure TJSONEditor.DeleteElementButtonClick(Sender: TObject);
@@ -499,11 +611,18 @@ begin
     if MessageDlg('Are you sure you want to delete this data?',mtConfirmation,mbYesNo,0) = mrYes then
     begin
       JSONTree.Selected.Delete;
+      fModified := true;
       EnableDisable;
     end;
   end;
   // Else delete button shouldn't even be enabled.
 end;
+
+procedure TJSONEditor.JSONTreeAddition(Sender: TObject; Node: TTreeNode);
+begin
+  fModified := true;
+end;
+
 
 procedure TJSONEditor.JSONTreeCreateNodeClass(Sender: TCustomTreeView;
   var NodeClass: TTreeNodeClass);
@@ -511,10 +630,16 @@ begin
   NodeClass := TJSONTreeNode;
 end;
 
+procedure TJSONEditor.JSONTreeDeletion(Sender: TObject; Node: TTreeNode);
+begin
+  fModified := true;
+end;
+
 procedure TJSONEditor.JSONTreeEdited(Sender: TObject; Node: TTreeNode;
   var S: string);
 begin
-  (Node as TJSONTreeNode).Edited(S);
+  if (Node as TJSONTreeNode).Edited(S) then
+     fModified := true;
 end;
 
 procedure TJSONEditor.JSONTreeEditing(Sender: TObject; Node: TTreeNode;
@@ -523,39 +648,40 @@ begin
   (Node as TJSONTreeNode).Editing(AllowEdit);
 end;
 
+procedure TJSONEditor.JSONTreeMouseUp(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+var
+  lNode: TTreeNode;
+begin
+  lNode := JSONTree.GetNodeAt(x,y);
+  if lNode = nil then
+     JSONTree.Selected := nil;
+end;
+
 procedure TJSONEditor.JSONTreeSelectionChanged(Sender: TObject);
 begin
   EnableDisable;
 end;
 
-procedure TJSONEditor.AddNode(aDataType: TJSONtype);
+procedure TJSONEditor.AddNode(aDataType: TJSValueClass);
 var
   aNew: TJSONTreeNode;
   aParent: TJSONTreeNode;
 begin
   if (JSONTree.Selected = nil) then
-  begin
-    if (JSONTree.Items.Count = 0) then
-    begin
-      aNew := JSONTree.Items.AddChild(nil,'') as TJSONTreeNode;
-      aNew.DataType := aDataType;
-      aNew.EditText;
-    end
-  end
+    aParent := nil
+  else if (JSONTree.Selected as TJSONTreeNode).DataType.GetTypeOf in [jstObject] then
+    aParent := JSONTree.Selected as TJSONTreeNode
   else
-  begin
-    if (JSONTree.Selected as TJSONTreeNode).DataType in [jtObject,jtArray] then
-      aParent := JSONTree.Selected as TJSONTreeNode
-    else
-      aParent := JSONTree.Selected.Parent as TJSONTreeNode;
-    if aParent <> nil then
-    begin
-      aNew := JSONTree.Items.AddChild(aParent,'') as TJSONTreeNode;
-      aNew.DataType := aDataType;
-      aParent.Expanded := true;
-      aNew.EditText;
-    end;
-  end;
+    aParent := JSONTree.Selected.Parent as TJSONTreeNode;
+
+  aNew := JSONTree.Items.AddChild(aParent,'') as TJSONTreeNode;
+  aNew.DataType := aDataType;
+
+  if aParent <> nil then
+    aParent.Expanded := true;
+
+  aNew.EditText;
   EnableDisable;
 
 end;
@@ -570,35 +696,31 @@ begin
   aSelected := JSONTree.Selected as TJSONTreeNode;
 
   enableDelete := (aSelected <> nil);
-  enableAdd := false;
-  if aSelected <> nil then
-  begin
-    enableDelete := true;
-    if aSelected.DataType in [jtObject,jtArray] then
-      enableAdd := true
-    else
-    begin
-      aParent := aSelected.Parent as TJSONTreeNode;
-      if (aParent <> nil) and (aParent.DataType in [jtObject,jtArray]) then
-        enableAdd := true;
-    end;
-  end
-  else if JSONTree.Items.Count = 0 then
-     enableAdd := true;
+  enableAdd := true;
 
   DeleteElementButton.Enabled := enableDelete;
   AddBooleanButton.Enabled := enableAdd;
-  AddNullButton.Enabled := enableAdd;
   AddNumberButton.Enabled := enableAdd;
   AddObjectButton.Enabled := enableAdd;
   AddStringButton.Enabled := enableAdd;
   AddArrayButton.Enabled := enableAdd;
 end;
 
+function TJSONEditor.GetModified: Boolean;
+begin
+  result := fModified;
+end;
+
+procedure TJSONEditor.SetModified(AValue: Boolean);
+begin
+  fModified := AValue;
+end;
+
 constructor TJSONEditor.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
   EnableDisable;
+  fModified := false;
 end;
 
 procedure TJSONEditor.SetJSON(aData: TJSONData);
@@ -611,6 +733,27 @@ begin
     aRoot := JSONTree.Items.AddChild(nil,'') as TJSONTreeNode;
     aRoot.SetJSON(aData);
   end;
+  fModified := true;
+end;
+
+procedure TJSONEditor.SetJSON(aData: TJSObject);
+var
+  lKeys: TStringArray;
+  i: Integer;
+  lChild: TJSONTreeNode;
+begin
+  JSONTree.Items.Clear;
+  if aData <> nil then
+  begin
+    lKeys := aData.keys;
+    for i := 0 to length(lKeys) - 1 do
+    begin
+      lChild := JSONTree.Items.AddChild(nil,'') as TJSONTreeNode;
+      lChild.SetKey(lKeys[i]);
+      lChild.SetJSON(aData.Get(lKeys[i]));
+    end;
+  end;
+  fModified := true;
 end;
 
 function TJSONEditor.CreateJSON: TJSONData;
@@ -620,6 +763,21 @@ begin
   aRoot := JSONTree.Items.GetFirstNode as TJSONTreeNode;
   if aRoot <> nil then
     result := aRoot.CreateJSON
+  else
+    result := nil;
+end;
+
+function TJSONEditor.CreateJSON2: TJSObject;
+var
+  lChild: TJSONTreeNode;
+begin
+  lChild := JSONTree.Items.GetFirstNode as TJSONTreeNode;
+  if lChild <> nil then
+  begin
+    result := TJSObject.Create;
+    lChild.AddToJSON(Result,lChild.GetKey);
+    lChild := lChild.GetNextSibling as TJSONTreeNode;
+  end
   else
     result := nil;
 end;

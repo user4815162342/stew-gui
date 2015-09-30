@@ -277,6 +277,7 @@ type
       aValue: Boolean): TJSValue; override; overload;
     function CreateStringValue({%H-}aKey: UTF8String; aRequestType: TJSValueClass;
       aValue: UTF8String): TJSValue; override; overload;
+    property HashList: TFPHashObjectList read fList;
   public
     constructor Create; override;
     constructor CreateBoolean({%H-}aValue: Boolean); override;
@@ -850,7 +851,6 @@ end;
 function TJSONParser.ParseObject(aClass: TJSValueClass;
   aCreationName: UTF8String; aParent: TJSValue): TJSValue;
 var
-  lKey: UTF8String;
   lAssignToObject: TJSValue;
 begin
   if aClass = nil then
@@ -1208,9 +1208,6 @@ end;
 procedure TJSArray.Splice(aStart: Integer; aDeleteCount: Integer;
   aInsertCount: Integer);
 var
-  i: Integer;
-  l: Integer;
-var
   O: TJSObject;
   lenVal: TJSValue;
   len: Integer;
@@ -1220,11 +1217,10 @@ var
   from: UTF8String;
   &to: UTF8String;
   fromPresent: Boolean;
-  fromValue: TJSValue;
   itemCount: Integer;
   k: Integer;
 begin
-  // Follow the algorithm, except:
+  // Follow the EcmaScript algorithm, except:
   // - the insert count simply indicates how many indices to leave blank,
   // they must be filled in later.
   // - do not return the array of deleted items. I don't need it, do you?

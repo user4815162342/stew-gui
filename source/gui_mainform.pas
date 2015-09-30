@@ -12,8 +12,15 @@ uses
 type
 
   // TODO: Start working on converting the other UI modules
-  //       - the project explorer is the base for everything, so start there.
-  // TODO: Finally, once everything's working get rid of deprecated stuff.
+  // - Next:
+  //   - gui_documenteditor
+  // TODO: Finally, once everything's working get rid of deprecated stuff:
+  // - gui_mainform
+  // - gui_config
+  // - stew_project
+  // - stew_properties
+  // - stew_persist
+  // - sys_types
 
   TMainFormAction = (mfaProjectPropertiesLoading,
                      mfaProjectPropertiesLoaded,
@@ -153,6 +160,12 @@ type
     procedure Unobserve2(aObserver: TMainFormObserverHandler2);
     function IsDocumentOpen(aDocument: TDocumentPath): Boolean;
     procedure RequestTabClose(aFrame: TEditorFrame);
+    // Creates a Message Dialog according to our UI standards, which includes:
+    // - using the form's title as the dialog caption
+    // - allowing custom captions on the buttons, which gives the user a better
+    // idea about what they are choosing.
+    function MessageDialog(const Message: String; DlgType: TMsgDlgType; Buttons: TMsgDlgButtons; ButtonCaptions: Array of String): Integer;
+    procedure ShowMessage(const Message: String; AcceptCaption: String);
     // NOTE: I've made these public to make it easier to 'extend' the application,
     // but these layout functions really should only be used during app initialization
     // for now.
@@ -185,7 +198,7 @@ const
 implementation
 
 uses
-  gui_projectmanager, gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor, LCLProc, gui_about, gui_listdialog, sys_localfile, gui_async;
+  gui_projectmanager, gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor, LCLProc, gui_about, gui_listdialog, sys_localfile, gui_async, StdCtrls;
 
 {$R *.lfm}
 
@@ -269,18 +282,29 @@ begin
   lPath := (Sender as TProjectPromise).Path;
   if fProject = nil then
   begin
-     if MessageDlg('No stew project could be found.' + LineEnding +
-                'Would you like to create one at: ' + lPath.ID + '?',mtConfirmation,mbYesNo,0) =
+     if MessageDialog('No stew project could be found.' + LineEnding +
+                'Would you like to create one at: ' + lPath.ID + '?',mtConfirmation,mbYesNo,['Create New Stew Project','Open a Different Project']) =
         mrYes then
      begin;
         TStewProject.CreateNew(lPath).After(@AfterProjectCreateNew,@ProjectOpenFailed);
      end
      else
-        Close;
+     begin
+       if OpenProjectDialog.Execute then
+       begin
+         OpenProject(LocalFile(OpenProjectDialog.FileName));
+
+       end
+       else
+       begin
+         Close;
+         Exit;
+       end;
+     end;
   end
   else
   begin
-     ShowMessage('Found a project at: ' + fProject.DiskPath.ID);
+     ShowMessage('Found a project at: ' + fProject.DiskPath.ID,'Okay, Open It');
      InitializeProject;
   end;
 
@@ -290,7 +314,7 @@ procedure TMainForm.ProjectOpenFailed(Sender: TPromise; Error: TPromiseError);
 begin
   ShowMessage('The project couldn''t be loaded.' + LineEnding +
               'The error message was: ' + Error + LineEnding +
-              'This program will close.');
+              'This program will close.','Got it');
   Close;
 end;
 
@@ -306,8 +330,8 @@ procedure TMainForm.DoConfirmNewAttachment(Sender: TObject;
   Document: TDocumentPath; AttachmentName: String; out Answer: Boolean);
 begin
   Answer :=
-    MessageDlg('The ' + AttachmentName + ' file for this document does not exist.' + LineEnding +
-               'Do you wish to create a new file?',mtConfirmation,mbYesNo,0) = mrYes;
+    MessageDialog('The ' + AttachmentName + ' file for this document does not exist.' + LineEnding +
+               'Do you wish to create a new file?',mtConfirmation,mbYesNo,['Create the File','Cancel this Action']) = mrYes;
 end;
 
 procedure TMainForm.DocumentAttachmentLoading(Sender: TObject;
@@ -367,7 +391,7 @@ begin
   ShowMessage('An error occurred while listing documents.' + LineEnding +
               'The parent document''s ID was "' + Document.ID + '".' + LineEnding +
               Error + LineEnding +
-              'You may want to restart the program, or wait and try your task again later');
+              'You may want to restart the program, or wait and try your task again later','Sigh');
 
 end;
 
@@ -391,7 +415,7 @@ begin
               'The rename may be incomplete.' + LineEnding +
               'The document''s ID was ' + Document.ID + '.' + LineEnding +
               Error + LineEnding +
-              'You may want to restart the program, or wait and try your task again later');
+              'You may want to restart the program, or wait and try your task again later','Sigh');
 end;
 
 procedure TMainForm.DocumentsListed(Sender: TObject; Document: TDocumentPath);
@@ -415,7 +439,7 @@ begin
               'The document''s ID was ' + Document.ID + '.' + LineEnding +
               'The attachment type was ' + Attachment + '.' + LineEnding +
               Error + LineEnding +
-              'You may want to restart the program, or wait and try your task again later');
+              'You may want to restart the program, or wait and try your task again later','Sigh');
 end;
 
 procedure TMainForm.DocumentPropertiesError(Sender: TObject;
@@ -424,7 +448,7 @@ begin
   ShowMessage('An error occurred while saving or loading the document properties.' + LineEnding +
               'The document''s ID was ' + Document.ID + '.' + LineEnding +
               Error + LineEnding +
-              'You may want to restart the program, or wait and try your task again later');
+              'You may want to restart the program, or wait and try your task again later','Sigh');
 end;
 
 procedure TMainForm.DocumentPropertiesLoaded(Sender: TObject;
@@ -556,7 +580,6 @@ begin
     begin
       if not Frame.CloseQuery then
       begin
-        Frame.SetFocus;
         CanClose := false;
         break;
       end;
@@ -585,7 +608,7 @@ begin
     begin
       ShowMessage('The settings file could not be loaded for some reason.' + LineEnding +
                   'The Error Message Was: ' + E.Message + LineEnding +
-                  'Default settings will be used, and the current settings will be overwritten.');
+                  'Default settings will be used, and the current settings will be overwritten.','Got It');
     end;
   end;
 
@@ -695,7 +718,7 @@ begin
     lMessage := lMessage + (Event as TProjectError).Error + LineEnding;
   end;
   ShowMessage(lMessage +
-             'You may want to restart the program, or wait and try your task again later');
+             'You may want to restart the program, or wait and try your task again later','Sigh');
 end;
 
 procedure TMainForm.OpenProjectMenuItemClick(Sender: TObject);
@@ -731,7 +754,7 @@ procedure TMainForm.ProjectLoadFailed(E: String);
 begin
   ShowMessage('The project couldn''t be loaded.' + LineEnding +
               'The error message was: ' + E + LineEnding +
-              'This program will close.');
+              'This program will close.','Sigh');
   Close;
 end;
 
@@ -739,7 +762,7 @@ procedure TMainForm.ProjectPropertiesError(Sender: TObject; aError: String);
 begin
   ShowMessage('An error occurred while saving or loading the project properties.' + LineEnding +
               aError + LineEnding +
-              'You may want to restart the program, or wait and try your task again later');
+              'You may want to restart the program, or wait and try your task again later','Sigh');
 end;
 
 procedure TMainForm.ProjectPropertiesLoaded(Sender: TObject);
@@ -1066,6 +1089,81 @@ end;
 procedure TMainForm.RequestTabClose(aFrame: TEditorFrame);
 begin
   MainForm.DocumentTabCloseRequested(aFrame);
+end;
+
+
+type
+  // This is used as a trick in order to access a protected method on the buttons
+  // in message dialog. This is actually a case where that protected method, which
+  // really doesn't make any changes to the object, doesn't need to be protected
+  // in my opinion, so I'm willing to do this.
+  TButtonAccess = class(TBitBtn);
+
+function TMainForm.MessageDialog(const Message: String; DlgType: TMsgDlgType;
+  Buttons: TMsgDlgButtons; ButtonCaptions: array of String): Integer;
+var
+  lMsgdlg: TForm;
+  i: Integer;
+  lButton: TBitBtn;
+  lCaptionindex: Integer;
+  lLastButton: TBitBtn;
+  lButtonWidth: Integer = 0;
+  lButtonHeight: Integer = 0;
+begin
+  // inspired by: http://stackoverflow.com/a/18620157/300213
+  // Except that was written for delphi, and lazarus seems to work differently...
+  // Basically, we have to assign different captions after creating the
+  // dialog itself. In the stack overflow comment, they just assign the captions.
+  // However, in Lazarus, that does not change the button widths, and the captions
+  // get cut off. So, I have to do that, as well as align the buttons appropriately.
+
+  lMsgdlg := createMessageDialog(Message, DlgType, Buttons);
+  try
+     lMsgdlg.Caption := Self.Caption;
+     lMsgdlg.BiDiMode := Self.BiDiMode;
+     lCaptionindex := Length(ButtonCaptions) - 1;
+     lLastButton := nil;
+
+     // Basically, we're working backwards, because we need to justify
+     // the buttons to the right (although if BiDiMode is right to left,
+     // do I need to change that?), which means that I need to start with
+     // the rightmost button (which is the last button added) and go on to
+     // the left.
+     for i := lMsgdlg.componentcount - 1 downto 0 Do
+     begin
+       if (lMsgdlg.components[i] is TCustomButton) then
+       Begin
+         lButton := TBitBtn(lMsgdlg.components[i]);
+         if lCaptionindex >= 0 then
+         begin
+           // Yes, No
+           lButton.Caption := ButtonCaptions[lCaptionindex];
+           TButtonAccess(lButton).CalculatePreferredSize(lButtonWidth,lButtonHeight,true);
+           lButton.Width := lButtonWidth + 10;
+           if lLastButton <> nil then
+           begin
+             lButton.Left := (lLastButton.Left - 10) - lButton.Width;
+           end
+           else
+           begin
+             lButton.Left := (lMsgdlg.ClientWidth - 10) - lButton.Width;
+           end;
+
+           lLastButton := lButton;
+         end;
+         dec(lCaptionindex);
+       end
+     end;
+     Result := lMsgdlg.Showmodal;
+
+  finally
+    lMsgdlg.Free;
+  end;
+end;
+
+procedure TMainForm.ShowMessage(const Message: String; AcceptCaption: String);
+begin
+  MessageDialog(Message,mtConfirmation,[mbOK],[AcceptCaption]);
 end;
 
 function TMainForm.LayoutFrame(aFrameClass: TControlClass; aLocation: TAlign
