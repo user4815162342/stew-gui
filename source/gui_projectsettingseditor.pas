@@ -9,13 +9,8 @@ uses
   Grids, Dialogs, gui_editorframe, stew_properties, gui_mainform,
   gui_jsoneditor, stew_project, graphics, Menus, sys_async;
 
-{
-TODO: My only noticeable issue is that we don't do a closequery if the
-data is modified.
-}
-
 // FUTURE: More properties that need to be handled.
-//    - editors for certain file extensions (See Preferences Menu).
+//    - editors for certain file extensions (Also put this in Application Preferences).
 //    - defaultPublishExtension
 //    - "Type" of project:
 //      - Notebook: In this project type, there is only a 'primary', no notes,
@@ -166,7 +161,7 @@ end;
 
 procedure TProjectSettingsEditor.SaveButtonClick(Sender: TObject);
 begin
-  ShowMessage('The old version will be backed up in case this doesn''t work.');
+  MainForm.ShowMessage('The old version will be backed up in case this doesn''t work.','Got it');
   WriteData;
 end;
 
@@ -272,8 +267,6 @@ begin
     lUser := fUserPropertiesEditor.CreateJSON2;
     if lUser <> nil then
       try
-        // TODO: This is a problem, because user is now always a TJSObject,
-        // and now it's not.
         lProps.User.Assign(lUser);
       finally
         lUser.Free;

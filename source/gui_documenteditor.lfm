@@ -125,6 +125,7 @@ inherited DocumentEditor: TDocumentEditor
           Align = alRight
           BorderSpacing.Left = 10
           Caption = 'Publishable'
+          OnClick = PublishEditClick
           TabOrder = 1
         end
       end
@@ -160,6 +161,7 @@ inherited DocumentEditor: TDocumentEditor
           Align = alLeft
           BorderSpacing.Left = 10
           ItemHeight = 0
+          OnChange = CategoryEditChange
           TabOrder = 0
         end
       end
@@ -183,6 +185,7 @@ inherited DocumentEditor: TDocumentEditor
           Align = alLeft
           BorderSpacing.Left = 10
           ItemHeight = 0
+          OnChange = StatusEditChange
           TabOrder = 0
         end
         object StatusLabel: TLabel

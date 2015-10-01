@@ -4483,9 +4483,6 @@ end;
 
 function TStewProject.ShiftDocumentTo(aDocument: TDocumentPath; aIndex: Integer
   ): TShiftDocumentPromise;
-var
-  lFolderFile: TFile;
-  lListFiles: TFileListPromise;
 begin
   result := ShiftDocumentRelativeTo(aDocument,TDocumentPath.Null,aIndex);
 end;
@@ -4508,13 +4505,19 @@ function TStewProject.RenameDocument(aDocument: TDocumentPath;
   aNewDocument: TDocumentPath): TRenameDocumentPromise;
 var
   lListFiles: TFileListPromise;
+  lDocumentFile: TFile;
 begin
   if aDocument = TDocumentPath.Root then
     raise Exception.Create('Can''t rename the document root');
   if aNewDocument = TDocumentPath.Root then
     raise Exception.Create('Can''t rename a document to root');
   ReportEvent(TDocumentRenameEvent.Create(paRenamingDocument,aDocument,aNewDocument));
-  lListFiles := fCache.ListFiles(GetDocumentFolderPath(fDisk,aDocument.Container));
+  lDocumentFile := GetDocumentFolderPath(fDisk,aDocument.Container);
+  // uncache the document recursively so we make sure we get *all* of the correct files.
+  // I don't want to risk their being an extra file lying around that didn't get
+  // renamed.
+  fCache.Uncache(lDocumentFile,true);
+  lListFiles := fCache.ListFiles(lDocumentFile);
   result := TRenameDocumentTask.Defer(aDocument,aNewDocument,Self,lListFiles).Promise as TRenameDocumentPromise;
   result.After(@DocumentsRenamed,@DocumentRenamingError);
 end;

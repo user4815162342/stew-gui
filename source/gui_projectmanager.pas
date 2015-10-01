@@ -451,7 +451,7 @@ begin
         Exit;
       end;
 
-      if not lTargetNode.HasChildren then
+      if (lTargetNode <> nil) and (not lTargetNode.HasChildren) then
       begin
         // make sure the node shows as having children...
         lTargetNode.HasChildren := true;
