@@ -2572,8 +2572,7 @@ begin
   paAttachmentEditingFailed,
   paUnexpectedProjectError,
   paUnexpectedDocumentError,
-  paUnexpectedAttachmentError];
-
+  paUnexpectedAttachmentError]
 end;
 
 function TProjectEvent.GetDescription: UTF8String;

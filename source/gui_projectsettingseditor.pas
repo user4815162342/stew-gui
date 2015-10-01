@@ -72,7 +72,7 @@ type
     procedure DeleteCategoryButtonClick(Sender: TObject);
     procedure DeleteStatusButtonClick(Sender: TObject);
     procedure EditNotesButtonClick(Sender: TObject);
-    procedure ObserveMainForm(Sender: TMainForm; aAction: TMainFormAction2;
+    procedure ObserveMainForm(Sender: TMainForm; aAction: TMainFormAction;
       {%H-}aDocument: TDocumentPath);
     procedure ObserveProject(Sender: TStewProject; Event: TProjectEvent);
     procedure RefreshButtonClick(Sender: TObject);
@@ -368,7 +368,7 @@ begin
 end;
 
 procedure TProjectSettingsEditor.ObserveMainForm(Sender: TMainForm;
-  aAction: TMainFormAction2; aDocument: TDocumentPath);
+  aAction: TMainFormAction; aDocument: TDocumentPath);
 begin
   case aAction of
     mfaProjectOpened:
@@ -772,7 +772,7 @@ begin
   AddColumn(StatusDefinitionsGrid,StatDefaultCol,'Default',ckRadio);
   StatusDefinitionsGrid.FixedRows := 1;
 
-  MainForm.Observe2(@ObserveMainForm);
+  MainForm.Observe(@ObserveMainForm);
   // if the project is already opened, then notify self to make sure
   // we hook up to it.
   if MainForm.Project <> nil then
@@ -783,7 +783,7 @@ destructor TProjectSettingsEditor.Destroy;
 begin
   if MainForm.Project <> nil then
      MainForm.Project.RemoveObserver(@ObserveProject);
-  MainForm.Unobserve2(@ObserveMainForm);
+  MainForm.Unobserve(@ObserveMainForm);
   inherited Destroy;
 end;
 

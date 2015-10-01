@@ -71,7 +71,7 @@ type
     procedure EndUIUpdate;
     procedure SetupControls;
     // TODO: Remove the '2'.
-    procedure ObserveMainForm(Sender: TMainForm; aAction: TMainFormAction2;
+    procedure ObserveMainForm(Sender: TMainForm; aAction: TMainFormAction;
       {%H-}aDocument: TDocumentPath);
     procedure ObserveProject(Sender: TStewProject; Event: TProjectEvent);
   public
@@ -249,7 +249,7 @@ end;
 
 
 procedure TDocumentEditor.ObserveMainForm(Sender: TMainForm;
-  aAction: TMainFormAction2; aDocument: TDocumentPath);
+  aAction: TMainFormAction; aDocument: TDocumentPath);
 begin
   case aAction of
     mfaProjectOpened:
@@ -509,7 +509,7 @@ begin
   fUserPropertiesEditor.Align := alClient;
   fUserPropertiesEditor.BorderSpacing.Top := 10;
 
-  MainForm.Observe2(@ObserveMainForm);
+  MainForm.Observe(@ObserveMainForm);
   // if the project is already opened, then notify self to make sure
   // we hook up to it.
   if MainForm.Project <> nil then
@@ -520,7 +520,7 @@ destructor TDocumentEditor.Destroy;
 begin
   if MainForm.Project <> nil then
      MainForm.Project.RemoveObserver(@ObserveProject);
-  MainForm.Unobserve2(@ObserveMainForm);
+  MainForm.Unobserve(@ObserveMainForm);
   inherited Destroy;
 end;
 

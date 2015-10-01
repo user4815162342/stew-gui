@@ -110,7 +110,7 @@ type
     procedure DocumentUpdated(aParent: TDocumentPath; aContents: TDocumentInfoArray);
     procedure DocumentUpdated(aParent: TDocumentPath; aProperties: TDocumentProperties2);
     procedure RefreshDocument(aDocument: TDocumentPath);
-    procedure ObserveMainForm(Sender: TMainForm; aAction: TMainFormAction2; aDocument: TDocumentPath);
+    procedure ObserveMainForm(Sender: TMainForm; aAction: TMainFormAction; aDocument: TDocumentPath);
     procedure ObserveProject(Sender: TStewProject; Event: TProjectEvent);
 
   public
@@ -230,7 +230,7 @@ begin
 end;
 
 procedure TProjectManager.ObserveMainForm(Sender: TMainForm;
-  aAction: TMainFormAction2; aDocument: TDocumentPath);
+  aAction: TMainFormAction; aDocument: TDocumentPath);
 var
   lNode: TProjectInspectorNode;
 begin
@@ -1076,7 +1076,7 @@ begin
   fCategoryGlyphIndexes.Sorted:=true;
   fCategoryColors := TKeywordColorMap.Create;
   fCategoryColors.Sorted := true;
-  MainForm.Observe2(@ObserveMainForm);
+  MainForm.Observe(@ObserveMainForm);
   Text := 'Project';
   SetupControls;
 end;
@@ -1085,7 +1085,7 @@ destructor TProjectManager.Destroy;
 begin
   if MainForm.Project <> nil then
      MainForm.Project.RemoveObserver(@ObserveProject);
-  MainForm.Unobserve2(@ObserveMainForm);
+  MainForm.Unobserve(@ObserveMainForm);
   FreeAndNil(fStatuses);
   FreeAndNil(fCategoryColors);
   FreeAndNil(fCategoryGlyphIndexes);
