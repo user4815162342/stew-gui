@@ -102,13 +102,13 @@ type
     function GetTreeNodeForDocument(aDocument: TDocumentPath): TProjectInspectorNode;
     function BuildTreeNodeForDocument(aDocument: TDocumentPath): TProjectInspectorNode;
     procedure UpdateNode(aNode: TProjectInspectorNode; aInfo: TDocumentInfo);
-    procedure UpdateNode(aNode: TProjectInspectorNode; aProperties: TDocumentProperties2);
+    procedure UpdateNode(aNode: TProjectInspectorNode; aProperties: TDocumentProperties);
     procedure UpdateNodeStyle(aNode: TProjectInspectorNode);
     procedure BeginUIUpdate;
     procedure EndUIUpdate;
     procedure ProjectPropertiesUpdated(aProperties: TProjectProperties2);
     procedure DocumentUpdated(aParent: TDocumentPath; aContents: TDocumentInfoArray);
-    procedure DocumentUpdated(aParent: TDocumentPath; aProperties: TDocumentProperties2);
+    procedure DocumentUpdated(aParent: TDocumentPath; aProperties: TDocumentProperties);
     procedure RefreshDocument(aDocument: TDocumentPath);
     procedure ObserveMainForm(Sender: TMainForm; aAction: TMainFormAction; aDocument: TDocumentPath);
     procedure ObserveProject(Sender: TStewProject; Event: TProjectEvent);
@@ -825,7 +825,7 @@ begin
 end;
 
 procedure TProjectManager.UpdateNode(aNode: TProjectInspectorNode;
-  aProperties: TDocumentProperties2);
+  aProperties: TDocumentProperties);
 var
   lName: String;
 begin
@@ -905,14 +905,14 @@ begin
   fStatuses.Clear;
   for i := 0 to Length(lKeys) - 1 do
   begin
-    fStatuses[lKeys[i]] := (aProperties.Statuses.Get(lKeys[i]) as TStatusDefinition2).Color;
+    fStatuses[lKeys[i]] := (aProperties.Statuses.Get(lKeys[i]) as TStatusDefinition).Color;
   end;
 
   lKeys := aProperties.Categories.keys;
   fCategoryColors.Clear;
   for i := 0 to Length(lKeys) - 1 do
   begin
-    fCategoryColors[lKeys[i]] := (aProperties.Categories.Get(lKeys[i]) as TCategoryDefinition2).Color;
+    fCategoryColors[lKeys[i]] := (aProperties.Categories.Get(lKeys[i]) as TCategoryDefinition).Color;
   end;
   UpdateCategoryGlyphs;
 
@@ -1026,7 +1026,7 @@ begin
 end;
 
 procedure TProjectManager.DocumentUpdated(aParent: TDocumentPath;
-  aProperties: TDocumentProperties2);
+  aProperties: TDocumentProperties);
 var
   lNode: TProjectInspectorNode;
 begin

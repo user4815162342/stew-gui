@@ -178,8 +178,8 @@ var
   lFound: Boolean;
   lLevel: Integer;
   lNames: TStringArray;
-  lCat: TCategoryDefinition2;
-  lStat: TStatusDefinition2;
+  lCat: TCategoryDefinition;
+  lStat: TStatusDefinition;
 begin
   lProps := (Sender as TProjectPropertiesPromise).Properties.Clone as TProjectProperties2;
   try
@@ -196,7 +196,7 @@ begin
       begin
         lCat := lProps.categories.GetCategory(Cells[CatNameCol,i]);
         if lCat = nil then
-          lCat := lProps.Categories.PutNewObject(Cells[CatNameCol,i]) as TCategoryDefinition2;
+          lCat := lProps.Categories.PutNewObject(Cells[CatNameCol,i]) as TCategoryDefinition;
         lCat.color := StrToColor(Cells[CatColorCol,i]);
         lCat.publishTitle:=Cells[CatPTitleCol,i] = TrueValue;
         if TryStrToInt(Cells[CatPTitleLevelCol,i],lLevel) then
@@ -238,7 +238,7 @@ begin
       begin
         lStat := lProps.statuses.GetStatus(Cells[StatNameCol,i]);
         if lStat = nil then
-          lStat := lProps.statuses.PutNewObject(Cells[StatNameCol,i]) as TStatusDefinition2;
+          lStat := lProps.statuses.PutNewObject(Cells[StatNameCol,i]) as TStatusDefinition;
         lStat.color := StrToColor(Cells[StatColorCol,i]);
         if Cells[StatDefaultCol,i] = TrueValue then
           lProps.defaultStatus:=Cells[StatNameCol,i];
@@ -614,7 +614,7 @@ var
   i: Integer;
   j: Integer;
   lKeys: TStringArray;
-  lCat: TCategoryDefinition2;
+  lCat: TCategoryDefinition;
 begin
   fDataAvailable := true;
 
@@ -645,7 +645,7 @@ begin
       for i := 0 to Length(lKeys) - 1 do
       begin
         j := RowCount;
-        lCat := aData.Categories.Get(lKeys[i]) as TCategoryDefinition2;
+        lCat := aData.Categories.Get(lKeys[i]) as TCategoryDefinition;
         RowCount := RowCount + 1;
         Cells[CatNameCol,j] := lKeys[i];
         Cells[CatColorCol,j] := ColorToStr(lCat.Color);
@@ -676,7 +676,7 @@ begin
         j := RowCount;
         RowCount := RowCount + 1;
         Cells[StatNameCol,j] := lKeys[i];
-        Cells[StatColorCol,j] := ColorToStr((aData.Statuses.Get(lKeys[i]) as TStatusDefinition2).color);
+        Cells[StatColorCol,j] := ColorToStr((aData.Statuses.Get(lKeys[i]) as TStatusDefinition).color);
         Cells[StatDefaultCol,j] := BoolToStr(aData.defaultStatus = lKeys[i],TrueValue,FalseValue);
       end;
       AutoSizeColumns;

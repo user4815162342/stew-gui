@@ -5,128 +5,10 @@ unit stew_properties;
 interface
 
 uses
-  Classes, SysUtils, stew_persist, Graphics, fpjsonrtti, fpjson, sys_file, sys_json;
+  Classes, SysUtils, Graphics, sys_file, sys_json;
 
 type
 
-
-  { TDocumentProperties }
-
-  TDocumentProperties = class(TJSONAsyncFileStoreContainer, IJSONCustomSerializer)
-    procedure IndexChanged(Sender: TObject);
-  private
-    fCategory: String;
-    fIndex: TStringList;
-    fPublish: boolean;
-    fStatus: String;
-    fTitle: String;
-    fUserProperties: TJSONData;
-    procedure SetUserProperties(AValue: TJSONData);
-    function GetIndex: TStrings;
-  protected
-    procedure Clear; override;
-    procedure AfterSerialize({%H-}aSaver: TJSONStreamer; aTarget: TJSONObject);
-    procedure BeforeDeserialize({%H-}aLoader: TJSONDeStreamer; aData: TJSONObject);
-  public
-    constructor Create(afile: TFile; aIsRoot: Boolean);
-    destructor Destroy; override;
-    property user: TJSONData read fUserProperties write SetUserProperties;
-  published
-    property index: TStrings read GetIndex;
-    property title: String read fTitle write fTitle;
-    property publish: boolean read fPublish write fPublish;
-    property category: String read fCategory write fCategory;
-    property status: String read fStatus write fStatus;
-  end deprecated;
-
-  { TKeywordDefinition }
-
-  TKeywordDefinition = class(TJSONStoreMapItem, IJSONCustomSerializer)
-  private
-    Fcolor: TColor;
-    procedure Setcolor(AValue: TColor);
-    procedure AfterSerialize({%H-}aSaver: TJSONStreamer; aTarget: TJSONObject);
-    procedure BeforeDeserialize({%H-}aLoader: TJSONDeStreamer; aData: TJSONObject);
-  public
-    property color: TColor read Fcolor write Setcolor;
-  end deprecated;
-
-  { TKeywordDefinitions }
-
-  TKeywordDefinitions = class(TJSONStoreMap)
-  end deprecated;
-
-  { TCategoryDefinition }
-
-  TCategoryDefinition = class(TKeywordDefinition)
-  private
-    FpublishMarkerAfter: Boolean;
-    FpublishMarkerBefore: Boolean;
-    FpublishMarkerBetween: Boolean;
-    FpublishTitle: Boolean;
-    fpublishTitleLevel: Integer;
-    FpublishTitlePrefix: String;
-  published
-    property publishTitle: Boolean read FpublishTitle write FpublishTitle default false;
-    property publishTitleLevel: Integer read fpublishTitleLevel write FpublishTitleLevel default 0;
-    property publishTitlePrefix: String read FpublishTitlePrefix write FpublishTitlePrefix;
-    property publishMarkerBefore: Boolean read FpublishMarkerBefore write FpublishMarkerBefore default false;
-    property publishMarkerAfter: Boolean read FpublishMarkerAfter write FpublishMarkerAfter default false;
-    property publishMarkerBetween: Boolean read FpublishMarkerBetween write FpublishMarkerBetween default false;
-  end deprecated;
-
-  { TCategoryDefinitions }
-
-  TCategoryDefinitions = class(TKeywordDefinitions)
-    constructor Create;
-  end deprecated;
-
-  TStatusDefintion = class(TKeywordDefinition)
-  end deprecated;
-
-  { TStatusDefinitions }
-
-  TStatusDefinitions = class(TKeywordDefinitions)
-    constructor Create;
-  end deprecated;
-
-  { TProjectProperties }
-
-  TProjectProperties = class(TJSONAsyncFileStoreContainer, IJSONCustomSerializer)
-  private
-    Fcategories: TKeywordDefinitions;
-    FdefaultCategory: String;
-    FdefaultDocExtension: String;
-    FdefaultNotesExtension: String;
-    FdefaultStatus: String;
-    FdefaultThumbnailExtension: String;
-    fStatuses: TKeywordDefinitions;
-    fUserProperties: TJSONData;
-    procedure SetdefaultCategory(AValue: String);
-    procedure SetdefaultDocExtension(AValue: String);
-    procedure SetdefaultNotesExtension(AValue: String);
-    procedure SetdefaultStatus(AValue: String);
-    procedure SetdefaultThumbnailExtension(AValue: String);
-    procedure SetUserProperties(AValue: TJSONData);
-  protected
-    procedure Clear; override;
-    procedure AfterSerialize({%H-}aSaver: TJSONStreamer; {%H-}aTarget: TJSONObject);
-    procedure BeforeDeserialize({%H-}aLoader: TJSONDeStreamer; aData: TJSONObject);
-  public
-    constructor Create(aProjectFile: TFile);
-    destructor Destroy; override;
-    class function GetPath(aFolderPath: TFile): TFile;
-    // not published because I need to override the streaming of this.
-    property user: TJSONData read fUserProperties write SetUserProperties;
-  published
-    property defaultDocExtension: String read FdefaultDocExtension write SetdefaultDocExtension;
-    property defaultThumbnailExtension: String read FdefaultThumbnailExtension write SetdefaultThumbnailExtension;
-    property defaultNotesExtension: String read FdefaultNotesExtension write SetdefaultNotesExtension;
-    property categories: TKeywordDefinitions read Fcategories;
-    property defaultCategory: String read FdefaultCategory write SetdefaultCategory;
-    property statuses: TKeywordDefinitions read fStatuses;
-    property defaultStatus: String read FdefaultStatus write SetdefaultStatus;
-  end deprecated;
 
   { TProperties }
 
@@ -148,10 +30,9 @@ type
        ): TJSValueClass; override;
   end;
 
-  { TDocumentProperties2 }
+  { TDocumentProperties }
 
-  // TODO: Once we get rid of the other TDocumentProperties, remove the 2
-  TDocumentProperties2 = class(TProperties)
+  TDocumentProperties = class(TProperties)
   private
     function GetCategory: UTF8String;
     function GetIndex: TDocumentIndexProperty;
@@ -200,9 +81,9 @@ type
     property AsColor: TColor read GetColor write SetColor;
   end;
 
-  { TKeywordDefinition2 }
+  { TKeywordDefinition }
 
-  TKeywordDefinition2 = class(TJSObject)
+  TKeywordDefinition = class(TJSObject)
   private
     function GetColor: TColor;
     procedure SetColor(AValue: TColor);
@@ -213,12 +94,11 @@ type
     property Color: TColor read GetColor write SetColor;
   end;
 
-  TKeywordDefinitionClass = class of TKeywordDefinition2;
+  TKeywordDefinitionClass = class of TKeywordDefinition;
 
-  { TCategoryDefinition2 }
+  { TCategoryDefinition }
 
-  // TODO: Once we get rid of the other TCategoryDefinition remove the 2
-  TCategoryDefinition2 = class(TKeywordDefinition2)
+  TCategoryDefinition = class(TKeywordDefinition)
   private
     function GetPublishMarkerAfter: Boolean;
     function GetPublishMarkerBefore: Boolean;
@@ -241,15 +121,13 @@ type
     property PublishMarkerBetween: Boolean read GetPublishMarkerBetween write SetPublishMarkerBetween;
   end;
 
-  // TODO: Remove the 2 once the other one is gone.
-  TStatusDefinition2 = class(TKeywordDefinition2)
+  TStatusDefinition = class(TKeywordDefinition)
     // just holds color, so nothing special...
   end;
 
-  { TKeywordDefinitions2 }
+  { TKeywordDefinitions }
 
-  // TODO: Remove the 2 once the other one is gone
-  generic TKeywordDefinitions2<MemberType> = class(TJSObject)
+  generic TKeywordDefinitions<MemberType> = class(TJSObject)
   protected
     function RequestType({%H-}aKey: UTF8String; {%H-}aType: TJSValueClass
       ): TJSValueClass; override;
@@ -257,22 +135,20 @@ type
     procedure Assign(aValue: TJSValue); override;
   end;
 
-  // TODO: Remove the 2
+  { TStatusDefinitions }
 
-  { TStatusDefinitions2 }
-
-  TStatusDefinitions2 = class(specialize TKeywordDefinitions2<TStatusDefinition2>)
+  TStatusDefinitions = class(specialize TKeywordDefinitions<TStatusDefinition>)
   public
-    function GetStatus(aKey: UTF8String): TStatusDefinition2;
+    function GetStatus(aKey: UTF8String): TStatusDefinition;
   end;
 
   // TODO: Remove the 2
 
   { TCategoryDefinitions2 }
 
-  TCategoryDefinitions2 = class(specialize TKeywordDefinitions2<TCategoryDefinition2>)
+  TCategoryDefinitions2 = class(specialize TKeywordDefinitions<TCategoryDefinition>)
   public
-    function GetCategory(aKey: UTF8String): TCategoryDefinition2;
+    function GetCategory(aKey: UTF8String): TCategoryDefinition;
   end;
 
   { TProjectProperties2 }
@@ -286,7 +162,7 @@ type
     function GetDefaultNotesExtension: UTF8String;
     function GetDefaultStatus: UTF8String;
     function GetDefaultThumbnailExtension: UTF8String;
-    function GetStatuses: TStatusDefinitions2;
+    function GetStatuses: TStatusDefinitions;
     procedure SetDefaultCategory(AValue: UTF8String);
     procedure SetDefaultDocExtension(AValue: UTF8String);
     procedure SetDefaultNotesExtension(AValue: UTF8String);
@@ -303,7 +179,7 @@ type
     property DefaultNotesExtension: UTF8String read GetDefaultNotesExtension write SetDefaultNotesExtension;
     property Categories: TCategoryDefinitions2 read GetCategories;
     property DefaultCategory: UTF8String read GetDefaultCategory write SetDefaultCategory;
-    property Statuses: TStatusDefinitions2 read GetStatuses;
+    property Statuses: TStatusDefinitions read GetStatuses;
     property DefaultStatus: UTF8String read GetDefaultStatus write SetDefaultStatus;
   end;
 
@@ -340,7 +216,7 @@ uses
 { TCategoryDefinitions2 }
 
 function TCategoryDefinitions2.GetCategory(aKey: UTF8String
-  ): TCategoryDefinition2;
+  ): TCategoryDefinition;
 var
   lResult: TJSValue;
 begin
@@ -348,12 +224,12 @@ begin
   if lResult is TJSUndefined then
     result := nil
   else
-    result := lResult as TCategoryDefinition2;
+    result := lResult as TCategoryDefinition;
 end;
 
 { TStatusDefinitions2 }
 
-function TStatusDefinitions2.GetStatus(aKey: UTF8String): TStatusDefinition2;
+function TStatusDefinitions.GetStatus(aKey: UTF8String): TStatusDefinition;
 var
   lResult: TJSValue;
 begin
@@ -361,7 +237,7 @@ begin
   if lResult is TJSUndefined then
     result := nil
   else
-    result := lResult as TStatusDefinition2;
+    result := lResult as TStatusDefinition;
 end;
 
 { TProperties }
@@ -416,11 +292,11 @@ begin
   result := GetDefault(DefaultThumbnailExtensionKey,'');
 end;
 
-function TProjectProperties2.GetStatuses: TStatusDefinitions2;
+function TProjectProperties2.GetStatuses: TStatusDefinitions;
 begin
   if not hasOwnProperty(StatusesKey) then
      PutNewObject(StatusesKey);
-  result := Get(StatusesKey) as TStatusDefinitions2;
+  result := Get(StatusesKey) as TStatusDefinitions;
 end;
 
 procedure TProjectProperties2.SetDefaultCategory(AValue: UTF8String);
@@ -453,7 +329,7 @@ function TProjectProperties2.RequestType(aKey: UTF8String; aType: TJSValueClass
 begin
   case aKey of
     StatusesKey:
-      result := TStatusDefinitions2;
+      result := TStatusDefinitions;
     CategoriesKey:
       result := TCategoryDefinitions2;
     DefaultStatusKey, DefaultCategoryKey,
@@ -480,13 +356,13 @@ end;
 
 { TKeywordDefinitions2 }
 
-function TKeywordDefinitions2.RequestType(aKey: UTF8String; aType: TJSValueClass
+function TKeywordDefinitions.RequestType(aKey: UTF8String; aType: TJSValueClass
   ): TJSValueClass;
 begin
   result := MemberType;
 end;
 
-procedure TKeywordDefinitions2.Assign(aValue: TJSValue);
+procedure TKeywordDefinitions.Assign(aValue: TJSValue);
 var
   i: Integer;
   lValue: TJSArray;
@@ -509,79 +385,79 @@ begin
      inherited Assign(aValue);
 end;
 
-{ TCategoryDefinition2 }
+{ TCategoryDefinition }
 
-function TCategoryDefinition2.GetPublishMarkerAfter: Boolean;
+function TCategoryDefinition.GetPublishMarkerAfter: Boolean;
 begin
   result := GetDefault(PublishMarkerAfterKey,false);
 end;
 
-function TCategoryDefinition2.GetPublishMarkerBefore: Boolean;
+function TCategoryDefinition.GetPublishMarkerBefore: Boolean;
 begin
   Result := GetDefault(PublishMarkerBeforeKey,false);
 
 end;
 
-function TCategoryDefinition2.GetPublishMarkerBetween: Boolean;
+function TCategoryDefinition.GetPublishMarkerBetween: Boolean;
 begin
   result := GetDefault(PublishMarkerBetweenKey,false);
 end;
 
-function TCategoryDefinition2.GetPublishTitle: Boolean;
+function TCategoryDefinition.GetPublishTitle: Boolean;
 begin
   result := GetDefault(PublishTitleKey,false);
 end;
 
-function TCategoryDefinition2.GetPublishTitleLevel: Integer;
+function TCategoryDefinition.GetPublishTitleLevel: Integer;
 begin
   result := trunc(GetDefault(PublishTitleLevelKey,0));
 end;
 
-function TCategoryDefinition2.GetPublishTitlePrefix: UTF8String;
+function TCategoryDefinition.GetPublishTitlePrefix: UTF8String;
 begin
   result := GetDefault(PublishTitlePrefixKey,'');
 
 end;
 
-procedure TCategoryDefinition2.SetPublishMarkerAfter(AValue: Boolean);
+procedure TCategoryDefinition.SetPublishMarkerAfter(AValue: Boolean);
 begin
   Put(PublishMarkerAfterKey,AValue);
 
 end;
 
-procedure TCategoryDefinition2.SetPublishMarkerBefore(AValue: Boolean);
+procedure TCategoryDefinition.SetPublishMarkerBefore(AValue: Boolean);
 begin
   Put(PublishMarkerBeforeKey,AValue);
 
 end;
 
-procedure TCategoryDefinition2.SetPublishMarkerBetween(AValue: Boolean);
+procedure TCategoryDefinition.SetPublishMarkerBetween(AValue: Boolean);
 begin
   Put(PublishMarkerBetweenKey,AValue);
 
 end;
 
-procedure TCategoryDefinition2.SetPublishTitle(AValue: Boolean);
+procedure TCategoryDefinition.SetPublishTitle(AValue: Boolean);
 begin
   Put(PublishTitleKey,aValue);
 
 end;
 
-procedure TCategoryDefinition2.SetPublishTitleLevel(AValue: Integer);
+procedure TCategoryDefinition.SetPublishTitleLevel(AValue: Integer);
 begin
   Put(PublishTitleLevelKey,aValue);
 
 end;
 
-procedure TCategoryDefinition2.SetPublishTitlePrefix(AValue: UTF8String);
+procedure TCategoryDefinition.SetPublishTitlePrefix(AValue: UTF8String);
 begin
   Put(PublishTitlePrefixKey,aValue);
 
 end;
 
-{ TKeywordDefinition2 }
+{ TKeywordDefinition }
 
-function TKeywordDefinition2.GetColor: TColor;
+function TKeywordDefinition.GetColor: TColor;
 begin
   if hasOwnProperty(ColorKey) then
     result := (Get(ColorKey) as TJSColor).AsColor
@@ -589,7 +465,7 @@ begin
     result := clNone;
 end;
 
-procedure TKeywordDefinition2.SetColor(AValue: TColor);
+procedure TKeywordDefinition.SetColor(AValue: TColor);
 var
   lValue: TJSColor;
 begin
@@ -600,7 +476,7 @@ begin
   lValue.AsColor := AValue;
 end;
 
-function TKeywordDefinition2.RequestType(aKey: UTF8String; aType: TJSValueClass
+function TKeywordDefinition.RequestType(aKey: UTF8String; aType: TJSValueClass
   ): TJSValueClass;
 begin
   if aKey = ColorKey then
@@ -708,56 +584,56 @@ begin
      Result:=inherited RequestType(aKey, aType);
 end;
 
-{ TDocumentProperties2 }
+{ TDocumentProperties }
 
-function TDocumentProperties2.GetCategory: UTF8String;
+function TDocumentProperties.GetCategory: UTF8String;
 begin
   result := GetDefault(CategoryKey,'');
 end;
 
-function TDocumentProperties2.GetIndex: TDocumentIndexProperty;
+function TDocumentProperties.GetIndex: TDocumentIndexProperty;
 begin
   if not hasOwnProperty(IndexKey) then
      PutNewArray(IndexKey);
   result := Get(IndexKey) as TDocumentIndexProperty;
 end;
 
-function TDocumentProperties2.GetPublish: Boolean;
+function TDocumentProperties.GetPublish: Boolean;
 begin
   result := GetDefault(PublishKey,false);
 end;
 
-function TDocumentProperties2.GetStatus: UTF8String;
+function TDocumentProperties.GetStatus: UTF8String;
 begin
   result := GetDefault(StatusKey,'');
 end;
 
-function TDocumentProperties2.GetTitle: UTF8String;
+function TDocumentProperties.GetTitle: UTF8String;
 begin
   result := GetDefault(TitleKey,'');
 end;
 
-procedure TDocumentProperties2.SetCategory(AValue: UTF8String);
+procedure TDocumentProperties.SetCategory(AValue: UTF8String);
 begin
   Put(CategoryKey,AValue);
 end;
 
-procedure TDocumentProperties2.SetPublish(AValue: Boolean);
+procedure TDocumentProperties.SetPublish(AValue: Boolean);
 begin
   Put(PublishKey,AValue);
 end;
 
-procedure TDocumentProperties2.SetStatus(AValue: UTF8String);
+procedure TDocumentProperties.SetStatus(AValue: UTF8String);
 begin
   Put(StatusKey,AValue);
 end;
 
-procedure TDocumentProperties2.SetTitle(AValue: UTF8String);
+procedure TDocumentProperties.SetTitle(AValue: UTF8String);
 begin
   Put(TitleKey,AValue);
 end;
 
-function TDocumentProperties2.RequestType(aKey: UTF8String; aType: TJSValueClass
+function TDocumentProperties.RequestType(aKey: UTF8String; aType: TJSValueClass
   ): TJSValueClass;
 begin
   case aKey of
@@ -777,106 +653,11 @@ end;
 
 { TStatusDefinitions }
 
-constructor TStatusDefinitions.Create;
-begin
-  inherited Create(TStatusDefintion);
-end;
-
 { TCategoryDefinitions }
-
-constructor TCategoryDefinitions.Create;
-begin
-  inherited Create(TCategoryDefinition);
-end;
 
 { TDocumentProperties }
 
-procedure TDocumentProperties.IndexChanged(Sender: TObject);
-begin
-  SetModified;
-end;
-
-procedure TDocumentProperties.SetUserProperties(AValue: TJSONData);
-begin
-  if fUserProperties <> nil then
-    FreeAndNil(fUserProperties);
-  if AValue <> nil then
-  // I have to clone it here, because the streaming system might
-  // destroy the original.
-    fUserProperties := AValue.Clone;
-  SetModified;
-end;
-
-function TDocumentProperties.GetIndex: TStrings;
-begin
-  result := fIndex;
-end;
-
-procedure TDocumentProperties.Clear;
-begin
-  fIndex.Clear;
-  fCategory := '';
-  fPublish := false;
-  fStatus := '';
-  fTitle := '';
-  FreeAndNil(fUserProperties);
-end;
-
-procedure TDocumentProperties.AfterSerialize(aSaver: TJSONStreamer;
-  aTarget: TJSONObject);
-begin
-  if fUserProperties <> nil then
-  begin
-    // I have to clone here, because the streaming tool is going
-    // to delete the properties.
-    aTarget['user'] := fUserProperties.Clone;
-  end;
-end;
-
-procedure TDocumentProperties.BeforeDeserialize(aLoader: TJSONDeStreamer;
-  aData: TJSONObject);
-var
-  aUser: TJSONData;
-begin
-  aUser := aData.Find('user');
-  if aUser <> nil then
-  begin
-    SetUserProperties(aUser);
-  end
-  else
-  begin
-    SetUserProperties(nil);
-  end;
-end;
-
-constructor TDocumentProperties.Create(afile: TFile; aIsRoot: Boolean);
-var
-  path: TFile;
-begin
-  if aIsRoot then
-    path := afile.GetContainedFile('','properties','json',false)
-  else
-    path := afile.WithDifferentDescriptorAndExtension('properties','json');
-  inherited Create(path,true);
-  fIndex := TStringList.Create;
-  fIndex.OnChange:=@IndexChanged;
-end;
-
-destructor TDocumentProperties.Destroy;
-begin
-  FreeAndNil(fIndex);
-  inherited Destroy;
-end;
-
-
-
 { TKeywordDefinition }
-
-procedure TKeywordDefinition.Setcolor(AValue: TColor);
-begin
-  if Fcolor=AValue then Exit;
-  Fcolor:=AValue;
-end;
 
 function ToByte(x: Integer): Byte;
 begin
@@ -888,176 +669,7 @@ begin
     result := Byte(x);
 end;
 
-procedure TKeywordDefinition.AfterSerialize(aSaver: TJSONStreamer;
-  aTarget: TJSONObject);
-var aNewData: TJSONObject;
-begin
-  if Fcolor <> clDefault then
-  begin;
-    aNewData := TJSONObject.Create;
-    aTarget['color'] := aNewData;
-    aNewData.Add('r',Red(Fcolor));
-    aNewData.Add('g',Green(Fcolor));
-    aNewData.Add('b',Blue(Fcolor));
-  end
-  else
-    aTarget.Delete('color');
-
-end;
-
-procedure TKeywordDefinition.BeforeDeserialize(aLoader: TJSONDeStreamer;
-  aData: TJSONObject);
-var
-  aOldData: TJSONData;
-  r: Byte;
-  g: Byte;
-  b: Byte;
-begin
-  aOldData := aData.Find('color');
-  if (aOldData <> nil) and (aOldData.JSONType = jtObject) then
-  begin
-    r := ToByte((aOldData as TJSONObject)['r'].AsInteger);
-    g := ToByte((aOldData as TJSONObject)['g'].AsInteger);
-    b := ToByte((aOldData as TJSONObject)['b'].AsInteger);
-    Fcolor := RGBToColor(r,g,b);
-  end
-  else
-    Fcolor := clDefault;
-end;
-
 { TProjectProperties }
-
-procedure TProjectProperties.SetdefaultDocExtension(AValue: String);
-begin
-  if (aValue = '') or (aValue[1] <> '.') then
-    aValue := '.' + aValue;
-  if FdefaultDocExtension=AValue then Exit;
-  FdefaultDocExtension:=AValue;
-end;
-
-procedure TProjectProperties.SetdefaultCategory(AValue: String);
-begin
-  if FdefaultCategory=AValue then Exit;
-  FdefaultCategory:=AValue;
-end;
-
-procedure TProjectProperties.SetdefaultNotesExtension(AValue: String);
-begin
-  if (aValue = '') or (aValue[1] <> '.') then
-    aValue := '.' + aValue;
-  if FdefaultNotesExtension=AValue then Exit;
-  FdefaultNotesExtension:=AValue;
-end;
-
-procedure TProjectProperties.SetdefaultStatus(AValue: String);
-begin
-  if FdefaultStatus=AValue then Exit;
-  FdefaultStatus:=AValue;
-end;
-
-procedure TProjectProperties.SetdefaultThumbnailExtension(AValue: String);
-begin
-  if (aValue = '') or (aValue[1] <> '.') then
-    aValue := '.' + aValue;
-  if FdefaultThumbnailExtension=AValue then Exit;
-  FdefaultThumbnailExtension:=AValue;
-end;
-
-procedure TProjectProperties.SetUserProperties(AValue: TJSONData);
-begin
-  if fUserProperties <> nil then
-    FreeAndNil(fUserProperties);
-  if AValue <> nil then
-  // I have to clone it here, because the streaming system might
-  // destroy the original.
-    fUserProperties := AValue.Clone;
-  SetModified;
-end;
-
-procedure TProjectProperties.Clear;
-begin
-  // Initialize all of the primitive data, clear all of the child data.
-  Fcategories.Clear;
-  fStatuses.Clear;
-  FdefaultCategory := '';
-  FdefaultStatus := '';
-  FdefaultDocExtension := '';
-  FdefaultNotesExtension := '';
-  FdefaultThumbnailExtension := '';
-  FreeAndNil(fUserProperties);
-end;
-
-procedure TProjectProperties.AfterSerialize(aSaver: TJSONStreamer;
-  aTarget: TJSONObject);
-begin
-  if fUserProperties <> nil then
-  begin
-    // I have to clone here, because the streaming tool is going
-    // to delete the properties.
-    aTarget['user'] := fUserProperties.Clone;
-  end;
-end;
-
-procedure TProjectProperties.BeforeDeserialize(aLoader: TJSONDeStreamer;
-  aData: TJSONObject);
-var
-  aStatuses: TJSONData;
-  aStatusesArray: TJSONArray;
-  aStatusesObject: TJSONObject;
-  aStatus: TJSONObject;
-  i: Integer;
-  aUser: TJSONData;
-begin
-  // Have to convert an old format which had statuses as an array of strings.
-  aStatuses := aData.Find('statuses');
-  if (aStatuses <> nil) and (aStatuses.JSONType = jtArray) then
-  begin
-    aStatusesArray := aStatuses as TJSONArray;
-    aStatusesObject := TJSONObject.Create;
-    for i := 0 to aStatusesArray.Count - 1 do
-    begin
-      aStatus := TJSONObject.Create;
-      aStatusesObject[aStatusesArray[i].AsString] := aStatus;
-    end;
-    aData['statuses'] := aStatusesObject;
-
-  end;
-
-  aUser := aData.Find('user');
-  if aUser <> nil then
-  begin
-    SetUserProperties(aUser);
-  end
-  else
-  begin
-    SetUserProperties(nil);
-  end;
-end;
-
-constructor TProjectProperties.Create(aProjectFile: TFile);
-begin
-  inherited Create(GetPath(aProjectFile),false);
-  Fcategories := TCategoryDefinitions.Create;
-  Fcategories.FPOAttachObserver(Self);
-  fStatuses := TStatusDefinitions.Create;
-  fStatuses.FPOAttachObserver(Self);
-end;
-
-destructor TProjectProperties.Destroy;
-begin
-  if fUserProperties <> nil then
-     FreeAndNil(fUserProperties);
-  Fcategories.FPODetachObserver(Self);
-  FreeAndNil(Fcategories);
-  fStatuses.FPODetachObserver(Self);
-  FreeAndNil(fStatuses);
-  inherited Destroy;
-end;
-
-class function TProjectProperties.GetPath(aFolderPath: TFile): TFile;
-begin
-  result := aFolderPath.GetContainedFile('','stew','json',false);
-end;
 
 end.
 

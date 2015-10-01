@@ -63,7 +63,7 @@ type
     function IsModified: Boolean;
     procedure ProjectPropertiesUpdated(aData: TProjectProperties2);
     procedure DocumentRenamed(aOldDocument: TDocumentPath; aNewDocument: TDocumentPath);
-    procedure PropertiesUpdated(aData: TDocumentProperties2);
+    procedure PropertiesUpdated(aData: TDocumentProperties);
     procedure SynopsisUpdated(aData: UTF8String);
     procedure WriteData;
     procedure WriteData_Done;
@@ -104,10 +104,10 @@ end;
 
 procedure TDocumentEditor.WriteData_PropertiesRead(Sender: TPromise);
 var
-  lProps: TDocumentProperties2;
+  lProps: TDocumentProperties;
   lUser: TJSObject;
 begin
-  lProps := (Sender as TDocumentPropertiesPromise).Properties.Clone as TDocumentProperties2;
+  lProps := (Sender as TDocumentPropertiesPromise).Properties.Clone as TDocumentProperties;
   try
 
     lProps.Title := TitleEdit.Text;
@@ -413,7 +413,7 @@ begin
      Document := aNewDocument;
 end;
 
-procedure TDocumentEditor.PropertiesUpdated(aData: TDocumentProperties2);
+procedure TDocumentEditor.PropertiesUpdated(aData: TDocumentProperties);
 begin
   fPropsAvailable := true;
   if not TitleEdit.Modified then

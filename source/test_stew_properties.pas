@@ -52,11 +52,11 @@ end;
 procedure TPropertiesSpec.Test_DocumentProperties;
 var
   lStream: TFileStream;
- lProps: TDocumentProperties2;
+ lProps: TDocumentProperties;
 begin
   lStream := TFileStream.Create(fTestRootDir.GetContainedFile('Chapter 1','properties','json',false).ID,fmOpenRead);
   try
-      lProps := FromJSON(TDocumentProperties2,lStream) as TDocumentProperties2;
+      lProps := FromJSON(TDocumentProperties,lStream) as TDocumentProperties;
       try
         Assert(lProps.Category = 'Chapter','Category should return correct value');
         Assert(lProps.Status = 'Unwritten','Status should return correct value');
@@ -95,9 +95,9 @@ end;
 
 procedure TPropertiesSpec.Test_Keyword;
 var
-  lKeyword: TKeywordDefinition2;
+  lKeyword: TKeywordDefinition;
 begin
-  lKeyword := TKeywordDefinition2.Create;
+  lKeyword := TKeywordDefinition.Create;
   try
     lKeyword.Color := clBlue;
     Assert(lKeyword.Color = clBlue,'Assigning color property should retain value');
@@ -109,9 +109,9 @@ end;
 
 procedure TPropertiesSpec.Test_CategoryDefinition;
 var
-  lCategory: TCategoryDefinition2;
+  lCategory: TCategoryDefinition;
 begin
-  lCategory := TCategoryDefinition2.Create;
+  lCategory := TCategoryDefinition.Create;
   try
     lCategory.PublishTitle := true;
     Assert(lCategory.PublishTitle,'Publish Title should be correct');
@@ -133,17 +133,17 @@ end;
 
 procedure TPropertiesSpec.Test_KeywordDefinitions;
 var
-  lDefs: TStatusDefinitions2;
+  lDefs: TStatusDefinitions;
   lArray: TJSArray;
 begin
-  lDefs := TStatusDefinitions2.Create;
+  lDefs := TStatusDefinitions.Create;
   try
     lArray := TJSArray.Create;
     try
       lArray.Put(0,'Foo');
       lArray.Put(1,'Bar');
       lDefs.Assign(lArray);
-      Assert(lDefs.Get('Bar') is TStatusDefinition2,'Assigning array of strings to keyword definition list should create default keyword definitions under the name specified by those strings');
+      Assert(lDefs.Get('Bar') is TStatusDefinition,'Assigning array of strings to keyword definition list should create default keyword definitions under the name specified by those strings');
     finally
       lArray.Free;
     end;
@@ -158,11 +158,11 @@ procedure TPropertiesSpec.Test_KeywordDefinitions_Parsing;
 const
   lText: UTF8String = '["Unwritten","Written","Final"]';
 var
-  lDefs: TStatusDefinitions2;
+  lDefs: TStatusDefinitions;
 begin
-  lDefs := FromJSON(TStatusDefinitions2,lText) as TStatusDefinitions2;
+  lDefs := FromJSON(TStatusDefinitions,lText) as TStatusDefinitions;
   try
-    Assert(lDefs.Get('Unwritten') is TStatusDefinition2,'Parsing an array of strings should create a mapped KeywordDefinition in KeywordDefinitions object');
+    Assert(lDefs.Get('Unwritten') is TStatusDefinition,'Parsing an array of strings should create a mapped KeywordDefinition in KeywordDefinitions object');
 
   finally
     lDefs.Free;
@@ -180,7 +180,7 @@ begin
     lProps := FromJSON(TProjectProperties2,lStream) as TProjectProperties2;
     try
       Assert(Length(lProps.Categories.keys) > 0,'Combination of parsing and GetPath should have gotten some data');
-      Assert((lProps.Categories.Get('Chapter') as TCategoryDefinition2).PublishTitleLevel = 0,'Project category definitions should work');
+      Assert((lProps.Categories.Get('Chapter') as TCategoryDefinition).PublishTitleLevel = 0,'Project category definitions should work');
       Assert(lProps.Categories.hasOwnProperty('Scene'),'Project categories should work');
       Assert(lProps.DefaultCategory = 'Chapter','Project default category should work');
       Assert(lProps.DefaultDocExtension = 'txt','Project default doc extension should work');
@@ -188,7 +188,7 @@ begin
       Assert(lProps.DefaultNotesExtension = 'tst','Project default notes extension should work');
       Assert(lProps.DefaultStatus = 'Unwritten','Project default status should work');
       Assert(lProps.DefaultThumbnailExtension = 'png','Project default thumbnail extension should work');
-      Assert((lProps.Statuses.Get('Unwritten') as TStatusDefinition2).Color = clRed,'Project statuses should work');
+      Assert((lProps.Statuses.Get('Unwritten') as TStatusDefinition).Color = clRed,'Project statuses should work');
       lProps.DefaultDocExtension := '.doc';
       Assert(lProps.DefaultDocExtension = 'doc','Default doc extension should trim off the "." when assigning');
     finally
