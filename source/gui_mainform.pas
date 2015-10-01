@@ -12,8 +12,6 @@ uses
 type
 
   // TODO: Finally, once everything's working get rid of deprecated stuff:
-  // - stew_project
-  // - stew_properties
   // - stew_persist
   // - sys_types
 
