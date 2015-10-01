@@ -289,25 +289,6 @@ type
     class function GetFile(ID: String): TFile;
   end;
 
-  { TFileList }
-
-  TFileList = class
-  private
-    fSystem: TFileSystemClass;
-    // This is kind of a hack, I may change this someday to use a TList or something,
-    // but this works for now.
-    fList: TStringList;
-    function GetItem(Index: Integer): TFile;
-  public
-    constructor Create(aSystem: TFileSystemClass);
-    destructor Destroy; override;
-    procedure Add(aFile: TFile);
-    procedure Delete(Index: Integer);
-    function Count: Integer;
-    function IndexOf(aFile: TFile): Integer;
-    property Item[Index: Integer]: TFile read GetItem; default;
-  end deprecated;
-
   const
     ExtensionDelimiter: Char = '.';
     DescriptorDelimiter: Char = '_';
@@ -543,48 +524,6 @@ begin
     result[i] := fFilesInfo[i].Item;
   end;
 
-end;
-
-{ TFileList }
-
-function TFileList.GetItem(Index: Integer): TFile;
-begin
-  result := fSystem.GetFile(fList[Index]);
-end;
-
-constructor TFileList.Create(aSystem: TFileSystemClass);
-begin
-  inherited Create;
-  fSystem := aSystem;
-  fList := TStringList.Create;
-end;
-
-destructor TFileList.Destroy;
-begin
-  FreeAndNil(fList);
-  inherited Destroy;
-end;
-
-procedure TFileList.Add(aFile: TFile);
-begin
-  fList.Add(aFile.ID);
-end;
-
-procedure TFileList.Delete(Index: Integer);
-begin
-  fList.Delete(Index);
-end;
-
-function TFileList.Count: Integer;
-begin
-  result := fList.Count;
-end;
-
-function TFileList.IndexOf(aFile: TFile): Integer;
-begin
-  result := -1;
-  if aFile.System = fSystem then
-     result := fList.IndexOf(aFile.ID);
 end;
 
 { TFileSystem }
