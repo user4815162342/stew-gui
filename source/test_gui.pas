@@ -52,7 +52,6 @@ check for the "ok" in the output, or fail on whatever message *is* shown.
     fTempDir: UTF8String;
   public
     procedure SetupTest; override;
-    procedure CleanupTest; override;
   end;
 
 implementation
@@ -65,15 +64,8 @@ uses
 procedure TGUISpec.SetupTest;
 begin
   inherited SetupTest;
-  fTempDir := GetTempFileName('','');
-  CopyDirTree('../test-data/story/',IncludeTrailingPathDelimiter(fTempDir));
+  fTempDir := CopyTemporaryFileData('../test-data/story/');
   Alert('Make sure the GUI executable has been compiled with current code before accepting the results of this next test.');
-end;
-
-procedure TGUISpec.CleanupTest;
-begin
-  DeleteDirectory(fTempDir,false);
-  inherited CleanupTest;
 end;
 
 end.

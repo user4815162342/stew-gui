@@ -13,11 +13,9 @@ type
 
   TPropertiesSpec = class(TTestSpec)
   private
-    fTempDir: String;
     fTestRootDir: TFile;
   public
     procedure SetupTest; override;
-    procedure CleanupTest; override;
   published
     procedure Test_DocumentProperties;
     procedure Test_JSColor;
@@ -38,15 +36,7 @@ uses
 procedure TPropertiesSpec.SetupTest;
 begin
   inherited SetupTest;
-  fTempDir := GetTempFileName('','');
-  CopyDirTree('../test-data/story/',IncludeTrailingPathDelimiter(fTempDir));
-  fTestRootDir := LocalFile(fTempDir);
-end;
-
-procedure TPropertiesSpec.CleanupTest;
-begin
-  DeleteDirectory(fTempDir,false);
-  inherited CleanupTest;
+  fTestRootDir := LocalFile(CopyTemporaryFileData('../test-data/story/'));
 end;
 
 procedure TPropertiesSpec.Test_DocumentProperties;

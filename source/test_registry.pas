@@ -42,6 +42,8 @@ type
     procedure CleanupTest; virtual;
     procedure Alert(aMessage: String);
     procedure Report(aMessage: String);
+    function CopyTemporaryFileData(aSource: String): String;
+    function CreateTemporaryDirectory: String;
   public
     constructor Create(aRegistry: TTestRegistry);
   end;
@@ -70,6 +72,7 @@ type
     fCurrent: Integer;
     fTimer: TTimer;
     fDisableTimeOuts: Boolean;
+    fTemporaryFiles: TStringList;
     function GetTimeout: Cardinal;
     procedure SetOnAsyncStarted(AValue: TTestEvent);
     procedure SetOnCancelled(AValue: TNotifyEvent);
@@ -94,6 +97,7 @@ type
     procedure TestTimedout(Sender: TObject);
     procedure Alert(aMessage: String);
     procedure Report(aMessage: String);
+    procedure DeleteTemporaryFileData;
   public
     constructor Create;
     destructor Destroy; override;
@@ -112,11 +116,16 @@ type
     property OnCancelled: TNotifyEvent read FOnCancelled write SetOnCancelled;
     property OnException: TExceptionEvent read FOnException write SetOnException;
     property Timeout: Cardinal read GetTimeout write SetTimeout;
+    function CopyTemporaryFileData(aSource: String): String;
+    function CreateTemporaryDirectory: String;
   end;
 
   function CalculateTestName(aObject: TObject; aMethodName: String): String;
 
 implementation
+
+uses
+  FileUtil;
 
 function CalculateTestName(aObject: TObject; aMethodName: String): String;
 var
@@ -212,6 +221,16 @@ begin
 
 end;
 
+function TTestSpec.CopyTemporaryFileData(aSource: String): String;
+begin
+  result := fRegistry.CopyTemporaryFileData(aSource);
+end;
+
+function TTestSpec.CreateTemporaryDirectory: String;
+begin
+  result := fRegistry.CreateTemporaryDirectory;
+end;
+
 constructor TTestSpec.Create(aRegistry: TTestRegistry);
 begin
   inherited Create;
@@ -282,6 +301,7 @@ end;
 procedure TTestRegistry.TestsCompleted;
 begin
   fRunning := false;
+  DeleteTemporaryFileData;
   if fCancelled and (fOnCancelled <> nil) then
     fOnCancelled(Self);
   if fOnCompleted <> nil then
@@ -327,6 +347,15 @@ procedure TTestRegistry.Report(aMessage: String);
 begin
   if fOnMessage<>nil then
     fOnMessage(Self,fTestNames[fCurrent],aMessage);
+end;
+
+procedure TTestRegistry.DeleteTemporaryFileData;
+var
+  i: Integer;
+begin
+  for i := 0 to fTemporaryFiles.Count - 1 do
+    DeleteDirectory(fTemporaryFiles[i],false);
+  fTemporaryFiles.Clear;
 end;
 
 function TTestRegistry.GetTimeout: Cardinal;
@@ -399,6 +428,7 @@ end;
 constructor TTestRegistry.Create;
 begin
   inherited Create;
+  fTemporaryFiles := TStringList.Create;
   fOwnedTestSpecs := TObjectList.create(true);
   fTests := TTestList.Create;
   fTestNames := TStringList.Create;
@@ -420,6 +450,7 @@ begin
   FreeAndNil(fTestNames);
   FreeAndNil(fTests);
   FreeAndNil(fOwnedTestSpecs);
+  FreeAndNil(fTemporaryFiles);
   inherited Destroy;
 end;
 
@@ -521,6 +552,21 @@ end;
 procedure TTestRegistry.Cancel;
 begin
   fCancelled := true;
+end;
+
+function TTestRegistry.CopyTemporaryFileData(aSource: String): String;
+begin
+  result := GetTempFilename('','');
+  fTemporaryFiles.Add(result);
+  CopyDirTree(IncludeTrailingPathDelimiter(aSource),IncludeTrailingPathDelimiter(result));
+
+end;
+
+function TTestRegistry.CreateTemporaryDirectory: String;
+begin
+  result := GetTempFilename('','');
+  fTemporaryFiles.Add(Result);
+  CreateDir(result);
 end;
 
 end.

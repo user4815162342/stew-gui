@@ -109,6 +109,7 @@ end;
 procedure TProjectSpec.Open_Project_2(Sender: TPromise);
 var
   lProject: TStewProject;
+  lNew: TFile;
 begin
   lProject := (Sender as TProjectPromise).Project;
   try
@@ -117,9 +118,11 @@ begin
   finally
     lProject.Free;
   end;
-  lProject := TStewProject.Create(LocalFile(GetTempFileName('','')));
+
+  lNew := LocalFile(CreateTemporaryDirectory);
+  lProject := TStewProject.Create(lNew);
   try
-    if not AssertAsync(lProject.DiskPath <> fTestRootDir,'New project should have been opened at the correct path',Sender.Tag) then Exit;
+    if not AssertAsync(lProject.DiskPath = lNew,'New project should have been opened at the correct path',Sender.Tag) then Exit;
   finally
     lProject.Free;
   end;
@@ -789,8 +792,7 @@ procedure TProjectSpec.SetupTest;
 begin
   inherited SetupTest;
   SetAsyncCallQueuer(@gui_async.GUIQueueAsyncCall);
-  fTempDir := GetTempFileName('','');
-  CopyDirTree('../test-data/story/',IncludeTrailingPathDelimiter(fTempDir));
+  fTempDir := CopyTemporaryFileData('../test-data/story/');
   fTestRootDir := LocalFile(fTempDir);
 end;
 
@@ -798,7 +800,6 @@ procedure TProjectSpec.CleanupTest;
 begin
   if fProject <> nil then
     FreeAndNil(fProject);
-  DeleteDirectory(fTempDir,false);
   RemoveAsyncCallQueuer(@gui_async.GUIQueueAsyncCall);
   TOperatingSystemInterface.RemoveInternalEditor(@MockEditor);
   TOperatingSystemInterface.RemoveTemplateFolder(LocalFile('../test-data/templates'));

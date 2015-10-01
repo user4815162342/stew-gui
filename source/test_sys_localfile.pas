@@ -18,7 +18,6 @@ type
     function GetTestRootDir: TFile; override;
   public
     procedure SetupTest; override;
-    procedure CleanupTest; override;
   end;
 
 
@@ -37,14 +36,7 @@ end;
 procedure TLocalFileSpec.SetupTest;
 begin
   inherited SetupTest;
-  fTestRootFilePath := GetTempFilename('','');
-  CopyDirTree('../test-data/story/',IncludeTrailingPathDelimiter(fTestRootFilePath));
-end;
-
-procedure TLocalFileSpec.CleanupTest;
-begin
-  DeleteDirectory(fTestRootFilePath,false);
-  inherited CleanupTest;
+  fTestRootFilePath := CopyTemporaryFileData('../test-data/story/');
 end;
 
 end.

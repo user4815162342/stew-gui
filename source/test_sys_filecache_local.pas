@@ -21,7 +21,6 @@ type
     function GetFileSystem: TFileSystemClass; override;
   public
     procedure SetupTest; override;
-    procedure CleanupTest; override;
   end;
 
 
@@ -45,14 +44,7 @@ end;
 procedure TLocalFileCacheSpec.SetupTest;
 begin
   inherited SetupTest;
-  fTestRootFilePath := GetTempFilename('','');
-  CopyDirTree('../test-data/story/',IncludeTrailingPathDelimiter(fTestRootFilePath));
-end;
-
-procedure TLocalFileCacheSpec.CleanupTest;
-begin
-  DeleteDirectory(fTestRootFilePath,false);
-  inherited CleanupTest;
+  fTestRootFilePath := CopyTemporaryFileData('../test-data/story/');
 end;
 
 end.
