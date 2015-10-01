@@ -92,7 +92,7 @@ uses
 
 procedure TDocumentEditor.SaveButtonClick(Sender: TObject);
 begin
-  MainForm.ShowMessage('The old version will be backed up in case this doesn''t work.','Got it');
+  MainForm.ShowMessage('The old version will be backed up in case this doesn''t work.',mtConfirmation,'Got it');
   WriteData;
 
 end;
@@ -127,7 +127,16 @@ begin
     else
       lProps.delete('user');
 
-    MainForm.Project.WriteDocumentProperties(Document,lProps).After(@WriteData_PropertiesWritten);
+    if MainForm.Project <> nil then
+    begin
+       MainForm.Project.WriteDocumentProperties(Document,lProps).After(@WriteData_PropertiesWritten)
+    end
+    else
+    begin
+      // This is really an error message...
+      MainForm.ShowMessage('Properties can''t be saved, the project has closed.',mtError,'Sigh');
+      ClearData;
+    end;
 
   finally
     lProps.Free;
@@ -144,7 +153,16 @@ procedure TDocumentEditor.WriteData_PropertiesWritten(Sender: TPromise);
 begin
   if SynopsisEdit.Modified then
   begin
-     MainForm.Project.WriteDocumentSynopsis(Document,SynopsisEdit.Lines.Text).After(@WriteData_SynopsisWritten)
+     if MainForm.Project <> nil then
+     begin
+        MainForm.Project.WriteDocumentSynopsis(Document,SynopsisEdit.Lines.Text).After(@WriteData_SynopsisWritten)
+     end
+     else
+     begin
+       // This is really an error message...
+       MainForm.ShowMessage('Synopsis can''t be saved, the project has closed.',mtError,'Sigh');
+       ClearData;
+     end;
   end
   else
   begin
@@ -160,14 +178,17 @@ var
   canEditAttachments: Boolean;
   aTabCaption: String;
 begin
-  canEditProps := fPropsAvailable and
+  canEditProps := (MainForm.Project <> nil) and
+                  fPropsAvailable and
                   (not fWriting) and
                   (fUIUpdateCount = 0);
-  canEditSynopsis := fSynopsisAvailable and
+  canEditSynopsis := (MainForm.Project <> nil) and
+                     fSynopsisAvailable and
                      (not fWriting) and
                      (fUIUpdateCount = 0);
   // can't think of any reason you shouldn't be able to edit if everything else is available...
-  canEditAttachments := fPropsAvailable and
+  canEditAttachments := (MainForm.Project <> nil) and
+                        fPropsAvailable and
                         fSynopsisAvailable and
                         (not fWriting) and
                         (fUIUpdateCount = 0);
@@ -208,13 +229,17 @@ end;
 procedure TDocumentEditor.RefreshButtonClick(Sender: TObject);
 begin
   ClearModified;
-  MainForm.Project.ReadDocumentProperties(Document,true);
-  MainForm.Project.ReadDocumentSynopsis(Document,true);
+  if MainForm.Project <> nil then
+  begin
+    MainForm.Project.ReadDocumentProperties(Document,true);
+    MainForm.Project.ReadDocumentSynopsis(Document,true);
+  end;
 end;
 
 procedure TDocumentEditor.EditPrimaryButtonClick(Sender: TObject);
 begin
-  MainForm.Project.EditDocument(Document);
+  if MainForm.Project <> nil then
+    MainForm.Project.EditDocument(Document);
 end;
 
 procedure TDocumentEditor.PublishEditClick(Sender: TObject);
@@ -297,7 +322,8 @@ end;
 
 procedure TDocumentEditor.EditNotesButtonClick(Sender: TObject);
 begin
-  MainForm.Project.EditDocumentNotes(Document);
+  if MainForm.Project <> nil then
+     MainForm.Project.EditDocumentNotes(Document);
 end;
 
 procedure TDocumentEditor.CategoryEditChange(Sender: TObject);
@@ -318,8 +344,11 @@ begin
     DocumentIDLabel.Caption := AValue.ID;
 
     // refresh what we've got...
-    MainForm.Project.ReadDocumentProperties(AValue);
-    MainForm.Project.ReadDocumentSynopsis(AValue);
+    if MainForm.Project <> nil then
+    begin
+      MainForm.Project.ReadDocumentProperties(AValue);
+      MainForm.Project.ReadDocumentSynopsis(AValue);
+    end;
 
     SetupControls;
 
@@ -428,19 +457,25 @@ end;
 
 procedure TDocumentEditor.WriteData;
 begin
-  fWriting := true;
-  // retrieve the data first, then write it, so we have the most up-to-date
-  // stuff, including any "unknowns".
-  MainForm.Project.ReadDocumentProperties(Document).After(@WriteData_PropertiesRead);
-  SetupControls;
+  if MainForm.Project <> nil then
+  begin
+    fWriting := true;
+    // retrieve the data first, then write it, so we have the most up-to-date
+    // stuff, including any "unknowns".
+    MainForm.Project.ReadDocumentProperties(Document).After(@WriteData_PropertiesRead);
+    SetupControls;
+  end;
 end;
 
 procedure TDocumentEditor.WriteData_Done;
 begin
   ClearModified;
   fWriting := False;
-  MainForm.Project.ReadDocumentProperties(Document);
-  MainForm.Project.ReadDocumentSynopsis(Document);
+  if MainForm.Project <> nil then
+  begin
+    MainForm.Project.ReadDocumentProperties(Document);
+    MainForm.Project.ReadDocumentSynopsis(Document);
+  end;
   SetupControls;
 
 end;

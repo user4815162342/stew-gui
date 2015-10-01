@@ -155,13 +155,17 @@ end;
 
 procedure TProjectSettingsEditor.RefreshButtonClick(Sender: TObject);
 begin
-  ClearModified;
-  MainForm.Project.ReadProjectProperties(true);
+  if MainForm.Project <> nil then
+  begin
+    ClearModified;
+    MainForm.Project.ReadProjectProperties(true);
+
+  end;
 end;
 
 procedure TProjectSettingsEditor.SaveButtonClick(Sender: TObject);
 begin
-  MainForm.ShowMessage('The old version will be backed up in case this doesn''t work.','Got it');
+  MainForm.ShowMessage('The old version will be backed up in case this doesn''t work.',mtConfirmation,'Got it');
   WriteData;
 end;
 
@@ -274,7 +278,16 @@ begin
     else
       lProps.delete('user');
 
-    MainForm.Project.WriteProjectProperties(lProps).After(@WriteData_Written);
+    if MainForm.Project <> nil then
+    begin
+      MainForm.Project.WriteProjectProperties(lProps).After(@WriteData_Written);
+    end
+    else
+    begin
+      // This is really an error message...
+      MainForm.ShowMessage('Properties can''t be saved, the project has closed.',mtError,'Sigh');
+      ClearData;
+    end;
 
   finally
     lProps.Free;
@@ -284,10 +297,14 @@ end;
 
 procedure TProjectSettingsEditor.WriteData_Written(Sender: TPromise);
 begin
-  ClearModified;
-  fWriting := False;
-  MainForm.Project.ReadProjectProperties;
-  SetupControls;
+  if MainForm.Project <> nil then
+  begin
+    ClearModified;
+    fWriting := False;
+    MainForm.Project.ReadProjectProperties;
+    SetupControls;
+
+  end;
 end;
 
 procedure TProjectSettingsEditor.SetupControls;
@@ -386,7 +403,8 @@ end;
 
 procedure TProjectSettingsEditor.EditNotesButtonClick(Sender: TObject);
 begin
-  MainForm.Project.EditDocumentNotes(TDocumentPath.Root);
+  if MainForm.Project <> nil then
+     MainForm.Project.EditDocumentNotes(TDocumentPath.Root);
 end;
 
 procedure TProjectSettingsEditor.AddCategoryButtonClick(Sender: TObject);
@@ -678,11 +696,15 @@ end;
 
 procedure TProjectSettingsEditor.WriteData;
 begin
-  fWriting := true;
-  // retrieve the data first, then write it, so we have the most up-to-date
-  // stuff, including any "unknowns".
-  MainForm.Project.ReadProjectProperties.After(@WriteData_Read);
-  SetupControls;
+  if MainForm.Project <> nil then
+  begin
+    fWriting := true;
+    // retrieve the data first, then write it, so we have the most up-to-date
+    // stuff, including any "unknowns".
+    MainForm.Project.ReadProjectProperties.After(@WriteData_Read);
+    SetupControls;
+
+  end;
 end;
 
 procedure TProjectSettingsEditor.BeginUIUpdate;

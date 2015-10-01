@@ -130,7 +130,8 @@ uses
 
 procedure TProjectManager.TShiftDocumentAfterRenameTask.DoTask(Input: TPromise);
 begin
-  MainForm.Project.ShiftDocumentTo((Input as TRenameDocumentPromise).New,fNewIndex).After(@SubPromiseResolved,@SubPromiseRejected);
+  if MainForm.Project <> nil then
+     MainForm.Project.ShiftDocumentTo((Input as TRenameDocumentPromise).New,fNewIndex).After(@SubPromiseResolved,@SubPromiseRejected);
 end;
 
 function TProjectManager.TShiftDocumentAfterRenameTask.CreatePromise: TPromise;
@@ -177,7 +178,8 @@ begin
     (Node as TProjectInspectorNode).ExpandOnList:=true;
     // don't allow expansion, ExpandOnList will take care of that.
     AllowExpansion:=false;
-    MainForm.Project.ListDocumentsInFolder(lDocument);
+    if MainForm.Project <> nil then
+       MainForm.Project.ListDocumentsInFolder(lDocument);
 
   end;
 end;
@@ -195,31 +197,34 @@ var
   lNewName: String;
   lNewDocument: TDocumentPath;
 begin
-  lNode := ProjectExplorer.Selected as TProjectInspectorNode;
-  lDocument := lNode.DocumentID;
-  lOldName := lDocument.Name;
-  lNewName := lOldName;
-  if InputQuery(MainForm.Caption,'Enter new name for document:',lNewName) then
+  if MainForm.Project <> nil then
   begin
-    if IsNameTroublesome(lNewName) then
-       ShowMessage('The name "' + lNewName + '" would cause problems as a filename on some computers.' + LineEnding +
-                   'For example, the following characters are not allowed: <, >, :, ", /, \, |, ?, *, %, [, ], ~,{ ,}, ;' + LineEnding +
-                   'Plus, spaces at the beginning or end of the name, a hyphen at the beginning, or two or more spaces together in the middle of a name.')
-    else
+    lNode := ProjectExplorer.Selected as TProjectInspectorNode;
+    lDocument := lNode.DocumentID;
+    lOldName := lDocument.Name;
+    lNewName := lOldName;
+    if InputQuery(MainForm.Caption,'Enter new name for document:',lNewName) then
     begin
-      lNewDocument := lDocument.Container.GetContainedDocument(lNewName);
-
-      // check if the new document name already exists. We're going to be lazy
-      // and just check in the project inspector itself.
-      if GetTreeNodeForDocument(lNewDocument) <> nil then
+      if IsNameTroublesome(lNewName) then
+         ShowMessage('The name "' + lNewName + '" would cause problems as a filename on some computers.' + LineEnding +
+                     'For example, the following characters are not allowed: <, >, :, ", /, \, |, ?, *, %, [, ], ~,{ ,}, ;' + LineEnding +
+                     'Plus, spaces at the beginning or end of the name, a hyphen at the beginning, or two or more spaces together in the middle of a name.')
+      else
       begin
-        ShowMessage('There is already another document with the name "' + lNewName + '".');
-        Exit;
-      end;
+        lNewDocument := lDocument.Container.GetContainedDocument(lNewName);
 
-      TShiftDocumentAfterRenameTask.Defer(lNode.Index,MainForm.Project.RenameDocument(lDocument,lNewDocument));
-      // set the current node to point to the new document, so that it remains selected.
-      lNode.DocumentID := lNewDocument;
+        // check if the new document name already exists. We're going to be lazy
+        // and just check in the project inspector itself.
+        if GetTreeNodeForDocument(lNewDocument) <> nil then
+        begin
+          ShowMessage('There is already another document with the name "' + lNewName + '".');
+          Exit;
+        end;
+
+        TShiftDocumentAfterRenameTask.Defer(lNode.Index,MainForm.Project.RenameDocument(lDocument,lNewDocument));
+        // set the current node to point to the new document, so that it remains selected.
+        lNode.DocumentID := lNewDocument;
+      end;
     end;
   end;
 end;
@@ -336,12 +341,15 @@ var
   lSiblingNode: TProjectInspectorNode;
   lDoc: TDocumentPath;
 begin
-  lNode := ProjectExplorer.Selected as TProjectInspectorNode;
-  lSiblingNode := lNode.GetNextSibling as TProjectInspectorNode;
-  if lSiblingNode = nil then
-    Exit;
-  lDoc := lNode.DocumentID;
-  MainForm.Project.ShiftDocumentDown(lDoc);
+  if MainForm.Project <> nil then
+  begin
+    lNode := ProjectExplorer.Selected as TProjectInspectorNode;
+    lSiblingNode := lNode.GetNextSibling as TProjectInspectorNode;
+    if lSiblingNode = nil then
+      Exit;
+    lDoc := lNode.DocumentID;
+    MainForm.Project.ShiftDocumentDown(lDoc);
+  end;
 
 end;
 
@@ -351,12 +359,15 @@ var
   lSiblingNode: TProjectInspectorNode;
   lDoc: TDocumentPath;
 begin
-  lNode := ProjectExplorer.Selected as TProjectInspectorNode;
-  lSiblingNode := lNode.GetPrevSibling as TProjectInspectorNode;
-  if lSiblingNode = nil then
-    Exit;
-  lDoc := lNode.DocumentID;
-  MainForm.Project.ShiftDocumentUp(lDoc);
+  if MainForm.Project <> nil then
+  begin
+    lNode := ProjectExplorer.Selected as TProjectInspectorNode;
+    lSiblingNode := lNode.GetPrevSibling as TProjectInspectorNode;
+    if lSiblingNode = nil then
+      Exit;
+    lDoc := lNode.DocumentID;
+    MainForm.Project.ShiftDocumentUp(lDoc);
+  end;
 
 end;
 
@@ -707,39 +718,42 @@ var
   lParent: TDocumentPath;
   lName: String;
 begin
-  lName := '';
-  if InputQuery(MainForm.Caption,'What would you like to name the new document?',lName) then
+  if MainForm.Project <> nil then
   begin
-    lNode := ProjectExplorer.Selected as TProjectInspectorNode;
-    if lNode = nil then
+    lName := '';
+    if InputQuery(MainForm.Caption,'What would you like to name the new document?',lName) then
     begin
-      if not aChild then
-        raise Exception.Create('Can''t add a sibling document without a selected node');
-      lParent := TDocumentPath.Root;
-    end
-    else
-      lParent := lNode.DocumentID;
-    if not aChild then
-    begin
-       lParent := lParent.Container;
-       // the 'lDocument' should never be root, because of how controls
-       // are enabled, so the above should always return *something*.
-    end;
-    if IsNameTroublesome(lName) then
-       ShowMessage('The name "' + lName + '" would cause problems as a filename on some computers.' + LineEnding +
-                   'For example, the following characters are not allowed: <, >, :, ", /, \, |, ?, *, %, [, ], ~,{ ,}, ;' + LineEnding +
-                   'Plus, spaces at the beginning or end of the name, a hyphen at the beginning, or two or more spaces together in the middle of a name.')
-    else
-    begin
-      lDocument := lParent.GetContainedDocument(lName);
-      if GetTreeNodeForDocument(lDocument) <> nil then
+      lNode := ProjectExplorer.Selected as TProjectInspectorNode;
+      if lNode = nil then
       begin
-          ShowMessage('A document named "' + lName + '" already exists here.');
-          Exit;
+        if not aChild then
+          raise Exception.Create('Can''t add a sibling document without a selected node');
+        lParent := TDocumentPath.Root;
+      end
+      else
+        lParent := lNode.DocumentID;
+      if not aChild then
+      begin
+         lParent := lParent.Container;
+         // the 'lDocument' should never be root, because of how controls
+         // are enabled, so the above should always return *something*.
       end;
-      MainForm.Project.CreateShadow(lDocument);
-      if aChild and (lNode <> nil) then
-         lNode.Expanded := true;
+      if IsNameTroublesome(lName) then
+         ShowMessage('The name "' + lName + '" would cause problems as a filename on some computers.' + LineEnding +
+                     'For example, the following characters are not allowed: <, >, :, ", /, \, |, ?, *, %, [, ], ~,{ ,}, ;' + LineEnding +
+                     'Plus, spaces at the beginning or end of the name, a hyphen at the beginning, or two or more spaces together in the middle of a name.')
+      else
+      begin
+        lDocument := lParent.GetContainedDocument(lName);
+        if GetTreeNodeForDocument(lDocument) <> nil then
+        begin
+            ShowMessage('A document named "' + lName + '" already exists here.');
+            Exit;
+        end;
+        MainForm.Project.CreateShadow(lDocument);
+        if aChild and (lNode <> nil) then
+           lNode.Expanded := true;
+      end;
     end;
   end;
 end;
@@ -856,7 +870,7 @@ begin
   aNode.StatusColor := lColor;
 
   aNode.IsOpen := MainForm.IsDocumentOpen(aNode.DocumentID);
-  aNode.IsNew := MainForm.Project.IsShadow(aNode.DocumentID);
+  aNode.IsNew := (MainForm.Project <> nil) and MainForm.Project.IsShadow(aNode.DocumentID);
 
 end;
 
@@ -1025,26 +1039,29 @@ procedure TProjectManager.RefreshDocument(aDocument: TDocumentPath);
 var
   lNode: TProjectInspectorNode;
 begin
-  if aDocument = TDocumentPath.Root then
+  if MainForm.Project <> nil then
   begin
-    // we'll always refresh the root, since it should be refreshed from the start.
-    MainForm.Project.ListDocumentsInFolder(aDocument);
-  end
-  else
-  begin
-    lNode := GetTreeNodeForDocument(aDocument);
-    // only "refresh" the document if we already have a node.
-    if lNode <> nil then
+    if aDocument = TDocumentPath.Root then
     begin
-      // only list if they've been expanded already
-       if lNode.ExpandedFirstTime then
-          MainForm.Project.ListDocumentsInFolder(aDocument);
-       // get properties for every one, so we get document colors correct.
-       MainForm.Project.ReadDocumentProperties(aDocument);
-       // No need to call 'after' on the promise, as the event should be triggered,
-       // and this will be handled in ObserveProject.
-    end;
+      // we'll always refresh the root, since it should be refreshed from the start.
+      MainForm.Project.ListDocumentsInFolder(aDocument);
+    end
+    else
+    begin
+      lNode := GetTreeNodeForDocument(aDocument);
+      // only "refresh" the document if we already have a node.
+      if lNode <> nil then
+      begin
+        // only list if they've been expanded already
+         if lNode.ExpandedFirstTime then
+            MainForm.Project.ListDocumentsInFolder(aDocument);
+         // get properties for every one, so we get document colors correct.
+         MainForm.Project.ReadDocumentProperties(aDocument);
+         // No need to call 'after' on the promise, as the event should be triggered,
+         // and this will be handled in ObserveProject.
+      end;
 
+    end;
   end;
 end;
 

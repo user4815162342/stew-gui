@@ -165,7 +165,8 @@ type
     // - allowing custom captions on the buttons, which gives the user a better
     // idea about what they are choosing.
     function MessageDialog(const Message: String; DlgType: TMsgDlgType; Buttons: TMsgDlgButtons; ButtonCaptions: Array of String): Integer;
-    procedure ShowMessage(const Message: String; AcceptCaption: String);
+    procedure ShowMessage(const Message: String; DlgType: TMsgDlgType;
+      AcceptCaption: String);
     // NOTE: I've made these public to make it easier to 'extend' the application,
     // but these layout functions really should only be used during app initialization
     // for now.
@@ -304,7 +305,7 @@ begin
   end
   else
   begin
-     ShowMessage('Found a project at: ' + fProject.DiskPath.ID,'Okay, Open It');
+     ShowMessage('Found a project at: ' + fProject.DiskPath.ID,mtConfirmation,'Okay, Open It');
      InitializeProject;
   end;
 
@@ -314,7 +315,7 @@ procedure TMainForm.ProjectOpenFailed(Sender: TPromise; Error: TPromiseError);
 begin
   ShowMessage('The project couldn''t be loaded.' + LineEnding +
               'The error message was: ' + Error + LineEnding +
-              'This program will close.','Got it');
+              'This program will close.',mtError,'Sigh');
   Close;
 end;
 
@@ -391,7 +392,7 @@ begin
   ShowMessage('An error occurred while listing documents.' + LineEnding +
               'The parent document''s ID was "' + Document.ID + '".' + LineEnding +
               Error + LineEnding +
-              'You may want to restart the program, or wait and try your task again later','Sigh');
+              'You may want to restart the program, or wait and try your task again later',mtError,'Sigh');
 
 end;
 
@@ -415,7 +416,7 @@ begin
               'The rename may be incomplete.' + LineEnding +
               'The document''s ID was ' + Document.ID + '.' + LineEnding +
               Error + LineEnding +
-              'You may want to restart the program, or wait and try your task again later','Sigh');
+              'You may want to restart the program, or wait and try your task again later',mtError,'Sigh');
 end;
 
 procedure TMainForm.DocumentsListed(Sender: TObject; Document: TDocumentPath);
@@ -439,7 +440,7 @@ begin
               'The document''s ID was ' + Document.ID + '.' + LineEnding +
               'The attachment type was ' + Attachment + '.' + LineEnding +
               Error + LineEnding +
-              'You may want to restart the program, or wait and try your task again later','Sigh');
+              'You may want to restart the program, or wait and try your task again later',mtError,'Sigh');
 end;
 
 procedure TMainForm.DocumentPropertiesError(Sender: TObject;
@@ -448,7 +449,7 @@ begin
   ShowMessage('An error occurred while saving or loading the document properties.' + LineEnding +
               'The document''s ID was ' + Document.ID + '.' + LineEnding +
               Error + LineEnding +
-              'You may want to restart the program, or wait and try your task again later','Sigh');
+              'You may want to restart the program, or wait and try your task again later',mtError,'Sigh');
 end;
 
 procedure TMainForm.DocumentPropertiesLoaded(Sender: TObject;
@@ -608,7 +609,7 @@ begin
     begin
       ShowMessage('The settings file could not be loaded for some reason.' + LineEnding +
                   'The Error Message Was: ' + E.Message + LineEnding +
-                  'Default settings will be used, and the current settings will be overwritten.','Got It');
+                  'Default settings will be used, and the current settings will be overwritten.',mtError,'Sigh');
     end;
   end;
 
@@ -718,7 +719,7 @@ begin
     lMessage := lMessage + (Event as TProjectError).Error + LineEnding;
   end;
   ShowMessage(lMessage +
-             'You may want to restart the program, or wait and try your task again later','Sigh');
+             'You may want to restart the program, or wait and try your task again later',mtError,'Sigh');
 end;
 
 procedure TMainForm.OpenProjectMenuItemClick(Sender: TObject);
@@ -754,7 +755,7 @@ procedure TMainForm.ProjectLoadFailed(E: String);
 begin
   ShowMessage('The project couldn''t be loaded.' + LineEnding +
               'The error message was: ' + E + LineEnding +
-              'This program will close.','Sigh');
+              'This program will close.',mtError,'Sigh');
   Close;
 end;
 
@@ -762,7 +763,7 @@ procedure TMainForm.ProjectPropertiesError(Sender: TObject; aError: String);
 begin
   ShowMessage('An error occurred while saving or loading the project properties.' + LineEnding +
               aError + LineEnding +
-              'You may want to restart the program, or wait and try your task again later','Sigh');
+              'You may want to restart the program, or wait and try your task again later',mtError,'Sigh');
 end;
 
 procedure TMainForm.ProjectPropertiesLoaded(Sender: TObject);
@@ -1161,9 +1162,9 @@ begin
   end;
 end;
 
-procedure TMainForm.ShowMessage(const Message: String; AcceptCaption: String);
+procedure TMainForm.ShowMessage(const Message: String; DlgType: TMsgDlgType; AcceptCaption: String);
 begin
-  MessageDialog(Message,mtConfirmation,[mbOK],[AcceptCaption]);
+  MessageDialog(Message,DlgType,[mbOK],[AcceptCaption]);
 end;
 
 function TMainForm.LayoutFrame(aFrameClass: TControlClass; aLocation: TAlign
