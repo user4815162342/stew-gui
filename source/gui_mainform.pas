@@ -13,7 +13,6 @@ type
 
   // TODO: Finally, once everything's working get rid of deprecated stuff:
   // - stew_persist
-  // - sys_types
 
   TMainForm = class;
   TMainFormAction = (mfaProjectOpened, mfaProjectClosed, mfaDocumentOpened, mfaDocumentClosed);

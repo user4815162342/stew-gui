@@ -570,7 +570,7 @@ type
 
     { TWriteProjectPropertiesTask }
 
-    TWriteProjectPropertiesTask = class(TDeferredTask2)
+    TWriteProjectPropertiesTask = class(TDeferredTask)
     protected
       procedure HandleError(Input: TPromise; Error: TPromiseError); override;
       procedure DoTask({%H-}Input: TPromise); override;
@@ -581,7 +581,7 @@ type
 
     { TReadProjectPropertiesTask }
 
-    TReadProjectPropertiesTask = class(TDeferredTask2)
+    TReadProjectPropertiesTask = class(TDeferredTask)
     protected
       procedure DoTask(Input: TPromise); override;
       function CreatePromise: TPromise; override;
@@ -591,7 +591,7 @@ type
 
     { TWriteAttachmentTask }
 
-    TWriteAttachmentTask = class(TDeferredTask2)
+    TWriteAttachmentTask = class(TDeferredTask)
     private
       fDocument: TDocumentPath;
       fAttachment: TAttachment;
@@ -609,7 +609,7 @@ type
 
     { TReadDocumentPropertiesTask }
 
-    TReadDocumentPropertiesTask = class(TDeferredTask2)
+    TReadDocumentPropertiesTask = class(TDeferredTask)
     private
       fDocument: TDocumentPath;
     protected
@@ -621,7 +621,7 @@ type
 
     { TReadDocumentSynopsisTask }
 
-    TReadDocumentSynopsisTask = class(TDeferredTask2)
+    TReadDocumentSynopsisTask = class(TDeferredTask)
     private
       fDocument: TDocumentPath;
     protected
@@ -633,7 +633,7 @@ type
 
     { TListDocumentsInFolderTask }
 
-    TListDocumentsInFolderTask = class(TDeferredTask2)
+    TListDocumentsInFolderTask = class(TDeferredTask)
     private
       fProject: TStewProject;
       fDocument: TDocumentPath;
@@ -662,7 +662,7 @@ type
 
     { TIsDocumentAFolderTask }
 
-    TIsDocumentAFolderTask = class(TDeferredTask2)
+    TIsDocumentAFolderTask = class(TDeferredTask)
     private
       fDocument: TDocumentPath;
       fProject: TStewProject;
@@ -675,7 +675,7 @@ type
 
     { TShiftDocumentTask }
 
-    TShiftDocumentTask = class(TDeferredTask2)
+    TShiftDocumentTask = class(TDeferredTask)
     private
       fProject: TStewProject;
       fDocument: TDocumentPath;
@@ -693,7 +693,7 @@ type
 
     { TRenameDocumentTask }
 
-    TRenameDocumentTask = class(TDeferredTask2)
+    TRenameDocumentTask = class(TDeferredTask)
     private
       fProject: TStewProject;
       fOldDocument: TDocumentPath;
@@ -708,7 +708,7 @@ type
 
     { TRequestEditAttachmentTask }
 
-    TRequestEditAttachmentTask = class(TDeferredTask2)
+    TRequestEditAttachmentTask = class(TDeferredTask)
     private
       fProject: TStewProject;
       fDocument: TDocumentPath;

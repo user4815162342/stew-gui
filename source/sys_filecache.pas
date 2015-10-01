@@ -111,7 +111,7 @@ type
 
   { TFileSystemCacheExistenceDeferredTask }
 
-  TFileSystemCacheExistenceDeferredTask = class(TDeferredTask2)
+  TFileSystemCacheExistenceDeferredTask = class(TDeferredTask)
   private
     fPath: TFile;
   protected
@@ -136,7 +136,7 @@ type
 
   { TFileSystemCacheReadDeferredTask }
 
-  TFileSystemCacheReadDeferredTask = class(TDeferredTask2)
+  TFileSystemCacheReadDeferredTask = class(TDeferredTask)
   private
     fFile: TFile;
   protected

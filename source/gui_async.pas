@@ -26,12 +26,10 @@ even happen if I suggested it.
 interface
 
 uses
-  Classes, SysUtils;
+  Classes, SysUtils, sys_async;
 
 type
   { TQueuedCall }
-
-  TQueuedCallback = procedure of object;
 
   TQueuedCall = class
     procedure Callback({%H-}Data: PtrInt);

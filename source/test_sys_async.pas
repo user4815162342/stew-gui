@@ -112,7 +112,7 @@ type
 
   { TTestDeferredTask }
 
-  TTestDeferredTask = class(TDeferredTask2)
+  TTestDeferredTask = class(TDeferredTask)
   protected
     function CreatePromise: TPromise; override;
     procedure DoTask({%H-}Input: TPromise); override;

@@ -79,7 +79,7 @@ type
 
     { TShiftDocumentAfterRenameTask }
 
-    TShiftDocumentAfterRenameTask = class(TDeferredTask2)
+    TShiftDocumentAfterRenameTask = class(TDeferredTask)
     private
       fNewIndex: Integer;
     protected

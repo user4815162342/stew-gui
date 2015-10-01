@@ -171,10 +171,9 @@ type
     constructor Enqueue;
   end;
 
-  { TDeferredTask2 }
+  { TDeferredTask }
 
-  // TODO: Once the other TDeferredTask is gone, remove the '2'.
-  TDeferredTask2 = class(TAsyncTask)
+  TDeferredTask = class(TAsyncTask)
   private
     fInputPromise: TPromise;
     procedure InputPromiseResolved(Sender: TPromise);
@@ -187,54 +186,10 @@ type
     constructor Defer(aInputPromise: TPromise);
   end;
 
-  { TNotifyOnPromiseResolvedTask }
 
-  // This is a simple task that returns a simple, undecorated
-  // promise when another promise returns, so you can hide
-  // the data on that original promise from the caller.
-  TNotifyOnPromiseResolvedTask = class(TDeferredTask2)
-  protected
-    procedure DoTask({%H-}Input: TPromise); override;
-    function CreatePromise: TPromise; override;
-  end deprecated;
+  TQueuedCallback = procedure of object;
 
-  // Use this one to create your own deferred code. Just override DoCallback to
-  // complete the functionality.
-
-  { TDeferredCall }
-
-  TDeferredCall = class
-  private
-    procedure Callback;
-  protected
-    procedure DoCallback; virtual; abstract;
-  public
-    constructor Create;
-    procedure Enqueue;
-  end deprecated;
-
-  TDeferredCallback = procedure of object deprecated;
-
-  TDeferredStringCallback = procedure(Data: String) of object deprecated;
-  TDeferredBooleanCallback = procedure(Data: Boolean) of object deprecated;
-  TDeferredStringArrayCallback = procedure(Data: array of String) of object deprecated;
-  // Exceptions are freed after being caught, so deferring them to pass them onward
-  // doesn't work. We need to pass the message instead. Someday, I may need
-  // to pass more structured data.
-  TDeferredExceptionCallback = procedure(Data: String) of object deprecated;
-
-  TDeferredTask = class(TDeferredCall)
-  private
-    fErrorback: TDeferredExceptionCallback;
-  protected
-    procedure DoCallback; override;
-    procedure DoTask; virtual; abstract;
-    property ErrorBack: TDeferredExceptionCallback read fErrorback;
-  public
-    constructor Create(aErrorBack: TDeferredExceptionCallback);
-  end deprecated;
-
-  TAsyncCallQueuer = procedure(aCallback: TDeferredCallback);
+  TAsyncCallQueuer = procedure(aCallback: TQueuedCallback);
 
 procedure SetAsyncCallQueuer(aQueuer: TAsyncCallQueuer);
 procedure RemoveAsyncCallQueuer(aQueuer: TAsyncCallQueuer);
@@ -259,21 +214,9 @@ begin
   AsyncCallQueuer := nil;
 end;
 
-{ TNotifyOnPromiseResolvedTask }
+{ TDeferredTask }
 
-procedure TNotifyOnPromiseResolvedTask.DoTask(Input: TPromise);
-begin
-  Resolve;
-end;
-
-function TNotifyOnPromiseResolvedTask.CreatePromise: TPromise;
-begin
-  result := TPromise.Create;
-end;
-
-{ TDeferredTask2 }
-
-procedure TDeferredTask2.InputPromiseRejected(Sender: TPromise;
+procedure TDeferredTask.InputPromiseRejected(Sender: TPromise;
   aError: TPromiseError);
 begin
   try
@@ -283,13 +226,13 @@ begin
   end;
 end;
 
-procedure TDeferredTask2.HandleError(Input: TPromise; Error: TPromiseError);
+procedure TDeferredTask.HandleError(Input: TPromise; Error: TPromiseError);
 begin
   // do nothing. A subclass can fill in information on the promise to
   // indicate more information about the error.
 end;
 
-procedure TDeferredTask2.InputPromiseResolved(Sender: TPromise);
+procedure TDeferredTask.InputPromiseResolved(Sender: TPromise);
 begin
   try
     DoTask(Sender);
@@ -299,7 +242,7 @@ begin
   end;
 end;
 
-constructor TDeferredTask2.Defer(aInputPromise: TPromise);
+constructor TDeferredTask.Defer(aInputPromise: TPromise);
 begin
   inherited Create;
   fInputPromise := aInputPromise;
@@ -486,46 +429,6 @@ procedure TPromise.Catch(aErrorback: TPromiseRejectionListener);
 begin
   After(nil,aErrorback);
 end;
-
-procedure TDeferredCall.Callback;
-begin
-  DoCallback;
-  Free;
-end;
-
-constructor TDeferredCall.Create;
-begin
-  inherited Create;
-end;
-
-procedure TDeferredCall.Enqueue;
-begin
-  if AsyncCallQueuer <> nil then
-     AsyncCallQueuer(@Self.Callback)
-  else
-     raise Exception.Create('Async system is not set up');
-end;
-
-
-procedure TDeferredTask.DoCallback;
-begin
-  try
-    DoTask;
-  except
-    on E: Exception do
-    begin
-       fErrorback(E.Message);
-       //TDeferredExceptionCall.Create(fErrorback,E.Message).Enqueue;
-    end;
-  end;
-end;
-
-constructor TDeferredTask.Create(aErrorBack: TDeferredExceptionCallback);
-begin
-  inherited Create;
-  fErrorback := aErrorBack;
-end;
-
 
 end.
 
