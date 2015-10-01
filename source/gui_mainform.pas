@@ -68,7 +68,7 @@ type
   private
     { private declarations }
     fProject: TStewProject;
-    fConfig: TStewApplicationConfig2;
+    fConfig: TStewApplicationConfig;
     fObservers: TMainFormObserverList;
     fFrames: array[TAlign] of TControl;
     fSplitters: array[TAlign] of TControl;
@@ -400,7 +400,7 @@ begin
   stewFolder := LocalFile('');
   fProject := nil;
 
-  fConfig := TStewApplicationConfig2.Create;
+  fConfig := TStewApplicationConfig.Create;
   try
      fConfig.Load;
   except
