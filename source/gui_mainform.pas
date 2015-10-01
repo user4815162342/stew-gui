@@ -76,7 +76,6 @@ type
     // FUTURE: Should be a hash list, so we can look things up by ID.
     fOpenDocuments: TObjectList;
     function GetProject: TStewProject;
-    procedure ProjectLoadFailed(E: String); deprecated;
   protected
     procedure OpenProject(aPath: TFile);
     procedure InitializeProject;
@@ -541,14 +540,6 @@ end;
 procedure TMainForm.PreferencesMenuItemClick(Sender: TObject);
 begin
   OpenPreferences;
-end;
-
-procedure TMainForm.ProjectLoadFailed(E: String);
-begin
-  ShowMessage('The project couldn''t be loaded.' + LineEnding +
-              'The error message was: ' + E + LineEnding +
-              'This program will close.',mtError,'Sigh');
-  Close;
 end;
 
 procedure TMainForm.OpenProject(aPath: TFile);
