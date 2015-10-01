@@ -33,7 +33,6 @@ type
     procedure ObserveProject(Sender: TStewProject; Event: TProjectEvent);
     procedure Open_Project_1(Sender: TPromise);
     procedure Open_Project_2(Sender: TPromise);
-    procedure Open_Project_3(Sender: TPromise);
     procedure PromiseFailed(Sender: TPromise; aError: TPromiseError);
     procedure Project_Properties_1(Sender: TPromise);
     procedure Project_Properties_2(Sender: TPromise);
@@ -118,16 +117,8 @@ begin
   finally
     lProject.Free;
   end;
-  TStewProject.CreateNew(LocalFile(GetTempFileName('',''))).After(@Open_Project_3,@PromiseFailed).Tag := Sender.Tag;
-end;
-
-procedure TProjectSpec.Open_Project_3(Sender: TPromise);
-var
-  lProject: TStewProject;
-begin
-  lProject := (Sender as TProjectPromise).Project;
+  lProject := TStewProject.Create(LocalFile(GetTempFileName('','')));
   try
-    if not AssertAsync(lProject <> nil,'New project should have been opened',Sender.Tag) then Exit;
     if not AssertAsync(lProject.DiskPath <> fTestRootDir,'New project should have been opened at the correct path',Sender.Tag) then Exit;
   finally
     lProject.Free;
@@ -790,7 +781,7 @@ begin
   finally
     lProject.Free;
   end;
-  TStewProject.OpenInParent(fTestRootDir.GetContainedFile('Notes')).After(@Open_Project_2,@PromiseFailed).Tag := Sender.Tag;
+  TStewProject.CheckExistenceInParentAndCreate(fTestRootDir.GetContainedFile('Notes')).After(@Open_Project_2,@PromiseFailed).Tag := Sender.Tag;
 
 end;
 
@@ -904,63 +895,63 @@ end;
 
 procedure TProjectSpec.Test_02_Open_Project;
 begin
-  TStewProject.Open(fTestRootDir).After(@Open_Project_1,@PromiseFailed).Tag := BeginAsync;
+  TStewProject.CheckExistenceAndCreate(fTestRootDir).After(@Open_Project_1,@PromiseFailed).Tag := BeginAsync;
 end;
 
 procedure TProjectSpec.Test_03_Project_Properties;
 begin
   if fProject <> nil then
     FreeAndNil(fProject);
-  TStewProject.Open(fTestRootDir).After(@Project_Properties_1,@PromiseFailed).Tag := BeginAsync;
+  TStewProject.CheckExistenceAndCreate(fTestRootDir).After(@Project_Properties_1,@PromiseFailed).Tag := BeginAsync;
 end;
 
 procedure TProjectSpec.Test_04_Document_Properties;
 begin
   if fProject <> nil then
     FreeAndNil(fProject);
-  TStewProject.Open(fTestRootDir).After(@Document_Properties_1,@PromiseFailed).Tag := BeginAsync;
+  TStewProject.CheckExistenceAndCreate(fTestRootDir).After(@Document_Properties_1,@PromiseFailed).Tag := BeginAsync;
 end;
 
 procedure TProjectSpec.Test_05_Document_List;
 begin
   if fProject <> nil then
     FreeAndNil(fProject);
-  TStewProject.Open(fTestRootDir).After(@Document_List_1,@PromiseFailed).Tag := BeginAsync;
+  TStewProject.CheckExistenceAndCreate(fTestRootDir).After(@Document_List_1,@PromiseFailed).Tag := BeginAsync;
 end;
 
 procedure TProjectSpec.Test_06_Document_Synopsis;
 begin
   if fProject <> nil then
     FreeAndNil(fProject);
-  TStewProject.Open(fTestRootDir).After(@Document_Syn_1,@PromiseFailed).Tag := BeginAsync;
+  TStewProject.CheckExistenceAndCreate(fTestRootDir).After(@Document_Syn_1,@PromiseFailed).Tag := BeginAsync;
 end;
 
 procedure TProjectSpec.Test_07_Document_IsFolder;
 begin
   if fProject <> nil then
     FreeAndNil(fProject);
-  TStewProject.Open(fTestRootDir).After(@Document_IsFolder_1,@PromiseFailed).Tag := BeginAsync;
+  TStewProject.CheckExistenceAndCreate(fTestRootDir).After(@Document_IsFolder_1,@PromiseFailed).Tag := BeginAsync;
 end;
 
 procedure TProjectSpec.Test_08_Shadows;
 begin
   if fProject <> nil then
     FreeAndNil(fProject);
-  TStewProject.Open(fTestRootDir).After(@Shadow_1,@PromiseFailed).Tag := BeginAsync;
+  TStewProject.CheckExistenceAndCreate(fTestRootDir).After(@Shadow_1,@PromiseFailed).Tag := BeginAsync;
 end;
 
 procedure TProjectSpec.Test_09_Shift;
 begin
   if fProject <> nil then
     FreeAndNil(fProject);
-  TStewProject.Open(fTestRootDir).After(@Shift_1,@PromiseFailed).Tag := BeginAsync;
+  TStewProject.CheckExistenceAndCreate(fTestRootDir).After(@Shift_1,@PromiseFailed).Tag := BeginAsync;
 end;
 
 procedure TProjectSpec.Test_10_Rename;
 begin
   if fProject <> nil then
     FreeAndNil(fProject);
-  TStewProject.Open(fTestRootDir).After(@Rename_1,@PromiseFailed).Tag := BeginAsync;
+  TStewProject.CheckExistenceAndCreate(fTestRootDir).After(@Rename_1,@PromiseFailed).Tag := BeginAsync;
 end;
 
 procedure TProjectSpec.Test_11_Edit;
@@ -975,7 +966,7 @@ begin
   // was tested in test_sys_file, so it shouldn't be a problem.
   TOperatingSystemInterface.UseSystemTemplates := false;
   TOperatingSystemInterface.AddTemplateFolder(LocalFile('../test-data/templates'));
-  TStewProject.Open(fTestRootDir).After(@Edit_1,@PromiseFailed).Tag := BeginAsync;
+  TStewProject.CheckExistenceAndCreate(fTestRootDir).After(@Edit_1,@PromiseFailed).Tag := BeginAsync;
 end;
 
 end.

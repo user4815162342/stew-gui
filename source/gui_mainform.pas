@@ -12,8 +12,6 @@ uses
 type
 
   // TODO: Finally, once everything's working get rid of deprecated stuff:
-  // - gui_mainform
-  // - gui_config
   // - stew_project
   // - stew_properties
   // - stew_persist
@@ -81,7 +79,6 @@ type
     procedure InitializeProject;
     procedure AfterProjectOpen(Sender: TPromise);
     procedure AfterProjectOpenInParent(Sender: TPromise);
-    procedure AfterProjectCreateNew(Sender: TPromise);
     procedure ProjectOpenFailed(Sender: TPromise; Error: TPromiseError);
     procedure StartupAskForProject({%H-}Data: PtrInt);
     procedure NotifyObservers(aAction: TMainFormAction; aDocument: TDocumentPath);
@@ -195,21 +192,11 @@ begin
                           'Please specify which one you would like to work with:', aChoices,Answer);
 end;
 
-procedure TMainForm.AfterProjectCreateNew(Sender: TPromise);
-begin
-  fProject := (Sender as TProjectPromise).Project;
-  if fProject = nil then
-     // should never happen if things are going right...
-     ProjectOpenFailed(Sender,'No project was created')
-  else
-     InitializeProject;
-end;
-
 procedure TMainForm.AfterProjectOpen(Sender: TPromise);
 begin
   fProject := (Sender as TProjectPromise).Project;
   if fProject = nil then
-     TStewProject.OpenInParent((Sender as TProjectPromise).Path).After(@AfterProjectOpenInParent,@ProjectOpenFailed)
+     TStewProject.CheckExistenceInParentAndCreate((Sender as TProjectPromise).Path).After(@AfterProjectOpenInParent,@ProjectOpenFailed)
   else
      InitializeProject;
 end;
@@ -226,7 +213,9 @@ begin
                 'Would you like to create one at: ' + lPath.ID + '?',mtConfirmation,mbYesNo,['Create New Stew Project','Open a Different Project']) =
         mrYes then
      begin;
-        TStewProject.CreateNew(lPath).After(@AfterProjectCreateNew,@ProjectOpenFailed);
+        // just create it...
+        fProject := TStewProject.Create(lPath);
+        InitializeProject;
      end
      else
      begin
@@ -544,7 +533,7 @@ end;
 
 procedure TMainForm.OpenProject(aPath: TFile);
 begin
-  TStewProject.Open(aPath).After(@AfterProjectOpen,@ProjectOpenFailed);
+  TStewProject.CheckExistenceAndCreate(aPath).After(@AfterProjectOpen,@ProjectOpenFailed);
 
 end;
 

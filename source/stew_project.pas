@@ -369,193 +369,6 @@ type
   TAttachmentConfirmationEvent = procedure(Sender: TObject; Document: TDocumentPath; AttachmentName: String; out Answer: Boolean) of object;
   TAttachmentChoiceEvent = procedure(Sender: TObject; Document: TDocumentPath; AttachmentName: String; aChoices: TStringArray; var Answer: Integer; out Accepted: Boolean) of object;
 
-  TDocumentNotifyEvent = procedure(Sender: TObject; Document: TDocumentPath) of object deprecated;
-  TDocumentExceptionEvent = procedure(Sender: TObject; Document: TDocumentPath; Error: String) of object deprecated;
-  TAttachmentNotifyEvent = procedure(Sender: TObject; Document: TDocumentPath; AttachmentName: String) of object deprecated;
-  TAttachmentExceptionEvent = procedure(Sender: TObject; Document: TDocumentPath; AttachmentName: String; Error: String) of object deprecated;
-
-  TOrderDocumentPosition = (odpBefore,odpAfter) deprecated;
-
-  TDocumentMetadata = class;
-
-  { TAttachmentMetadata }
-
-  TAttachmentMetadata = class
-  private
-    fDocument: TDocumentMetadata;
-    fFileAge: Longint;
-    fFilingState: TFilingState;
-    fContents: String;
-    fModified: Boolean;
-  protected
-    function GetCandidateFiles: TFile.TFileArray; virtual;
-    function GetDescriptor: String; virtual; abstract;
-    function GetDefaultExtension: String; virtual; abstract;
-    function GetDefaultFile: TFile; virtual;
-    function GetName: String; virtual; abstract;
-    procedure FileLoaded(aSender: TPromise); overload;
-    procedure FileLoaded(const aData: String; aAge: Longint); overload;
-    procedure FileLoadFailed({%H-}aSender: TPromise; Data: String);
-    procedure FileLoadFailedNonPromise(Data: String);
-    procedure FileSaveConflictCheck(aSender: TPromise; aData: TPromiseError);
-    procedure FileSaveConflicted({%H-}aFileAge: Longint);
-    procedure FileSaved(aSender: TPromise);
-    procedure FileSaveFailed(Data: String);
-    function GetContents: String;
-    procedure SetContents(AValue: String);
-    procedure EditorTemplatesListed(aSender: TPromise);
-    procedure EditableFileWritten({%H-}aSender: TPromise);
-    procedure EditableFileReady({%H-}aSender: TPromise);
-  public
-    constructor Create(aDocument: TDocumentMetadata);
-    procedure Load;
-    procedure Save(aForce: Boolean = false);
-    // FUTURE: Consider this possibility if I ever add internal editing which requires a RichMemo or something.
-    // procedure Read(aCallback: TDeferredStreamCallback), would
-    //   allow reading directly from the stream, for things like
-    //   rich text content. You couldn't use GetContents, and the
-    //   'loading' and 'loaded' events wouldn't work, but you could
-    //   still use the 'loadfailed'. And 'age' would still be kept.
-    // procedure Write(aStream: TStream; aCallback: TDeferredCallback), again
-    //   would allow writing directly. 'saveFailed' and 'saveConflicted' would
-    //   still happen though.
-    procedure OpenInEditor;
-    property Contents: String read GetContents write SetContents;
-    property Modified: Boolean read fModified;
-    property FilingState: TFilingState read fFilingState;
-  end deprecated;
-
-  { TPrimaryMetadata }
-
-  TPrimaryMetadata = class(TAttachmentMetadata)
-  protected
-    function GetDescriptor: String; override;
-    function GetName: String; override;
-    function GetDefaultExtension: String; override;
-  end deprecated;
-
-  { TNotesMetadata }
-
-  TNotesMetadata = class(TAttachmentMetadata)
-  protected
-    function GetDescriptor: String; override;
-    function GetName: String; override;
-    function GetDefaultExtension: String; override;
-  end deprecated;
-
-  { TSynopsisMetadata }
-
-  TSynopsisMetadata = class(TAttachmentMetadata)
-  protected
-    function GetCandidateFiles: TFile.TFileArray; override;
-    function GetDescriptor: String; override;
-    function GetName: String; override;
-    function GetDefaultExtension: String; override;
-  end deprecated;
-
-  { TDocumentMetadata }
-  // FUTURE: Currently, there's no way to *release* the cache, mostly because
-  // I don't have any way for the project to know when cached data is no longer
-  // needed (properties are needed by at least two UI areas: listing documents and
-  // editing the properties). If this program gets unwieldy with large projects that
-  // remain open for a long time, that would be the place to look.
-  // -- I could just, periodically, remove any properties that are not marked
-  // as modified. But it would be nicer to remove only those properties which
-  // are not being modified in a tab.
-  // -- switching to a request/response system like a browser would solve this
-  // as well: if the data is in cache, return it, if not, load it, and don't
-  // keep pointers to the metadata objects either, just use the data and assume
-  // it may be deleted later.
-  TDocumentMetadata = class
-  strict private type
-  // this allows me access to the protected events on Document Properties,
-  // but avoids making those events accessible from outside of the project,
-  // which I don't want.
-    TProtectedDocumentProperties = class(TDocumentProperties)
-    end;
-  strict private
-    fListingState: TListingState;
-    fIsNew: Boolean;
-    fLock: TObject;
-    fProject: TStewProject;
-    // NOTE: This is a 'virtual' TFile, since the actual data is split
-    // across multiple files.
-    fDisk: TFile;
-    fID: TDocumentPath;
-    fFiles: TFileList;
-    fContents: TFPHashObjectList;
-    fProperties: TDocumentProperties;
-    fSynopsis: TSynopsisMetadata;
-    fPrimary: TPrimaryMetadata;
-    fNotes: TNotesMetadata;
-    function GetIsLocked: Boolean;
-    function GetPrimary: TPrimaryMetadata;
-  protected
-    procedure PropertiesLoaded(Sender: TObject);
-    procedure PropertiesLoadFailed(Sender: TObject; aError: String);
-    procedure PropertiesSaveConflicted(Sender: TObject);
-    procedure PropertiesSaved(Sender: TObject);
-    procedure PropertiesSaveFailed(Sender: TObject; aError: String);
-    procedure PropertiesLoading(Sender: TObject);
-    procedure PropertiesSaving(Sender: TObject);
-    procedure AttachmentLoading(const aName: String);
-    procedure AttachmentLoaded(const aName: String);
-    procedure AttachmentLoadFailed(const aName: String; aError: String);
-    procedure AttachmentSaving(const aName: String);
-    procedure AttachmentSaved(const aName: String);
-    procedure AttachmentSaveConflicted(const aName: String);
-    procedure AttachmentSaveFailed(const aName: String; aError: String);
-    procedure FileRenameFailed({%H-}aSender: TPromise; Data: String);
-    procedure FilesRenamed({%H-}aSender: TPromise);
-    procedure FilesListed(Data: TFile.TFileArray; aRecursive: Boolean);
-    procedure FilesListedNonrecursive(aSender: TPromise);
-    procedure FilesListedRecursive(aSender: TPromise);
-    procedure FilesListError({%H-}aSender: TPromise; Data: String);
-    procedure StateChanged;
-    function DoConfirmNewAttachment(aName: String): Boolean;
-    function DoChooseTemplate(aAttachmentName: String;
-      const aTemplates: TTemplateArray; out aTemplate: TTemplate): Boolean;
-    procedure ClearFiles;
-    procedure AddFile(const aFile: TFile);
-    function SortDocuments(List: TStringList; Index1, Index2: Integer): Integer;
-    function PutPath(const aPath: String): TDocumentMetadata;
-    function PutDocument(aKey: String): TDocumentMetadata;
-    function GetDocument(aKey: String): TDocumentMetadata;
-    function GetAttachmentFiles(aDescriptor: String; aExtension: String): TFile.TFileArray;
-    function GetUncreatedAttachmentFile(const aDescriptor: String; const aExtension: String): TFile;
-    function GetSynopsis: TSynopsisMetadata;
-    property Project: TStewProject read fProject;
-    procedure DirectoryCreated;
-  public
-    constructor Create(aProject: TStewProject; aDiskPath: TFile;
-      aID: TDocumentPath; aIsRoot: Boolean);
-    destructor Destroy; override;
-    property Properties: TDocumentProperties read fProperties;
-    // This isn't a true recursive. It is more of a recursive refresh that doesn't
-    // cause new documents to appear. It will list the current document, yes.
-    // But it will only cause children docs to list themselves if they have already
-    // been listed.
-    procedure ListDocuments(Recursive: Boolean);
-    property ListingState: TListingState read fListingState;
-    function GetContents: TDocumentArray;
-    function AreAttachmentsListed: Boolean;
-    property Synopsis: TSynopsisMetadata read GetSynopsis;
-    property Primary: TPrimaryMetadata read GetPrimary;
-    property Notes: TNotesMetadata read fNotes;
-    property IsNew: Boolean read fIsNew;
-    property IsLocked: Boolean read GetIsLocked;
-    procedure Lock(aLockingObject: TObject);
-    procedure Unlock(aLockingObject: TObject);
-    procedure CreateDocument(aName: String);
-    class function IsTroublesome(aName: String): Boolean;
-    function HasDocument(aName: String): Boolean;
-    function GetParent: TDocumentMetadata;
-    function GetName: String;
-    procedure Rename(aOldName: String; aNewName: String);
-    procedure MoveDocToHere(aOldChild: TDocumentMetadata);
-    procedure OrderDocument(aDoc: TDocumentMetadata; aPosition: TOrderDocumentPosition; aRelative: TDocumentMetadata); overload;
-  end deprecated;
-
 
 
   { TShadowDocument }
@@ -723,19 +536,12 @@ type
   TStewProject = class
   strict private type
 
-    // this allows me access to the protected events on Project Properties,
-    // but avoids making those events accessible from outside of the project,
-    // which I don't want.
-    TProtectedProjectProperties = class(TProjectProperties)
-    end deprecated;
+    { TProjectCheckAndCreateTask }
 
-    { TProjectOpenTask }
-
-    TProjectOpenTask = class(TQueuedTask)
+    TProjectCheckAndCreateTask = class(TQueuedTask)
     protected
       fPath: TFile;
     protected
-      procedure ProjectOpened(Sender: TPromise);
       procedure ResolveCreateProject(aPath: TFile);
       function CreatePromise: TPromise; override;
       property Path: TFile read fPath;
@@ -743,28 +549,21 @@ type
       constructor Enqueue(aPath: Tfile);
     end;
 
-    { TProjectOpenAtPathTask }
+    { TProjectCheckAtPathTask }
 
-    TProjectOpenAtPathTask = class(TProjectOpenTask)
+    TProjectCheckAtPathTask = class(TProjectCheckAndCreateTask)
     private
       procedure FileExists(Sender: TPromise);
     protected
       procedure DoTask; override;
     end;
 
-    { TProjectOpenInParentTask }
+    { TProjectCheckInParentTask }
 
-    TProjectOpenInParentTask = class(TProjectOpenTask)
+    TProjectCheckInParentTask = class(TProjectCheckAndCreateTask)
     private
       procedure FileExistsInParent(Sender: TPromise);
       procedure FileExists(Sender: TPromise);
-    protected
-      procedure DoTask; override;
-    end;
-
-    { TProjectCreateNewTask }
-
-    TProjectCreateNewTask = class(TProjectOpenTask)
     protected
       procedure DoTask; override;
     end;
@@ -937,43 +736,6 @@ type
     FOnConfirmNewAttachment: TAttachmentConfirmationEvent;
     fOnChooseAttachment: TAttachmentChoiceEvent;
 
-    fMetadataCache: TDocumentMetadata deprecated;
-    FOnDocumentAttachmentError: TAttachmentExceptionEvent deprecated;
-    FOnDocumentAttachmentLoaded: TAttachmentNotifyEvent deprecated;
-    FOnDocumentAttachmentLoading: TAttachmentNotifyEvent deprecated;
-    FOnDocumentAttachmentSaveConflicted: TAttachmentNotifyEvent deprecated;
-    FOnDocumentAttachmentSaved: TAttachmentNotifyEvent deprecated;
-    FOnDocumentAttachmentSaving: TAttachmentNotifyEvent deprecated;
-    FOnDocumentChanged: TDocumentNotifyEvent deprecated;
-    FOnDocumentCreated: TDocumentNotifyEvent deprecated;
-    FOnDocumentRenameFailed: TDocumentExceptionEvent deprecated;
-    fOnDocumentsListed: TDocumentNotifyEvent deprecated;
-    fOnDocumentListError: TDocumentExceptionEvent deprecated;
-    FOnDocumentPropertiesError: TDocumentExceptionEvent deprecated;
-    FOnDocumentPropertiesLoaded: TDocumentNotifyEvent deprecated;
-    fOnDocumentPropertiesLoading: TDocumentNotifyEvent deprecated;
-    fOnDocumentPropertiesSaving: TDocumentNotifyEvent deprecated;
-    FOnDocumentPropertiesSaveConflicted: TDocumentNotifyEvent deprecated;
-    FOnDocumentPropertiesSaved: TDocumentNotifyEvent deprecated;
-    FOnPropertiesLoading: TNotifyEvent deprecated;
-    fOnPropertiesSaving: TNotifyEvent deprecated;
-    fProperties: TProjectProperties deprecated;
-    FOnPropertiesError: TExceptionMessageEvent deprecated;
-    FOnPropertiesLoaded: TNotifyEvent deprecated;
-    FOnPropertiesSaveConflicted: TNotifyEvent deprecated;
-    FOnPropertiesSaved: TNotifyEvent deprecated;
-    function GetIsOpened: Boolean; deprecated;
-    function GetProperties: TProjectProperties; deprecated;
-    function OpenProjectProperties: TFileReadPromise; deprecated;
-    function DoOpened: TFileReadPromise;  deprecated;
-    procedure ProjectPropertiesLoading(Sender: TObject); deprecated;
-    procedure ProjectPropertiesSaving(Sender: TObject); deprecated;
-    procedure ProjectPropertiesLoaded(Sender: TObject); deprecated;
-    procedure ProjectPropertiesLoadFailed(Sender: TObject; aError: String); deprecated;
-    procedure ProjectPropertiesSaveConflicted(Sender: TObject); deprecated;
-    procedure ProjectPropertiesSaved(Sender: TObject); deprecated;
-    procedure ProjectPropertiesSaveFailed(Sender: TObject; aError: String); deprecated;
-
     procedure ReportEvent(aEvent: TProjectEvent);
     procedure CacheActivity(Sender: TPromise);
     procedure CacheError(Sender: TPromise; aError: TPromiseError);
@@ -998,45 +760,20 @@ type
     procedure DocumentEditing(Sender: TPromise);
     procedure DocumentEditingError(Sender: TPromise; aError: TPromiseError);
   protected
-    // NOTE: This is protected because project objects should be created
-    // async in order to check.
-    {%H-}constructor Create(const Path: TFile);
   public
-    property OnPropertiesLoaded: TNotifyEvent read FOnPropertiesLoaded write fOnPropertiesLoaded;  deprecated;
-    property OnPropertiesSaved: TNotifyEvent read FOnPropertiesSaved write fOnPropertiesSaved;  deprecated;
-    property OnPropertiesError: TExceptionMessageEvent read FOnPropertiesError write fOnPropertiesError; deprecated;
-    property OnPropertiesSaveConflicted: TNotifyEvent read FOnPropertiesSaveConflicted write fOnPropertiesSaveConflicted; deprecated;
-    property OnPropertiesSaving: TNotifyEvent read fOnPropertiesSaving write FOnPropertiesSaving; deprecated;
-    property OnPropertiesLoading: TNotifyEvent read FOnPropertiesLoading write FOnPropertiesLoading; deprecated;
-    property OnDocumentPropertiesLoaded: TDocumentNotifyEvent read FOnDocumentPropertiesLoaded write FOnDocumentPropertiesLoaded; deprecated;
-    property OnDocumentPropertiesSaved: TDocumentNotifyEvent read FOnDocumentPropertiesSaved write FOnDocumentPropertiesSaved ; deprecated;
-    property OnDocumentPropertiesError: TDocumentExceptionEvent read FOnDocumentPropertiesError write FOnDocumentPropertiesError; deprecated;
-    property OnDocumentPropertiesSaveConflicted: TDocumentNotifyEvent read FOnDocumentPropertiesSaveConflicted write FOnDocumentPropertiesSaveConflicted; deprecated;
-    property OnDocumentPropertiesSaving: TDocumentNotifyEvent read fOnDocumentPropertiesSaving write fOnDocumentPropertiesSaving; deprecated;
-    property OnDocumentPropertiesLoading: TDocumentNotifyEvent read fOnDocumentPropertiesLoading write fOnDocumentPropertiesLoading; deprecated;
-    property OnDocumentAttachmentLoading: TAttachmentNotifyEvent read FOnDocumentAttachmentLoading write FOnDocumentAttachmentLoading; deprecated;
-    property OnDocumentAttachmentLoaded: TAttachmentNotifyEvent read FOnDocumentAttachmentLoaded write FOnDocumentAttachmentLoaded; deprecated;
-    property OnDocumentAttachmentError: TAttachmentExceptionEvent read FOnDocumentAttachmentError write FOnDocumentAttachmentError; deprecated;
-    property OnDocumentAttachmentSaving: TAttachmentNotifyEvent read FOnDocumentAttachmentSaving write FOnDocumentAttachmentSaving; deprecated;
-    property OnDocumentAttachmentSaved: TAttachmentNotifyEvent read FOnDocumentAttachmentSaved write FOnDocumentAttachmentSaved; deprecated;
-    property OnDocumentAttachmentSaveConflicted: TAttachmentNotifyEvent read FOnDocumentAttachmentSaveConflicted write FOnDocumentAttachmentSaveConflicted; deprecated;
-    property OnDocumentsListed: TDocumentNotifyEvent read fOnDocumentsListed write fOnDocumentsListed; deprecated;
-    property OnDocumentListError: TDocumentExceptionEvent read fOnDocumentListError write fOnDocumentListError; deprecated;
-    property OnDocumentCreated: TDocumentNotifyEvent read FOnDocumentCreated write FOnDocumentCreated; deprecated;
-    property OnDocumentChanged: TDocumentNotifyEvent read FOnDocumentChanged write FOnDocumentChanged; deprecated;
-    property OnDocumentRenameFailed: TDocumentExceptionEvent read FOnDocumentRenameFailed write FOnDocumentRenameFailed; deprecated;
 
     property OnConfirmNewAttachment: TAttachmentConfirmationEvent read FOnConfirmNewAttachment write FOnConfirmNewAttachment;
     property OnChooseTemplate: TAttachmentChoiceEvent read FOnChooseTemplate write FOnChooseTemplate;
     property OnChooseAttachment: TAttachmentChoiceEvent read fOnChooseAttachment write fOnChooseAttachment;
   public
-    constructor Create; deprecated;
+    // NOTE: You *could* use this to create a project, or you could use one
+    // of the Check* class functions, which will verify whether the project
+    // exists before creating. Use this after you find that the project doesn't
+    // exist, if you still want to create the project at that location anyway.
+    constructor Create(const Path: TFile);
     destructor Destroy; override;
     property DiskPath: TFile read fDisk;
-    function GetDocument(const aDocumentID: TDocumentPath): TDocumentMetadata; deprecated;
-    property IsOpened: Boolean read GetIsOpened; deprecated;
     function GetProjectName: String;
-    property Properties: TProjectProperties read GetProperties; deprecated;
 
     // A "Shadow" is a document that doesn't have any files to back it up.
     // This can be used to create new documents before they are saved,
@@ -1080,9 +817,8 @@ type
     // Important maintenance functions for working with the projects themselves.
     procedure AddObserver(aObserver: TProjectObserver);
     procedure RemoveObserver(aObserver: TProjectObserver);
-    class function Open(aPath: TFile): TProjectPromise;
-    class function OpenInParent(aPath: TFile): TProjectPromise;
-    class function CreateNew(aPath: TFile): TProjectPromise;
+    class function CheckExistenceAndCreate(aPath: TFile): TProjectPromise;
+    class function CheckExistenceInParentAndCreate(aPath: TFile): TProjectPromise;
 
     // utility functions used internally, but here for your pleasure since they
     // don't change anything in the project state.
@@ -2621,51 +2357,36 @@ end;
 
 { TProjectOpenTask }
 
-procedure TStewProject.TProjectOpenTask.ProjectOpened(Sender: TPromise);
-begin
-  Resolve;
-end;
-
-procedure TStewProject.TProjectOpenTask.ResolveCreateProject(aPath: TFile);
+procedure TStewProject.TProjectCheckAndCreateTask.ResolveCreateProject(aPath: TFile);
 var
   lProject: TStewProject;
 begin
   lProject := TStewProject.Create(aPath);
   (Promise as TProjectPromise).SetAnswer(lProject);
-  // TODO: Once we move to the new system there really is no need
-  // to call this anymore. Wait until the GUI has been converted
-  // before doing this, though.
-  lProject.DoOpened.After(@ProjectOpened,@SubPromiseRejected);
+  Resolve;
 end;
 
-function TStewProject.TProjectOpenTask.CreatePromise: TPromise;
+function TStewProject.TProjectCheckAndCreateTask.CreatePromise: TPromise;
 begin
   result := TProjectPromise.Create(fPath);
 end;
 
-constructor TStewProject.TProjectOpenTask.Enqueue(aPath: Tfile);
+constructor TStewProject.TProjectCheckAndCreateTask.Enqueue(aPath: Tfile);
 begin
   fPath := aPath;
   inherited Enqueue;
 end;
 
 
-{ TProjectCreateNewTask }
-
-procedure TStewProject.TProjectCreateNewTask.DoTask;
-begin
-  ResolveCreateProject(Path);
-end;
-
 { TProjectOpenInParentTask }
 
-procedure TStewProject.TProjectOpenInParentTask.FileExistsInParent(Sender: TPromise);
+procedure TStewProject.TProjectCheckInParentTask.FileExistsInParent(Sender: TPromise);
 begin
   (Promise as TProjectPromise).SetAnswer((Sender as TProjectPromise).Project);
   Resolve;
 end;
 
-procedure TStewProject.TProjectOpenInParentTask.FileExists(Sender: TPromise);
+procedure TStewProject.TProjectCheckInParentTask.FileExists(Sender: TPromise);
 var
   lParent: TFile;
 begin
@@ -2682,12 +2403,12 @@ begin
     end
     else
     begin
-      TProjectOpenInParentTask.Enqueue(lParent).After(@FileExistsInParent,@SubPromiseRejected);
+      TProjectCheckInParentTask.Enqueue(lParent).After(@FileExistsInParent,@SubPromiseRejected);
     end;
   end;
 end;
 
-procedure TStewProject.TProjectOpenInParentTask.DoTask;
+procedure TStewProject.TProjectCheckInParentTask.DoTask;
 begin
   GetProjectPropertiesPath(Path).CheckExistence.After(@FileExists,@SubPromiseRejected);
 end;
@@ -2707,7 +2428,7 @@ end;
 
 { TProjectOpenAtPathTask }
 
-procedure TStewProject.TProjectOpenAtPathTask.FileExists(Sender: TPromise);
+procedure TStewProject.TProjectCheckAtPathTask.FileExists(Sender: TPromise);
 begin
   if ((Sender as TFileExistencePromise).Exists) then
   begin
@@ -2719,7 +2440,7 @@ begin
   end;
 end;
 
-procedure TStewProject.TProjectOpenAtPathTask.DoTask;
+procedure TStewProject.TProjectCheckAtPathTask.DoTask;
 begin
   GetProjectPropertiesPath(Path).CheckExistence.After(@FileExists,@SubPromiseRejected);
 end;
@@ -2863,1040 +2584,7 @@ begin
   result.fID := ':' + aName;
 end;
 
-{ TSynopsisMetadata }
-
-function TSynopsisMetadata.GetCandidateFiles: TFile.TFileArray;
-begin
-  Result:=fDocument.GetAttachmentFiles(GetDescriptor,GetDefaultExtension);
-end;
-
-function TSynopsisMetadata.GetDescriptor: String;
-begin
-  result := '_synopsis';
-end;
-
-function TSynopsisMetadata.GetName: String;
-begin
-  result := 'Synopsis';
-
-end;
-
-function TSynopsisMetadata.GetDefaultExtension: String;
-begin
-  result := '.txt';
-end;
-
-{ TNotesMetadata }
-
-function TNotesMetadata.GetDescriptor: String;
-begin
-  result := '_notes';
-end;
-
-function TNotesMetadata.GetName: String;
-begin
-  result := 'Notes';
-end;
-
-function TNotesMetadata.GetDefaultExtension: String;
-begin
-  result := fDocument.Project.Properties.defaultNotesExtension;
-end;
-
-{ TPrimaryMetadata }
-
-function TPrimaryMetadata.GetDescriptor: String;
-begin
-  result := '';
-end;
-
-function TPrimaryMetadata.GetName: String;
-begin
-  result := 'Primary';
-end;
-
-function TPrimaryMetadata.GetDefaultExtension: String;
-begin
-  result := fDocument.Project.GetProperties.defaultDocExtension;
-end;
-
-{ TAttachmentMetadata }
-
-procedure TAttachmentMetadata.FileLoaded(aSender: TPromise);
-begin
-  FileLoaded((aSender as TFileReadPromise).ReadString,(aSender as TFileReadPromise).Age);
-
-end;
-
-procedure TAttachmentMetadata.FileLoaded(const aData: String; aAge: Longint);
-begin
-  fContents := aData;
-  fFileAge := aAge;
-  fFilingState := fsLoaded;
-  fDocument.AttachmentLoaded(GetName);
-
-end;
-
-procedure TAttachmentMetadata.FileLoadFailed(aSender: TPromise; Data: String);
-begin
-  fFilingState := fsError;
-  fDocument.AttachmentLoadFailed(GetName,Data);
-
-end;
-
-procedure TAttachmentMetadata.FileLoadFailedNonPromise(Data: String);
-begin
-  fFilingState := fsError;
-  fDocument.AttachmentLoadFailed(GetName,Data);
-
-end;
-
-procedure TAttachmentMetadata.FileSaveConflictCheck(aSender: TPromise;
-  aData: TPromiseError);
-begin
-  if (aSender as TFileWritePromise).IsConflict then
-     FileSaveConflicted((aSender as TFileWritePromise).Age)
-  else
-     FileSaveFailed(aData);
-end;
-
-procedure TAttachmentMetadata.FileSaveConflicted(aFileAge: Longint);
-begin
-  fFilingState := fsConflict;
-  fDocument.AttachmentSaveConflicted(GetName);
-end;
-
-procedure TAttachmentMetadata.FileSaved(aSender: TPromise);
-begin
-  fFileAge := (aSender as TFileWritePromise).Age;
-  fFilingState := fsLoaded;
-  fDocument.AttachmentSaved(GetName);
-end;
-
-procedure TAttachmentMetadata.FileSaveFailed(Data: String);
-begin
-  // this doesn't make the state an error, because the data in the
-  // document is still valid, so just return it to loaded.
-  fFilingState := fsLoaded;
-  fDocument.AttachmentSaveFailed(GetName,Data);
-end;
-
-procedure TAttachmentMetadata.SetContents(AValue: String);
-begin
-  if fContents <> AValue then
-  begin;
-    fContents := AValue;
-    fModified := true;
-
-  end;
-end;
-
-const EmptyFileTemplate: TTemplate = ( Name: 'Empty File'; ID: '');
-
-procedure TAttachmentMetadata.EditorTemplatesListed(aSender: TPromise);
-var
-  aTemplate: TTemplate;
-  lData: TTemplateArray;
-begin
-  lData := (aSender as TFileListTemplatesPromise).Templates;
-  if Length(lData) = 0 then
-  // create a simple, basic, blank file.
-     GetDefaultFile.Write('').After(@EditableFileWritten,@FileLoadFailed)
-  else
-  begin
-    if Length(lData) > 1 then
-    begin
-      if (GetDefaultExtension = '') then
-      begin
-        // no extension is known, so it's possible that they might
-        // want to just create a blank template, like above.
-        SetLength(lData,Length(lData) + 1);
-        lData[Length(lData) - 1] := EmptyFileTemplate;
-      end;
-      if not fDocument.DoChooseTemplate(GetName,lData,aTemplate) then
-        Exit;
-    end
-    else
-      aTemplate := lData[0];
-    if aTemplate.Name = EmptyFileTemplate.Name then
-      // we're creating a blank file anyway, but in this case,
-      // we know that we don't know what extension it is, so set
-      // the extension to '.txt'.
-       GetDefaultFile.WithDifferentExtension('txt').Write('').After(@EditableFileWritten,@FileLoadFailed)
-    else
-       GetDefaultFile.CreateFromTemplate(aTemplate).After(@EditableFileReady,@FileLoadFailed);
-  end;
-
-end;
-
-procedure TAttachmentMetadata.EditableFileWritten(aSender: TPromise);
-begin
-  EditableFileReady(aSender);
-end;
-
-procedure TAttachmentMetadata.EditableFileReady(aSender: TPromise);
-var
-  aFile: TFile;
-begin
-  aFile := GetDefaultFile;
-  fDocument.AddFile(aFile);
-  aFile.OpenInEditor;
-end;
-
-
-function TAttachmentMetadata.GetCandidateFiles: TFile.TFileArray;
-begin
-  result := fDocument.GetAttachmentFiles(GetDescriptor,'');
-end;
-
-function TAttachmentMetadata.GetDefaultFile: TFile;
-begin
-  result := fDocument.GetUncreatedAttachmentFile(GetDescriptor,GetDefaultExtension);
-end;
-
-constructor TAttachmentMetadata.Create(aDocument: TDocumentMetadata);
-begin
-  inherited Create;
-  fDocument := aDocument;
-  fFilingState := fsNotLoaded;
-  fContents := '';
-end;
-
-procedure TAttachmentMetadata.Load;
-var
-  aCandidates: TFileArray;
-begin
-  if fFilingState in [fsNotLoaded,fsLoaded,fsError,fsConflict] then
-  begin
-    aCandidates := GetCandidateFiles;
-    case Length(aCandidates) of
-      0:
-      // just pretend it's loaded, but with no contents.
-        FileLoaded('',NewFileAge);
-      1:
-      begin
-        fFilingState := fsLoading;
-        fDocument.AttachmentLoading(GetName);
-        aCandidates[0].Read.After(@FileLoaded,@FileLoadFailed);
-      end
-    else
-        raise Exception.Create('Too many ' + GetName + ' files');
-    end;
-  end
-  else if fFilingState = fsSaving then
-     raise Exception.Create('Can''t load attachment data while saving.');
-  // otherwise, already loading, so ignore.
-end;
-
-procedure TAttachmentMetadata.Save(aForce: Boolean);
-var
-  aCandidates: TFileArray;
-  lOptions: TFileWriteOptions;
-begin
-  if Modified then
-  begin
-    if fFilingState in [fsLoaded,fsConflict] then
-    begin
-      aCandidates := GetCandidateFiles;
-      case Length(aCandidates) of
-        0:
-        // not ready yet, so create a new name.
-        begin
-          SetLength(aCandidates,1);
-          aCandidates[0] := GetDefaultFile;
-        end;
-        1: // do nothing, we save in a minute.
-      else
-          raise Exception.Create('Too many ' + GetName + ' files');
-      end;
-
-      fFilingState := fsSaving;
-      fDocument.AttachmentSaving(GetName);
-      lOptions := [];
-      if not aForce then
-        lOptions := lOptions + [fwoCheckAge];
-      aCandidates[0].Write(lOptions,fFileAge,fContents).After(@FileSaved,@FileSaveConflictCheck);
-    end
-    else if fFilingState = fsNotLoaded then
-      raise Exception.Create('Can''t save attachment data when it has not yet been loaded')
-    else if fFilingState = fsLoading then
-      raise Exception.Create('Can''t save attachment data while still loading.')
-    else if fFilingState = fsError then
-      raise Exception.Create('Can''t save attachment data when the last load failed.');
-    // otherwise, already saving, so don't worry about it.
-  end;
-end;
-
-procedure TAttachmentMetadata.OpenInEditor;
-var
-  aCandidates: TFileArray;
-begin
-  aCandidates := GetCandidateFiles;
-  case Length(aCandidates) of
-    0:
-    if fDocument.DoConfirmNewAttachment(GetName) then
-    begin
-      GetDefaultFile.ListTemplatesFor.After(@EditorTemplatesListed,@FileLoadFailed);
-    end;
-    1:
-      aCandidates[0].OpenInEditor;
-  else
-      raise Exception.Create('Too many ' + GetName + ' files');
-  end;
-
-end;
-
-function TAttachmentMetadata.GetContents: String;
-begin
-  result := fContents;
-end;
-
-{ TStewProject.TDocumentMetadata }
-
-procedure TDocumentMetadata.PropertiesLoadFailed(Sender: TObject;
-  aError: String);
-begin
-  if fProject.FOnDocumentPropertiesError <> nil then
-    fProject.FOnDocumentPropertiesError(fProject,fID,aError);
-end;
-
-procedure TDocumentMetadata.PropertiesSaveConflicted(Sender: TObject);
-begin
-  if fProject.FOnDocumentPropertiesSaveConflicted <> nil then
-    fProject.FOnDocumentPropertiesSaveConflicted(fProject,fID);
-end;
-
-procedure TDocumentMetadata.PropertiesSaved(Sender: TObject);
-begin
-  if fIsNew then
-    // we need to mark that the directory was automatically created.
-    DirectoryCreated;
-  if fProject.FOnDocumentPropertiesSaved <> nil then
-    fProject.FOnDocumentPropertiesSaved(fProject,fID);
-end;
-
-procedure TDocumentMetadata.PropertiesSaveFailed(Sender: TObject;
-  aError: String);
-begin
-  if fProject.FOnDocumentPropertiesError <> nil then
-    fProject.FOnDocumentPropertiesError(fProject,fID,aError);
-end;
-
-procedure TDocumentMetadata.FilesListed(Data: TFile.TFileArray; aRecursive: Boolean);
-var
-  aPacket: TFilename;
-  i: Integer;
-  aChild: TDocumentMetadata;
-begin
-
-  // clear out the old ones.
-  // NOTE: We don't want to actuall delete all of the items in the cache,
-  // we just want to delete the files. If we delete the actual items, we
-  // run to risk of deleting a properties object that is maintaining some
-  // data which hasn't been applied to disk yet. Also, we don't
-  // want to delete everything recursively.
-  ClearFiles;
-  for i := 0 to Length(Data) - 1 do
-  begin
-    if (Data[i].BaseName[1] <> '_') then
-    begin
-      aPacket := Data[i].PacketName;
-      aChild := PutDocument(aPacket);
-      aChild.AddFile(Data[i]);
-    end
-    else
-    // the file is actually 'attached' to this one. This becomes important
-    // in the root metadata.
-      AddFile(Data[i]);
-  end;
-
-  if aRecursive then
-  begin
-    for i := 0 to fContents.Count - 1 do
-    begin
-      aChild := fContents[i] as TDocumentMetadata;
-      if aChild.ListingState = lsListed then
-        aChild.ListDocuments(true);
-    end;
-
-  end;
-
-  fListingState := lsListed;
-  if fProject.fOnDocumentsListed <> nil then
-     fProject.fOnDocumentsListed(fProject,fID);
-end;
-
-procedure TDocumentMetadata.FilesListedNonrecursive(aSender: TPromise);
-begin
-  FilesListed((aSender as TFileListPromise).GetJustFiles,false);
-end;
-
-procedure TDocumentMetadata.FilesListError(aSender: TPromise; Data: String);
-begin
-  if fProject.fOnDocumentListError <> nil then
-     fProject.fOnDocumentListError(fProject,fID,Data);
-end;
-
-procedure TDocumentMetadata.StateChanged;
-begin
-  if fProject.fOnDocumentChanged <> nil then
-     fProject.fOnDocumentChanged(fProject,fID);
-end;
-
-function TDocumentMetadata.DoConfirmNewAttachment(aName: String): Boolean;
-begin
-  if fProject.fOnConfirmNewAttachment <> nil then
-     fProject.fOnConfirmNewAttachment(fProject,fID,aName,Result)
-  else
-     raise Exception.Create('Can''t confirm a new ' + aName + ' file for ' + fID.ID);
-end;
-
-function TDocumentMetadata.DoChooseTemplate(aAttachmentName: String; const aTemplates: TTemplateArray;
-  out aTemplate: TTemplate): Boolean;
-var
-  aNames: TStringArray;
-  aName: String;
-  i: Integer;
-  l: Integer;
-begin
-  if fProject.fOnChooseTemplate <> nil then
-  begin
-    l := Length(aTemplates);
-    SetLength(aNames,l);
-    for i := 0 to l - 1 do
-    begin
-      aNames[i] := aTemplates[i].Name;
-    end;
-    aName := '';
-    fProject.fOnChooseTemplate(fProject,fID,aAttachmentName,aNames,i,Result);
-    aTemplate.Name:='';
-    aTemplate.ID := '';
-    if result then
-    begin
-      if (i >= 0) and (i < l) then
-        aTemplate := aTemplates[i]
-      else
-        raise Exception.Create('Invalid choice for template');
-    end;
-
-  end
-  else
-     raise Exception.Create('Too many possible templates are available for the new ' + aName + ' file for ' + fID.ID);
-end;
-
-procedure TDocumentMetadata.ClearFiles;
-var
-  i: Integer;
-  j: Integer;
-  aChild: TDocumentMetadata;
-begin
-  for i := fFiles.Count - 1 downto 0 do
-  begin
-    if (fFiles[i].Name[1] = '_') then
-       fFiles.Delete(i);
-  end;
-  for i := 0 to fContents.Count - 1 do
-  begin
-    aChild := fContents[i] as TDocumentMetadata;
-    for j := aChild.fFiles.Count - 1 downto 0 do
-    begin
-      if (aChild.fFiles[j].Name[1] <> '_') then
-         aChild.fFiles.Delete(j);
-    end;
-  end;
-end;
-
-procedure TDocumentMetadata.AddFile(const aFile: TFile);
-begin
-  if fFiles.IndexOf(aFile) = -1 then
-     fFiles.Add(aFile);
-  if fIsNew then
-    // we now know that it has disk stuff available, so the document
-    // is definitely not "new";
-    fIsNew := false;
-end;
-
-function TDocumentMetadata.SortDocuments(List: TStringList; Index1,
-  Index2: Integer): Integer;
-var
-  s1: String;
-  s2: String;
-  i1: Integer;
-  i2: integer;
-  index: TStrings;
-begin
-  s1 := TDocumentPath.FromString(List[Index1]).Name;
-  s2 := TDocumentPath.FromString(List[Index2]).Name;
-  index := Properties.index;
-  i1 := SimpleIndexOf(index,s1);
-  i2 := SimpleIndexOf(index,s2);
-  if (i1 = i2) then
-    result := CompareText(s1,s2)
-  else
-    result := i1 - i2;
-end;
-
-procedure TDocumentMetadata.PropertiesLoading(Sender: TObject);
-begin
-  if fProject.fOnDocumentPropertiesLoading <> nil then
-    fProject.fOnDocumentPropertiesLoading(fProject,fID);
-end;
-
-procedure TDocumentMetadata.PropertiesSaving(Sender: TObject);
-begin
-  if fProject.fOnDocumentPropertiesSaving <> nil then
-    fProject.fOnDocumentPropertiesSaving(fProject,fID);
-end;
-
-procedure TDocumentMetadata.AttachmentLoading(const aName: String);
-begin
-  if fProject.fOnDocumentAttachmentLoading <> nil then
-    fProject.fOnDocumentAttachmentLoading(fProject,fID,aName);
-
-end;
-
-procedure TDocumentMetadata.AttachmentLoaded(const aName: String);
-begin
-  if fProject.fOnDocumentAttachmentLoaded <> nil then
-    fProject.fOnDocumentAttachmentLoaded(fProject,fID,aName);
-
-end;
-
-procedure TDocumentMetadata.AttachmentLoadFailed(const aName: String;
-  aError: String);
-begin
-  if fProject.FOnDocumentAttachmentError <> nil then
-    fProject.FOnDocumentAttachmentError(fProject,fID,aName,aError);
-
-end;
-
-procedure TDocumentMetadata.AttachmentSaving(const aName: String);
-begin
-  if fProject.fOnDocumentAttachmentSaving <> nil then
-    fProject.fOnDocumentAttachmentSaving(fProject,fID,aName);
-
-end;
-
-procedure TDocumentMetadata.AttachmentSaved(const aName: String);
-begin
-  if fProject.fOnDocumentAttachmentSaved <> nil then
-    fProject.fOnDocumentAttachmentSaved(fProject,fID,aName);
-
-end;
-
-procedure TDocumentMetadata.AttachmentSaveConflicted(const aName: String);
-begin
-  if fProject.fOnDocumentAttachmentSaveConflicted <> nil then
-    fProject.fOnDocumentAttachmentSaveConflicted(fProject,fID,aName);
-
-end;
-
-procedure TDocumentMetadata.AttachmentSaveFailed(const aName: String;
-  aError: String);
-begin
-  if fProject.FOnDocumentAttachmentError <> nil then
-    fProject.FOnDocumentAttachmentError(fProject,fID,aName,aError);
-
-end;
-
-procedure TDocumentMetadata.FilesListedRecursive(aSender: TPromise);
-begin
-  FilesListed((aSender as TFileListPromise).GetJustFiles,true);
-end;
-
-function TDocumentMetadata.GetPrimary: TPrimaryMetadata;
-begin
-  if fPrimary <> nil then
-    result := fPrimary
-  else
-     raise Exception.Create('The root document does not have a primary file');
-end;
-
-procedure TDocumentMetadata.FileRenameFailed(aSender: TPromise; Data: String);
-begin
-  if fProject.fOnDocumentRenameFailed <> nil then
-     fProject.fOnDocumentRenameFailed(fProject,fID,Data);
-  ListDocuments(true);
-end;
-
-procedure TDocumentMetadata.FilesRenamed(aSender: TPromise);
-begin
-  // now, refresh the parent so that this thing appears under the new location.
-  ListDocuments(true);
-end;
-
-function TDocumentMetadata.GetIsLocked: Boolean;
-begin
-  result := fLock <> nil;
-end;
-
-procedure TDocumentMetadata.PropertiesLoaded(Sender: TObject);
-begin
-  if fProject.fOnDocumentPropertiesLoaded <> nil then
-     fProject.fOnDocumentPropertiesLoaded(fProject,fID);
-end;
-
-constructor TDocumentMetadata.Create(aProject: TStewProject;
-  aDiskPath: TFile; aID: TDocumentPath; aIsRoot: Boolean);
-var
-  aCached: TProtectedDocumentProperties;
-begin
-  inherited Create;
-  fProject := aProject;
-  fDisk := aDiskPath;
-  fID := aID;
-  fIsNew := false;
-  fLock := nil;
-  fListingState := lsNotListed;
-  fFiles := TFileList.Create(fDisk.System);
-  if aIsRoot then
-  begin
-    fSynopsis := nil;
-    fPrimary := nil;
-  end
-  else
-  begin
-    fSynopsis := TSynopsisMetadata.Create(Self);
-    fPrimary := TPrimaryMetadata.Create(Self);
-  end;
-  // root document *can* have notes.
-  fNotes := TNotesMetadata.Create(Self);
-
-  fContents := TFPHashObjectList.Create(true);
-  aCached := TProtectedDocumentProperties.Create(aDiskPath,aIsRoot);
-  fProperties := aCached;
-  aCached.OnFileLoaded:=@PropertiesLoaded;
-  aCached.OnFileLoadFailed:=@PropertiesLoadFailed;
-  aCached.OnFileSaveConflicted:=@PropertiesSaveConflicted;
-  aCached.OnFileSaved:=@PropertiesSaved;
-  aCached.OnFileSaveFailed:=@PropertiesSaveFailed;
-  aCached.OnFileSaving:=@PropertiesSaving;
-  aCached.OnFileLoading:=@PropertiesLoading;
-end;
-
-function TDocumentMetadata.PutPath(const aPath: String
-  ): TDocumentMetadata;
-var
-  p: Integer;
-  aKey: String;
-  aChildren: String;
-  aSearch: String;
-begin
-  aSearch := ExcludeLeadingSlash(ExcludeTrailingSlash(aPath));
-  p := Pos('/',aSearch);
-  if p > 0 then
-  begin
-    aKey := Copy(aSearch,1,p-1);
-    aChildren := Copy(aSearch,p+1,length(aSearch));
-    result := PutDocument(aKey).PutPath(aChildren);
-  end
-  else
-    result := PutDocument(aSearch);
-end;
-
-function TDocumentMetadata.PutDocument(aKey: String): TDocumentMetadata;
-begin
-  // the documents are case insensitive, so make these lowercase.
-  result := GetDocument(aKey);
-  if result = nil then
-  begin
-    result := TDocumentMetadata.Create(fProject,fDisk.GetContainedFile(aKey),fID.GetContainedDocument(aKey),false);
-    fContents.Add(LowerCase(aKey),result);
-  end;
-end;
-
-function TDocumentMetadata.GetDocument(aKey: String): TDocumentMetadata;
-begin
-  result := fContents.Find(LowerCase(aKey)) as TDocumentMetadata;
-end;
-
-destructor TDocumentMetadata.Destroy;
-begin
-  FreeAndNil(fFiles);
-  FreeAndNil(fNotes);
-  FreeAndNil(fPrimary);
-  FreeAndNil(fSynopsis);
-  FreeAndNil(fProperties);
-  FreeAndNil(fContents);
-  inherited Destroy;
-end;
-
-procedure TDocumentMetadata.ListDocuments(Recursive: Boolean);
-begin
-  // the list sorting depends on the properties, which means we have to
-  // make sure they are loaded first. The documents will be automatically
-  // listed when that calls back anyway.
-  if fListingState <> lsListing then
-  begin
-    fListingState := lsListing;
-    if Recursive then
-       fDisk.List.After(@FilesListedRecursive,@FilesListError)
-    else
-       fDisk.List.After(@FilesListedNonrecursive,@FilesListError);
-  end;
-
-end;
-
-function TDocumentMetadata.GetContents: TDocumentArray;
-var
-  i: Integer;
-  list: TEZSortStringList;
-  aChild: TDocumentMetadata;
-begin
-  list := TEZSortStringList.Create;
-  try
-    list.OnEZSort:=@SortDocuments;
-    for i := 0 to fContents.Count - 1 do
-    begin
-      // I'm only interested in documents that have associated disk files,
-      // or ones marked specifically as 'new'.
-      // Other documents can be retrieved by specific name, but I don't
-      // want to display them as available if they aren't.
-      aChild := fContents[i] as TDocumentMetadata;
-      if (aChild.fFiles.Count > 0) or (aChild.fIsNew) then
-         list.Add(aChild.fID.ID);
-    end;
-    // sort by property index.
-    list.EZSort;
-    SetLength(result,list.Count);
-    for i := 0 to list.Count - 1 do
-    begin
-      result[i] := TDocumentPath.FromString(list[i]);
-    end;
-  finally
-    list.Free;
-  end;
-end;
-
-function TDocumentMetadata.AreAttachmentsListed: Boolean;
-begin
-  result := fProject.GetDocument(fID.Container).ListingState = lsListed;
-end;
-
-procedure TDocumentMetadata.Lock(aLockingObject: TObject);
-begin
-  if fLock <> aLockingObject then
-  begin;
-    if IsLocked then
-      raise Exception.Create('Document ' + fID.ID + ' is already locked');
-    fLock := aLockingObject;
-    StateChanged;
-  end;
-end;
-
-procedure TDocumentMetadata.Unlock(aLockingObject: TObject);
-begin
-  if not IsLocked then
-    raise Exception.Create('Document ' + fID.ID + ' is not locked');
-  if fLock <> aLockingObject then
-    raise Exception.Create('Document ' + fID.ID + ' was locked with a different object');
-  fLock := nil;
-  StateChanged;
-end;
-
-procedure TDocumentMetadata.CreateDocument(aName: String);
-var
-  aChild: TDocumentMetadata;
-begin
-  if ListingState <> lsListed then
-     raise Exception.Create('Can''t create content in unlisted documents');
-  if HasDocument(aName) then
-     raise Exception.Create('Document named "' + aName + '" already exists.');
-  if IsTroublesome(aName) then
-     raise Exception.Create('Document name "' + aName + '" isn''t going to work.');
-  aChild := PutDocument(aName);
-  // mark it as new so it shows up in the listings...
-  aChild.fIsNew := true;
-  // alert the main form that the document listing has changed.
-  if fProject.fOnDocumentCreated <> nil then
-     fProject.fOnDocumentCreated(fProject,aChild.fID);
-  // but also automatically 'list' the files, which shouldn't exist yet, right?
-  // so that it will appear as 'listed'. Note that this has to be done
-  // after the oncreated, or we're getting events for an uncreated document,
-  // which is weird.
-  aChild.FilesListedNonrecursive(nil);
-end;
-
-class function TDocumentMetadata.IsTroublesome(aName: String): Boolean;
-var
-  i: Integer;
-  l: Integer;
-
-begin
-  result := false;
-  if aName <> '' then
-  begin
-    l := Length(aName);
-    for i := 1 to l do
-    begin
-      result :=
-         (aName[i] in AlwaysForbiddenNameCharacters) or
-         (((i = 1) or (i = l)) and ((aName[i] in WhitespaceCharacters) or (aName[i] = '-'))) or
-         ((i > 1) and (aName[i] in WhitespaceCharacters) and (aName[i-1] in WhitespaceCharacters));
-      if result then
-        break;
-    end;
-  end
-  else
-    result := true;
-
-end;
-
-function TDocumentMetadata.HasDocument(aName: String): Boolean;
-begin
-  result := GetDocument(aName) <> nil;
-end;
-
-function TDocumentMetadata.GetParent: TDocumentMetadata;
-begin
-  if fID <> TDocumentPath.Root then
-    result := fProject.GetDocument(fID.Container)
-  else
-    result := nil;
-end;
-
-function TDocumentMetadata.GetName: String;
-begin
-  result := fID.Name;
-end;
-
-procedure TDocumentMetadata.Rename(aOldName: String; aNewName: String);
-var
-  i: Integer;
-  aOld: TDocumentMetadata;
-  source: TFileArray;
-  target: TFileArray;
-begin
-  if ListingState <> lsListed then
-    raise Exception.Create('Please make sure the document is listed before attempting to rename');
-  if HasDocument(aNewName) then
-     raise Exception.Create('A document named "' + aNewName + '" already exists.');
-  if IsTroublesome(aNewName) then
-     raise Exception.Create('Document name "' + aNewName + '" isn''t going to work.');
-
-  aOld := GetDocument(aOldName);
-  if aOld = nil then
-     raise Exception.Create('There is no document named ' + aOldName);
-  aOld.Lock(Self);
-
-  SetLength(source,aOld.fFiles.Count);
-  SetLength(target,aOld.fFiles.Count);
-  for i := 0 to aOld.fFiles.Count - 1 do
-  begin
-    source[i] := aOld.fFiles[i];
-    // only change the name if it's actually supposed to be associated with it...
-    if source[i].PacketName = aOldName then
-       target[i] := aOld.fFiles[i].WithDifferentPacketName(aNewName)
-    else
-       target[i] := source[i];
-  end;
-
-  // finally, remove the old one, it will get relisted later.
-  fContents.Remove(aOld);
-
-  TFileSystem.RenameFiles(source,target).After(@FilesRenamed,@FileRenameFailed);
-end;
-
-procedure TDocumentMetadata.MoveDocToHere(aOldChild: TDocumentMetadata);
-var
-  i: Integer;
-  aOldParent: TDocumentMetadata;
-  lSource: TFileArray;
-  lTarget: TFileArray;
-begin
-  aOldParent := aOldChild.GetParent;
-  if (aOldParent.ListingState <> lsListed) or
-     (ListingState <> lsListed) then
-    raise Exception.Create('Please make sure the documents are listed before attempting to move');
-  if HasDocument(aOldChild.GetName) then
-     raise Exception.Create('A document named "' + aOldChild.GetName + '" already exists there.');
-
-  aOldChild.Lock(Self);
-
-  SetLength(lSource,aOldChild.fFiles.Count);
-  SetLength(lTarget,aOldChild.fFiles.Count);
-  for i := 0 to aOldChild.fFiles.Count - 1 do
-  begin
-    lSource[i] := aOldChild.fFiles[i];
-    lTarget[i] := fDisk.GetContainedFile(aOldChild.fFiles[i].Name);
-  end;
-
-  // finally, remove the old one, it will get relisted later.
-  aOldParent.fContents.Remove(aOldChild);
-  // report a change in state so the listings get refreshed where wanted.
-  aOldParent.StateChanged;
-
-  TFileSystem.RenameFiles(lSource,lTarget).After(@FilesRenamed,@FileRenameFailed);
-end;
-
-procedure TDocumentMetadata.OrderDocument(aDoc: TDocumentMetadata;
-  aPosition: TOrderDocumentPosition; aRelative: TDocumentMetadata);
-var
-  docIndex: Integer;
-  relIndex: Integer;
-  aList: TDocumentArray;
-  i: Integer;
-begin
-  if Properties.FilingState <> fsLoaded then
-     raise Exception.Create('Properties must be loaded before document order can be changed');
-  Lock(Self);
-  try
-
-    // remove the document from the index.
-    docIndex := Properties.index.IndexOf(aDoc.GetName);
-    if docIndex > -1 then
-       Properties.index.Delete(docIndex);
-
-    relIndex := Properties.index.IndexOf(aRelative.GetName);
-    if relIndex = -1 then
-    begin
-      // we need to fix the positions up until the relative or the doc.
-      // in order to get the effect we need.
-      aList := GetContents;
-      for i := 0 to Length(aList) - 1 do
-      begin
-        if Properties.index.Count <= i then
-        begin
-          if aList[i] = aRelative.fID then
-          begin
-            if aPosition = odpAfter then
-              Properties.index.Add(aList[i].Name);
-            Properties.index.Add(aDoc.GetName);
-            // don't actually put the relative in if it's 'before',
-            // because we'll still retain the same effect without adding
-            // a whole bunch of things to the list.
-            break;
-
-          end
-          else
-            Properties.index.Add(aList[i].Name);
-        end;
-      end;
-
-    end
-    else
-    begin
-      case aPosition of
-        odpBefore:
-          docIndex := relIndex;
-        odpAfter:
-          docIndex := relIndex + 1;
-      end;
-      Properties.index.Insert(docIndex,aDoc.GetName);
-    end;
-
-    // and finally, save the index.
-    Properties.Save;
-
-  finally
-    Unlock(Self);
-  end;
-
-end;
-
-function TDocumentMetadata.GetAttachmentFiles(aDescriptor: String;
-  aExtension: String): TFile.TFileArray;
-var
-  aItemDesc: String;
-  aExt: String;
-  i: Integer;
-  l: Integer;
-begin
-  // <document name><descriptor><extension>
-  // where descriptor includes the '_' and extension includes the '.'. Of,
-  // if descriptor is blank:
-  // <document name>_<extension> or <document name><extension>
-  // Also, "attachments" must have an extension. If a document does not
-  // have an extension, it is a directory.
-  aExtension := ExcludeExtensionDelimiter(aExtension);
-  aDescriptor := ExcludeDescriptorDelimiter(aDescriptor);
-  SetLength(result,0);
-  if fFiles <> nil then
-    for i := 0 to fFiles.Count - 1 do
-    begin
-      aExt := fFiles[i].Extension;
-      if (aExt <> '') and ((aExtension = '') or (aExt = aExtension)) then
-      begin
-        aItemDesc := fFiles[i].Descriptor;
-        if (aItemDesc = aDescriptor) then
-        begin
-          l := Length(Result);
-          SetLength(Result,l + 1);
-          Result[l] := fFiles[i];
-        end;
-      end;
-    end;
-
-end;
-
-function TDocumentMetadata.GetUncreatedAttachmentFile(const aDescriptor: String;
-  const aExtension: String): TFile;
-begin
-  result := fDisk.WithDifferentDescriptorAndExtension(aDescriptor,aExtension);
-end;
-
-function TDocumentMetadata.GetSynopsis: TSynopsisMetadata;
-begin
-  if fSynopsis <> nil then
-    result := fSynopsis
-  else
-     raise Exception.Create('The root document does not have a synopsis');
-end;
-
-procedure TDocumentMetadata.DirectoryCreated;
-var
-  aParent: TDocumentMetadata;
-begin
-  fIsNew := false;
-  if not (fID = TDocumentPath.Root) then
-  begin
-    // Add the 'directory' name to the files.
-    AddFile(fDisk);
-    aParent := fProject.GetDocument(fID.Container);
-    if aParent.IsNew and not (aParent.fID = TDocumentPath.Root) then
-      aParent.DirectoryCreated;
-  end;
-  StateChanged;
-
-end;
-
 { TStewProject }
-
-procedure TStewProject.ProjectPropertiesLoaded(Sender: TObject);
-begin
-  if fProperties.Modified then // it was new, so we want to immediately save
-                               // it to make sure the file was created, and
-                               // that the project now exists.
-    fProperties.Save;
-  if FOnPropertiesLoaded <> nil then
-    FOnPropertiesLoaded(Self);
-end;
-
-procedure TStewProject.ProjectPropertiesLoadFailed(Sender: TObject;
-  aError: String);
-begin
-  if fOnPropertiesError <> nil then
-    fOnPropertiesError(Self,aError);
-end;
-
-procedure TStewProject.ProjectPropertiesSaveConflicted(Sender: TObject);
-begin
-  if fOnPropertiesSaveConflicted <> nil then
-    fOnPropertiesSaveConflicted(Self);
-end;
-
-procedure TStewProject.ProjectPropertiesSaved(Sender: TObject);
-begin
-  if FOnPropertiesSaved <> nil then
-    FOnPropertiesSaved(Self);
-end;
-
-procedure TStewProject.ProjectPropertiesSaveFailed(Sender: TObject;
-  aError: String);
-begin
-  if fOnPropertiesError <> nil then
-    fOnPropertiesError(Self,aError);
-end;
 
 procedure TStewProject.ReportEvent(aEvent: TProjectEvent);
 var
@@ -3908,49 +2596,6 @@ begin
   finally
     aEvent.Free;
   end;
-end;
-
-function TStewProject.OpenProjectProperties: TFileReadPromise;
-var
-  aProtectedProjectProperties: TProtectedProjectProperties;
-begin
-  if fProperties = nil then
-  begin
-    aProtectedProjectProperties := TProtectedProjectProperties.Create(fDisk);
-    fProperties := aProtectedProjectProperties;
-    aProtectedProjectProperties.OnFileLoaded:=@ProjectPropertiesLoaded;
-    aProtectedProjectProperties.OnFileLoadFailed:=@ProjectPropertiesLoadFailed;
-    aProtectedProjectProperties.OnFileSaveConflicted:=@ProjectPropertiesSaveConflicted;
-    aProtectedProjectProperties.OnFileSaved:=@ProjectPropertiesSaved;
-    aProtectedProjectProperties.OnFileSaveFailed:=@ProjectPropertiesSaveFailed;
-    aProtectedProjectProperties.OnFileSaving:=@ProjectPropertiesSaving;
-    aProtectedProjectProperties.OnFileLoading:=@ProjectPropertiesLoading;
-    result := fProperties.Load;
-  end;
-  if fMetadataCache = nil then
-  begin
-    fMetadataCache := TDocumentMetadata.Create(Self,fDisk,TDocumentPath.Root,true);
-  end;
-end;
-
-function TStewProject.GetProperties: TProjectProperties;
-begin
-  if fProperties = nil then
-     raise Exception.Create('You must open the project before you can see the properties');
-  result := fProperties;
-end;
-
-procedure TStewProject.ProjectPropertiesLoading(Sender: TObject);
-begin
-  if FOnPropertiesLoading <> nil then
-    FOnPropertiesLoading(Self);
-
-end;
-
-procedure TStewProject.ProjectPropertiesSaving(Sender: TObject);
-begin
-  if FOnPropertiesSaving <> nil then
-    FOnPropertiesSaving(Self);
 end;
 
 procedure TStewProject.CacheActivity(Sender: TPromise);
@@ -4268,17 +2913,6 @@ begin
 
 end;
 
-function TStewProject.GetIsOpened: Boolean;
-begin
-  result := fProperties <> nil;
-end;
-
-function TStewProject.DoOpened: TFileReadPromise;
-begin
-  // open and save project properties immediately, so that the file exists.
-  result := OpenProjectProperties;
-end;
-
 constructor TStewProject.Create(const Path: TFile);
 begin
   inherited Create;
@@ -4288,13 +2922,6 @@ begin
   fCache.OnError:=@CacheError;
   fShadows := TShadowCache.Create;
   fObservers := TProjectObserverList.Create;
-  fMetadataCache := nil; // created on open.
-  fProperties := nil;
-end;
-
-constructor TStewProject.Create;
-begin
-  raise Exception.Create('Please use one of the static functions ("Open...") to open a new project');
 end;
 
 destructor TStewProject.Destroy;
@@ -4302,23 +2929,7 @@ begin
   FreeAndNil(fShadows);
   FreeAndNil(fCache);
   FreeAndNil(fObservers);
-  FreeAndNil(fMetadataCache);
-  if fProperties <> nil then
-    fProperties.Free;
   inherited Destroy;
-end;
-
-function TStewProject.GetDocument(const aDocumentID: TDocumentPath
-  ): TDocumentMetadata;
-begin
-  if fMetadataCache = nil then
-     raise Exception.Create('Please open project first');
-  if aDocumentID.IsNull then
-     raise Exception.Create('Can''t retrieve a null document');
-  if aDocumentID = TDocumentPath.Root then
-    result := fMetadataCache
-  else
-     result := fMetadataCache.PutPath(aDocumentID.ID);
 end;
 
 function TStewProject.GetProjectName: String;
@@ -4459,9 +3070,6 @@ end;
 
 function TStewProject.ShiftDocumentBy(aDocument: TDocumentPath; aDelta: Integer
   ): TShiftDocumentPromise;
-var
-  lFolderFile: TFile;
-  lListFiles: TFileListPromise;
 begin
   if aDelta = 0 then
     raise Exception.Create('Delta can''t be 0');
@@ -4559,19 +3167,14 @@ begin
   fObservers.Remove(aObserver);
 end;
 
-class function TStewProject.Open(aPath: TFile): TProjectPromise;
+class function TStewProject.CheckExistenceAndCreate(aPath: TFile): TProjectPromise;
 begin
-  result := TProjectOpenAtPathTask.Enqueue(aPath).Promise as TProjectPromise;
+  result := TProjectCheckAtPathTask.Enqueue(aPath).Promise as TProjectPromise;
 end;
 
-class function TStewProject.OpenInParent(aPath: TFile): TProjectPromise;
+class function TStewProject.CheckExistenceInParentAndCreate(aPath: TFile): TProjectPromise;
 begin
-  result := TProjectOpenInParentTask.Enqueue(aPath).Promise as TProjectPromise;
-end;
-
-class function TStewProject.CreateNew(aPath: TFile): TProjectPromise;
-begin
-  result := TProjectCreateNewTask.Enqueue(aPath).Promise as TProjectPromise;
+  result := TProjectCheckInParentTask.Enqueue(aPath).Promise as TProjectPromise;
 end;
 
 function TStewProject.BuildAndSortDocumentList(
