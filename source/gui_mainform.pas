@@ -11,9 +11,6 @@ uses
 
 type
 
-  // TODO: Finally, once everything's working get rid of deprecated stuff:
-  // - stew_persist
-
   TMainForm = class;
   TMainFormAction = (mfaProjectOpened, mfaProjectClosed, mfaDocumentOpened, mfaDocumentClosed);
   TMainFormObserverHandler = procedure(Sender: TMainForm; Action: TMainFormAction; aDocument: TDocumentPath) of object;

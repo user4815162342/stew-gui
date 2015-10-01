@@ -17,7 +17,7 @@
       <UseVersionInfo Value="True"/>
       <AutoIncrementBuild Value="True"/>
       <MinorVersionNr Value="1"/>
-      <BuildNr Value="77"/>
+      <BuildNr Value="80"/>
       <StringTable CompanyName="Town's Edge Technology, LLC" FileDescription="A manuscript management and notekeeping tool." LegalCopyright="Copyright © 2015 Neil M. Sheldon" ProductName="Stew" ProductVersion="0.1"/>
     </VersionInfo>
     <BuildModes Count="1">
@@ -39,7 +39,7 @@
         <PackageName Value="LCL"/>
       </Item2>
     </RequiredPackages>
-    <Units Count="23">
+    <Units Count="22">
       <Unit0>
         <Filename Value="stewgui.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -137,51 +137,46 @@
         <UnitName Value="stew_types"/>
       </Unit14>
       <Unit15>
-        <Filename Value="stew_persist.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="stew_persist"/>
-      </Unit15>
-      <Unit16>
         <Filename Value="gui_jsoneditor.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="JSONEditor"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="gui_jsoneditor"/>
-      </Unit16>
-      <Unit17>
+      </Unit15>
+      <Unit16>
         <Filename Value="sys_os.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_os"/>
-      </Unit17>
-      <Unit18>
+      </Unit16>
+      <Unit17>
         <Filename Value="gui_listdialog.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="ListDialog"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="gui_listdialog"/>
-      </Unit18>
-      <Unit19>
+      </Unit17>
+      <Unit18>
         <Filename Value="sys_versionsupport.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_versionsupport"/>
-      </Unit19>
-      <Unit20>
+      </Unit18>
+      <Unit19>
         <Filename Value="sys_localfile.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_localfile"/>
-      </Unit20>
-      <Unit21>
+      </Unit19>
+      <Unit20>
         <Filename Value="gui_async.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="gui_async"/>
-      </Unit21>
-      <Unit22>
+      </Unit20>
+      <Unit21>
         <Filename Value="sys_filecache.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_filecache"/>
-      </Unit22>
+      </Unit21>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

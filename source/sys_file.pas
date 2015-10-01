@@ -163,7 +163,6 @@ type
   TFileReadPromise = class(TPromise)
   private
     fPath: Tfile;
-    function GetDoesNotExist: Boolean;
   protected
     fDataString: UTF8String;
     fAge: Longint;
@@ -178,7 +177,6 @@ type
       aExists: Boolean; aIsFolder: Boolean);
     property Path: TFile read FPath;
     property Age: Longint read FAge;
-    property DoesNotExist: Boolean read GetDoesNotExist; deprecated;
     property Exists: Boolean read fExists;
     property IsFolder: Boolean read fIsFolder;
     // Keep in mind that the stream is destroyed with the promise...
@@ -453,11 +451,6 @@ begin
 end;
 
 { TFileReadPromise }
-
-function TFileReadPromise.GetDoesNotExist: Boolean;
-begin
-  result := not fExists;
-end;
 
 constructor TFileReadPromise.Create(aFile: TFile);
 begin
