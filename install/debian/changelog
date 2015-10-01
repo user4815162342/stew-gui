@@ -1,3 +1,9 @@
+stew-gui-linux (0.1.0.80) precise; urgency=low
+
+  * Refactored data model architecture
+
+ -- Neil Sheldon <neil@laurentia>  Thu, 01 Oct 2015 13:08:59 -0500
+
 stew-gui-linux (0.1.0.44) precise; urgency=low
 
   * Fixed a bug with opening other projects

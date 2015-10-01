@@ -33,8 +33,17 @@ Interface
 *)
 
 Uses
-  Classes, SysUtils;
+  Classes, SysUtils, CustApp;
 
+type
+  TAboutText = record
+    Title: String;
+    Copyright: String;
+    Description: String;
+    BuildInfo: String;
+  end;
+
+function GetAboutText(Application: TCustomApplication): TAboutText;
 Function GetFileVersion: String;
 Function GetProductVersion: String;
 Function GetCompiledDate: String;
@@ -59,7 +68,7 @@ Const
 Implementation
 
 Uses
-  resource, versiontypes, versionresource, LCLVersion, InterfaceBase;
+  resource, versiontypes, versionresource, LCLVersion, InterfaceBase, FileUtil;
 
 Type
   TVersionInfo = Class
@@ -97,27 +106,27 @@ begin
   end;
 end;
 
-Function GetCompilerInfo: String;
+function GetCompilerInfo: String;
 begin
   Result := 'FPC '+{$I %FPCVERSION%};
 end;
 
-Function GetTargetInfo: String;
+function GetTargetInfo: String;
 begin
   Result := {$I %FPCTARGETCPU%}+' - '+{$I %FPCTARGETOS%};
 end;
 
-Function GetOS: String;
+function GetOS: String;
 Begin
   Result := {$I %FPCTARGETOS%};
 End;
 
-Function GetLCLVersion: String;
+function GetLCLVersion: String;
 begin
   Result := 'LCL '+lcl_version;
 end;
 
-Function GetCompiledDate: String;
+function GetCompiledDate: String;
 Var
   sDate, sTime: String;
 Begin
@@ -141,7 +150,7 @@ Begin
   End;
 End;
 
-Function GetResourceStrings(oStringList: TStringList): Boolean;
+function GetResourceStrings(oStringList: TStringList): Boolean;
 Var
   i, j : Integer;
   oTable : TVersionStringTable;
@@ -165,7 +174,7 @@ begin
   end;
 end;
 
-function GetResourceString(Name: String): String;
+function GetResourceString(name: string): string;
 Var
   i : Integer;
   oTable : TVersionStringTable;
@@ -201,7 +210,7 @@ Begin
   Result := Format('%d.%d', [PV[0], PV[1]]);
 End;
 
-Function GetProductVersion: String;
+function GetProductVersion: String;
 Begin
   CreateInfo;
 
@@ -211,7 +220,7 @@ Begin
     Result := 'No build information available';
 End;
 
-Function GetFileVersion: String;
+function GetFileVersion: String;
 Begin
   CreateInfo;
 
@@ -284,6 +293,21 @@ Begin
     Stream.Free;
   End;
 End;
+
+function GetAboutText(Application: TCustomApplication): TAboutText;
+begin
+  result.Title := Application.Title + ' v ' + sys_versionsupport.GetProductVersion;
+  Result.Copyright := sys_versionsupport.GetResourceString('LegalCopyright');
+  result.Description := sys_versionsupport.GetResourceString('FileDescription');
+  result.BuildInfo := 'Executable: ' + ExtractFileNameOnly(Application.ExeName) + ' v ' + sys_versionsupport.GetFileVersion + LineEnding +
+                            'Compiled On: ' + sys_versionsupport.GetCompiledDate + LineEnding +
+                            'Compiler: ' + sys_versionsupport.GetCompilerInfo + LineEnding +
+                            'Target Platform: ' + sys_versionsupport.GetTargetInfo + LineEnding +
+                            'Lazarus Component Library: ' + sys_versionsupport.GetLCLVersion + LineEnding +
+                            'WidgetSet: ' + sys_versionsupport.GetWidgetSet;
+end;
+
+
 
 Initialization
   FInfo := nil;

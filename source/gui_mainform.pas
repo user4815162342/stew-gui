@@ -80,6 +80,7 @@ type
     procedure WriteUISettings;
     procedure LayoutFrames;
     function FindFrameForDocument(aDocument: TDocumentPath): TEditorFrame;
+    function MessageDialog(const Title: String; const Message: String; DlgType: TMsgDlgType; Buttons: TMsgDlgButtons; ButtonCaptions: Array of String): Integer;
   public
     { public declarations }
     property Project: TStewProject read GetProject;
@@ -129,7 +130,7 @@ const
 implementation
 
 uses
-  gui_projectmanager, gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor, LCLProc, gui_about, gui_listdialog, sys_localfile, gui_async, StdCtrls;
+  gui_projectmanager, gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor, LCLProc, gui_about, gui_listdialog, sys_localfile, gui_async, StdCtrls, sys_versionsupport;
 
 {$R *.lfm}
 
@@ -174,8 +175,13 @@ end;
 { TMainForm }
 
 procedure TMainForm.AboutMenuItemClick(Sender: TObject);
+var
+  lAboutText: TAboutText;
 begin
-  AboutForm.ShowModal;
+  lAboutText := GetAboutText(Application);
+  MessageDialog(lAboutText.Title,lAboutText.Copyright + LineEnding +
+                               lAboutText.Description + LineEnding +
+                               lAboutText.BuildInfo,mtCustom,[mbOK],['Thanks for Using This Program!']);
 end;
 
 procedure TMainForm.DoChooseAttachment(Sender: TObject;
@@ -772,8 +778,9 @@ type
   // in my opinion, so I'm willing to do this.
   TButtonAccess = class(TBitBtn);
 
-function TMainForm.MessageDialog(const Message: String; DlgType: TMsgDlgType;
-  Buttons: TMsgDlgButtons; ButtonCaptions: array of String): Integer;
+function TMainForm.MessageDialog(const Title: String; const Message: String;
+  DlgType: TMsgDlgType; Buttons: TMsgDlgButtons; ButtonCaptions: array of String
+  ): Integer;
 var
   lMsgdlg: TForm;
   i: Integer;
@@ -792,7 +799,7 @@ begin
 
   lMsgdlg := createMessageDialog(Message, DlgType, Buttons);
   try
-     lMsgdlg.Caption := Self.Caption;
+     lMsgdlg.Caption := Title;
      lMsgdlg.BiDiMode := Self.BiDiMode;
      lCaptionindex := Length(ButtonCaptions) - 1;
      lLastButton := nil;
@@ -832,6 +839,12 @@ begin
   finally
     lMsgdlg.Free;
   end;
+end;
+
+function TMainForm.MessageDialog(const Message: String; DlgType: TMsgDlgType;
+  Buttons: TMsgDlgButtons; ButtonCaptions: array of String): Integer;
+begin
+  result := MessageDialog(Self.Caption,Message,DlgType,Buttons,ButtonCaptions);
 end;
 
 procedure TMainForm.ShowMessage(const Message: String; DlgType: TMsgDlgType; AcceptCaption: String);
