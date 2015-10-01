@@ -36,7 +36,10 @@ type
   // I could however, start to make use of this instead of the other dynamic
   // arrays.
   // - a separate 'length' private field would allow me to increase capacity in
-  // large jumps instead of one at a time, which may or may not work.
+  // large jumps instead of one at a time, which may or may not work. However,
+  // the caller can also set the 'Count' button to be sure.
+  // - it's not very efficient for arrays that are going to be inserted into.
+  // For those, you really need a list.
   generic GArray<ItemType> = record
   public type
     ArrayType = array of ItemType;

@@ -61,7 +61,7 @@ type
     procedure ClearData;
     procedure ClearModified;
     function IsModified: Boolean;
-    procedure ProjectPropertiesUpdated(aData: TProjectProperties2);
+    procedure ProjectPropertiesUpdated(aData: TProjectProperties);
     procedure DocumentRenamed(aOldDocument: TDocumentPath; aNewDocument: TDocumentPath);
     procedure PropertiesUpdated(aData: TDocumentProperties);
     procedure SynopsisUpdated(aData: UTF8String);
@@ -390,7 +390,7 @@ begin
             fUserPropertiesEditor.Modified;
 end;
 
-procedure TDocumentEditor.ProjectPropertiesUpdated(aData: TProjectProperties2);
+procedure TDocumentEditor.ProjectPropertiesUpdated(aData: TProjectProperties);
 var
   i: Integer;
   lKeys: TStringArray;

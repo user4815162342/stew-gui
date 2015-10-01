@@ -7,7 +7,7 @@ interface
 {
 TODO: This is basically an infrastructure for large, batch operations:
 1. Querying lists of documents
-2. Updating values on lists of documents.
+2. Updating properties and some other attachments on lists of documents.
 
 It's not going to be a fully parsable SQL or anything like that, it's going
 to be the structures needed for this query stuff. It would be up to some other

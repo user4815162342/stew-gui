@@ -88,7 +88,7 @@ type
     procedure ClearData;
     procedure ClearModified;
     function IsModified: Boolean;
-    procedure ShowData(aData: TProjectProperties2);
+    procedure ShowData(aData: TProjectProperties);
     procedure WriteData;
     procedure BeginUIUpdate;
     procedure EndUIUpdate;
@@ -171,7 +171,7 @@ end;
 
 procedure TProjectSettingsEditor.WriteData_Read(Sender: TPromise);
 var
-  lProps: TProjectProperties2;
+  lProps: TProjectProperties;
   lUser: TJSObject;
   i: Integer;
   j: Integer;
@@ -181,7 +181,7 @@ var
   lCat: TCategoryDefinition;
   lStat: TStatusDefinition;
 begin
-  lProps := (Sender as TProjectPropertiesPromise).Properties.Clone as TProjectProperties2;
+  lProps := (Sender as TProjectPropertiesPromise).Properties.Clone as TProjectProperties;
   try
     lProps.defaultDocExtension := DefaultDocExtensionEdit.Text;
     lProps.defaultNotesExtension:= DefaultNotesExtensionEdit.Text;
@@ -609,7 +609,7 @@ begin
 
 end;
 
-procedure TProjectSettingsEditor.ShowData(aData: TProjectProperties2);
+procedure TProjectSettingsEditor.ShowData(aData: TProjectProperties);
 var
   i: Integer;
   j: Integer;

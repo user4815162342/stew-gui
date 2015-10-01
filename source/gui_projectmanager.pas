@@ -106,7 +106,7 @@ type
     procedure UpdateNodeStyle(aNode: TProjectInspectorNode);
     procedure BeginUIUpdate;
     procedure EndUIUpdate;
-    procedure ProjectPropertiesUpdated(aProperties: TProjectProperties2);
+    procedure ProjectPropertiesUpdated(aProperties: TProjectProperties);
     procedure DocumentUpdated(aParent: TDocumentPath; aContents: TDocumentInfoArray);
     procedure DocumentUpdated(aParent: TDocumentPath; aProperties: TDocumentProperties);
     procedure RefreshDocument(aDocument: TDocumentPath);
@@ -894,7 +894,7 @@ begin
 end;
 
 procedure TProjectManager.ProjectPropertiesUpdated(
-  aProperties: TProjectProperties2);
+  aProperties: TProjectProperties);
 var
   lNode: TProjectInspectorNode;
   lKeys: TStringArray;

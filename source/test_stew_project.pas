@@ -139,7 +139,7 @@ end;
 
 procedure TProjectSpec.Project_Properties_2(Sender: TPromise);
 var
-  lProps: TProjectProperties2;
+  lProps: TProjectProperties;
 begin
   lProps := (Sender as TProjectPropertiesPromise).Properties;
   // yes, these are taken directly from the test_stew_properties.

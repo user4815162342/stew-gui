@@ -142,21 +142,18 @@ type
     function GetStatus(aKey: UTF8String): TStatusDefinition;
   end;
 
-  // TODO: Remove the 2
+  { TCategoryDefinitions }
 
-  { TCategoryDefinitions2 }
-
-  TCategoryDefinitions2 = class(specialize TKeywordDefinitions<TCategoryDefinition>)
+  TCategoryDefinitions = class(specialize TKeywordDefinitions<TCategoryDefinition>)
   public
     function GetCategory(aKey: UTF8String): TCategoryDefinition;
   end;
 
-  { TProjectProperties2 }
+  { TProjectProperties }
 
-  // TODO: Once we get rid of the other TProjectProperties, remove the 2
-  TProjectProperties2 = class(TProperties)
+  TProjectProperties = class(TProperties)
   private
-    function GetCategories: TCategoryDefinitions2;
+    function GetCategories: TCategoryDefinitions;
     function GetDefaultCategory: UTF8String;
     function GetDefaultDocExtension: UTF8String;
     function GetDefaultNotesExtension: UTF8String;
@@ -177,7 +174,7 @@ type
     property DefaultDocExtension: UTF8String read GetDefaultDocExtension write SetDefaultDocExtension;
     property DefaultThumbnailExtension: UTF8String read GetDefaultThumbnailExtension write SetDefaultThumbnailExtension;
     property DefaultNotesExtension: UTF8String read GetDefaultNotesExtension write SetDefaultNotesExtension;
-    property Categories: TCategoryDefinitions2 read GetCategories;
+    property Categories: TCategoryDefinitions read GetCategories;
     property DefaultCategory: UTF8String read GetDefaultCategory write SetDefaultCategory;
     property Statuses: TStatusDefinitions read GetStatuses;
     property DefaultStatus: UTF8String read GetDefaultStatus write SetDefaultStatus;
@@ -213,9 +210,9 @@ implementation
 uses
   LCLProc;
 
-{ TCategoryDefinitions2 }
+{ TCategoryDefinitions }
 
-function TCategoryDefinitions2.GetCategory(aKey: UTF8String
+function TCategoryDefinitions.GetCategory(aKey: UTF8String
   ): TCategoryDefinition;
 var
   lResult: TJSValue;
@@ -227,7 +224,7 @@ begin
     result := lResult as TCategoryDefinition;
 end;
 
-{ TStatusDefinitions2 }
+{ TStatusDefinitions }
 
 function TStatusDefinitions.GetStatus(aKey: UTF8String): TStatusDefinition;
 var
@@ -258,80 +255,80 @@ begin
     Result:=inherited RequestType(aKey, aType);
 end;
 
-{ TProjectProperties2 }
+{ TProjectProperties }
 
-function TProjectProperties2.GetCategories: TCategoryDefinitions2;
+function TProjectProperties.GetCategories: TCategoryDefinitions;
 begin
   if not hasOwnProperty(CategoriesKey) then
      PutNewObject(CategoriesKey);
-  result := Get(CategoriesKey) as TCategoryDefinitions2;
+  result := Get(CategoriesKey) as TCategoryDefinitions;
 end;
 
-function TProjectProperties2.GetDefaultCategory: UTF8String;
+function TProjectProperties.GetDefaultCategory: UTF8String;
 begin
   result := GetDefault(DefaultCategoryKey,'');
 end;
 
-function TProjectProperties2.GetDefaultDocExtension: UTF8String;
+function TProjectProperties.GetDefaultDocExtension: UTF8String;
 begin
   result := GetDefault(DefaultDocExtensionKey,'');
 end;
 
-function TProjectProperties2.GetDefaultNotesExtension: UTF8String;
+function TProjectProperties.GetDefaultNotesExtension: UTF8String;
 begin
   result := GetDefault(DefaultNotesExtensionKey,'');
 end;
 
-function TProjectProperties2.GetDefaultStatus: UTF8String;
+function TProjectProperties.GetDefaultStatus: UTF8String;
 begin
   result := GetDefault(DefaultStatusKey,'');
 end;
 
-function TProjectProperties2.GetDefaultThumbnailExtension: UTF8String;
+function TProjectProperties.GetDefaultThumbnailExtension: UTF8String;
 begin
   result := GetDefault(DefaultThumbnailExtensionKey,'');
 end;
 
-function TProjectProperties2.GetStatuses: TStatusDefinitions;
+function TProjectProperties.GetStatuses: TStatusDefinitions;
 begin
   if not hasOwnProperty(StatusesKey) then
      PutNewObject(StatusesKey);
   result := Get(StatusesKey) as TStatusDefinitions;
 end;
 
-procedure TProjectProperties2.SetDefaultCategory(AValue: UTF8String);
+procedure TProjectProperties.SetDefaultCategory(AValue: UTF8String);
 begin
   Put(DefaultCategoryKey,AValue);
 end;
 
-procedure TProjectProperties2.SetDefaultDocExtension(AValue: UTF8String);
+procedure TProjectProperties.SetDefaultDocExtension(AValue: UTF8String);
 begin
   Put(DefaultDocExtensionKey,AValue);
 end;
 
-procedure TProjectProperties2.SetDefaultNotesExtension(AValue: UTF8String);
+procedure TProjectProperties.SetDefaultNotesExtension(AValue: UTF8String);
 begin
   Put(DefaultNotesExtensionKey,AValue);
 end;
 
-procedure TProjectProperties2.SetDefaultStatus(AValue: UTF8String);
+procedure TProjectProperties.SetDefaultStatus(AValue: UTF8String);
 begin
   Put(DefaultStatusKey,AValue);
 end;
 
-procedure TProjectProperties2.SetDefaultThumbnailExtension(AValue: UTF8String);
+procedure TProjectProperties.SetDefaultThumbnailExtension(AValue: UTF8String);
 begin
   Put(DefaultThumbnailExtensionKey,AValue);
 end;
 
-function TProjectProperties2.RequestType(aKey: UTF8String; aType: TJSValueClass
+function TProjectProperties.RequestType(aKey: UTF8String; aType: TJSValueClass
   ): TJSValueClass;
 begin
   case aKey of
     StatusesKey:
       result := TStatusDefinitions;
     CategoriesKey:
-      result := TCategoryDefinitions2;
+      result := TCategoryDefinitions;
     DefaultStatusKey, DefaultCategoryKey,
     DefaultDocExtensionKey, DefaultThumbnailExtensionKey, DefaultNotesExtensionKey:
       result := TJSString;
@@ -340,7 +337,7 @@ begin
   end;
 end;
 
-function TProjectProperties2.CreateStringValue(aKey: UTF8String;
+function TProjectProperties.CreateStringValue(aKey: UTF8String;
   aRequestType: TJSValueClass; aValue: UTF8String): TJSValue;
 begin
   case aKey of
@@ -354,7 +351,7 @@ begin
   end;
 end;
 
-{ TKeywordDefinitions2 }
+{ TKeywordDefinitions }
 
 function TKeywordDefinitions.RequestType(aKey: UTF8String; aType: TJSValueClass
   ): TJSValueClass;

@@ -198,10 +198,10 @@ type
 
   TProjectPropertiesDataReceivedEvent = class(TProjectEvent)
   private
-    fProperties: TProjectProperties2;
+    fProperties: TProjectProperties;
   public
-    constructor Create(aProperties: TProjectProperties2);
-    property Properties: TProjectProperties2 read fProperties;
+    constructor Create(aProperties: TProjectProperties);
+    property Properties: TProjectProperties read fProperties;
   end;
 
   { TProjectError }
@@ -416,11 +416,11 @@ type
 
   TProjectPropertiesPromise = class(TPromise)
   private
-    fProperties: TProjectProperties2;
+    fProperties: TProjectProperties;
     procedure LoadAnswer(aStream: TStream);
   public
     destructor Destroy; override;
-    property Properties: TProjectProperties2 read fProperties;
+    property Properties: TProjectProperties read fProperties;
   end;
 
   TWriteProjectPropertiesPromise = class(TPromise)
@@ -718,7 +718,7 @@ type
     protected
       procedure DoTask(Input: TPromise); override;
       function CreatePromise: TPromise; override;
-      procedure GetDefaultDescriptorAndExtension(aProps: TProjectProperties2; out aDescriptor: UTF8String; out aExtension: UTF8String);
+      procedure GetDefaultDescriptorAndExtension(aProps: TProjectProperties; out aDescriptor: UTF8String; out aExtension: UTF8String);
       procedure NewAttachment_PropertiesRead(Sender: TPromise);
       procedure NewAttachment_TemplatesListed(Sender: TPromise);
       procedure NewAttachment_FileCreated(Sender: TPromise);
@@ -801,7 +801,7 @@ type
     function ReadDocumentProperties(aDocument: TDocumentPath; aForceRefresh: Boolean = false): TDocumentPropertiesPromise;
     function WriteDocumentProperties(aDocument: TDocumentPath; aProperties: TDocumentProperties): TWriteAttachmentPromise;
     function ReadProjectProperties(aForceRefresh: Boolean = false): TProjectPropertiesPromise;
-    function WriteProjectProperties(aProperties: TProjectProperties2
+    function WriteProjectProperties(aProperties: TProjectProperties
       ): TWriteProjectPropertiesPromise;
     function ShiftDocumentBy(aDocument: TDocumentPath; aDelta: Integer): TShiftDocumentPromise;
     function ShiftDocumentUp(aDocument: TDocumentPath): TShiftDocumentPromise;
@@ -1216,7 +1216,7 @@ begin
 end;
 
 procedure TStewProject.TRequestEditAttachmentTask.GetDefaultDescriptorAndExtension
-  (aProps: TProjectProperties2; out aDescriptor: UTF8String; out
+  (aProps: TProjectProperties; out aDescriptor: UTF8String; out
   aExtension: UTF8String);
 begin
   case fAttachment of
@@ -2275,7 +2275,7 @@ end;
 { TProjectPropertiesDataReceivedEvent }
 
 constructor TProjectPropertiesDataReceivedEvent.Create(
-  aProperties: TProjectProperties2);
+  aProperties: TProjectProperties);
 begin
   inherited Create(paProjectPropertiesDataReceived);
   fProperties := aProperties;
@@ -2329,9 +2329,9 @@ end;
 procedure TProjectPropertiesPromise.LoadAnswer(aStream: TStream);
 begin
   if aStream <> nil then
-    fProperties := FromJSON(TProjectProperties2,aStream) as TProjectProperties2
+    fProperties := FromJSON(TProjectProperties,aStream) as TProjectProperties
   else
-    fProperties := TProjectProperties2.Create;
+    fProperties := TProjectProperties.Create;
 end;
 
 { TStewProject.TReadProjectPropertiesTask }
@@ -3056,7 +3056,7 @@ begin
   result.After(@ProjectPropertiesDataReceived,@ProjectPropertiesReadError);
 end;
 
-function TStewProject.WriteProjectProperties(aProperties: TProjectProperties2
+function TStewProject.WriteProjectProperties(aProperties: TProjectProperties
   ): TWriteProjectPropertiesPromise;
 var
   lWriteFile: TFileWritePromise;

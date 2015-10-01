@@ -9,8 +9,6 @@ uses
 
 type
 {
-TODO: Save this testing until after the GUI works with the new architecture.
-
 TODO: Basically, each "test" will consist of running a python script against
 LTDP. The scripts will open up the most current gui executable and test the
 interface against a bunch of operations, that are basically the same as testing

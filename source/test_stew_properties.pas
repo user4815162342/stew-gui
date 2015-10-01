@@ -163,11 +163,11 @@ end;
 procedure TPropertiesSpec.Test_ProjectProperties;
 var
   lStream: TFileStream;
-  lProps: TProjectProperties2;
+  lProps: TProjectProperties;
 begin
   lStream := TFileStream.Create(fTestRootDir.GetContainedFile('','stew','json',true).ID,fmOpenRead);
   try
-    lProps := FromJSON(TProjectProperties2,lStream) as TProjectProperties2;
+    lProps := FromJSON(TProjectProperties,lStream) as TProjectProperties;
     try
       Assert(Length(lProps.Categories.keys) > 0,'Combination of parsing and GetPath should have gotten some data');
       Assert((lProps.Categories.Get('Chapter') as TCategoryDefinition).PublishTitleLevel = 0,'Project category definitions should work');
