@@ -67,4 +67,11 @@ object MainForm: TMainForm
     Title = 'Select Stew Project Directory'
     left = 24
   end
+  object CloseTimeoutTimer: TTimer
+    Enabled = False
+    Interval = 5000
+    OnTimer = CloseTimeoutTimerTimer
+    left = 24
+    top = 120
+  end
 end

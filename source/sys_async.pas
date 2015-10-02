@@ -139,6 +139,26 @@ type
     property Error: TPromiseError read fError;
   end;
 
+  TPromiseMonitorStateChangedEvent = procedure(Active: Boolean) of object;
+
+  { TPromiseMonitor }
+
+  // Use this to monitor when async tasks are running or not. The monitor
+  // is notified by the life cycle of a TPromise, so this will work with
+  // any async tasks that make use of promises appropriately, even some
+  // future TThreadedTask.
+  TPromiseMonitor = class
+  private
+    class var fOnStateChanged: TPromiseMonitorStateChangedEvent;
+    class var fQueueCount: Integer;
+    class function GetIsActive: Boolean; static;
+    class procedure PromiseDestroyed;
+    class procedure PromiseCreated;
+  public
+    class property IsActive: Boolean read GetIsActive;
+    class property OnStateChanged: TPromiseMonitorStateChangedEvent read fOnStateChanged write fOnStateChanged;
+  end;
+
   { TAsyncTask }
 
   TAsyncTask = class(TObject)
@@ -185,7 +205,6 @@ type
   public
     constructor Defer(aInputPromise: TPromise);
   end;
-
 
   TQueuedCallback = procedure of object;
 
@@ -254,18 +273,20 @@ end;
 
 procedure TQueuedTask.RunQueuedTask;
 begin
-  try
-    DoTask;
-  except
-    on E: Exception do
-      Reject(E.Message);
-  end;
+   try
+     DoTask;
+   except
+     on E: Exception do
+       Reject(E.Message);
+   end;
 end;
 
 procedure TQueuedTask.DoQueue;
 begin
   if AsyncCallQueuer <> nil then
-     AsyncCallQueuer(@RunQueuedTask)
+  begin
+    AsyncCallQueuer(@RunQueuedTask)
+  end
   else
      raise Exception.Create('Async system is not set up');
 end;
@@ -325,23 +346,23 @@ procedure TPromise.RunCallbacks;
 var
   lCallback: TPromiseResolutionListener;
 begin
-  if fCallbacks.Count > 0 then
-  begin;
-    lCallback := fCallbacks[0];
-    fCallbacks.Delete(0);
-    try
-       lCallback(Self);
-    except
-      on E: Exception do
-      begin
-        Reject(E.Message);
-        Exit;
-      end;
-    end;
-    AsyncCallQueuer(@RunCallbacks);
-  end
-  else
-      Free;
+   if fCallbacks.Count > 0 then
+   begin;
+     lCallback := fCallbacks[0];
+     fCallbacks.Delete(0);
+     try
+        lCallback(Self);
+     except
+       on E: Exception do
+       begin
+         Reject(E.Message);
+         Exit;
+       end;
+     end;
+     AsyncCallQueuer(@RunCallbacks);
+   end
+   else
+       Free;
 
 end;
 
@@ -366,6 +387,7 @@ begin
   end
   else
       Free;
+
 end;
 
 
@@ -377,7 +399,9 @@ begin
   // we should know by now if the async system isn't setup, since that
   // is checked in the constructor.
   if AsyncCallQueuer <> nil then
+  begin
      AsyncCallQueuer(@RunCallbacks)
+  end
   else
      raise Exception.Create('Async system is not set up');
 end;
@@ -387,7 +411,9 @@ begin
   fError := aError;
   fState := psRejecting;
   if AsyncCallQueuer <> nil then
-     AsyncCallQueuer(@RunErrorbacks)
+  begin
+    AsyncCallQueuer(@RunErrorbacks)
+  end
   else
      raise Exception.Create('Async system is not set up');
 end;
@@ -398,13 +424,18 @@ begin
   fCallbacks := TPromiseResolutionListenerList.Create;
   fErrorbacks := TPromiseRejectionListenerList.Create;
   fError := '';
+  TPromiseMonitor.PromiseCreated;
 end;
 
 destructor TPromise.Destroy;
 begin
-  FreeAndNil(fCallbacks);
-  FreeAndNil(fErrorbacks);
-  inherited Destroy;
+  try
+    FreeAndNil(fCallbacks);
+    FreeAndNil(fErrorbacks);
+    inherited Destroy;
+  finally
+    TPromiseMonitor.PromiseDestroyed;
+  end;
 end;
 
 function TPromise.After(aCallback: TPromiseResolutionListener; aErrorback: TPromiseRejectionListener): TPromise;
@@ -429,6 +460,30 @@ procedure TPromise.Catch(aErrorback: TPromiseRejectionListener);
 begin
   After(nil,aErrorback);
 end;
+
+{ TPromiseMonitor }
+
+class function TPromiseMonitor.GetIsActive: Boolean;
+begin
+  result := fQueueCount > 0;
+end;
+
+class procedure TPromiseMonitor.PromiseDestroyed;
+begin
+  dec(fQueueCount);
+  if (fQueueCount = 0) and (fOnStateChanged <> nil) then
+     fOnStateChanged(false);
+end;
+
+class procedure TPromiseMonitor.PromiseCreated;
+begin
+  inc(fQueueCount);
+  if (fQueueCount = 1) and (fOnStateChanged <> nil) then
+     fOnStateChanged(true);
+end;
+
+
+
 
 end.
 

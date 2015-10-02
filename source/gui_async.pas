@@ -29,12 +29,12 @@ uses
   Classes, SysUtils, sys_async;
 
 type
-  { TQueuedCall }
+    { TQueuedCall }
 
   TQueuedCall = class
-    procedure Callback({%H-}Data: PtrInt);
   private
     fCallback: TQueuedCallback;
+    procedure Callback({%H-}Data: PtrInt);
   public
     constructor Create(aCallback: TQueuedCallback);
     procedure Enqueue;

@@ -17,7 +17,7 @@
       <UseVersionInfo Value="True"/>
       <AutoIncrementBuild Value="True"/>
       <MinorVersionNr Value="1"/>
-      <BuildNr Value="80"/>
+      <BuildNr Value="82"/>
       <StringTable CompanyName="Town's Edge Technology, LLC" FileDescription="A manuscript management and notekeeping tool." LegalCopyright="Copyright © 2015 Neil M. Sheldon" ProductName="Stew" ProductVersion="0.1"/>
     </VersionInfo>
     <BuildModes Count="1">
@@ -39,7 +39,7 @@
         <PackageName Value="LCL"/>
       </Item2>
     </RequiredPackages>
-    <Units Count="22">
+    <Units Count="20">
       <Unit0>
         <Filename Value="stewgui.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -119,64 +119,51 @@
         <UnitName Value="gui_editorframe"/>
       </Unit11>
       <Unit12>
-        <Filename Value="gui_about.pas"/>
-        <IsPartOfProject Value="True"/>
-        <ComponentName Value="AboutForm"/>
-        <HasResources Value="True"/>
-        <ResourceBaseClass Value="Form"/>
-        <UnitName Value="gui_about"/>
-      </Unit12>
-      <Unit13>
         <Filename Value="stew_properties.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="stew_properties"/>
-      </Unit13>
-      <Unit14>
-        <Filename Value="stew_types.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="stew_types"/>
-      </Unit14>
-      <Unit15>
+      </Unit12>
+      <Unit13>
         <Filename Value="gui_jsoneditor.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="JSONEditor"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="gui_jsoneditor"/>
-      </Unit15>
-      <Unit16>
+      </Unit13>
+      <Unit14>
         <Filename Value="sys_os.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_os"/>
-      </Unit16>
-      <Unit17>
+      </Unit14>
+      <Unit15>
         <Filename Value="gui_listdialog.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="ListDialog"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="gui_listdialog"/>
-      </Unit17>
-      <Unit18>
+      </Unit15>
+      <Unit16>
         <Filename Value="sys_versionsupport.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_versionsupport"/>
-      </Unit18>
-      <Unit19>
+      </Unit16>
+      <Unit17>
         <Filename Value="sys_localfile.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_localfile"/>
-      </Unit19>
-      <Unit20>
+      </Unit17>
+      <Unit18>
         <Filename Value="gui_async.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="gui_async"/>
-      </Unit20>
-      <Unit21>
+      </Unit18>
+      <Unit19>
         <Filename Value="sys_filecache.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_filecache"/>
-      </Unit21>
+      </Unit19>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

@@ -34,7 +34,9 @@ type
     ProjectMenuItem: TMenuItem;
     ExitMenuItem: TMenuItem;
     OpenProjectDialog: TSelectDirectoryDialog;
+    CloseTimeoutTimer: TTimer;
     procedure AboutMenuItemClick(Sender: TObject);
+    procedure CloseTimeoutTimerTimer(Sender: TObject);
     procedure DoChooseAttachment(Sender: TObject; Document: TDocumentPath;
       AttachmentName: String; aChoices: TStringArray; var Answer: Integer; out
       Accepted: Boolean);
@@ -52,6 +54,7 @@ type
     procedure FormShow(Sender: TObject);
     procedure NewProjectMenuItemClick(Sender: TObject);
     procedure ObserveProject(Sender: TStewProject; Event: TProjectEvent);
+    procedure QueueStateChanged(aActive: Boolean);
     procedure ShowProjectError(Event: TProjectEvent);
     procedure OpenProjectMenuItemClick(Sender: TObject);
     procedure PreferencesMenuItemClick(Sender: TObject);
@@ -130,7 +133,7 @@ const
 implementation
 
 uses
-  gui_projectmanager, gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor, LCLProc, gui_about, gui_listdialog, sys_localfile, gui_async, StdCtrls, sys_versionsupport;
+  gui_projectmanager, gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor, LCLProc, gui_listdialog, sys_localfile, gui_async, StdCtrls, sys_versionsupport;
 
 {$R *.lfm}
 
@@ -182,6 +185,14 @@ begin
   MessageDialog(lAboutText.Title,lAboutText.Copyright + LineEnding +
                                lAboutText.Description + LineEnding +
                                lAboutText.BuildInfo,mtCustom,[mbOK],['Thanks for Using This Program!']);
+end;
+
+procedure TMainForm.CloseTimeoutTimerTimer(Sender: TObject);
+begin
+  // the tag is used to tell the mainform that this is a timeout, and
+  // it's okay to close...
+  CloseTimeoutTimer.Tag := 1;
+  Close;
 end;
 
 procedure TMainForm.DoChooseAttachment(Sender: TObject;
@@ -374,6 +385,28 @@ begin
       end;
     end;
   end;
+  // If the queue is active, then we don't want to close yet until
+  // it's done. However, a timeout on this wait prevents the app
+  // from staying open indefinitely if there's a task that simply
+  // will never be done.
+  if TPromiseMonitor.IsActive then
+  begin
+    // The tag is used by the timer to communicate whether this
+    // close is caused by a timeout. If it's any value other than
+    // 0, then the timer is triggering this close, and we should
+    // allow the form to close even if the queue is active.
+    if CloseTimeoutTimer.Tag = 0 then
+    begin
+      // Tell the window that the form can't close yet.
+      CanClose := false;
+      // Turn on the timeout timer.
+      CloseTimeoutTimer.Enabled := true;
+      // Disable the form to prevent further (accidental) User interaction
+      // before the close.
+      Enabled := false;
+      Exit;
+    end;
+  end;
 
 end;
 
@@ -382,6 +415,7 @@ var
   openParam: String;
   stewFolder: TFile;
 begin
+  TPromiseMonitor.OnStateChanged:=@QueueStateChanged;
 
   fOpenDocuments := TObjectList.create(false);
 
@@ -430,6 +464,7 @@ end;
 
 procedure TMainForm.FormDestroy(Sender: TObject);
 begin
+  TPromiseMonitor.OnStateChanged := nil;
 
   if fProject <> nil then
   begin
@@ -459,6 +494,15 @@ procedure TMainForm.ObserveProject(Sender: TStewProject; Event: TProjectEvent);
 begin
   if Event.IsError then
     ShowProjectError(Event);
+end;
+
+procedure TMainForm.QueueStateChanged(aActive: Boolean);
+begin
+  if aActive then
+    Cursor := crHourGlass
+  else
+    Cursor := crDefault;
+
 end;
 
 procedure TMainForm.ShowProjectError(Event: TProjectEvent);
