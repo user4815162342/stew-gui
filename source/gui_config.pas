@@ -236,7 +236,6 @@ begin
   begin
     lStream := TFileStream.Create(FileName,fmOpenRead);
     try
-      // TODO: Need a way to parse the stream into an existing object, or array.
       FromJSON(Self,lStream);
     finally
       lStream.Free;

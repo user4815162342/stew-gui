@@ -64,7 +64,6 @@ type
     procedure BeginUIUpdate;
     procedure EndUIUpdate;
     procedure SetupControls;
-    // TODO: Remove the '2'.
     procedure ObserveMainForm(Sender: TMainForm; aAction: TMainFormAction;
       {%H-}aDocument: TDocumentPath);
     procedure ObserveProject(Sender: TStewProject; Event: TProjectEvent);
