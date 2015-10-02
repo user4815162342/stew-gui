@@ -43,14 +43,8 @@ type
     procedure RefreshButtonClick(Sender: TObject);
     procedure SaveButtonClick(Sender: TObject);
     procedure StatusEditChange(Sender: TObject);
-    procedure WriteData_PropertiesRead(Sender: TPromise);
-    procedure WriteData_SynopsisWritten(Sender: TPromise);
-    procedure WriteData_PropertiesWritten(Sender: TPromise);
-    { private declarations }
-  protected
+  strict private
     fUserPropertiesEditor: TJSONEditor;
-    procedure SetDocument(AValue: TDocumentPath); override;
-  private
     fUIUpdateCount: Integer;
     fPropsAvailable: Boolean;
     fSynopsisAvailable: Boolean;
@@ -74,6 +68,11 @@ type
     procedure ObserveMainForm(Sender: TMainForm; aAction: TMainFormAction;
       {%H-}aDocument: TDocumentPath);
     procedure ObserveProject(Sender: TStewProject; Event: TProjectEvent);
+    procedure WriteData_PropertiesRead(Sender: TPromise);
+    procedure WriteData_SynopsisWritten(Sender: TPromise);
+    procedure WriteData_PropertiesWritten(Sender: TPromise);
+  strict protected
+    procedure SetDocument(AValue: TDocumentPath); override;
   public
     { public declarations }
     constructor Create(TheOwner: TComponent); override;

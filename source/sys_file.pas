@@ -123,9 +123,9 @@ type
   { TFileListPromise }
 
   TFileListPromise = class(TPromise)
-  private
+  strict private
     fPath: TFile;
-  protected
+  strict protected
     fFilesInfo: TFileInfoArray;
     fExists: Boolean;
     fIsFolder: Boolean;
@@ -145,9 +145,9 @@ type
   { TFileExistencePromise }
 
   TFileExistencePromise = class(TPromise)
-  private
+  strict private
     fPath: Tfile;
-  protected
+  strict protected
     fExists: Boolean;
     fIsFolder: Boolean;
   public
@@ -161,9 +161,9 @@ type
   { TFileReadPromise }
 
   TFileReadPromise = class(TPromise)
-  private
+  strict private
     fPath: Tfile;
-  protected
+  strict protected
     fDataString: UTF8String;
     fAge: Longint;
     fExists: Boolean;
@@ -187,9 +187,9 @@ type
   { TFileWritePromise }
 
   TFileWritePromise = class(TPromise)
-  private
+  strict private
     fPath: Tfile;
-  protected
+  strict protected
     fAge: Longint;
     fIsConflict: Boolean;
     fStream: TStream;
@@ -210,7 +210,7 @@ type
   { TFileCopyPromise }
 
   TFileCopyPromise = class(TPromise)
-  private
+  strict private
     fSource: TFile;
     fTarget: TFile;
   public
@@ -222,7 +222,7 @@ type
   { TFileRenamePromise }
 
   TFileRenamePromise = class(TPromise)
-  private
+  strict private
     fSource: TFileArray;
     fTarget: TFileArray;
   public
@@ -234,9 +234,9 @@ type
   { TFileListTemplatesPromise }
 
   TFileListTemplatesPromise = class(TPromise)
-  private
+  strict private
     fPath: TFile;
-  protected
+  strict protected
     fTemplates: TTemplateArray;
   public
     constructor Create(aFile: TFile);

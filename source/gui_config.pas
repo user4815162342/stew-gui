@@ -12,7 +12,7 @@ type
   { TMainWindowConfig }
 
   TMainWindowConfig = class(TJSObject)
-  private
+  strict private
     const DefaultWidth: Integer = 600;
     const DefaultHeight: Integer = 450;
     const DefaultVerticalPaneWidth: Integer = 200;
@@ -46,7 +46,7 @@ type
   { TMRUProjects }
 
   TMRUProjects = class(TJSArray)
-  protected
+  strict protected
     function RequestType(aKey: UTF8String; aType: TJSValueClass
        ): TJSValueClass; override;
   public
@@ -54,10 +54,10 @@ type
   end;
 
   TMRUProject = class(TJSObject)
-  private
+  strict private
     function GetPath: TFile;
     procedure SetPath(AValue: TFile);
-  protected
+  strict protected
     function RequestType(aKey: UTF8String; aType: TJSValueClass
        ): TJSValueClass; override;
   public
@@ -68,13 +68,13 @@ type
   { TStewApplicationConfig }
 
   TStewApplicationConfig = class(TJSObject)
-  private
+  strict private
     const MRUListMaxSize = 20;
     function GetMainWindowConfig: TMainWindowConfig;
     function GetMRUProject: TFile;
     function GetMRUProjects: TMRUProjects;
     procedure SetMRUProject(AValue: TFile);
-  protected
+  strict protected
     function RequestType(aKey: UTF8String; aType: TJSValueClass
        ): TJSValueClass; override;
   public

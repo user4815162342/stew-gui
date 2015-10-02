@@ -16,7 +16,7 @@ type
     CancelButton: TButton;
     CaptionLabel: TLabel;
     ChoiceList: TListBox;
-  private
+  strict private
     function GetCaption: String;
     function GetChoice: Integer;
     function GetChoices: TStringArray;

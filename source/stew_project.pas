@@ -132,7 +132,7 @@ type
   { TProjectEvent }
 
   TProjectEvent = class(TObject)
-  private
+  strict private
     fAction: TProjectEventKind;
     fIsError: Boolean;
   public
@@ -197,7 +197,7 @@ type
   { TProjectPropertiesDataReceivedEvent }
 
   TProjectPropertiesDataReceivedEvent = class(TProjectEvent)
-  private
+  strict private
     fProperties: TProjectProperties;
   public
     constructor Create(aProperties: TProjectProperties);
@@ -207,7 +207,7 @@ type
   { TProjectError }
 
   TProjectError = class(TProjectEvent)
-  private
+  strict private
     fError: TPromiseError;
   public
     constructor Create(aAction: TProjectEventKind; aError: TPromiseError);
@@ -218,7 +218,7 @@ type
   { TDocumentEvent }
 
   TDocumentEvent = class(TProjectEvent)
-  private
+  strict private
     fDocument: TDocumentPath;
   public
     constructor Create(aAction: TProjectEventKind; aDocument: TDocumentPath);
@@ -231,7 +231,7 @@ type
   { TDocumentListDataReceivedEvent }
 
   TDocumentListDataReceivedEvent = class(TDocumentEvent)
-  private
+  strict private
     fList: TDocumentInfoArray;
   public
     constructor Create(aDocument: TDocumentPath; aList: TDocumentInfoArray);
@@ -242,7 +242,7 @@ type
   { TDocumentError }
 
   TDocumentError = class(TDocumentEvent)
-  private
+  strict private
     fError: TPromiseError;
   public
     constructor Create(aAction: TProjectEventKind; aDocument: TDocumentPath;
@@ -254,7 +254,7 @@ type
   { TDocumentRenameEvent }
 
   TDocumentRenameEvent = class(TDocumentEvent)
-  private
+  strict private
     fNewDocument: TDocumentPath;
   public
     constructor Create(aAction: TProjectEventKind; aDocument: TDocumentPath;
@@ -266,7 +266,7 @@ type
   { TDocumentRenameErrorEvent }
 
   TDocumentRenameErrorEvent = class(TDocumentRenameEvent)
-  private
+  strict private
     fError: TPromiseError;
   public
     constructor Create(aAction: TProjectEventKind; aDocument: TDocumentPath;
@@ -310,7 +310,7 @@ type
   { TAttachmentEvent }
 
   TAttachmentEvent = class(TDocumentEvent)
-  private
+  strict private
     fAttachment: TAttachment;
   public
     constructor Create(aAction: TProjectEventKind; aDocument: TDocumentPath;
@@ -325,7 +325,7 @@ type
   { TAttachmentEditingEvent }
 
   TAttachmentEditingEvent = class(TAttachmentEvent)
-  private
+  strict private
     fCancelled: Boolean;
   public
     constructor Create(aAction: TProjectEventKind; aDocument: TDocumentPath;
@@ -337,7 +337,7 @@ type
   { TDocumentPropertiesDataReceivedEvent }
 
   TDocumentPropertiesDataReceivedEvent = class(TAttachmentEvent)
-  private
+  strict private
     fProperties: TDocumentProperties;
   public
     constructor Create(aDocument: TDocumentPath; aProperties: TDocumentProperties);
@@ -347,7 +347,7 @@ type
   { TDocumentSynopsisDataReceived }
 
   TDocumentSynopsisDataReceived = class(TAttachmentEvent)
-  private
+  strict private
     fSynopsis: UTF8String;
   public
     constructor Create(aDocument: TDocumentPath; aSynopsis: UTF8String);
@@ -357,7 +357,7 @@ type
   { TAttachmentError }
 
   TAttachmentError = class(TAttachmentEvent)
-  private
+  strict private
     fError: TPromiseError;
   public
     constructor Create(aAction: TProjectEventKind; aDocument: TDocumentPath;
@@ -374,9 +374,8 @@ type
   { TShadowDocument }
 
   TShadowDocument = class
-  private
+  strict protected
     fContents: TFPHashObjectList;
-  protected
     function CreatePath(aPath: UTF8String): TShadowDocument;
     function GetIsFolder: Boolean;
     function GetPath(aPath: UTF8String): TShadowDocument;
@@ -402,7 +401,7 @@ type
   { TProjectPromise }
 
   TProjectPromise = class(TPromise)
-  private
+  strict private
     fPath: TFile;
     fProject: TStewProject;
   public
@@ -415,8 +414,9 @@ type
   { TProjectPropertiesPromise }
 
   TProjectPropertiesPromise = class(TPromise)
-  private
+  strict private
     fProperties: TProjectProperties;
+  private
     procedure LoadAnswer(aStream: TStream);
   public
     destructor Destroy; override;
@@ -433,9 +433,10 @@ type
   { TWriteAttachmentPromise }
 
   TWriteAttachmentPromise = class(TPromise)
+  strict private
+    fDocument: TDocumentPath;
   private
     fIsConflict: Boolean;
-    fDocument: TDocumentPath;
     fAttachment: TAttachment;
   public
     constructor Create(aDocument: TDocumentPath; aAttachment: TAttachment);
@@ -449,9 +450,10 @@ type
   { TDocumentPropertiesPromise }
 
   TDocumentPropertiesPromise = class(TPromise)
-  private
+  strict private
     fProperties: TDocumentProperties;
     fDocument: TDocumentPath;
+  private
     procedure LoadAnswer(aStream: TStream);
   public
     constructor Create(aDocument: TDocumentPath);
@@ -463,9 +465,10 @@ type
   { TDocumentSynopsisPromise }
 
   TDocumentSynopsisPromise = class(TPromise)
-  private
+  strict private
     fSynopsis: UTF8String;
     fDocument: TDocumentPath;
+  private
     procedure LoadAnswer(aText: UTF8String);
   public
     constructor Create(aDocument: TDocumentPath);
@@ -476,8 +479,9 @@ type
   { TDocumentListPromise }
 
   TDocumentListPromise = class(TPromise)
-  private
+  strict private
     fDocument: TDocumentPath;
+  private
     fList: TDocumentInfoArray;
   public
     constructor Create(aDocument: TDocumentPath);
@@ -488,8 +492,9 @@ type
   { TDocumentIsFolderPromise }
 
   TDocumentIsFolderPromise = class(TPromise)
-  private
+  strict private
     fDocument: TDocumentPath;
+  private
     fIsFolder: Boolean;
   public
     constructor Create(aDocument: TDocumentPath);
@@ -498,7 +503,7 @@ type
   end;
 
   TShiftDocumentPromise = class(TPromise)
-  private
+  strict private
     fDocument: TDocumentPath;
   public
     constructor Create(aDocument: TDocumentPath);
@@ -508,7 +513,7 @@ type
   { TRenameDocumentPromise }
 
   TRenameDocumentPromise = class(TPromise)
-  private
+  strict private
     fOldDocument: TDocumentPath;
     fNewDocument: TDocumentPath;
   public
@@ -520,8 +525,9 @@ type
   { TRequestEditingAttachmentPromise }
 
   TRequestEditingAttachmentPromise = class(TPromise)
-  private
+  strict private
     fDocument: TDocumentPath;
+  private
     fAttachment: TAttachment;
     fCancelled: Boolean;
   public
@@ -539,9 +545,8 @@ type
     { TProjectCheckAndCreateTask }
 
     TProjectCheckAndCreateTask = class(TQueuedTask)
-    protected
+    strict protected
       fPath: TFile;
-    protected
       procedure ResolveCreateProject(aPath: TFile);
       function CreatePromise: TPromise; override;
       property Path: TFile read fPath;
@@ -552,26 +557,26 @@ type
     { TProjectCheckAtPathTask }
 
     TProjectCheckAtPathTask = class(TProjectCheckAndCreateTask)
-    private
+    strict private
       procedure FileExists(Sender: TPromise);
-    protected
+    strict protected
       procedure DoTask; override;
     end;
 
     { TProjectCheckInParentTask }
 
     TProjectCheckInParentTask = class(TProjectCheckAndCreateTask)
-    private
+    strict private
       procedure FileExistsInParent(Sender: TPromise);
       procedure FileExists(Sender: TPromise);
-    protected
+    strict protected
       procedure DoTask; override;
     end;
 
     { TWriteProjectPropertiesTask }
 
     TWriteProjectPropertiesTask = class(TDeferredTask)
-    protected
+    strict protected
       procedure HandleError(Input: TPromise; Error: TPromiseError); override;
       procedure DoTask({%H-}Input: TPromise); override;
       function CreatePromise: TPromise; override;
@@ -582,7 +587,7 @@ type
     { TReadProjectPropertiesTask }
 
     TReadProjectPropertiesTask = class(TDeferredTask)
-    protected
+    strict protected
       procedure DoTask(Input: TPromise); override;
       function CreatePromise: TPromise; override;
     public
@@ -592,10 +597,10 @@ type
     { TWriteAttachmentTask }
 
     TWriteAttachmentTask = class(TDeferredTask)
-    private
+    strict private
       fDocument: TDocumentPath;
       fAttachment: TAttachment;
-    protected
+    strict protected
       procedure HandleError(Input: TPromise; Error: TPromiseError); override;
       procedure DoTask({%H-}Input: TPromise); override;
       function CreatePromise: TPromise; override;
@@ -610,9 +615,9 @@ type
     { TReadDocumentPropertiesTask }
 
     TReadDocumentPropertiesTask = class(TDeferredTask)
-    private
+    strict private
       fDocument: TDocumentPath;
-    protected
+    strict protected
       procedure DoTask(Input: TPromise); override;
       function CreatePromise: TPromise; override;
     public
@@ -622,9 +627,9 @@ type
     { TReadDocumentSynopsisTask }
 
     TReadDocumentSynopsisTask = class(TDeferredTask)
-    private
+    strict private
       fDocument: TDocumentPath;
-    protected
+    strict protected
       procedure DoTask(Input: TPromise); override;
       function CreatePromise: TPromise; override;
     public
@@ -634,11 +639,11 @@ type
     { TListDocumentsInFolderTask }
 
     TListDocumentsInFolderTask = class(TDeferredTask)
-    private
+    strict private
       fProject: TStewProject;
       fDocument: TDocumentPath;
       fFiles: TFileInfoArray;
-    protected
+    strict protected
       procedure DoTask(Input: TPromise); override;
       function CreatePromise: TPromise; override;
       procedure PropertiesReceived(Sender: TPromise);
@@ -649,7 +654,7 @@ type
     { TDocumentListBuilder }
 
     TDocumentListBuilder = class(TObject)
-    private
+    strict private
       fIndex: TStringList;
       function SortDocuments(List: TStringList; Index1, Index2: Integer): Integer;
     public
@@ -663,10 +668,10 @@ type
     { TIsDocumentAFolderTask }
 
     TIsDocumentAFolderTask = class(TDeferredTask)
-    private
+    strict private
       fDocument: TDocumentPath;
       fProject: TStewProject;
-    protected
+    strict protected
       procedure DoTask(Input: TPromise); override;
       function CreatePromise: TPromise; override;
     public
@@ -676,13 +681,13 @@ type
     { TShiftDocumentTask }
 
     TShiftDocumentTask = class(TDeferredTask)
-    private
+    strict private
       fProject: TStewProject;
       fDocument: TDocumentPath;
       fFiles: TFileInfoArray;
       fShiftDeltaOrIndex: Integer;
       fRelativeTo: TDocumentPath;
-    protected
+    strict protected
       procedure DoTask(Input: TPromise); override;
       function CreatePromise: TPromise; override;
       procedure PropertiesReceived(Sender: TPromise);
@@ -694,11 +699,11 @@ type
     { TRenameDocumentTask }
 
     TRenameDocumentTask = class(TDeferredTask)
-    private
+    strict private
       fProject: TStewProject;
       fOldDocument: TDocumentPath;
       fNewDocument: TDocumentPath;
-    protected
+    strict protected
       procedure DoTask(Input: TPromise); override;
       function CreatePromise: TPromise; override;
       procedure FilesRenamed(Sender: TPromise);
@@ -709,13 +714,13 @@ type
     { TRequestEditAttachmentTask }
 
     TRequestEditAttachmentTask = class(TDeferredTask)
-    private
+    strict private
       fProject: TStewProject;
       fDocument: TDocumentPath;
       fAttachment: TAttachmentKind;
       fCandidates: TFileArray;
       fNewFile: TFile;
-    protected
+    strict protected
       procedure DoTask(Input: TPromise); override;
       function CreatePromise: TPromise; override;
       procedure GetDefaultDescriptorAndExtension(aProps: TProjectProperties; out aDescriptor: UTF8String; out aExtension: UTF8String);
@@ -727,7 +732,7 @@ type
       constructor Defer(aDocument: TDocumentPath; aAttachment: TAttachmentKind; aProject: TStewProject; aInputPromise: TFileListPromise);
     end;
 
-  private
+  strict private
     fDisk: TFile;
     fCache: TFileSystemCache;
     fShadows: TShadowCache;
@@ -759,7 +764,6 @@ type
     procedure DocumentsRenamed(Sender: TPromise);
     procedure DocumentEditing(Sender: TPromise);
     procedure DocumentEditingError(Sender: TPromise; aError: TPromiseError);
-  protected
   public
 
     property OnConfirmNewAttachment: TAttachmentConfirmationEvent read FOnConfirmNewAttachment write FOnConfirmNewAttachment;

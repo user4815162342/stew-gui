@@ -30,10 +30,9 @@ type
     LeftHandToolbar: TToolBar;
     ToolbarPanel: TPanel;
     procedure CloseButtonClick(Sender: TObject);
-  private
+  strict private
     fDocument: TDocumentPath;
-    { private declarations }
-  protected
+  strict protected
     procedure SetDocument(AValue: TDocumentPath); virtual;
   public
     { public declarations }

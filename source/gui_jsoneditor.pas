@@ -13,7 +13,7 @@ type
   { TJSONTreeNode }
 
   TJSONTreeNode = class(TTreeNode)
-  private
+  strict private
     FDataType: TJSValueClass;
     function GetAsBoolean: Boolean;
     function GetAsNumber: Double;
@@ -25,11 +25,12 @@ type
     procedure SetAsString(AValue: String);
     procedure SetDataType(AValue: TJSValueClass);
     procedure ExtractKeyAndValue(out aKey: String; out aValue: String);
-    procedure SetKey(AValue: String);
     procedure SetKeyAndValue(const aKey: String; const aValue: String);
     procedure SetTextValue(const aValue: String);
     function IsValidTextValue(const aValue: String): Boolean;
     function IsValidKey(const aValue: String): Boolean;
+  private
+    procedure SetKey(AValue: String);
   public
     property DataType: TJSValueClass read fDataType write SetDataType;
     property AsBoolean: Boolean read GetAsBoolean write SetAsBoolean;
@@ -73,7 +74,7 @@ type
     procedure AddNumberButtonClick(Sender: TObject);
     procedure AddObjectButtonClick(Sender: TObject);
     procedure AddStringButtonClick(Sender: TObject);
-  private
+  strict private
     { private declarations }
     fModified: Boolean;
     procedure AddNode(aDataType: TJSValueClass);
@@ -663,7 +664,7 @@ begin
   if lChild <> nil then
   begin
     result := TJSObject.Create;
-    lChild.AddToJSON(Result,lChild.GetKey);
+    lChild.AddToJSON(Result,lChild.Key);
     lChild := lChild.GetNextSibling as TJSONTreeNode;
   end
   else

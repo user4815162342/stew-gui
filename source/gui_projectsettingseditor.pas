@@ -72,14 +72,9 @@ type
     procedure DeleteCategoryButtonClick(Sender: TObject);
     procedure DeleteStatusButtonClick(Sender: TObject);
     procedure EditNotesButtonClick(Sender: TObject);
-    procedure ObserveMainForm(Sender: TMainForm; aAction: TMainFormAction;
-      {%H-}aDocument: TDocumentPath);
-    procedure ObserveProject(Sender: TStewProject; Event: TProjectEvent);
     procedure RefreshButtonClick(Sender: TObject);
     procedure SaveButtonClick(Sender: TObject);
-    procedure WriteData_Read(Sender: TPromise);
-    procedure WriteData_Written(Sender: TPromise);
-  private
+  strict private
     { private declarations }
     fUserPropertiesEditor: TJSONEditor;
     fUIUpdateCount: Integer;
@@ -94,6 +89,11 @@ type
     procedure EndUIUpdate;
     procedure SetupControls;
     procedure SetupColorMenu;
+    procedure WriteData_Read(Sender: TPromise);
+    procedure WriteData_Written(Sender: TPromise);
+    procedure ObserveMainForm(Sender: TMainForm; aAction: TMainFormAction;
+      {%H-}aDocument: TDocumentPath);
+    procedure ObserveProject(Sender: TStewProject; Event: TProjectEvent);
   public
     { public declarations }
     constructor Create(TheOwner: TComponent); override;

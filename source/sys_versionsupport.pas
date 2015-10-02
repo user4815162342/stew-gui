@@ -72,7 +72,7 @@ Uses
 
 Type
   TVersionInfo = Class
-  private
+  strict private
     FBuildInfoAvailable: Boolean;
     FVersResource: TVersionResource;
     Function GetFixedInfo: TVersionFixedInfo;

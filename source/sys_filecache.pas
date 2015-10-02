@@ -23,11 +23,11 @@ type
   work fine, but I wouldn't use this for cases where you're going to create a whole
   bunch of them with just a few keys in them (hence, don't use for JSON stuff)}
   TLongStringMap = class
-  private type
+  strict private type
     // Used to handle keys which are present but contain no data.
     TPlaceholder = class(TObject)
     end;
-  private
+  strict private
     fShortStringMap: TFPHashObjectList;
     function GetItem(const AName: UTF8String): TObject;
     procedure SetItem(const AName: UTF8String; AValue: TObject);
@@ -54,7 +54,7 @@ type
   { TFileSystemCacheData }
 
   TFileSystemCacheData = class(TObject)
-  private
+  strict private
     fTime: TDateTime;
   public
     constructor Create;
@@ -64,7 +64,7 @@ type
   { TFileSystemCacheExists }
 
   TFileSystemCacheExists = class(TFileSystemCacheData)
-  private
+  strict private
     fExists: Boolean;
     fIsFolder: Boolean;
   public
@@ -76,7 +76,7 @@ type
   { TFileSystemCacheLists }
 
   TFileSystemCacheLists = class(TFileSystemCacheData)
-  private
+  strict private
     fFilesInfo: TFileInfoArray;
   public
     constructor Create(aFiles: TFileInfoArray);
@@ -86,7 +86,7 @@ type
   { TFileSystemCacheContents }
 
   TFileSystemCacheContents = class(TFileSystemCacheData)
-  private
+  strict private
     fContents: UTF8String;
     fAge: Longint;
   public
@@ -99,9 +99,9 @@ type
   { TFileSystemCacheExistenceKnownTask }
 
   TFileSystemCacheExistenceKnownTask = class(TQueuedTask)
-  private
+  strict private
      fFile: TFile;
-  protected
+  strict protected
      procedure DoTask; override;
      function CreatePromise: TPromise; override;
   public
@@ -112,9 +112,9 @@ type
   { TFileSystemCacheExistenceDeferredTask }
 
   TFileSystemCacheExistenceDeferredTask = class(TDeferredTask)
-  private
+  strict private
     fPath: TFile;
-  protected
+  strict protected
     procedure  DoTask(Input: TPromise); override;
     function CreatePromise: TPromise; override;
   public
@@ -125,9 +125,9 @@ type
   { TFileSystemCacheListKnownTask }
 
   TFileSystemCacheListKnownTask = class(TQueuedTask)
-  private
+  strict private
     fFile: TFile;
-  protected
+  strict protected
     procedure DoTask; override;
     function CreatePromise: TPromise; override;
   public
@@ -137,9 +137,9 @@ type
   { TFileSystemCacheReadDeferredTask }
 
   TFileSystemCacheReadDeferredTask = class(TDeferredTask)
-  private
+  strict private
     fFile: TFile;
-  protected
+  strict protected
     procedure DoTask(Input: TPromise); override;
     function CreatePromise: TPromise; override;
   public
@@ -149,9 +149,9 @@ type
   { TFileSystemCacheReadKnownTask }
 
   TFileSystemCacheReadKnownTask = class(TQueuedTask)
-  private
+  strict private
     fFile: TFile;
-  protected
+  strict protected
     procedure DoTask; override;
     function CreatePromise: TPromise; override;
   public
@@ -168,7 +168,7 @@ type
   // convert the TFile back and forth between systems.
 
   TFileSystemCache = class(TObject)
-  private
+  strict private
     fOnActivity: TPromiseResolutionListener;
     fOnError: TPromiseRejectionListener;
     fSystem: TFileSystemClass;

@@ -13,9 +13,9 @@ type
   { TProperties }
 
   TProperties = class(TJSObject)
-  private
+  strict private
     function GetUser: TJSObject;
-  protected
+  strict protected
     function RequestType(aKey: UTF8String; aType: TJSValueClass
       ): TJSValueClass; override;
   public
@@ -25,7 +25,7 @@ type
   { TDocumentIndexProperty }
 
   TDocumentIndexProperty = class(TJSArray)
-  protected
+  strict protected
     function RequestType(aKey: UTF8String; aType: TJSValueClass
        ): TJSValueClass; override;
   end;
@@ -33,7 +33,7 @@ type
   { TDocumentProperties }
 
   TDocumentProperties = class(TProperties)
-  private
+  strict private
     function GetCategory: UTF8String;
     function GetIndex: TDocumentIndexProperty;
     function GetPublish: Boolean;
@@ -43,7 +43,7 @@ type
     procedure SetPublish(AValue: Boolean);
     procedure SetStatus(AValue: UTF8String);
     procedure SetTitle(AValue: UTF8String);
-  protected
+  strict protected
     function RequestType(aKey: UTF8String; aType: TJSValueClass
        ): TJSValueClass; override;
   public
@@ -57,7 +57,7 @@ type
   { TJSColor }
 
   TJSColor = class(TJSObject)
-  private
+  strict private
     function GetBlue: Byte;
     function GetColor: TColor;
     function GetGreen: Byte;
@@ -66,7 +66,7 @@ type
     procedure SetColor(AValue: TColor);
     procedure SetGreen(AValue: Byte);
     procedure SetRed(AValue: Byte);
-  protected
+  strict protected
     function CreateNumberValue(aKey: UTF8String; aRequestType: TJSValueClass;
       aValue: Double): TJSValue; override; overload;
     function RequestType(aKey: UTF8String; aType: TJSValueClass
@@ -84,10 +84,10 @@ type
   { TKeywordDefinition }
 
   TKeywordDefinition = class(TJSObject)
-  private
+  strict private
     function GetColor: TColor;
     procedure SetColor(AValue: TColor);
-  protected
+  strict protected
     function RequestType(aKey: UTF8String; aType: TJSValueClass
        ): TJSValueClass; override;
   public
@@ -99,7 +99,7 @@ type
   { TCategoryDefinition }
 
   TCategoryDefinition = class(TKeywordDefinition)
-  private
+  strict private
     function GetPublishMarkerAfter: Boolean;
     function GetPublishMarkerBefore: Boolean;
     function GetPublishMarkerBetween: Boolean;
@@ -128,7 +128,7 @@ type
   { TKeywordDefinitions }
 
   generic TKeywordDefinitions<MemberType> = class(TJSObject)
-  protected
+  strict protected
     function RequestType({%H-}aKey: UTF8String; {%H-}aType: TJSValueClass
       ): TJSValueClass; override;
   public
@@ -152,7 +152,7 @@ type
   { TProjectProperties }
 
   TProjectProperties = class(TProperties)
-  private
+  strict private
     function GetCategories: TCategoryDefinitions;
     function GetDefaultCategory: UTF8String;
     function GetDefaultDocExtension: UTF8String;
@@ -165,7 +165,7 @@ type
     procedure SetDefaultNotesExtension(AValue: UTF8String);
     procedure SetDefaultStatus(AValue: UTF8String);
     procedure SetDefaultThumbnailExtension(AValue: UTF8String);
-  protected
+  strict protected
     function RequestType(aKey: UTF8String; aType: TJSValueClass
        ): TJSValueClass; override;
     function CreateStringValue(aKey: UTF8String; aRequestType: TJSValueClass;

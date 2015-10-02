@@ -50,12 +50,12 @@ type
       var {%H-}AllowExpansion: Boolean);
     procedure ProjectExplorerSelectionChanged(Sender: TObject);
     procedure RenameDocumentButtonClick(Sender: TObject);
-  private type
+  strict private type
 
     { TProjectInspectorNode }
 
     TProjectInspectorNode = class(TTreeNode)
-    private
+    strict private
       FDocumentID: TDocumentPath;
       fExpandedFirstTime: Boolean;
       fExpandOnList: Boolean;
@@ -80,16 +80,16 @@ type
     { TShiftDocumentAfterRenameTask }
 
     TShiftDocumentAfterRenameTask = class(TDeferredTask)
-    private
+    strict private
       fNewIndex: Integer;
-    protected
+    strict protected
       procedure DoTask(Input: TPromise); override;
       function CreatePromise: TPromise; override;
     public
       constructor Defer(aNewIndex: Integer; aInputPromise: TRenameDocumentPromise);
     end;
 
-  private
+  strict private
     { private declarations }
     fUIUpdateCount: Integer;
     fStatuses: TKeywordColorMap;
@@ -98,7 +98,7 @@ type
     procedure UpdateCategoryGlyphs;
     procedure SetupControls;
     procedure CreateNewDocument(aChild: Boolean);
-  protected
+  strict protected
     function GetTreeNodeForDocument(aDocument: TDocumentPath): TProjectInspectorNode;
     function BuildTreeNodeForDocument(aDocument: TDocumentPath): TProjectInspectorNode;
     procedure UpdateNode(aNode: TProjectInspectorNode; aInfo: TDocumentInfo);

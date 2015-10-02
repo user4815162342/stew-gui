@@ -148,10 +148,11 @@ type
   // any async tasks that make use of promises appropriately, even some
   // future TThreadedTask.
   TPromiseMonitor = class
-  private
+  strict private
     class var fOnStateChanged: TPromiseMonitorStateChangedEvent;
     class var fQueueCount: Integer;
     class function GetIsActive: Boolean; static;
+  private
     class procedure PromiseDestroyed;
     class procedure PromiseCreated;
   public
@@ -162,9 +163,9 @@ type
   { TAsyncTask }
 
   TAsyncTask = class(TObject)
-  private
+  strict private
     fPromise: TPromise;
-  protected
+  strict protected
     procedure Resolve;
     procedure Reject(aError: TPromiseError);
     function CreatePromise: TPromise; virtual; abstract;
@@ -182,10 +183,10 @@ type
   { TQueuedTask }
 
   TQueuedTask = class(TAsyncTask)
-  private
+  strict private
     procedure RunQueuedTask;
     procedure DoQueue;
-  protected
+  strict protected
     procedure DoTask; virtual; abstract;
   public
     constructor Enqueue;
@@ -194,11 +195,11 @@ type
   { TDeferredTask }
 
   TDeferredTask = class(TAsyncTask)
-  private
+  strict private
     fInputPromise: TPromise;
     procedure InputPromiseResolved(Sender: TPromise);
     procedure InputPromiseRejected(Sender: TPromise; aError: TPromiseError);
-  protected
+  strict protected
     property InputPromise: TPromise read fInputPromise;
     procedure DoTask(Input: TPromise); virtual; abstract;
     procedure HandleError({%H-}Input: TPromise; {%H-}Error: TPromiseError); virtual;

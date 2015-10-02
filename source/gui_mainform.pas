@@ -37,14 +37,6 @@ type
     CloseTimeoutTimer: TTimer;
     procedure AboutMenuItemClick(Sender: TObject);
     procedure CloseTimeoutTimerTimer(Sender: TObject);
-    procedure DoChooseAttachment(Sender: TObject; Document: TDocumentPath;
-      AttachmentName: String; aChoices: TStringArray; var Answer: Integer; out
-      Accepted: Boolean);
-    procedure DoChooseNewAttachmentTemplate(Sender: TObject;
-      {%H-}Document: TDocumentPath; AttachmentName: String; aChoices: TStringArray;
-      var Answer: Integer; out Accepted: Boolean);
-    procedure DoConfirmNewAttachment(Sender: TObject; {%H-}Document: TDocumentPath;
-      AttachmentName: String; out Answer: Boolean);
     procedure DocumentTabCloseRequested(Sender: TObject);
     procedure ExitMenuItemClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var {%H-}CloseAction: TCloseAction);
@@ -53,9 +45,6 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure NewProjectMenuItemClick(Sender: TObject);
-    procedure ObserveProject(Sender: TStewProject; Event: TProjectEvent);
-    procedure QueueStateChanged(aActive: Boolean);
-    procedure ShowProjectError(Event: TProjectEvent);
     procedure OpenProjectMenuItemClick(Sender: TObject);
     procedure PreferencesMenuItemClick(Sender: TObject);
     procedure ProjectSettingsMenuItemClick(Sender: TObject);
@@ -71,7 +60,17 @@ type
     // FUTURE: Should be a hash list, so we can look things up by ID.
     fOpenDocuments: TObjectList;
     function GetProject: TStewProject;
-  protected
+    procedure DoChooseAttachment(Sender: TObject; Document: TDocumentPath;
+      AttachmentName: String; aChoices: TStringArray; var Answer: Integer; out
+      Accepted: Boolean);
+    procedure DoChooseNewAttachmentTemplate(Sender: TObject;
+      {%H-}Document: TDocumentPath; AttachmentName: String; aChoices: TStringArray;
+      var Answer: Integer; out Accepted: Boolean);
+    procedure DoConfirmNewAttachment(Sender: TObject; {%H-}Document: TDocumentPath;
+      AttachmentName: String; out Answer: Boolean);
+    procedure ObserveProject(Sender: TStewProject; Event: TProjectEvent);
+    procedure QueueStateChanged(aActive: Boolean);
+    procedure ShowProjectError(Event: TProjectEvent);
     procedure OpenProject(aPath: TFile);
     procedure InitializeProject;
     procedure AfterProjectOpen(Sender: TPromise);

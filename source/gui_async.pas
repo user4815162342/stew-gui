@@ -32,7 +32,7 @@ type
     { TQueuedCall }
 
   TQueuedCall = class
-  private
+  strict private
     fCallback: TQueuedCallback;
     procedure Callback({%H-}Data: PtrInt);
   public

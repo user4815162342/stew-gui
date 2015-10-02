@@ -31,8 +31,6 @@ type
   { TApplicationPreferencesEditor }
 
   TApplicationPreferencesEditor = class(TEditorFrame)
-  private
-    { private declarations }
   public
     { public declarations }
     constructor Create(TheOwner: TComponent); override;

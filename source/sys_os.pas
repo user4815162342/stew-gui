@@ -12,10 +12,10 @@ type
   { TRunSimpleCommandTask }
 
   TRunSimpleCommandTask = class(TQueuedTask)
-  private
+  strict private
     fCmd: String;
     fArgs: Array of String;
-  protected
+  strict protected
     procedure DoTask; override;
     function CreatePromise: TPromise; override;
   public
@@ -34,11 +34,11 @@ type
   { TLocalFileListTemplatesFromOSTask }
 
   TLocalFileListTemplatesFromOSTask = class(TQueuedTask)
-  protected type
+  strict protected type
 
     { TListABunchOfFilesTask }
 
-  protected
+  strict protected
     fPath: Tfile;
     fFolders: TTemplateFolderList;
     fTemplates: TTemplateArray;
@@ -60,7 +60,7 @@ type
   { TOperatingSystemInterface }
 
   TOperatingSystemInterface = class
-  private
+  strict private
     class var fEditorHandlers: TInternalEditorHandlerList;
     class var fTemplateFolders: TTemplateFolderList;
     class var fUseSystemTemplates: Boolean;

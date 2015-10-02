@@ -14,9 +14,9 @@ type
   { TLocalFileListTask }
 
   TLocalFileListTask = class(TQueuedTask)
-  private
+  strict private
     fPath: TFile;
-  protected
+  strict protected
     procedure DoTask; override;
     function CreatePromise: TPromise; override;
   public
@@ -26,9 +26,9 @@ type
   { TLocalFileExistsTask }
 
   TLocalFileExistsTask = class(TQueuedTask)
-  private
+  strict private
     fPath: TFile;
-  protected
+  strict protected
     procedure DoTask; override;
     function CreatePromise: TPromise; override;
   public
@@ -38,9 +38,9 @@ type
   { TLocalFileReadTask }
 
   TLocalFileReadTask = class(TQueuedTask)
-  private
+  strict private
     fPath: TFile;
-  protected
+  strict protected
     procedure DoTask; override;
     function CreatePromise: TPromise; override;
   public
@@ -50,11 +50,11 @@ type
   { TLocalFileWriteTask }
 
   TLocalFileWriteTask = class(TQueuedTask)
-  private
+  strict private
     fPath: TFile;
     fOptions: TFileWriteOptions;
     fAge: Longint;
-  protected
+  strict protected
     procedure DoTask; override;
     function CreatePromise: TPromise; override;
   public
@@ -64,11 +64,11 @@ type
   { TLocalFileCopyTask }
 
   TLocalFileCopyTask = class(TQueuedTask)
-  private
+  strict private
     fOptions: TFileCopyOptions;
     fTarget: TFile;
     fSource: TFile;
-  protected
+  strict protected
     procedure DoTask; override;
     function CreatePromise: TPromise; override;
   public
@@ -78,10 +78,10 @@ type
   { TLocalFileRenameTask }
 
   TLocalFileRenameTask = class(TQueuedTask)
-  private
+  strict private
     fSource: TFileArray;
     fTarget: TFileArray;
-  protected
+  strict protected
     procedure DoTask; override;
     function CreatePromise: TPromise; override;
   public
