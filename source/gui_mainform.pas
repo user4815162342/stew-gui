@@ -52,6 +52,7 @@ type
     procedure FormShow(Sender: TObject);
     procedure NewProjectMenuItemClick(Sender: TObject);
     procedure ObserveProject(Sender: TStewProject; Event: TProjectEvent);
+    procedure QueueStateChanged(aActive: Boolean);
     procedure ShowProjectError(Event: TProjectEvent);
     procedure OpenProjectMenuItemClick(Sender: TObject);
     procedure PreferencesMenuItemClick(Sender: TObject);
@@ -130,7 +131,7 @@ const
 implementation
 
 uses
-  gui_projectmanager, gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor, LCLProc, gui_about, gui_listdialog, sys_localfile, gui_async, StdCtrls, sys_versionsupport;
+  gui_projectmanager, gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor, LCLProc, gui_listdialog, sys_localfile, gui_async, StdCtrls, sys_versionsupport;
 
 {$R *.lfm}
 
@@ -382,6 +383,7 @@ var
   openParam: String;
   stewFolder: TFile;
 begin
+  TGUIAsyncQueueMonitor.OnStateChanged:=@QueueStateChanged;
 
   fOpenDocuments := TObjectList.create(false);
 
@@ -430,6 +432,7 @@ end;
 
 procedure TMainForm.FormDestroy(Sender: TObject);
 begin
+  TGUIAsyncQueueMonitor.OnStateChanged := nil;
 
   if fProject <> nil then
   begin
@@ -459,6 +462,15 @@ procedure TMainForm.ObserveProject(Sender: TStewProject; Event: TProjectEvent);
 begin
   if Event.IsError then
     ShowProjectError(Event);
+end;
+
+procedure TMainForm.QueueStateChanged(aActive: Boolean);
+begin
+  if aActive then
+    Cursor := crHourGlass
+  else
+    Cursor := crDefault;
+
 end;
 
 procedure TMainForm.ShowProjectError(Event: TProjectEvent);

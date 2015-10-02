@@ -31,10 +31,26 @@ uses
 type
   { TQueuedCall }
 
+  TQueueStateChangeEvent = procedure(Active: Boolean) of object;
+
+  { TGUIAsyncQueueMonitor }
+
+  TGUIAsyncQueueMonitor = class
+  private
+    class var fOnStateChange: TQueueStateChangeEvent;
+    class var fQueueCount: Integer;
+    class function GetIsActive: Boolean; static;
+    class procedure TaskDone;
+    class procedure TaskAdded;
+  public
+    class property IsActive: Boolean read GetIsActive;
+    class property OnStateChanged: TQueueStateChangeEvent read fOnStateChange write fOnStateChange;
+  end;
+
   TQueuedCall = class
-    procedure Callback({%H-}Data: PtrInt);
   private
     fCallback: TQueuedCallback;
+    procedure Callback({%H-}Data: PtrInt);
   public
     constructor Create(aCallback: TQueuedCallback);
     procedure Enqueue;
@@ -53,6 +69,27 @@ begin
   TQueuedCall.Create(aCallback).Enqueue;
 end;
 
+{ TGUIAsyncQueueMonitor }
+
+class function TGUIAsyncQueueMonitor.GetIsActive: Boolean;
+begin
+  result := fQueueCount > 0;
+end;
+
+class procedure TGUIAsyncQueueMonitor.TaskDone;
+begin
+  dec(fQueueCount);
+  if (fQueueCount = 0) and (fOnStateChange <> nil) then
+     fOnStateChange(false);
+end;
+
+class procedure TGUIAsyncQueueMonitor.TaskAdded;
+begin
+  inc(fQueueCount);
+  if (fQueueCount = 1) and (fOnStateChange <> nil) then
+     fOnStateChange(true);
+end;
+
 { TQueuedCall }
 
 procedure TQueuedCall.Callback(Data: PtrInt);
@@ -67,6 +104,7 @@ begin
     end;
   finally
     Free;
+    TGUIAsyncQueueMonitor.TaskDone;
   end;
 end;
 
@@ -82,6 +120,7 @@ begin
   // then dealing with pointers, I've already got a pointer to the object in the
   // method, so I can store the data on there.
   Application.QueueAsyncCall(@Callback,0);
+  TGUIAsyncQueueMonitor.TaskAdded;
 end;
 
 
