@@ -149,11 +149,43 @@ type
     function GetCategory(aKey: UTF8String): TCategoryDefinition;
   end;
 
+  { TDeadline }
+
+  TDeadline = class(TJSObject)
+  private
+    function GetDue: TDateTime;
+    function GetName: UTF8String;
+    procedure SetDue(AValue: TDateTime);
+    procedure SetName(AValue: UTF8String);
+  protected
+    function RequestType(aKey: UTF8String; aType: TJSValueClass
+       ): TJSValueClass; override;
+  public
+    property Name: UTF8String read GetName write SetName;
+    property Due: TDateTime read GetDue write SetDue;
+  end;
+
+  { TDeadlines }
+
+  TDeadlines = class(TJSArray)
+  private
+    function GetDeadline(aIndex: Integer): TDeadline;
+  protected
+     function RequestType(aKey: UTF8String; aType: TJSValueClass
+        ): TJSValueClass; override;
+  public
+     function Add: TDeadline;
+     function Add(aName: UTF8String; aDue: TDateTime): TDeadline;
+     procedure Remove(aIndex: Integer);
+     property Deadline[aIndex: Integer]: TDeadline read GetDeadline; default;
+  end;
+
   { TProjectProperties }
 
   TProjectProperties = class(TProperties)
   strict private
     function GetCategories: TCategoryDefinitions;
+    function GetDeadlines: TDeadlines;
     function GetDefaultCategory: UTF8String;
     function GetDefaultDocExtension: UTF8String;
     function GetDefaultNotesExtension: UTF8String;
@@ -178,6 +210,7 @@ type
     property DefaultCategory: UTF8String read GetDefaultCategory write SetDefaultCategory;
     property Statuses: TStatusDefinitions read GetStatuses;
     property DefaultStatus: UTF8String read GetDefaultStatus write SetDefaultStatus;
+    property Deadlines: TDeadlines read GetDeadlines;
   end;
 
   const
@@ -186,6 +219,9 @@ type
     StatusesKey = 'statuses';
     DefaultCategoryKey = 'defaultCategory';
     DefaultStatusKey = 'defaultStatus';
+    DeadlinesKey = 'deadlines';
+    DueKey = 'due';
+    NameKey = 'name';
     DefaultDocExtensionKey = 'defaultDocExtension';
     DefaultNotesExtensionKey = 'defaultNotesExtension';
     DefaultThumbnailExtensionKey = 'defaultThumbnailExtension';
@@ -209,6 +245,75 @@ implementation
 
 uses
   LCLProc;
+
+{ TDeadlines }
+
+function TDeadlines.GetDeadline(aIndex: Integer): TDeadline;
+begin
+  result := Get(aIndex) as TDeadline;
+end;
+
+function TDeadlines.RequestType(aKey: UTF8String; aType: TJSValueClass
+  ): TJSValueClass;
+begin
+  if aKey <> LengthKey then
+     result := TDeadline
+  else
+     Result:=inherited RequestType(aKey, aType);
+end;
+
+function TDeadlines.Add: TDeadline;
+begin
+  result := PutNewObject(Length) as TDeadline;
+end;
+
+function TDeadlines.Add(aName: UTF8String; aDue: TDateTime): TDeadline;
+begin
+  result := Self.Add;
+  result.Name := aName;
+  result.Due := aDue;
+end;
+
+procedure TDeadlines.Remove(aIndex: Integer);
+begin
+  Splice(aIndex,1,0);
+end;
+
+{ TDeadline }
+
+function TDeadline.GetDue: TDateTime;
+begin
+  result := (Get(DueKey) as TJSDate).Value;
+end;
+
+function TDeadline.GetName: UTF8String;
+begin
+  result := Get(NameKey).AsString;
+end;
+
+procedure TDeadline.SetDue(AValue: TDateTime);
+begin
+  Put(DueKey,TJSDate.CreateDate(AValue));
+end;
+
+procedure TDeadline.SetName(AValue: UTF8String);
+begin
+  Put(NameKey,AValue);
+
+end;
+
+function TDeadline.RequestType(aKey: UTF8String; aType: TJSValueClass
+  ): TJSValueClass;
+begin
+  case aKey of
+    DueKey:
+       result := TJSDate;
+    NameKey:
+      result := TJSString;
+  else
+    Result:=inherited RequestType(aKey, aType);
+  end;
+end;
 
 { TCategoryDefinitions }
 
@@ -262,6 +367,13 @@ begin
   if not hasOwnProperty(CategoriesKey) then
      PutNewObject(CategoriesKey);
   result := Get(CategoriesKey) as TCategoryDefinitions;
+end;
+
+function TProjectProperties.GetDeadlines: TDeadlines;
+begin
+  if not hasOwnProperty(DeadlinesKey) then
+     PutNewObject(DeadlinesKey);
+  result := Get(DeadlinesKey) as TDeadlines;
 end;
 
 function TProjectProperties.GetDefaultCategory: UTF8String;
@@ -332,6 +444,8 @@ begin
     DefaultStatusKey, DefaultCategoryKey,
     DefaultDocExtensionKey, DefaultThumbnailExtensionKey, DefaultNotesExtensionKey:
       result := TJSString;
+    DeadlinesKey:
+      result := TDeadlines;
   else
     Result:=inherited RequestType(aKey, aType);
   end;

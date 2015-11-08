@@ -29,7 +29,7 @@ type
 implementation
 
 uses
-  sys_localfile, FileUtil, sys_json, Graphics;
+  sys_localfile, FileUtil, sys_json, Graphics, sys_types;
 
 { TPropertiesSpec }
 
@@ -164,6 +164,8 @@ procedure TPropertiesSpec.Test_ProjectProperties;
 var
   lStream: TFileStream;
   lProps: TProjectProperties;
+  lDeadlines: TDeadlines;
+  lDeadline: TDeadline;
 begin
   lStream := TFileStream.Create(fTestRootDir.GetContainedFile('','stew','json',true).ID,fmOpenRead);
   try
@@ -181,6 +183,13 @@ begin
       Assert((lProps.Statuses.Get('Unwritten') as TStatusDefinition).Color = clRed,'Project statuses should work');
       lProps.DefaultDocExtension := '.doc';
       Assert(lProps.DefaultDocExtension = 'doc','Default doc extension should trim off the "." when assigning');
+
+
+      lDeadlines := lProps.Deadlines;
+      lDeadlines.Add('First Chapter Done',ISO8601ToDateTime('2015-11-08T17:01:00'));
+      lDeadlines.Add('All Done',ISO8601ToDateTime('2072-01-28T05:25:36'));
+      Assert(lDeadlines[0].Name = 'First Chapter Done','Deadline name should be stored correctly');
+      Assert(lDeadlines[1].Due = ISO8601ToDateTime('2072-01-28T05:25:36'),'Deadline due should be stored correctly.');
     finally
       lProps.Free;
     end;

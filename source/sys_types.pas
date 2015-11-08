@@ -57,6 +57,16 @@ type
 
   TStringArray2 = specialize GArray<UTF8String>;
 
+const
+  ISO8601 = 'yyyymmdd"T"hhnnss';
+  ISO8601Extended = 'yyyy-mm-dd"T"hh:nn:ss';
+
+  function DateTimeToISO8601(const ADateTime: TDateTime; aExtended: Boolean): string;
+  function ISO8601ToDateTime(const AValue: string): TDateTime;
+  function DateTimeToMsecs(const aDateTime: TDateTime): Comp;
+  function MsecsToDateTime(const aValue: Comp): TDateTime;
+
+
 
 implementation
 
@@ -121,6 +131,65 @@ procedure TEZSortStringList.EZSort;
 begin
   CustomSort(@DoEZSortCompare);
 end;
+
+function DateTimeToISO8601(const ADateTime: TDateTime; aExtended: Boolean
+  ): string;
+begin
+  if aExtended then
+     Result := FormatDateTime(ISO8601Extended, ADateTime)
+  else
+     Result := FormatDateTime(ISO8601, ADateTime);
+end;
+
+
+function ISO8601ToDateTime(const AValue: string): TDateTime;
+var
+  ly: Word;
+  lm: Word;
+  ld: Word;
+  lh: Word;
+  ln: Word;
+  ls: Word;
+  lExtended: Boolean;
+begin
+//                     12345678901234567890
+//  ISO8601 =         'yyyymmddThhnnss';
+//  ISO8601Extended = 'yyyy-mm-ddThh:nn:ss';
+
+  lExtended := AValue[5] = '-';
+
+  lY := StrToInt(Copy(AValue,1,4));
+  if (lExtended) then
+  begin
+    lm := StrToInt(Copy(AValue,6,2));
+    ld := StrToInt(Copy(AValue,9,2));
+    lh := StrToInt(Copy(AValue,12,2));
+    ln := StrToInt(Copy(AValue,15,2));
+    ls := StrToInt(Copy(AValue,18,2));
+  end
+  else
+  begin
+    lm := StrToInt(Copy(AValue,5,2));
+    ld := StrToInt(Copy(AValue,7,2));
+    lh := StrToInt(Copy(AValue,10,2));
+    ln := StrToInt(Copy(AValue,12,2));
+    ls := StrToInt(Copy(AValue,14,2));
+  end;
+
+  result := EncodeDate(ly,lm,ld) + EncodeTime(lh,ln,ls,0);
+end;
+
+function DateTimeToMsecs(const aDateTime: TDateTime): Comp;
+begin
+  result := TimeStampToMSecs(DateTimeToTimeStamp(aDateTime));
+end;
+
+function MsecsToDateTime(const aValue: Comp): TDateTime;
+begin
+  result := TimeStampToDateTime(MSecsToTimeStamp(aValue));
+end;
+
+
 
 end.
 

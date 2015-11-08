@@ -70,6 +70,8 @@ const
   STest: String = 'STEST';
   NTest: Double = 42;
   BTest: Boolean = true;
+var
+  DTest: TDateTime;
 begin
   with TJSString.CreateString(STest) do
   try
@@ -88,6 +90,14 @@ begin
   with TJSBoolean.CreateBoolean(BTest) do
   try
     Assert(AsBoolean = BTest,'Boolean values must return what is stored.');
+  finally
+    Free;
+  end;
+
+  DTest := Now;
+  with TJSDate.CreateDate(DTest) do
+  try
+    Assert(Value = DTest,'Date values must return what is stored.');
   finally
     Free;
   end;
@@ -113,6 +123,7 @@ begin
   CheckTypeOf(TJSNumber,jstNumber,'number');
   CheckTypeOf(TJSBoolean,jstBoolean,'boolean');
   CheckTypeOf(TJSObject,jstObject,'object');
+  CheckTypeOf(TJSDate,jstString,'string');
   Assert(TJSValue.Null.TypeOf = jstNull,'null values should claim their typeof is "null"');
   Assert(TJSValue.Undefined.TypeOf = jstUndefined,'undefined values should claim their typeof is "undefined"');
 end;

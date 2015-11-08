@@ -335,6 +335,26 @@ type
     procedure Splice(aStart: Integer; aDeleteCount: Integer; aInsertCount: Integer = 0);
   end;
 
+  { TJSDate }
+
+  TJSDate = class(TJSValue)
+  strict private
+    fValue: TDateTime;
+  strict protected
+    function GetAsBoolean: Boolean; override;
+    function GetAsNumber: Double; override;
+    function GetAsString: UTF8String; override;
+  public
+    constructor Create; override;
+    constructor CreateBoolean({%H-}aValue: Boolean); override;
+    constructor CreateNumber(aValue: Double); override;
+    constructor CreateString(aValue: UTF8String); override;
+    constructor CreateDate(aValue: TDateTime);
+    class function GetTypeOf: TJSType; override;
+    property Value: TDateTime read fValue write fValue;
+    procedure Assign(aValue: TJSValue); override;
+  end;
+
   { TJSONParser }
   EJSONParserSyntaxError = class(Exception)
   end;
@@ -752,6 +772,75 @@ begin
   finally
     lParser.Free;
   end;
+end;
+
+{ TJSDate }
+
+function TJSDate.GetAsBoolean: Boolean;
+begin
+  result := true;
+end;
+
+function TJSDate.GetAsNumber: Double;
+begin
+  result := DateTimeToMsecs(fValue);
+end;
+
+function TJSDate.GetAsString: UTF8String;
+begin
+  result := DateTimeToISO8601(fValue,True);
+end;
+
+constructor TJSDate.Create;
+begin
+  CreateDate(Now);
+end;
+
+constructor TJSDate.CreateBoolean(aValue: Boolean);
+begin
+  CreateDate(Now);
+end;
+
+constructor TJSDate.CreateNumber(aValue: Double);
+begin
+  CreateDate(MsecsToDateTime(trunc(aValue)));
+
+end;
+
+constructor TJSDate.CreateString(aValue: UTF8String);
+begin
+  CreateDate(ISO8601ToDateTime(aValue));
+end;
+
+constructor TJSDate.CreateDate(aValue: TDateTime);
+begin
+  inherited Create;
+  fValue := aValue;
+end;
+
+class function TJSDate.GetTypeOf: TJSType;
+begin
+  result := jstString;
+end;
+
+procedure TJSDate.Assign(aValue: TJSValue);
+begin
+  if (aValue is TJSString) then
+  begin
+    fValue := ISO8601ToDateTime(aValue.AsString)
+  end
+  else if (aValue is TJSNumber) then
+  begin
+    fValue := MsecsToDateTime(trunc(aValue.AsNumber));
+  end
+  else if (aValue is TJSNumber) or
+     (aValue is TJSNull) or
+     (aValue is TJSUndefined) then
+  begin
+    fValue := Now
+  end
+  else
+    inherited Assign(aValue);
 end;
 
 { TJSONParser }
