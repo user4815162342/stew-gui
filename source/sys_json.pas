@@ -333,6 +333,7 @@ type
     function IndexOf(aValue: Double): Integer;
     procedure Unshift;
     procedure Splice(aStart: Integer; aDeleteCount: Integer; aInsertCount: Integer = 0);
+    function CreateList: TList;
   end;
 
   { TJSDate }
@@ -1371,6 +1372,20 @@ begin
   end;
   k := actualStart;
   O.Put('length',(len - actualDeleteCount + itemCount));
+end;
+
+function TJSArray.CreateList: TList;
+var
+  i: Integer;
+begin
+  result := TList.Create;
+  try
+    for i := 0 to Length - 1 do
+      result.Add(Get(i));
+  except
+    result.Free;
+    raise;
+  end;
 end;
 
 function TJSArray.Join(sep: UTF8String): UTF8String;

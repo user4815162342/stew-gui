@@ -6,8 +6,9 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, Menus,
-  ExtCtrls, Buttons, ComCtrls, stew_project, fgl, gui_config, contnrs,
-  simpleipc, gui_editorframe, sys_types, sys_async, sys_file, sys_os;
+  ExtCtrls, Buttons, ComCtrls, StdCtrls, stew_project, fgl, gui_config, contnrs,
+  simpleipc, gui_editorframe, sys_types, sys_async, sys_file, sys_os,
+  stew_properties;
 
 type
 
@@ -44,6 +45,7 @@ type
     procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
+    procedure FormResize(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure NewProjectMenuItemClick(Sender: TObject);
     procedure OpenProjectMenuItemClick(Sender: TObject);
@@ -84,6 +86,8 @@ type
     procedure LayoutFrames;
     function FindFrameForDocument(aDocument: TDocumentPath): TEditorFrame;
     function MessageDialog(const Title: String; const Message: String; DlgType: TMsgDlgType; Buttons: TMsgDlgButtons; ButtonCaptions: Array of String): Integer;
+    procedure UpdateStatus(aProps: TProjectProperties);
+    procedure ResizeStatusPanels;
   public
     { public declarations }
     property Project: TStewProject read GetProject;
@@ -133,7 +137,7 @@ const
 implementation
 
 uses
-  gui_projectmanager, gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor, LCLProc, gui_listdialog, sys_localfile, gui_async, StdCtrls, sys_versionsupport;
+  gui_projectmanager, gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor, LCLProc, gui_listdialog, sys_localfile, gui_async, sys_versionsupport, math;
 
 {$R *.lfm}
 
@@ -163,6 +167,16 @@ begin
 end;
 
 { TMRUMenuItem }
+
+function SortDeadlines(Item1, Item2: Pointer): Integer;
+var
+  a: TDeadline;
+  b: TDeadline;
+begin
+  a := TDeadline(Item1);
+  b := TDeadline(Item2);
+  result := trunc(a.Due - b.Due);
+end;
 
 procedure TMRUMenuItem.MRUProjectClicked(Sender: TObject);
 begin
@@ -476,6 +490,11 @@ begin
   FreeAndNil(fOpenDocuments);
 end;
 
+procedure TMainForm.FormResize(Sender: TObject);
+begin
+  ResizeStatusPanels;
+end;
+
 procedure TMainForm.FormShow(Sender: TObject);
 begin
   // Must be done in form show in order to remember the heights and widths
@@ -493,7 +512,16 @@ end;
 procedure TMainForm.ObserveProject(Sender: TStewProject; Event: TProjectEvent);
 begin
   if Event.IsError then
-    ShowProjectError(Event);
+  begin
+    ShowProjectError(Event)
+  end
+  else
+  begin
+    case Event.Action of
+       paProjectPropertiesDataReceived:
+         UpdateStatus((Event as TProjectPropertiesDataReceivedEvent).Properties);
+    end;
+  end;
 end;
 
 procedure TMainForm.QueueStateChanged(aActive: Boolean);
@@ -883,6 +911,104 @@ begin
   finally
     lMsgdlg.Free;
   end;
+end;
+
+procedure TMainForm.UpdateStatus(aProps: TProjectProperties);
+
+  procedure AddDeadlinePanel(aDeadline: TDeadline; aAlign: TAlignment);
+  var
+    lPanel: TStatusPanel;
+    lText: String;
+  begin
+    lText := aDeadLine.Name + ': ' + DateToStr(aDeadLine.Due);
+    lPanel := MainStatus.Panels.Add;
+    lPanel.Text := lText;
+    lPanel.Alignment:= aAlign;
+  end;
+
+var
+  i: Integer;
+  lDeadLine: TDeadline;
+  lList: TList;
+  lDL1, lDL2, lDLLast: TDeadline;
+begin
+  if aProps.Deadlines.Length > 0 then
+  begin
+
+     lDL1 := nil;
+     lDL2 := nil;
+     lDLLast := nil;
+     MainStatus.Visible := true;
+     MainStatus.Panels.Clear;
+
+     lList := aProps.Deadlines.CreateList;
+     try
+        lList.Sort(@SortDeadlines);
+        for i := 0 to lList.Count - 1 do
+        begin
+          if i = (lList.Count - 1) then
+             AddDeadlinePanel(TDeadline(lList[i]),taRightJustify)
+          else
+             AddDeadlinePanel(TDeadline(lList[i]),taRightJustify);
+        end;
+
+     finally
+       lList.Free;
+     end;
+
+     ResizeStatusPanels;
+
+  end
+  else
+  begin
+    MainStatus.Panels.Clear;
+    MainStatus.Visible := false;
+  end;
+end;
+
+procedure TMainForm.ResizeStatusPanels;
+const
+  PADDING: Integer = 20;
+var
+  lCount: Integer;
+  lWidth: Integer;
+  lLastWidth: Integer;
+  lAllWidth: Integer;
+  lMaxWidth: Integer;
+  i: Integer;
+begin
+
+  lCount := MainStatus.Panels.Count;
+  if lCount > 0 then
+  begin;
+    lMaxWidth := MainStatus.Width;
+    if (lCount > 1) and (MainStatus.Panels[lCount - 1].Alignment = taRightJustify) then
+    begin
+      lLastWidth := MainStatus.Canvas.TextWidth(MainStatus.Panels[lcount - 1].Text) + PADDING;
+      MainStatus.Panels[lCount - 1].Width := lLastWidth;
+      if lLastWidth > lMaxWidth then
+         lLastWidth := lMaxWidth;
+    end
+    else
+    begin
+      lLastWidth := 0;
+    end;
+    lAllWidth := 0;
+    for i := 0 to lCount - 1 do
+    begin
+      if (lLastWidth > 0) and (i = (lCount - 1)) then
+         break;
+      lWidth := MainStatus.Canvas.TextWidth(MainStatus.Panels[i].Text) + PADDING;
+      if (lAllWidth + lLastWidth + lWidth) > lMaxWidth then
+      begin
+        lWidth := Max(0,lMaxWidth - (lAllWidth + lLastWidth));
+      end;
+      MainStatus.Panels[i].Width := lWidth;
+      lAllWidth := lAllWidth + lWidth;
+    end;
+
+  end;
+
 end;
 
 function TMainForm.MessageDialog(const Message: String; DlgType: TMsgDlgType;
