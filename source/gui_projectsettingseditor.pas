@@ -7,7 +7,16 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, ExtCtrls, ComCtrls, StdCtrls,
   Grids, Dialogs, gui_editorframe, stew_properties, gui_mainform,
-  gui_jsoneditor, stew_project, graphics, Menus, sys_async;
+  gui_jsoneditor, stew_project, graphics, Menus, ExtDlgs, sys_async;
+
+{
+TODO: Deadline Grid:
+- After that's all done, I need to get that in the UI to update a status bar
+showing how many days left until the due date.
+- After *that's* done, I need to know how many "working" days (two kinds,
+  full days and light days), which means I need to track what days are working
+  days in the application preferences (finally, something for that screen).
+}
 
 // FUTURE: More properties that need to be handled.
 //    - editors for certain file extensions (Also put this in Application Preferences).
@@ -25,13 +34,32 @@ type
   { TProjectSettingsEditor }
 
   TProjectSettingsEditor = class(TEditorFrame)
+    AddDeadlineButton: TToolButton;
     AddStatusButton: TToolButton;
+    CalendarDialog: TCalendarDialog;
     CategoryDefinitionsGrid: TStringGrid;
+    DeadlinesGrid: TStringGrid;
+    DeadlinesToolbar: TToolBar;
+    DeadlinesHeaderPanel: TPanel;
+    DeadlinesLabel: TLabel;
     CategoryDefinitionsToolbar: TToolBar;
     AddCategoryButton: TToolButton;
     CategoryColorChooser: TColorDialog;
     ColorMenu: TPopupMenu;
     CustomColorMenu: TMenuItem;
+    DefaultDocExtensionEdit: TEdit;
+    DefaultDocExtensionLabel: TLabel;
+    DefaultDocExtensionPanel: TPanel;
+    DefaultExtensionsPanel: TPanel;
+    DefaultNotesExtensionEdit: TEdit;
+    DefaultNotesExtensionLabel: TLabel;
+    DefaultNotesExtensionPanel: TPanel;
+    DefaultThumbnailExtensionEdit: TEdit;
+    DefaultThumbnailExtensionLabel: TLabel;
+    DefaultThumbnailExtensionPanel: TPanel;
+    DeadlinesPanel: TPanel;
+    DeleteDeadlineButton: TToolButton;
+    PropertiesPanel: TPanel;
     StatusDefinitionsToolbar: TToolBar;
     DeleteCategoryButton: TToolButton;
     DeleteStatusButton: TToolButton;
@@ -43,21 +71,13 @@ type
     CategoryDefinitionsLabel: TLabel;
     StatusDefinitionsLabel: TLabel;
     StatusDefinitionsPanel: TPanel;
-    DefaultDocExtensionEdit: TEdit;
-    DefaultThumbnailExtensionEdit: TEdit;
-    DefaultNotesExtensionEdit: TEdit;
-    DefaultDocExtensionLabel: TLabel;
-    DefaultThumbnailExtensionLabel: TLabel;
-    DefaultNotesExtensionLabel: TLabel;
-    DefaultDocExtensionPanel: TPanel;
-    DefaultThumbnailExtensionPanel: TPanel;
-    DefaultNotesExtensionPanel: TPanel;
     GridsPanel: TPanel;
     CategoryDefinitionsPanel: TPanel;
     RefreshButton: TToolButton;
     SaveButton: TToolButton;
     EditNotesButton: TToolButton;
     procedure AddCategoryButtonClick(Sender: TObject);
+    procedure AddDeadlineButtonClick(Sender: TObject);
     procedure AddStatusButtonClick(Sender: TObject);
     procedure CategoryDefinitionsGridButtonClick(Sender: TObject; aCol,
       aRow: Integer);
@@ -70,6 +90,7 @@ type
     procedure CustomColorMenuClick(Sender: TObject);
     procedure ColorMenuClick(Sender: TObject);
     procedure DeleteCategoryButtonClick(Sender: TObject);
+    procedure DeleteDeadlineButtonClick(Sender: TObject);
     procedure DeleteStatusButtonClick(Sender: TObject);
     procedure EditNotesButtonClick(Sender: TObject);
     procedure RefreshButtonClick(Sender: TObject);
@@ -110,10 +131,12 @@ type
 implementation
 
 uses
-  sys_types, sys_json;
+  sys_types, sys_json,
+  clocale { clocale is required in order to pull in the system locale settings, i.e. for displaying dates properly }
+  ;
 
 type
-  TDefColumnKind = (ckString, ckInteger, ckBoolean, ckRadio, ckColor);
+  TDefColumnKind = (ckString, ckInteger, ckBoolean, ckRadio, ckColor, ckDate);
 
 const
   CatNameCol: Integer = 0;
@@ -129,6 +152,9 @@ const
   StatNameCol: Integer = 0;
   StatColorCol: Integer = 1;
   StatDefaultCol: Integer = 2;
+
+  DeadlineNameCol: Integer = 0;
+  DeadlineDueCol: Integer = 1;
 
   TrueValue: String = 'Yes';
   FalseValue: String = 'No';
@@ -264,6 +290,17 @@ begin
 
     end;
 
+    with DeadlinesGrid do
+    begin
+      // changes and new items
+      // we're skipping the first row, which is the header row.
+      lProps.Deadlines.Length := 0;
+      for i := 1 to RowCount - 1 do
+      begin
+        lProps.Deadlines.Add(Cells[DeadlineNameCol,i],StrToDate(Cells[DeadlineDueCol,i]));
+      end;
+    end;
+
 
 
     // I need to create and destroy this object because
@@ -324,8 +361,16 @@ begin
   DefaultThumbnailExtensionEdit.Enabled := canEdit;
   CategoryDefinitionsGrid.Enabled := canEdit;
   CategoryDefinitionsLabel.Enabled := canEdit;
+  AddCategoryButton.Enabled := canEdit;
+  DeleteCategoryButton.Enabled := canEdit;
   StatusDefinitionsLabel.Enabled:=canEdit;
   StatusDefinitionsGrid.Enabled := canEdit;
+  AddStatusButton.Enabled := canEdit;
+  DeleteStatusButton.Enabled := canEdit;
+  DeadlinesLabel.Enabled := canEdit;
+  DeadlinesGrid.Enabled := canEdit;
+  AddDeadlineButton.Enabled := canEdit;
+  DeleteDeadlineButton.Enabled := canEdit;
   UserPropertiesLabel.Enabled := canEdit;
   fUserPropertiesEditor.Enabled := canEdit;
 
@@ -422,6 +467,21 @@ begin
   end;
 end;
 
+procedure TProjectSettingsEditor.AddDeadlineButtonClick(Sender: TObject);
+var
+  i: Integer;
+begin
+  with DeadlinesGrid  do
+  begin
+    i := RowCount;
+    RowCount := RowCount + 1;
+    Cells[DeadlineNameCol,i] := 'Deadline ' + IntToStr(i);
+    Cells[DeadlineDueCol,i] := DateToStr(Now + 7);
+    DeadlinesGrid.Row := i;
+    AutoSizeColumns;
+  end;
+end;
+
 procedure TProjectSettingsEditor.AddStatusButtonClick(Sender: TObject);
 var
   i: Integer;
@@ -442,18 +502,26 @@ procedure TProjectSettingsEditor.CategoryDefinitionsGridButtonClick(
 var
   pt: TPoint;
 begin
-  if ((Sender as TStringGrid).Columns[aCol].Tag = ord(ckColor)) and
-     (not (Sender as TStringGrid).EditorMode) then
-  begin
-    (Sender as TStringGrid).Col := aCol;
-    (Sender as TStringGrid).Row := aRow;
-    SetupColorMenu;
-    ColorMenu.PopupComponent := Sender as TStringGrid;
-    with (Sender as TStringGrid).CellRect(aCol,aRow) do
+  case ((Sender as TStringGrid).Columns[aCol].Tag) of
+    ord(ckColor):
+    if (not (Sender as TStringGrid).EditorMode) then
     begin
-      pt := (Sender as TStringGrid).ClientToScreen(Point(Left,Bottom));
+      (Sender as TStringGrid).Col := aCol;
+      (Sender as TStringGrid).Row := aRow;
+      SetupColorMenu;
+      ColorMenu.PopupComponent := Sender as TStringGrid;
+      with (Sender as TStringGrid).CellRect(aCol,aRow) do
+      begin
+        pt := (Sender as TStringGrid).ClientToScreen(Point(Left,Bottom));
+      end;
+      ColorMenu.PopUp(pt.X,pt.Y);
     end;
-    ColorMenu.PopUp(pt.X,pt.Y);
+    ord(ckDate):
+    begin
+      CalendarDialog.Date:=StrToDate((Sender as TStringGrid).Cells[aCol,aRow]);
+      if CalendarDialog.Execute then
+         (Sender as TStringGrid).Cells[aCol,aRow] := DateToStr(CalendarDialog.Date);
+    end;
   end;
 end;
 
@@ -552,7 +620,27 @@ begin
   begin
     category := CategoryDefinitionsGrid.Cells[CatNameCol,CategoryDefinitionsGrid.Row];
     if MessageDlg('Are you sure you want to delete the category "' + category + '"?',mtConfirmation,mbYesNo,0) = mrYes then
+    begin
        CategoryDefinitionsGrid.DeleteRow(CategoryDefinitionsGrid.Row);
+       // This doesn't seem to be being set...
+       CategoryDefinitionsGrid.Modified := true;
+    end;
+  end;
+end;
+
+procedure TProjectSettingsEditor.DeleteDeadlineButtonClick(Sender: TObject);
+var
+  deadline: STring;
+begin
+  if DeadlinesGrid.Row > 0 then
+  begin
+    deadline := DeadlinesGrid.Cells[DeadlineNameCol,DeadlinesGrid.Row];
+    if MessageDlg('Are you sure you want to delete the deadling "' + deadline + '"?',mtConfirmation,mbYesNo,0) = mrYes then
+    begin
+       DeadlinesGrid.DeleteRow(DeadlinesGrid.Row);
+       // This doesn't seem to be being set...
+       DeadlinesGrid.Modified := true;
+    end;
   end;
 end;
 
@@ -564,7 +652,11 @@ begin
   begin
     status := StatusDefinitionsGrid.Cells[StatNameCol,StatusDefinitionsGrid.Row];
     if MessageDlg('Are you sure you want to delete the status "' + status + '"?',mtConfirmation,mbYesNo,0) = mrYes then
+    begin
        StatusDefinitionsGrid.DeleteRow(StatusDefinitionsGrid.Row);
+       // This doesn't seem to be being set...
+       StatusDefinitionsGrid.Modified := true;
+    end;
   end;
 end;
 
@@ -582,6 +674,9 @@ begin
   StatusDefinitionsGrid.Clear;
   StatusDefinitionsGrid.RowCount := 1;
 
+  DeadlinesGrid.Clear;
+  DeadlinesGrid.RowCount := 1;
+
   fUserPropertiesEditor.SetJSON(TJSObject(nil));
   ClearModified;
   SetupControls;
@@ -594,6 +689,7 @@ begin
   DefaultThumbnailExtensionEdit.Modified := false;
   CategoryDefinitionsGrid.Modified := false;
   StatusDefinitionsGrid.Modified := false;
+  DeadlinesGrid.Modified := false;
   fUserPropertiesEditor.Modified := false;
 
 end;
@@ -605,6 +701,7 @@ begin
             DefaultThumbnailExtensionEdit.Modified or
             CategoryDefinitionsGrid.Modified or
             StatusDefinitionsGrid.Modified or
+            DeadlinesGrid.Modified or
             fUserPropertiesEditor.Modified;
 
 end;
@@ -685,6 +782,26 @@ begin
     end;
   end;
 
+  with DeadlinesGrid do
+  begin
+    if not Modified then
+    begin
+      Clear;
+      // add one in for the fixed column header.
+      RowCount := 1;
+      for i := 0 to aData.Deadlines.Length - 1 do
+      begin
+        j := RowCount;
+        RowCount := RowCount + 1;
+        Cells[DeadlineNameCol,j] := aData.Deadlines[i].Name;
+        Cells[DeadlineDueCol,j] := DateToStr(aData.Deadlines[i].Due);
+      end;
+      AutoSizeColumns;
+      Modified := false;
+
+    end;
+  end;
+
   if not fUserPropertiesEditor.Modified then
   begin
      fUserPropertiesEditor.SetJSON(aData.User);
@@ -734,6 +851,8 @@ constructor TProjectSettingsEditor.Create(TheOwner: TComponent);
       case aType of
         ckString, ckInteger:
           ButtonStyle:=cbsAuto;
+        ckDate:
+          ButtonStyle := cbsEllipsis;
         ckBoolean, ckRadio:
         begin
           ButtonStyle := cbsCheckboxColumn;
@@ -771,6 +890,11 @@ begin
   AddColumn(StatusDefinitionsGrid,StatColorCol,'Color',ckColor);
   AddColumn(StatusDefinitionsGrid,StatDefaultCol,'Default',ckRadio);
   StatusDefinitionsGrid.FixedRows := 1;
+
+  AddColumn(DeadlinesGrid,DeadlineNameCol,'Name',ckString);
+  // TODO: Need 'ckDate';
+  AddColumn(DeadlinesGrid,DeadlineDueCol,'Due',ckDate);
+  DeadlinesGrid.FixedRows := 1;
 
   MainForm.Observe(@ObserveMainForm);
   // if the project is already opened, then notify self to make sure

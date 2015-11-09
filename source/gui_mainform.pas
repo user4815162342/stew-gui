@@ -35,6 +35,7 @@ type
     ExitMenuItem: TMenuItem;
     OpenProjectDialog: TSelectDirectoryDialog;
     CloseTimeoutTimer: TTimer;
+    MainStatus: TStatusBar;
     procedure AboutMenuItemClick(Sender: TObject);
     procedure CloseTimeoutTimerTimer(Sender: TObject);
     procedure DocumentTabCloseRequested(Sender: TObject);

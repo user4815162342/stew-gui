@@ -825,7 +825,11 @@ end;
 
 procedure TJSDate.Assign(aValue: TJSValue);
 begin
-  if (aValue is TJSString) then
+  if (aValue is TJSValue) then
+  begin
+    fValue := (aValue as TJSDate).fValue;
+  end
+  else if (aValue is TJSString) then
   begin
     fValue := ISO8601ToDateTime(aValue.AsString)
   end

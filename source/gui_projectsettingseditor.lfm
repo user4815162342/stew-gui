@@ -1,22 +1,22 @@
 inherited ProjectSettingsEditor: TProjectSettingsEditor
   Height = 643
-  Width = 680
+  Width = 760
   ClientHeight = 643
-  ClientWidth = 680
-  DesignLeft = 451
-  DesignTop = 86
+  ClientWidth = 760
+  DesignLeft = 435
+  DesignTop = 172
   inherited ToolbarPanel: TPanel
     Height = 24
-    Width = 680
+    Width = 760
     ClientHeight = 24
-    ClientWidth = 680
+    ClientWidth = 760
     inherited RightHandToolbar: TToolBar
-      Left = 638
+      Left = 718
       Height = 24
     end
     inherited LeftHandToolbar: TToolBar
       Height = 24
-      Width = 638
+      Width = 718
       object RefreshButton: TToolButton[0]
         Left = 37
         Top = 0
@@ -39,121 +39,19 @@ inherited ProjectSettingsEditor: TProjectSettingsEditor
       end
     end
   end
-  object DefaultDocExtensionPanel: TPanel[1]
-    Left = 0
-    Height = 26
-    Top = 298
-    Width = 680
-    Align = alTop
-    AutoSize = True
-    BorderSpacing.Top = 10
-    BevelOuter = bvNone
-    ClientHeight = 26
-    ClientWidth = 680
-    TabOrder = 1
-    object DefaultDocExtensionLabel: TLabel
-      Left = 10
-      Height = 26
-      Top = 0
-      Width = 178
-      Align = alLeft
-      BorderSpacing.Left = 10
-      Caption = 'Default Document Extension:'
-      FocusControl = DefaultDocExtensionEdit
-      Layout = tlCenter
-      ParentColor = False
-    end
-    object DefaultDocExtensionEdit: TEdit
-      Left = 198
-      Height = 26
-      Top = 0
-      Width = 80
-      Align = alLeft
-      BorderSpacing.Left = 10
-      TabOrder = 0
-    end
-  end
-  object DefaultThumbnailExtensionPanel: TPanel[2]
-    Left = 0
-    Height = 26
-    Top = 370
-    Width = 680
-    Align = alTop
-    AutoSize = True
-    BorderSpacing.Top = 10
-    BevelOuter = bvNone
-    ClientHeight = 26
-    ClientWidth = 680
-    TabOrder = 2
-    object DefaultThumbnailExtensionLabel: TLabel
-      Left = 10
-      Height = 26
-      Top = 0
-      Width = 178
-      Align = alLeft
-      BorderSpacing.Left = 10
-      Caption = 'Default Document Extension:'
-      FocusControl = DefaultThumbnailExtensionEdit
-      Layout = tlCenter
-      ParentColor = False
-    end
-    object DefaultThumbnailExtensionEdit: TEdit
-      Left = 198
-      Height = 26
-      Top = 0
-      Width = 80
-      Align = alLeft
-      BorderSpacing.Left = 10
-      TabOrder = 0
-    end
-  end
-  object DefaultNotesExtensionPanel: TPanel[3]
-    Left = 0
-    Height = 26
-    Top = 334
-    Width = 680
-    Align = alTop
-    AutoSize = True
-    BorderSpacing.Top = 10
-    BevelOuter = bvNone
-    ClientHeight = 26
-    ClientWidth = 680
-    TabOrder = 3
-    object DefaultNotesExtensionLabel: TLabel
-      Left = 10
-      Height = 26
-      Top = 0
-      Width = 151
-      Align = alLeft
-      BorderSpacing.Left = 10
-      Caption = 'Default Notes Extension:'
-      FocusControl = DefaultNotesExtensionEdit
-      Layout = tlCenter
-      ParentColor = False
-    end
-    object DefaultNotesExtensionEdit: TEdit
-      Left = 171
-      Height = 26
-      Top = 0
-      Width = 80
-      Align = alLeft
-      BorderSpacing.Left = 10
-      TabOrder = 0
-    end
-  end
-  object GridsPanel: TPanel[4]
+  object GridsPanel: TPanel[1]
     Left = 0
     Height = 254
     Top = 34
-    Width = 680
+    Width = 760
     Align = alTop
     BorderSpacing.Top = 10
     BevelOuter = bvNone
     ClientHeight = 254
-    ClientWidth = 680
-    TabOrder = 4
+    ClientWidth = 760
+    TabOrder = 1
     object CategoryDefinitionsPanel: TPanel
-      Left = 0
+      Left = 271
       Height = 254
       Top = 0
       Width = 251
@@ -228,7 +126,7 @@ inherited ProjectSettingsEditor: TProjectSettingsEditor
       end
     end
     object StatusDefinitionsPanel: TPanel
-      Left = 251
+      Left = 0
       Height = 254
       Top = 0
       Width = 261
@@ -302,30 +200,231 @@ inherited ProjectSettingsEditor: TProjectSettingsEditor
         end
       end
     end
+    object DeadlinesPanel: TPanel
+      Left = 522
+      Height = 254
+      Top = 0
+      Width = 216
+      Align = alLeft
+      BevelOuter = bvNone
+      ClientHeight = 254
+      ClientWidth = 216
+      TabOrder = 2
+      object DeadlinesHeaderPanel: TPanel
+        Left = 0
+        Height = 16
+        Top = 0
+        Width = 216
+        Align = alTop
+        AutoSize = True
+        BevelOuter = bvNone
+        ClientHeight = 16
+        ClientWidth = 216
+        TabOrder = 0
+        object DeadlinesLabel: TLabel
+          Left = 10
+          Height = 16
+          Top = 0
+          Width = 63
+          Align = alLeft
+          BorderSpacing.Left = 10
+          Caption = 'Deadlines:'
+          Layout = tlBottom
+          ParentColor = False
+        end
+      end
+      object DeadlinesToolbar: TToolBar
+        Left = 10
+        Height = 26
+        Top = 16
+        Width = 206
+        BorderSpacing.Left = 10
+        Caption = 'DeadlinesToolbar'
+        ShowCaptions = True
+        TabOrder = 1
+        object AddDeadlineButton: TToolButton
+          Left = 1
+          Top = 2
+          Caption = 'Add'
+          OnClick = AddDeadlineButtonClick
+        end
+        object DeleteDeadlineButton: TToolButton
+          Left = 34
+          Top = 2
+          Caption = 'Del'
+          OnClick = DeleteDeadlineButtonClick
+        end
+      end
+      object DeadlinesGrid: TStringGrid
+        Left = 10
+        Height = 212
+        Top = 42
+        Width = 206
+        Align = alClient
+        BorderSpacing.Left = 10
+        ColCount = 0
+        FixedCols = 0
+        FixedRows = 0
+        Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRangeSelect, goEditing, goRowSelect, goSmoothScroll]
+        RowCount = 0
+        TabOrder = 2
+        TitleStyle = tsNative
+        OnCheckboxToggled = CategoryDefinitionsGridCheckboxToggled
+        OnDrawCell = CategoryDefinitionsGridDrawCell
+        OnButtonClick = CategoryDefinitionsGridButtonClick
+        OnValidateEntry = CategoryDefinitionsGridValidateEntry
+      end
+    end
   end
-  object UserPropertiesPanel: TPanel[5]
+  object UserPropertiesPanel: TPanel[2]
     Left = 0
     Height = 218
     Top = 406
-    Width = 680
+    Width = 760
     Align = alTop
     BorderSpacing.Top = 10
     BevelOuter = bvNone
     ClientHeight = 218
-    ClientWidth = 680
-    TabOrder = 5
+    ClientWidth = 760
+    TabOrder = 2
     object UserPropertiesLabel: TLabel
       Left = 10
       Height = 16
       Top = 0
-      Width = 670
+      Width = 750
       Align = alTop
       BorderSpacing.Left = 10
       Caption = 'Custom Properties:'
       ParentColor = False
     end
   end
-  object CategoryColorChooser: TColorDialog[6]
+  object PropertiesPanel: TPanel[3]
+    Left = 0
+    Height = 108
+    Top = 288
+    Width = 760
+    Align = alTop
+    AutoSize = True
+    BevelOuter = bvNone
+    ClientHeight = 108
+    ClientWidth = 760
+    TabOrder = 3
+    object DefaultExtensionsPanel: TPanel
+      Left = 0
+      Height = 108
+      Top = 0
+      Width = 280
+      Align = alLeft
+      AutoSize = True
+      BevelOuter = bvNone
+      ClientHeight = 108
+      ClientWidth = 280
+      TabOrder = 0
+      object DefaultDocExtensionPanel: TPanel
+        Left = 0
+        Height = 26
+        Top = 10
+        Width = 280
+        Align = alTop
+        AutoSize = True
+        BorderSpacing.Top = 10
+        BevelOuter = bvNone
+        ClientHeight = 26
+        ClientWidth = 280
+        TabOrder = 0
+        object DefaultDocExtensionLabel: TLabel
+          Left = 10
+          Height = 26
+          Top = 0
+          Width = 178
+          Align = alLeft
+          BorderSpacing.Left = 10
+          Caption = 'Default Document Extension:'
+          FocusControl = DefaultDocExtensionEdit
+          Layout = tlCenter
+          ParentColor = False
+        end
+        object DefaultDocExtensionEdit: TEdit
+          Left = 198
+          Height = 26
+          Top = 0
+          Width = 80
+          Align = alLeft
+          BorderSpacing.Left = 10
+          TabOrder = 0
+        end
+      end
+      object DefaultNotesExtensionPanel: TPanel
+        Left = 0
+        Height = 26
+        Top = 46
+        Width = 280
+        Align = alTop
+        AutoSize = True
+        BorderSpacing.Top = 10
+        BevelOuter = bvNone
+        ClientHeight = 26
+        ClientWidth = 280
+        TabOrder = 1
+        object DefaultNotesExtensionLabel: TLabel
+          Left = 10
+          Height = 26
+          Top = 0
+          Width = 151
+          Align = alLeft
+          BorderSpacing.Left = 10
+          Caption = 'Default Notes Extension:'
+          FocusControl = DefaultNotesExtensionEdit
+          Layout = tlCenter
+          ParentColor = False
+        end
+        object DefaultNotesExtensionEdit: TEdit
+          Left = 171
+          Height = 26
+          Top = 0
+          Width = 80
+          Align = alLeft
+          BorderSpacing.Left = 10
+          TabOrder = 0
+        end
+      end
+      object DefaultThumbnailExtensionPanel: TPanel
+        Left = 0
+        Height = 26
+        Top = 82
+        Width = 280
+        Align = alTop
+        AutoSize = True
+        BorderSpacing.Top = 10
+        BevelOuter = bvNone
+        ClientHeight = 26
+        ClientWidth = 280
+        TabOrder = 2
+        object DefaultThumbnailExtensionLabel: TLabel
+          Left = 10
+          Height = 26
+          Top = 0
+          Width = 180
+          Align = alLeft
+          BorderSpacing.Left = 10
+          Caption = 'Default Thumbnail Extension:'
+          FocusControl = DefaultThumbnailExtensionEdit
+          Layout = tlCenter
+          ParentColor = False
+        end
+        object DefaultThumbnailExtensionEdit: TEdit
+          Left = 200
+          Height = 26
+          Top = 0
+          Width = 80
+          Align = alLeft
+          BorderSpacing.Left = 10
+          TabOrder = 0
+        end
+      end
+    end
+  end
+  object CategoryColorChooser: TColorDialog[4]
     Color = clBlack
     CustomColors.Strings = (
       'ColorA=000000'
@@ -352,12 +451,19 @@ inherited ProjectSettingsEditor: TProjectSettingsEditor
     left = 64
     top = 488
   end
-  object ColorMenu: TPopupMenu[7]
+  object ColorMenu: TPopupMenu[5]
     left = 217
     top = 488
     object CustomColorMenu: TMenuItem
       Caption = 'Custom...'
       OnClick = CustomColorMenuClick
     end
+  end
+  object CalendarDialog: TCalendarDialog[6]
+    Date = 42317
+    OKCaption = '&OK'
+    CancelCaption = 'Cancel'
+    left = 351
+    top = 488
   end
 end
