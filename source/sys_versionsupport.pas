@@ -2,7 +2,7 @@ Unit sys_versionsupport;
 // From http://forum.lazarus.freepascal.org/index.php/topic,13957.msg73542.html#msg73542
 // With modifications marked by NMS.
 
-{$mode objfpc}
+{$mode objfpc}{$H+}
 
 Interface
 
