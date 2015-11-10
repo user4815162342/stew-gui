@@ -65,7 +65,9 @@ const
   function ISO8601ToDateTime(const AValue: string): TDateTime;
   function DateTimeToMsecs(const aDateTime: TDateTime): Comp;
   function MsecsToDateTime(const aValue: Comp): TDateTime;
-
+  function DateTimeToRelativeEnglish(aDate: TDateTime): String;
+  function MonthDifference(aDate: TDateTime; bDate: TDateTime): Integer;
+  function WorkingDaysDifference(aDate: TDateTime; bDate: TDateTime): Integer;
 
 
 implementation
@@ -189,6 +191,129 @@ begin
   result := TimeStampToDateTime(MSecsToTimeStamp(aValue));
 end;
 
+function DateTimeToRelativeEnglish(aDate: TDateTime): String;
+var
+  lNow: TDateTime;
+  lDays: Integer;
+  lMonths: Integer;
+begin
+  // TODO: This is coming out wrong. January 7th should be three months,
+  // or maybe 2 months, but it's coming out next month instead.
+  // Mar 7 should also be 4 months. I think I somehow have to go
+  // to the 'middle' of the month to get it. Or, I actually count
+  // the months?
+  lNow := trunc(Now);
+  lDays := trunc(aDate - lNow);
+  case lDays of
+     low(Integer)..-731:
+       result := IntToStr((-lDays) div 365) + ' YEARS AGO!';
+     -730..-366:
+       result := 'LAST YEAR!';
+     -365..-48:
+       begin
+         lMonths := MonthDifference(aDate,lNow);
+         if lMonths = -1 then
+            result := 'LAST MONTH!'
+         else
+            result := IntToStr(-lMonths) + ' MONTHS AGO!';
+       end;
+     -47..-14:
+       result := IntToStr((-lDays) div 7) + ' WEEKS AGO!';
+     -13..-7:
+       result := 'LAST WEEK!';
+     -6..-2:
+       result := IntToStr(-lDays) + ' DAYS AGO!';
+     -1:
+       result := 'YESTERDAY!';
+     0:
+       result := 'TODAY!';
+     1:
+       result := 'TOMORROW!';
+     2..6:
+       result := 'in ' + IntToStr(lDays) + ' days!';
+     7..13:
+       result := 'next week!';
+     14..47:
+       result := 'in ' + IntToStr(lDays div 7) + ' weeks';
+     48..365:
+       begin
+         lMonths := MonthDifference(aDate,lNow);
+         if lMonths = 1 then
+            result := 'next month'
+         else
+            result := 'in ' + IntToStr(lMonths) + ' months';
+       end;
+     366..730:
+       result := 'next year';
+     731..high(Integer):
+       result := 'in ' + IntToStr(lDays div 365) + ' years';
+  end;
+end;
+
+function MonthDifference(aDate: TDateTime; bDate: TDateTime): Integer;
+var
+  aY: Word;
+  aM: Word;
+  aD: Word;
+  bY: Word;
+  bM: Word;
+  bD: Word;
+begin
+  DecodeDate(aDate,aY,aM,aD);
+  DecodeDate(bDate,bY,bM,BD);
+  result := (aY - bY) * 12;
+  result := result + (aM - bM);
+
+end;
+
+function WorkingDaysDifference(aDate: TDateTime; bDate: TDateTime): Integer;
+var
+  bDOW: Word;
+  lDays: Integer;
+  lWeeks: Integer;
+  lRem: Integer;
+begin
+  lDays := trunc(aDate) - trunc(bDate);
+  lWeeks := lDays div 7;
+  result := lDays - (lWeeks * 2);
+
+  lRem := lDays mod 7;
+  if lRem > 0 then
+  begin
+    bDOW:=DayOfWeek(bDate);
+    // 1..7 => Sunday..Saturday
+    if bDOW = 7 then
+    begin
+      // the last day falls on Saturday. Since the remainder can't
+      // be greater than 6, the earliest the full weeks can end on is
+      // Monday, so we only need to count this Saturday.
+      result := result - 1;
+    end
+    else
+    begin
+      // the last day falls on Sunday through Friday.
+      // if the remainder is less than the day of the week, then the
+      // full weeks ended on Sunday or later, so we don't have a weekend
+      // in the remaining part.
+      if lRem = bDOW then
+      begin
+      // if the remainder equals the DOW, then the remainder includes only
+      // Sunday.
+         result := result - 1
+      end
+      else if lRem > bDOW then
+      begin
+      // otherwise, the remainder also includes Saturday.
+        result := result - 2;
+      // Note that if the last day is Friday, the earliest the full weeks
+      // can end is on Saturday, so we'll never hit this.
+
+      end;
+
+    end;
+  end;
+
+end;
 
 
 end.

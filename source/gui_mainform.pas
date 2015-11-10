@@ -47,6 +47,8 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure FormResize(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure MainStatusMouseMove(Sender: TObject; {%H-}Shift: TShiftState; X,
+      {%H-}Y: Integer);
     procedure NewProjectMenuItemClick(Sender: TObject);
     procedure OpenProjectMenuItemClick(Sender: TObject);
     procedure PreferencesMenuItemClick(Sender: TObject);
@@ -62,6 +64,7 @@ type
     fDocumentPane: TAlign;
     // FUTURE: Should be a hash list, so we can look things up by ID.
     fOpenDocuments: TObjectList;
+    fGoalHints: TStringArray;
     function GetProject: TStewProject;
     procedure DoChooseAttachment(Sender: TObject; Document: TDocumentPath;
       AttachmentName: String; aChoices: TStringArray; var Answer: Integer; out
@@ -504,6 +507,32 @@ begin
 
 end;
 
+procedure TMainForm.MainStatusMouseMove(Sender: TObject; Shift: TShiftState; X,
+  Y: Integer);
+var
+  i,border:integer;
+begin
+  // http://lists.lazarus.freepascal.org/pipermail/lazarus/2012-May/074105.html
+  // Display a hint for the status panels to indicate how many days
+  // we have left until the goal.
+  i:=0;
+  border:=0;
+  for i := 0 to MainStatus.Panels.Count - 1 do
+  begin
+    border:=border+MainStatus.Panels[i].Width;
+    if (X < border) then
+       break;
+
+  end;
+  if (i < MainStatus.Panels.Count) then
+  begin
+    MainStatus.Hint:=fGoalHints[i];
+    Application.CancelHint;
+    Application.ActivateHint(mouse.CursorPos);
+  end;
+end;
+
+
 procedure TMainForm.NewProjectMenuItemClick(Sender: TObject);
 begin
   RunNewStewInstanceWithPrompt;
@@ -915,12 +944,21 @@ end;
 
 procedure TMainForm.UpdateStatus(aProps: TProjectProperties);
 
+  procedure SetDeadlineHint(i: Integer; aDeadline: TDeadline);
+  var
+    lText: String;
+  begin
+    lText := IntToStr(trunc(aDeadline.Due) - trunc(Now)) + ' days left' + LineEnding +
+             IntToStr(WorkingDaysDifference(aDeadline.Due,Now)) + ' working days left';
+    fGoalHints[i] := lText;
+  end;
+
   procedure AddDeadlinePanel(aDeadline: TDeadline; aAlign: TAlignment);
   var
     lPanel: TStatusPanel;
     lText: String;
   begin
-    lText := aDeadLine.Name + ': ' + DateToStr(aDeadLine.Due);
+    lText := aDeadLine.Name + ' due ' + DateTimeToRelativeEnglish(aDeadLine.Due);
     lPanel := MainStatus.Panels.Add;
     lPanel.Text := lText;
     lPanel.Alignment:= aAlign;
@@ -928,16 +966,12 @@ procedure TMainForm.UpdateStatus(aProps: TProjectProperties);
 
 var
   i: Integer;
-  lDeadLine: TDeadline;
   lList: TList;
-  lDL1, lDL2, lDLLast: TDeadline;
 begin
+  SetLength(fGoalHints,aProps.Deadlines.Length);
   if aProps.Deadlines.Length > 0 then
   begin
 
-     lDL1 := nil;
-     lDL2 := nil;
-     lDLLast := nil;
      MainStatus.Visible := true;
      MainStatus.Panels.Clear;
 
@@ -950,6 +984,7 @@ begin
              AddDeadlinePanel(TDeadline(lList[i]),taRightJustify)
           else
              AddDeadlinePanel(TDeadline(lList[i]),taRightJustify);
+          SetDeadlineHint(i,TDeadline(lList[i]));
         end;
 
      finally

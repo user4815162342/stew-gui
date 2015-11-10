@@ -39,7 +39,7 @@
         <PackageName Value="LCL"/>
       </Item2>
     </RequiredPackages>
-    <Units Count="20">
+    <Units Count="21">
       <Unit0>
         <Filename Value="stewgui.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -164,6 +164,11 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_filecache"/>
       </Unit19>
+      <Unit20>
+        <Filename Value="sys_types.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="sys_types"/>
+      </Unit20>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

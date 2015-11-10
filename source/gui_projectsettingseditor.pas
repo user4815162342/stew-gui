@@ -11,8 +11,6 @@ uses
 
 {
 TODO: Deadline Grid:
-- After that's all done, I need to get that in the UI to update a status bar
-showing how many days left until the due date.
 - After *that's* done, I need to know how many "working" days (two kinds,
   full days and light days), which means I need to track what days are working
   days in the application preferences (finally, something for that screen).

@@ -14,6 +14,7 @@ object MainForm: TMainForm
   OnResize = FormResize
   OnShow = FormShow
   Position = poDefault
+  ShowHint = True
   LCLVersion = '1.2.6.0'
   object MainStatus: TStatusBar
     Left = 0
@@ -24,6 +25,7 @@ object MainForm: TMainForm
     SimplePanel = False
     SizeGrip = False
     Visible = False
+    OnMouseMove = MainStatusMouseMove
   end
   object MainMenu: TMainMenu
     left = 24

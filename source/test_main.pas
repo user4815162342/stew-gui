@@ -57,11 +57,12 @@ implementation
 
 uses
   test_test, test_sys_json, test_sys_async, test_sys_localfile, test_stew_properties,
-  test_stew_project, test_longstringmap, test_sys_filecache_local, test_gui;
+  test_stew_project, test_longstringmap, test_sys_filecache_local, test_gui, test_sys_types;
 
 const
-  TestsToRun: array[0..7] of TTestSpecClass =
-    (TJSONSpec,
+  TestsToRun: array[0..8] of TTestSpecClass =
+    (TTypesSpec,
+     TJSONSpec,
      TAsyncSpec,
      TLocalFileSpec,
      TLongStringMapSpec,

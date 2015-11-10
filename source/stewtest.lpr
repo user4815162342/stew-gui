@@ -12,7 +12,7 @@ uses
   sys_localfile, sys_os, sys_filecache, test_sys_localfile, test_sys_filecache,
   gui_async, stew_project, test_sys_filecache_local, test_stew_project,
   stew_properties, test_stew_properties, test_longstringmap, test_gui,
-stew_query;
+stew_query, test_sys_types;
 
 {$R *.res}
 

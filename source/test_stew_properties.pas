@@ -165,7 +165,6 @@ var
   lStream: TFileStream;
   lProps: TProjectProperties;
   lDeadlines: TDeadlines;
-  lDeadline: TDeadline;
 begin
   lStream := TFileStream.Create(fTestRootDir.GetContainedFile('','stew','json',true).ID,fmOpenRead);
   try
