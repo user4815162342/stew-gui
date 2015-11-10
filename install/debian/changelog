@@ -1,8 +1,14 @@
+stew-gui-linux (0.1.0.85) precise; urgency=low
+
+  * Added project deadlines which can be displayed along the status bar to help motivate the user
+
+ -- Neil Sheldon <neilmsheldon@townsedgetechnology.com>  Tue, 10 Nov 2015 08:54:53 -0600
+
 stew-gui-linux (0.1.0.84) precise; urgency=low
 
   * Turn on 'busy cursor' when tasks are queued.
 
- -- Neil Sheldon <neil@laurentia>  Fri, 02 Oct 2015 10:21:59 -0500
+ -- Neil Sheldon <neilmsheldon@townsedgetechnology.com>  Fri, 02 Oct 2015 10:21:59 -0500
 
 stew-gui-linux (0.1.0.81) precise; urgency=low
 
