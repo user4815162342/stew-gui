@@ -865,7 +865,7 @@ type
 implementation
 
 uses
-  sys_json;
+  sys_json, sys_log;
 
 function IncludeLeadingSlash(const Path: UTF8String): UTF8String;
 Var
@@ -1024,7 +1024,10 @@ begin
     fNewFile.ListTemplatesFor.After(@NewAttachment_TemplatesListed,@SubPromiseRejected);
   except
     on E: Exception do
+    begin
+      LogException('TStewProject.TRequestEditAttachmentTask.NewAttachment_PropertiesRead',E);
       Reject(E.Message);
+    end;
   end;
 end;
 
@@ -1061,7 +1064,10 @@ begin
 
   except
     on E: Exception do
+    begin
+      LogException('TStewProject.TRequestEditAttachmentTask.NewAttachment_TemplatesListed',E);
       Reject(E.Message);
+    end;
   end;
 
 end;
@@ -1140,7 +1146,10 @@ begin
 
   except
     on E: Exception do
+    begin
+      LogException('TStewProject.TRequestEditAttachmentTask.TooManyAttachment_PropertiesRead',E);
       Reject(E.Message);
+    end;
   end;
 end;
 
@@ -1208,8 +1217,12 @@ begin
     else
       fProject.ReadProjectProperties.After(@TooManyAttachment_PropertiesRead,@SubPromiseRejected);
     end;
-  except on E: Exception do
-    Reject(E.Message);
+  except
+    on E: Exception do
+    begin
+       LogException('TStewProject.TRequestEditAttachmentTask.DoTask',E);
+       Reject(E.Message);
+    end;
   end;
 
 end;
@@ -1450,8 +1463,12 @@ begin
     // else, the document doesn't exist yet, so it doesn't make any sense to
     // add it.... right? But, we do need to resolve...
       Resolve;
-  except on E: Exception do
-    Reject(E.Message);
+  except
+    on E: Exception do
+    begin
+      LogException('TStewProject.TShiftDocumentTask.PropertiesReceived',E);
+       Reject(E.Message);
+    end;
   end;
 end;
 
@@ -1875,8 +1892,12 @@ begin
     (Promise as TDocumentListPromise).fList := lDocuments;
     Resolve;
 
-  except on E: Exception do
-    Reject(E.Message);
+  except
+    on E: Exception do
+    begin
+      LogException('TStewProject.TListDocumentsInFolderTask.PropertiesReceived',E);
+      Reject(E.Message);
+    end;
   end;
 end;
 

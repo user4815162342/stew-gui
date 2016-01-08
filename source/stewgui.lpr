@@ -11,7 +11,7 @@ uses
   gui_config, sys_json, gui_documenteditor, gui_preferenceseditor,
   gui_projectsettingseditor, gui_editorframe, stew_properties,
   sys_types, gui_jsoneditor, sys_os, gui_listdialog,
-sys_localfile, sys_versionsupport, gui_async, sys_filecache;
+sys_localfile, sys_versionsupport, gui_async, sys_filecache, sys_log;
 
 {$R *.res}
 

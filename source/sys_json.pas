@@ -1263,8 +1263,14 @@ begin
 end;
 
 function TJSArray.GetLength: Integer;
+var
+  lResult: Double;
 begin
-  result := Trunc(Get(LengthKey).AsNumber);
+  lResult := Get(LengthKey).AsNumber;
+  if math.IsNan(lResult) then
+     result := 0
+  else
+     result := Trunc(lResult);
 end;
 
 constructor TJSArray.Create;

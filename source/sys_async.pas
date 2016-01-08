@@ -217,6 +217,9 @@ procedure RemoveAsyncCallQueuer(aQueuer: TAsyncCallQueuer);
 
 implementation
 
+uses
+  sys_log;
+
 var
   AsyncCallQueuer: TAsyncCallQueuer;
 
@@ -258,7 +261,10 @@ begin
     DoTask(Sender);
   except
     on E: Exception do
+    begin
+      LogException('sys_async.TDeferredTask.InputPromiseResolved',E);
       Reject(E.Message);
+    end;
   end;
 end;
 
@@ -278,7 +284,10 @@ begin
      DoTask;
    except
      on E: Exception do
+     begin
+       LogException('sys_async.TQueuedTask.RunQueuedTask',E);
        Reject(E.Message);
+     end;
    end;
 end;
 
@@ -356,6 +365,7 @@ begin
      except
        on E: Exception do
        begin
+         LogException('sys_async.TPromise.RunCallbacks',E);
          Reject(E.Message);
          Exit;
        end;

@@ -46,7 +46,7 @@ procedure GUIQueueAsyncCall(aCallback: TQueuedCallback);
 implementation
 
 uses
-  Forms, LCLIntf;
+  Forms, LCLIntf, sys_log;
 
 procedure GUIQueueAsyncCall(aCallback: TQueuedCallback);
 begin
@@ -63,7 +63,10 @@ begin
     except
       // Catch any exceptions so they can be reported here...
       on E: Exception do
+      begin
+        LogException('gui_async.TQueuedCall.Callback',E);
         Application.ShowException(E);
+      end;
     end;
   finally
     Free;

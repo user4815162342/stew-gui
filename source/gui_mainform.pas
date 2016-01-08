@@ -140,7 +140,7 @@ const
 implementation
 
 uses
-  gui_projectmanager, gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor, LCLProc, gui_listdialog, sys_localfile, gui_async, sys_versionsupport, math;
+  gui_projectmanager, gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor, LCLProc, gui_listdialog, sys_localfile, gui_async, sys_versionsupport, math, sys_log;
 
 {$R *.lfm}
 
@@ -155,7 +155,10 @@ begin
 
   except
     on E: Exception do
-      ShowMessage(E.Message);
+    begin
+      LogException('gui_mainform.RunNewStewInstance',E);
+      ShowException(E,ExceptAddr);
+    end;
   end;
 end;
 
@@ -165,7 +168,10 @@ begin
      TOperatingSystemInterface.RunDetachedProcess(Application.ExeName,[PromptForProjectArgument]);
   except
     on E: Exception do
-      ShowMessage(E.Message);
+    begin
+      LogException('gui_mainform.RunNewStewInstanceWithPrompt',E);
+      ShowException(E,ExceptAddr);
+    end;
   end;
 end;
 
@@ -432,6 +438,7 @@ var
   openParam: String;
   stewFolder: TFile;
 begin
+
   TPromiseMonitor.OnStateChanged:=@QueueStateChanged;
 
   fOpenDocuments := TObjectList.create(false);
@@ -446,6 +453,7 @@ begin
   except
     on E: Exception do
     begin
+      LogException('Loading Configuration in TMainForm',E);
       ShowMessage('The settings file could not be loaded for some reason.' + LineEnding +
                   'The Error Message Was: ' + E.Message + LineEnding +
                   'Default settings will be used, and the current settings will be overwritten.',mtError,'Sigh');
