@@ -21,11 +21,18 @@ switch (os.arch()) {
 
 cp.execFile(exeFile,["--version"],function(err,stdout,stderr) {
     if (err) {
+        console.log("Errors reported.");
         console.error(err);
-    } else if (stderr) {
+    } 
+    
+    if (stderr) {
+        console.log("Stderr not blank.");
         console.error(stderr);
-    } else {
+    } 
+    
+     {
         var version = stdout.trim();
+        console.log("Version found: " + version);
         
         var distFile = path.join(distDir,"stew-gui-linux_" + version + "_" + archID + ".deb");
         fs.exists(distFile,function(answer) {

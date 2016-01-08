@@ -1,8 +1,15 @@
+stew-gui-linux (0.1.0.87) precise; urgency=low
+
+  * Now compiled with stack trace information for help in debugging
+  * Added exception logging code to manual exception handlers to help in debugging.
+
+ -- Neil Sheldon <neilmsheldon@townsedgetechnology.com>  Fri, 08 Jan 2016 14:28:28 -0600
+
 stew-gui-linux (0.1.0.85) precise; urgency=low
 
   * Added project deadlines which can be displayed along the status bar to help motivate the user
 
- -- Neil Sheldon <neilmsheldon@townsedgetechnology.com>  Tue, 10 Nov 2015 08:54:53 -0600
+ -- Neil Sheldon <neilmsheldon@townsedgetechnology.com>  Fri, 08 Jan 2016 14:24:56 -0600
 
 stew-gui-linux (0.1.0.84) precise; urgency=low
 
