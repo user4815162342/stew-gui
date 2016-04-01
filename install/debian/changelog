@@ -1,3 +1,10 @@
+stew-gui-linux (0.1.0.92) precise; urgency=low
+
+  * Move log file output to configuration directory
+  * Added logging of a large number of actions to make reproduction of bugs easier
+
+ -- Neil Sheldon <neilmsheldon@townsedgetechnology.com>  Fri, 01 Apr 2016 11:15:57 -0500
+
 stew-gui-linux (0.1.0.87) precise; urgency=low
 
   * Now compiled with stack trace information for help in debugging
