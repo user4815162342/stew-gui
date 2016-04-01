@@ -122,7 +122,7 @@ type
 implementation
 
 uses
-  dialogs, sys_types;
+  dialogs, sys_types, sys_log;
 
 {$R *.lfm}
 
@@ -167,9 +167,12 @@ end;
 
 procedure TProjectManager.ProjectExplorerExpanding(Sender: TObject;
   Node: TTreeNode; var AllowExpansion: Boolean);
+const
+  cMethod: String = 'TProjectManager.ProjectExplorerExpanding';
 var
   lDocument: TDocumentPath;
 begin
+  LogAction(cMethod,Node.Text);
   AllowExpansion := true;
   if not (Node as TProjectInspectorNode).ExpandedFirstTime then
   begin
@@ -190,6 +193,8 @@ begin
 end;
 
 procedure TProjectManager.RenameDocumentButtonClick(Sender: TObject);
+const
+  cMethod: String = 'TProjectManager.RenameDocumentButtonClick';
 var
   lNode: TProjectInspectorNode;
   lDocument: TDocumentPath;
@@ -203,6 +208,7 @@ begin
     lDocument := lNode.DocumentID;
     lOldName := lDocument.Name;
     lNewName := lOldName;
+    LogAction(cMethod,lDocument.ID);
     if InputQuery(MainForm.Caption,'Enter new name for document:',lNewName) then
     begin
       if IsNameTroublesome(lNewName) then
@@ -321,21 +327,32 @@ begin
 end;
 
 procedure TProjectManager.NewChildDocumentButtonClick(Sender: TObject);
+const
+  cMethod: String = 'TProjectManager.NewChildDocumentButtonClick';
 begin
+  LogAction(cMethod,'');
   CreateNewDocument(true);
 end;
 
 procedure TProjectManager.NewSiblingDocumentButtonClick(Sender: TObject);
+const
+  cMethod: String = 'TProjectManager.NewSiblingDocumentButtonClick';
 begin
+  LogAction(cMethod,'');
   CreateNewDocument(false);
 end;
 
 procedure TProjectManager.DeleteDocumentButtonClick(Sender: TObject);
+const
+  cMethod: String = 'TProjectManager.DeleteDocumentButtonClick';
 begin
+  LogAction(cMethod,'');
   ShowMessage('I can''t delete documents yet');
 end;
 
 procedure TProjectManager.MoveDocumentDownButtonClick(Sender: TObject);
+const
+  cMethod: String = 'TProjectManager.MoveDocumentDownButtonClick';
 var
   lNode: TProjectInspectorNode;
   lSiblingNode: TProjectInspectorNode;
@@ -348,12 +365,15 @@ begin
     if lSiblingNode = nil then
       Exit;
     lDoc := lNode.DocumentID;
+    LogAction(cMethod,lDoc.ID);
     MainForm.Project.ShiftDocumentDown(lDoc);
   end;
 
 end;
 
 procedure TProjectManager.MoveDocumentUpButtonClick(Sender: TObject);
+const
+  cMethod: String = 'TProjectManager.MoveDocumentUpButtonClick';
 var
   lNode: TProjectInspectorNode;
   lSiblingNode: TProjectInspectorNode;
@@ -366,6 +386,7 @@ begin
     if lSiblingNode = nil then
       Exit;
     lDoc := lNode.DocumentID;
+    LogAction(cMethod,lDoc.ID);
     MainForm.Project.ShiftDocumentUp(lDoc);
   end;
 
@@ -410,6 +431,8 @@ begin
 end;
 
 procedure TProjectManager.ProjectExplorerDblClick(Sender: TObject);
+const
+  cMethod: String = 'TProjectManager.ProjectExplorerDblClick';
 var
   Node: TTreeNode;
   Document: TDocumentPath;
@@ -419,6 +442,7 @@ begin
   if (Node <> nil) then
   begin
     Document := (Node as TProjectInspectorNode).DocumentID;
+    LogAction(cMethod,Document.ID);
     MainForm.OpenDocument(Document);
 
   end;
@@ -427,6 +451,8 @@ end;
 
 procedure TProjectManager.ProjectExplorerDragDrop(Sender, Source: TObject; X,
   Y: Integer);
+const
+  cMethod: String = 'TProjectManager.ProjectExplorerDragDrop';
 var
   lDraggingNode: TProjectInspectorNode;
   lTargetNode: TProjectInspectorNode;
@@ -453,6 +479,7 @@ begin
       begin
         lTargetDocID := TDocumentPath.Root;
       end;
+      LogAction(cMethod,lDraggingDocID.ID + '>>' + lTargetDocID.ID);
 
       lNewDocID := lTargetDocID.GetContainedDocument(lDraggingDocID.Name);
 
@@ -476,6 +503,8 @@ end;
 
 procedure TProjectManager.ProjectExplorerDragOver(Sender, Source: TObject; X,
   Y: Integer; State: TDragState; var Accept: Boolean);
+const
+  cMethod: String = 'TProjectManager.ProjectExplorerDragOver';
 var
   lTargetNode: TProjectInspectorNode;
   lDraggingNode: TProjectInspectorNode;
@@ -505,6 +534,7 @@ begin
         begin
           // can't see if we can put it in there yet, so don't accept, but
           // cause the documents to be listed.
+          LogAction(cMethod + ' Expanding',lDraggingNode.DocumentID.ID + '>>' + lTargetNode.DocumentID.ID);
           lTargetNode.Expanded := true;
         end
         else

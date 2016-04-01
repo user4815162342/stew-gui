@@ -82,14 +82,17 @@ type
 implementation
 
 uses
-  Dialogs, sys_types, sys_json;
+  Dialogs, sys_types, sys_json, sys_log;
 
 {$R *.lfm}
 
 { TDocumentEditor }
 
 procedure TDocumentEditor.SaveButtonClick(Sender: TObject);
+const
+  cMethod: String = 'TDocumentEditor.SaveButtonClick';
 begin
+  LogAction(cMethod,Document.ID);
   MainForm.ShowMessage('The old version will be backed up in case this doesn''t work.',mtConfirmation,'Got it');
   WriteData;
 
@@ -225,7 +228,10 @@ begin
 end;
 
 procedure TDocumentEditor.RefreshButtonClick(Sender: TObject);
+const
+  cMethod: String = 'TDocumentEditor.RefreshButtonClick';
 begin
+  LogAction(cMethod,Document.ID);
   ClearModified;
   if MainForm.Project <> nil then
   begin
@@ -235,7 +241,10 @@ begin
 end;
 
 procedure TDocumentEditor.EditPrimaryButtonClick(Sender: TObject);
+const
+  cMethod: String = 'TDocumentEditor.EditPrimaryButtonClick';
 begin
+  LogAction(cMethod,Document.ID);
   if MainForm.Project <> nil then
     MainForm.Project.EditDocument(Document);
 end;
@@ -319,7 +328,10 @@ begin
 end;
 
 procedure TDocumentEditor.EditNotesButtonClick(Sender: TObject);
+const
+  cMethod: String = 'TDocumentEditor.EditNotesButtonClick';
 begin
+  LogAction(cMethod,Document.ID);
   if MainForm.Project <> nil then
      MainForm.Project.EditDocumentNotes(Document);
 end;

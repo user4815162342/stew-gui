@@ -46,14 +46,17 @@ type
 implementation
 
 uses
-  gui_mainform;
+  gui_mainform, sys_log;
 
 {$R *.lfm}
 
 { TEditorFrame }
 
 procedure TEditorFrame.CloseButtonClick(Sender: TObject);
+const
+  cMethod: String = 'TEditorFrame.CloseButtonClick';
 begin
+  LogAction(cMethod,Document.ID);
   MainForm.RequestTabClose(Self);
 end;
 

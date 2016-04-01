@@ -25,6 +25,13 @@ begin
     Exit;
   end;
   {$ENDIF}
+  // Set the output for the heap trace at the end...
+  // This is really just for memory leaks. It depends on
+  // -gh option being set in compiler.
+  // I can find no way to ifdef whether that option is being
+  // used, so if that gets turned off, this will have to
+  // be commented out.
+  SetHeapTraceOutput(InitializeLog('heap.trc',true));
 
   Application.Title:='Stew';
   RequireDerivedFormResource := True;

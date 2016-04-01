@@ -130,6 +130,8 @@ type
   procedure RunNewStewInstance(const aProjectPath: TFile);
   procedure RunNewStewInstanceWithPrompt;
 
+  function InitializeLog(const aName: String; aOverwrite: Boolean): UTF8String;
+
 var
   MainForm: TMainForm;
 
@@ -175,6 +177,21 @@ begin
   end;
 end;
 
+function InitializeLog(const aName: String; aOverwrite: Boolean): UTF8String;
+var
+  lDir: UTF8String;
+begin
+  lDir := GetAppConfigDir(false) + 'logs' + DirectorySeparator;
+  result := lDir + aName;
+  ForceDirectoriesUTF8(lDir);
+  if aOverwrite and FileExistsUTF8(result) then
+  begin
+     DeleteFileUTF8(result);
+  end;
+
+
+end;
+
 { TMRUMenuItem }
 
 function SortDeadlines(Item1, Item2: Pointer): Integer;
@@ -211,7 +228,10 @@ begin
 end;
 
 procedure TMainForm.CloseTimeoutTimerTimer(Sender: TObject);
+const
+  cMethod: String = 'TMainForm.CloseTimeoutTimerTimer';
 begin
+  LogAction(cMethod,'');
   // the tag is used to tell the mainform that this is a timeout, and
   // it's okay to close...
   CloseTimeoutTimer.Tag := 1;
@@ -331,6 +351,8 @@ begin
 end;
 
 procedure TMainForm.DocumentTabCloseRequested(Sender: TObject);
+const
+  cMethod: String = 'TMainForm.DocumentTabCloseRequested';
 var
   Tab: TTabSheet;
   Frame: TEditorFrame;
@@ -356,6 +378,7 @@ begin
     CanClose := true;
     if (Frame <> nil) then
     begin
+      LogAction(cMethod,Frame.Document.ID);
       CanClose := Frame.CloseQuery;
 
       if CanClose then
@@ -377,12 +400,18 @@ begin
 end;
 
 procedure TMainForm.ExitMenuItemClick(Sender: TObject);
+const
+  cMethod: String = 'TMainForm.ExitMenuItemClick';
 begin
+  LogAction(cMethod,'');
   Close;
 end;
 
 procedure TMainForm.FormClose(Sender: TObject; var CloseAction: TCloseAction);
+const
+  cMethod: String = 'TMainForm.FormClose';
 begin
+  LogAction(cMethod,'');
   // load the configuration first, so we don't overwrite the stuff I'm not
   // interested in overwriting (such as MRU Projects) which were added by
   // another instance.
@@ -392,10 +421,13 @@ begin
 end;
 
 procedure TMainForm.FormCloseQuery(Sender: TObject; var CanClose: boolean);
+const
+  cMethod: String = 'TMainForm.FormCloseQuery';
 var
   Frame: TEditorFrame;
   i: Integer;
 begin
+  LogAction(cMethod,'');
   for i := 0 to fOpenDocuments.Count - 1 do
   begin
     Frame := fOpenDocuments[i] as TEditorFrame;
@@ -438,7 +470,6 @@ var
   openParam: String;
   stewFolder: TFile;
 begin
-
   TPromiseMonitor.OnStateChanged:=@QueueStateChanged;
 
   fOpenDocuments := TObjectList.create(false);
@@ -488,7 +519,10 @@ begin
 end;
 
 procedure TMainForm.FormDestroy(Sender: TObject);
+const
+  cMethod: String = 'TMainForm.FormDestroy';
 begin
+  LogAction(cMethod,'');
   TPromiseMonitor.OnStateChanged := nil;
 
   if fProject <> nil then
@@ -503,6 +537,7 @@ end;
 
 procedure TMainForm.FormResize(Sender: TObject);
 begin
+  // Don't log every resize...
   ResizeStatusPanels;
 end;
 
@@ -542,7 +577,10 @@ end;
 
 
 procedure TMainForm.NewProjectMenuItemClick(Sender: TObject);
+const
+  cMethod: String = 'TMainForm.NewProjectMenuItemClick';
 begin
+  LogAction(cMethod,'');
   RunNewStewInstanceWithPrompt;
 end;
 
@@ -623,7 +661,10 @@ begin
 end;
 
 procedure TMainForm.OpenProjectMenuItemClick(Sender: TObject);
+const
+  cMethod: String = 'TMainForm.OpenProjectMenuItemClick';
 begin
+  LogAction(cMethod,'');
   if OpenProjectDialog.Execute then
   begin
     RunNewStewInstance(LocalFile(OpenProjectDialog.FileName));
@@ -636,7 +677,10 @@ begin
 end;
 
 procedure TMainForm.PreferencesMenuItemClick(Sender: TObject);
+const
+  cMethod: String = 'TMainForm.PreferencesMenuItemClick';
 begin
+  LogAction(cMethod,'');
   OpenPreferences;
 end;
 
@@ -687,12 +731,18 @@ begin
 end;
 
 procedure TMainForm.ProjectSettingsMenuItemClick(Sender: TObject);
+const
+  cMethod: String = 'TMainForm.ProjectSettingsMenuItemClick';
 begin
+  LogAction(cMethod,'');
   OpenProjectSettings;
 end;
 
 procedure TMainForm.RefreshProjectMenuItemClick(Sender: TObject);
+const
+  cMethod: String = 'TMainForm.RefreshProjectMenuItemClick';
 begin
+  LogAction(cMethod,'');
   // This should cause a ListingDataReceived event (or something
   // like that) on the project, and the explorer can get that information.
   // Note that we're no longer doing recursive. Maybe that's something the
@@ -1129,7 +1179,10 @@ begin
 end;
 
 initialization
-
+  // set up logging...
+  SetLogOutput(InitializeLog('application.log',true));
+  LogHeader;
+  // Set up async queue
   SetAsyncCallQueuer(@GUIQueueAsyncCall);
 
 end.

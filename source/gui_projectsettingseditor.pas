@@ -130,8 +130,8 @@ implementation
 
 uses
   sys_types, sys_json,
-  clocale { clocale is required in order to pull in the system locale settings, i.e. for displaying dates properly }
-  ;
+  clocale, { clocale is required in order to pull in the system locale settings, i.e. for displaying dates properly }
+  sys_log;
 
 type
   TDefColumnKind = (ckString, ckInteger, ckBoolean, ckRadio, ckColor, ckDate);
@@ -178,7 +178,10 @@ end;
 { TProjectSettingsEditor }
 
 procedure TProjectSettingsEditor.RefreshButtonClick(Sender: TObject);
+const
+  cMethod: String = 'TProjectSettingsEditor.RefreshButtonClick';
 begin
+  LogAction(cMethod,Document.ID);
   if MainForm.Project <> nil then
   begin
     ClearModified;
@@ -188,7 +191,10 @@ begin
 end;
 
 procedure TProjectSettingsEditor.SaveButtonClick(Sender: TObject);
+const
+  cMethod: String = 'TProjectSettingsEditor.SaveButtonClick';
 begin
+  LogAction(cMethod,Document.ID);
   MainForm.ShowMessage('The old version will be backed up in case this doesn''t work.',mtConfirmation,'Got it');
   WriteData;
 end;
@@ -445,7 +451,10 @@ begin
 end;
 
 procedure TProjectSettingsEditor.EditNotesButtonClick(Sender: TObject);
+const
+  cMethod: String = 'TProjectSettingsEditor.EditNotesButtonClick';
 begin
+  LogAction(cMethod,Document.ID);
   if MainForm.Project <> nil then
      MainForm.Project.EditDocumentNotes(TDocumentPath.Root);
 end;
