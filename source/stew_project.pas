@@ -6,7 +6,7 @@ unit stew_project;
 interface
 
 uses
-  Classes, SysUtils, sys_file, sys_async, stew_properties, sys_types, contnrs, sys_filecache, fgl;
+  Classes, SysUtils, sys_file, sys_async, stew_properties, sys_types, contnrs, sys_filecache;
 
 {
 FUTURE: Something I might add later, if I feel it's necessary. Loading should have a refresh mode, I think I've put this elsewhere:
@@ -192,7 +192,7 @@ type
   TStewProject = class;
 
   TProjectObserver = procedure(Sender: TStewProject; Event: TProjectEvent) of object;
-  TProjectObserverList = specialize TFPGList<TProjectObserver>;
+  TProjectObserverList = specialize GMethodList<TProjectObserver>;
 
   { TProjectPropertiesDataReceivedEvent }
 
@@ -921,6 +921,7 @@ begin
   else
     result := true;
 end;
+
 
 function ExcludeLeadingSlash(const Path: UTF8String): UTF8String;
 Var
@@ -2946,14 +2947,17 @@ begin
   fCache.OnActivity:=@CacheActivity;
   fCache.OnError:=@CacheError;
   fShadows := TShadowCache.Create;
-  fObservers := TProjectObserverList.Create;
+  // fObservers := TProjectObserverList.Create;
+  fObservers.Init;
+
 end;
 
 destructor TStewProject.Destroy;
 begin
   FreeAndNil(fShadows);
   FreeAndNil(fCache);
-  FreeAndNil(fObservers);
+  // FreeAndNil(fObservers);
+  fObservers.Clear;
   inherited Destroy;
 end;
 

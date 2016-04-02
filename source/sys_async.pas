@@ -95,7 +95,7 @@ callers.
 // to get the data.
 
 uses
-  Classes, SysUtils, fgl;
+  Classes, SysUtils, sys_types;
 
 type
 
@@ -110,9 +110,9 @@ type
   // copy an Exception into that structure.
   TPromiseError = string;
   TPromiseRejectionListener = procedure(Sender: TPromise; aError: TPromiseError) of object;
-  TPromiseRejectionListenerList = specialize TFPGList<TPromiseRejectionListener>;
+  TPromiseRejectionListenerList = specialize GMethodList<TPromiseRejectionListener>;
   TPromiseResolutionListener = procedure(Sender: TPromise) of object;
-  TPromiseResolutionListenerList = specialize TFPGList<TPromiseResolutionListener>;
+  TPromiseResolutionListenerList = specialize GMethodList<TPromiseResolutionListener>;
   TPromiseState = (psIncomplete,psResolving,psRejecting);
 
   TPromise = class
@@ -432,8 +432,10 @@ end;
 constructor TPromise.Create;
 begin
   inherited Create;
-  fCallbacks := TPromiseResolutionListenerList.Create;
-  fErrorbacks := TPromiseRejectionListenerList.Create;
+  //fCallbacks := TPromiseResolutionListenerList.Create;
+  fCallbacks.Init;
+  //fErrorbacks := TPromiseRejectionListenerList.Create;
+  fErrorbacks.Init;
   fError := '';
   TPromiseMonitor.PromiseCreated;
 end;
@@ -441,8 +443,10 @@ end;
 destructor TPromise.Destroy;
 begin
   try
-    FreeAndNil(fCallbacks);
-    FreeAndNil(fErrorbacks);
+    //FreeAndNil(fCallbacks);
+    fCallbacks.Clear;
+    //FreeAndNil(fErrorbacks);
+    fErrorbacks.Clear;
     inherited Destroy;
   finally
     TPromiseMonitor.PromiseDestroyed;

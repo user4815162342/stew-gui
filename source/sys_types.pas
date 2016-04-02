@@ -55,6 +55,35 @@ type
     property Items[Index: Integer]: ItemType read GetItem write SetItem; default;
   end;
 
+  // I can't use TFPGList for methods, because when methods are compared with
+  // equals or not equals, only the code part is checked, not the data. So,
+  // until they allow me operator overloading for those, I need my own list.
+  // Doing this was easier than creating my own version of TFPGList just to
+  // override indexof (which isn't virtual). Plus, as the list isn't going to
+  // be changing a lot, the array will work fine.
+
+  { GMethodList }
+
+  generic GMethodList<ItemType> = record
+  public type
+     ArrayType = array of ItemType;
+  private
+     fItems: ArrayType;
+     function GetItem(Index: Integer): ItemType; inline;
+     function GetCount: Integer; inline;
+  public
+     procedure Init; inline;
+     procedure Add(Item: ItemType); inline;
+     procedure Remove(Item: ItemType); inline;
+     procedure Delete(Index: Integer); inline;
+     procedure Clear;
+     function IndexOf(Item: ItemType): Integer; inline;
+     property Count: Integer read GetCount;
+     property Items[Index: Integer]: ItemType read GetItem; default;
+  end;
+
+type
+
   TStringArray2 = specialize GArray<UTF8String>;
 
 const
@@ -71,6 +100,81 @@ const
 
 
 implementation
+
+{ GMethodList }
+
+function GMethodList.GetItem(Index: Integer): ItemType;
+begin
+  result := fItems[Index];
+end;
+
+function GMethodList.GetCount: Integer;
+begin
+  result := Length(fItems);
+end;
+
+procedure GMethodList.Init;
+begin
+  Clear;
+end;
+
+procedure GMethodList.Add(Item: ItemType);
+var
+  l: Integer;
+begin
+  l := Length(fItems);
+  SetLength(fItems,l + 1);
+  fItems[l] := Item;
+end;
+
+procedure GMethodList.Remove(Item: ItemType);
+var
+  i: Integer;
+begin
+  i := IndexOf(Item);
+  if (i > -1) then
+  begin
+    Delete(i);
+  end;
+
+end;
+
+procedure GMethodList.Delete(Index: Integer);
+var
+  {%H-}lOld: ItemType;
+  i: Integer;
+  l: Integer;
+begin
+  // force a range check error if that is turned on.
+  lOld := fItems[Index];
+  l := Length(fItems);
+  for i := Index to l - 2 do
+  begin
+    fItems[i] := fItems[i + 1];
+  end;
+  SetLength(fItems,l - 1);
+end;
+
+procedure GMethodList.Clear;
+begin
+  SetLength(fItems,0);
+end;
+
+function GMethodList.IndexOf(Item: ItemType): Integer;
+var
+  l: Integer;
+begin
+  Result := 0;
+  l := Length(fItems);
+  while (Result < l) and
+        not ((TMethod(fItems[Result]).Code = TMethod(Item).Code) and
+             (TMethod(fItems[Result]).Data = TMethod(Item).Data)) do
+  begin
+     inc(Result)
+  end;
+  if Result = l then
+     result := -1;
+end;
 
 { GSimpleList }
 

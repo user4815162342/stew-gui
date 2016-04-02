@@ -14,10 +14,10 @@ type
   TTestObserver = class
   private
     fProject: TStewProject;
-    procedure ObserveProject(Sender: TStewProject; Event: TProjectEvent);
   public
     Flag: Boolean;
     constructor Create(aProject: TStewProject);
+    procedure ObserveProject(Sender: TStewProject; {%H-}Event: TProjectEvent);
     procedure StopObserving;
     destructor Destroy; override;
   end;
@@ -771,6 +771,10 @@ begin
   fObserverB := TTestObserver.Create(fProject);
   fObserverB.StopObserving;
   fObserverC := TTestObserver.Create(fProject);
+  // This is where the problem was. Apparently, when two method pointers are compared,
+  // only the code is compared, not the data.
+  // http://stackoverflow.com/a/1027201/300213
+  //Assert(@fObserverA.ObserveProject <> @fObserverB.ObserveProject,'Two method pointers should not be equal');
   fProject.ReadProjectProperties.After(@RemoveObservers_2,@PromiseFailed).Tag := Sender.Tag;
 end;
 

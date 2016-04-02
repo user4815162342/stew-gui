@@ -18,8 +18,17 @@ type
   TTestEvent = procedure(const aSender: TObject; const aTestName: String) of object;
 
   TTest = procedure of object;
+  // I've got GMethodList in sys_types, but a test shouldn't be using the
+  // modules it's testing...
 
-  TTestList = specialize TFPGList<TTest>;
+  { TTestHolder }
+
+  TTestHolder = record
+    Value: TTest;
+    class operator=(a: TTestHolder; b: TTestHolder): Boolean;
+  end;
+
+  TTestList = specialize TFPGList<TTestHolder>;
 
   TTestRegistry = class;
 
@@ -164,6 +173,14 @@ begin
      result := lSpecName + '.' + lTestName;
 end;
 
+{ TTestHolder }
+
+class operator TTestHolder.=(a: TTestHolder; b: TTestHolder): Boolean;
+begin
+  result := (TMethod(a.Value).Code = TMethod(b.Value).Code) and
+            (TMethod(a.Value).Data = TMethod(b.Value).Data);
+end;
+
 { TTestSpec }
 
 function TTestSpec.BeginAsync: Integer;
@@ -245,7 +262,7 @@ var
 begin
   if not fCancelled and (fCurrent < fTests.Count) then
   begin
-    lTest := fTests[fCurrent];
+    lTest := fTests[fCurrent].Value;
     try
       StartTimer;
       lTest;
@@ -455,9 +472,12 @@ begin
 end;
 
 procedure TTestRegistry.AddTest(const aName: String; aTest: TTest);
+var
+  lHolder: TTestHolder;
 begin
   fTestNames.Add(aName);
-  fTests.Add(aTest);
+  lHolder.Value:=aTest;
+  fTests.Add(lHolder);
 
 end;
 

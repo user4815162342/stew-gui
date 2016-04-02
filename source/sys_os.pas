@@ -5,7 +5,7 @@ unit sys_os;
 interface
 
 uses
-  Classes, SysUtils, sys_async, sys_file, fgl;
+  Classes, SysUtils, sys_async, sys_file, fgl, sys_types;
 
 type
 
@@ -55,7 +55,7 @@ type
   end platform;
 
   TInternalEditorHandler = procedure(aFile: TFile; out aEdited: Boolean) of object;
-  TInternalEditorHandlerList = specialize TFPGList<TInternalEditorHandler>;
+  TInternalEditorHandlerList = specialize GMethodList<TInternalEditorHandler>;
 
   { TOperatingSystemInterface }
 
@@ -154,7 +154,8 @@ end;
 
 class constructor TOperatingSystemInterface.Create;
 begin
-  fEditorHandlers := TInternalEditorHandlerList.Create;
+  //fEditorHandlers := TInternalEditorHandlerList.Create;
+  fEditorHandlers.Init;
   fTemplateFolders := TTemplateFolderList.Create;
   fUseSystemTemplates := true;
 end;
@@ -162,7 +163,8 @@ end;
 class destructor TOperatingSystemInterface.Destroy;
 begin
   FreeAndNil(fTemplateFolders);
-  FreeAndNil(fEditorHandlers);
+  //FreeAndNil(fEditorHandlers);
+  fEditorHandlers.Clear;
 end;
 
 class function TOperatingSystemInterface.RunSimpleCommand(aCmd: String; const aArgs: array of string
