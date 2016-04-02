@@ -9,6 +9,19 @@ uses
 
 type
 
+  { TTestObserver }
+
+  TTestObserver = class
+  private
+    fProject: TStewProject;
+    procedure ObserveProject(Sender: TStewProject; Event: TProjectEvent);
+  public
+    Flag: Boolean;
+    constructor Create(aProject: TStewProject);
+    procedure StopObserving;
+    destructor Destroy; override;
+  end;
+
   TProjectEventArray = array of String;
   { TProjectSpec }
 
@@ -19,6 +32,8 @@ type
     procedure Edit_5(Sender: TPromise);
     procedure Edit_6(Sender: TPromise);
     procedure Edit_7(Sender: TPromise);
+    procedure RemoveObservers_1(Sender: TPromise);
+    procedure RemoveObservers_2(Sender: TPromise);
   private
     fTempDir: String;
     fTestRootDir: TFile;
@@ -28,6 +43,9 @@ type
     fNewAttachmentConfirmedFlag: Boolean;
     fTemplateChosenFlag: Boolean;
     fAttachmentChosenFlag: Boolean;
+    fObserverA: TTestObserver;
+    fObserverB: TTestObserver;
+    fObserverC: TTestObserver;
     procedure ClearProjectEvents;
     function VerifyProjectEvents(aExpected: array of String; aTestID: Integer): Boolean;
     procedure ObserveProject(Sender: TStewProject; Event: TProjectEvent);
@@ -88,6 +106,7 @@ type
     procedure Test_09_Shift;
     procedure Test_10_Rename;
     procedure Test_11_Edit;
+    procedure Test_12_RemoveObservers;
   end;
 
 
@@ -95,6 +114,34 @@ implementation
 
 uses
   gui_async, FileUtil, sys_localfile, stew_properties, Graphics, sys_os;
+
+{ TTestObserver }
+
+procedure TTestObserver.ObserveProject(Sender: TStewProject;
+  Event: TProjectEvent);
+begin
+  Flag := true;
+end;
+
+constructor TTestObserver.Create(aProject: TStewProject);
+begin
+  inherited Create;
+  Flag := false;
+  fProject := aProject;
+  fProject.AddObserver(@ObserveProject);
+end;
+
+procedure TTestObserver.StopObserving;
+begin
+   fProject.RemoveObserver(@ObserveProject);
+
+end;
+
+destructor TTestObserver.Destroy;
+begin
+   StopObserving;
+  inherited Destroy;
+end;
 
 { TProjectSpec }
 
@@ -710,6 +757,32 @@ begin
 
 end;
 
+procedure TProjectSpec.RemoveObservers_1(Sender: TPromise);
+begin
+  // So, these observers basically set a flag to true when the project
+  // emits an event to observe, this is a way we can be sure that
+  // the observation occurred.
+  // Now, before we add the third observer, we are removing the second.
+  // If everything goes right, then after the observe, the result should
+  // be changed on A and C, but not B, because that one isn't observing.
+  fProject := (Sender as TProjectPromise).Project;
+  ClearProjectEvents;
+  fObserverA := TTestObserver.Create(fProject);
+  fObserverB := TTestObserver.Create(fProject);
+  fObserverB.StopObserving;
+  fObserverC := TTestObserver.Create(fProject);
+  fProject.ReadProjectProperties.After(@RemoveObservers_2,@PromiseFailed).Tag := Sender.Tag;
+end;
+
+procedure TProjectSpec.RemoveObservers_2(Sender: TPromise);
+begin
+  if not AssertAsync((fObserverA.Flag) and
+              (not fObserverB.Flag) and
+              (fObserverC.Flag),'When removing observers, the correct observer must be removed',Sender.Tag) then
+                Exit;
+  EndAsync(Sender.Tag);
+end;
+
 procedure TProjectSpec.ClearProjectEvents;
 begin
   SetLength(fProjectEvents,0);
@@ -968,6 +1041,15 @@ begin
   TOperatingSystemInterface.UseSystemTemplates := false;
   TOperatingSystemInterface.AddTemplateFolder(LocalFile('../test-data/templates'));
   TStewProject.CheckExistenceAndCreate(fTestRootDir).After(@Edit_1,@PromiseFailed).Tag := BeginAsync;
+end;
+
+procedure TProjectSpec.Test_12_RemoveObservers;
+begin
+  if fProject <> nil then
+     FreeAndNil(fProject);
+
+  TStewProject.CheckExistenceAndCreate(fTestRootDir).After(@RemoveObservers_1,@PromiseFailed).Tag := BeginAsync;
+
 end;
 
 end.

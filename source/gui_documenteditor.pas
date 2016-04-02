@@ -405,6 +405,16 @@ var
   i: Integer;
   lKeys: TStringArray;
 begin
+  // TODO: An access violation occurs here occasionally.
+  // TODO: It looks like the handle isn't allocated yet.
+  // This means either: the observer is not being removed as I thought it was,
+  // or this is being called before the tab finishes being created.
+  // I'm leaning towards the observer not being really removed, because the
+  // watch return for StatusEdit is different than the one of the most recently
+  // created (0x1), and I'm still getting errors if I wrap this in a check for
+  // HandleAllocated. However, the observer list does show a lower count, so
+  // I'm not completely certain that something else isn't going on.
+
   StatusEdit.Items.Clear;
   CategoryEdit.Items.Clear;
   lKeys := aData.Statuses.keys;
