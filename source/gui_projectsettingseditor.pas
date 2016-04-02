@@ -195,7 +195,7 @@ const
   cMethod: String = 'TProjectSettingsEditor.SaveButtonClick';
 begin
   LogAction(cMethod,Document.ID);
-  MainForm.ShowMessage('The old version will be backed up in case this doesn''t work.',mtConfirmation,'Got it');
+  //MainForm.ShowMessage('The old version will be backed up in case this doesn''t work.',mtConfirmation,'Got it');
   WriteData;
 end;
 
@@ -321,7 +321,7 @@ begin
 
     if MainForm.Project <> nil then
     begin
-      MainForm.Project.WriteProjectProperties(lProps).After(@WriteData_Written);
+      MainForm.Project.WriteProjectProperties(lProps,false).After(@WriteData_Written);
     end
     else
     begin

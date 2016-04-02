@@ -801,12 +801,11 @@ type
     function IsDocumentAFolder(aDocument: TDocumentPath; aForceRefresh: Boolean = false): TDocumentIsFolderPromise;
     function ListDocumentsInFolder(aDocument: TDocumentPath; aForceRefresh: Boolean = false): TDocumentListPromise;
     function ReadDocumentSynopsis(aDocument: TDocumentPath; aForceRefresh: Boolean = false): TDocumentSynopsisPromise;
-    function WriteDocumentSynopsis(aDocument: TDocumentPath; aSynopsis: UTF8String): TWriteAttachmentPromise;
+    function WriteDocumentSynopsis(aDocument: TDocumentPath; aSynopsis: UTF8String; aBackup: Boolean = false): TWriteAttachmentPromise;
     function ReadDocumentProperties(aDocument: TDocumentPath; aForceRefresh: Boolean = false): TDocumentPropertiesPromise;
-    function WriteDocumentProperties(aDocument: TDocumentPath; aProperties: TDocumentProperties): TWriteAttachmentPromise;
+    function WriteDocumentProperties(aDocument: TDocumentPath; aProperties: TDocumentProperties; aBackup: Boolean = false): TWriteAttachmentPromise;
     function ReadProjectProperties(aForceRefresh: Boolean = false): TProjectPropertiesPromise;
-    function WriteProjectProperties(aProperties: TProjectProperties
-      ): TWriteProjectPropertiesPromise;
+    function WriteProjectProperties(aProperties: TProjectProperties; aBackup: Boolean = false): TWriteProjectPropertiesPromise;
     function ShiftDocumentBy(aDocument: TDocumentPath; aDelta: Integer): TShiftDocumentPromise;
     function ShiftDocumentUp(aDocument: TDocumentPath): TShiftDocumentPromise;
     function ShiftDocumentDown(aDocument: TDocumentPath): TShiftDocumentPromise;
@@ -1458,7 +1457,7 @@ begin
       begin
         lProps.Index.Put(i,lNewDocuments[i].Document.Name);
       end;
-      fProject.WriteDocumentProperties(lDirectory,lProps).After(@PropertiesWritten,@SubPromiseRejected);
+      fProject.WriteDocumentProperties(lDirectory,lProps,false).After(@PropertiesWritten,@SubPromiseRejected);
     end
     else
     // else, the document doesn't exist yet, so it doesn't make any sense to
@@ -3028,11 +3027,16 @@ begin
 end;
 
 function TStewProject.WriteDocumentSynopsis(aDocument: TDocumentPath;
-  aSynopsis: UTF8String): TWriteAttachmentPromise;
+  aSynopsis: UTF8String; aBackup: Boolean): TWriteAttachmentPromise;
 var
   lWriteFile: TFileWritePromise;
+  lOptions: TFileCacheWriteOptions;
 begin
-  lWriteFile := fCache.WriteFile(GetDocumentSynopsisPath(fDisk,aDocument));
+  if aBackup then
+    lOptions := [fcwoCreateBackupOfOriginal]
+  else
+    lOptions := [];
+  lWriteFile := fCache.WriteFile(GetDocumentSynopsisPath(fDisk,aDocument),lOptions);
   lWriteFile.WriteString(aSynopsis);
   result := TWriteAttachmentTask.Defer(aDocument,
                                        TAttachment.MakeSynopsis,
@@ -3057,11 +3061,16 @@ begin
 end;
 
 function TStewProject.WriteDocumentProperties(aDocument: TDocumentPath;
-  aProperties: TDocumentProperties): TWriteAttachmentPromise;
+  aProperties: TDocumentProperties; aBackup: Boolean): TWriteAttachmentPromise;
 var
   lWriteFile: TFileWritePromise;
+  lOptions: TFileCacheWriteOptions;
 begin
-  lWriteFile := fCache.WriteFile(GetDocumentPropertiesPath(fDisk,aDocument));
+  if aBackup then
+    lOptions := [fcwoCreateBackupOfOriginal]
+  else
+    lOptions := [];
+  lWriteFile := fCache.WriteFile(GetDocumentPropertiesPath(fDisk,aDocument),lOptions);
   ToJSON(aProperties,lWriteFile.Data,'  ');
   result := TWriteAttachmentTask.Defer(aDocument,
                                        TAttachment.MakeProperties,
@@ -3085,12 +3094,17 @@ begin
   result.After(@ProjectPropertiesDataReceived,@ProjectPropertiesReadError);
 end;
 
-function TStewProject.WriteProjectProperties(aProperties: TProjectProperties
-  ): TWriteProjectPropertiesPromise;
+function TStewProject.WriteProjectProperties(aProperties: TProjectProperties;
+  aBackup: Boolean): TWriteProjectPropertiesPromise;
 var
   lWriteFile: TFileWritePromise;
+  lOptions: TFileCacheWriteOptions;
 begin
-  lWriteFile := fCache.WriteFile(GetProjectPropertiesPath(fDisk));
+  if aBackup then
+     lOptions := [fcwoCreateBackupOfOriginal]
+  else
+    lOptions := [];
+  lWriteFile := fCache.WriteFile(GetProjectPropertiesPath(fDisk),lOptions);
   ToJSON(aProperties,lWriteFile.Data,'  ');
   result := TWriteProjectPropertiesTask.Defer(lWriteFile).Promise as TWriteProjectPropertiesPromise;
   // we only need to catch to make sure the error is reported.

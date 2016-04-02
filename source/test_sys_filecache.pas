@@ -427,7 +427,7 @@ var
 begin
   root := GetTestRootDir;
   fCache.WriteFile(root.GetContainedFile('bar').GetContainedFile('test.txt'),
-                                                                  'TEST',true).After(
+                                                                  'TEST',[fcwoCreateDir]).After(
                                                                   @ComplexWriteCallback1,
                                                                   @ComplexWriteConflict1).Tag := BeginAsync;
 

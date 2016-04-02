@@ -158,6 +158,9 @@ type
     constructor Enqueue(aFile: TFile; aData: TFileSystemCacheContents; aExistence: TFileSystemCacheExists);
   end;
 
+  TFileCacheWriteOption = (fcwoCreateDir,fcwoCreateBackupOfOriginal);
+  TFileCacheWriteOptions = set of TFileCacheWriteOption;
+
   { TFileSystemCache }
 
   // I played around with creating a separate 'cached' file system, but that
@@ -195,8 +198,8 @@ type
     function ReadFile(aFile: TFile): TFileReadPromise;
     // Although I'm not actually caching the write, I want to make sure
     // that we "uncache" files after they are saved.
-    function WriteFile(aFile: TFile; aCreateDir: Boolean = false): TFileWritePromise;
-    function WriteFile(aFile: TFile; aText: UTF8String; aCreateDir: Boolean = false): TFileWritePromise;
+    function WriteFile(aFile: TFile; aOptions: TFileCacheWriteOptions = []): TFileWritePromise;
+    function WriteFile(aFile: TFile; aText: UTF8String; aOptions: TFileCacheWriteOptions = []): TFileWritePromise;
     function RenameFiles(aSource: TFileArray; aTarget: TFileArray): TFileRenamePromise;
     function IsWriting(aFile: TFile): Boolean;
     function IsReading(aFile: TFile): Boolean;
@@ -843,7 +846,7 @@ begin
   end;
 end;
 
-function TFileSystemCache.WriteFile(aFile: TFile; aCreateDir: Boolean
+function TFileSystemCache.WriteFile(aFile: TFile; aOptions: TFileCacheWriteOptions
   ): TFileWritePromise;
 var
   lSavingKey: UTF8String;
@@ -869,8 +872,10 @@ begin
     lAge := NewFileAge;
     lOptions := [];
   end;
-  if aCreateDir then
+  if fcwoCreateDir in aOptions then
     lOptions := lOptions + [fwoCreateDir];
+  if fcwoCreateBackupOfOriginal in aOptions then
+    lOptions := lOptions + [fwoCreateBackupOfOriginal];
   result := aFile.Write(lOptions,lAge);
   result.After(@FileWritten,@FileWriteError);
   fPromiseCache[lSavingKey] := Result;
@@ -878,9 +883,9 @@ begin
 end;
 
 function TFileSystemCache.WriteFile(aFile: TFile; aText: UTF8String;
-  aCreateDir: Boolean): TFileWritePromise;
+  aOptions: TFileCacheWriteOptions): TFileWritePromise;
 begin
-  result := WriteFile(aFile,aCreateDir);
+  result := WriteFile(aFile,aOptions);
   result.WriteString(aText);
 end;
 

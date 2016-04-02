@@ -93,7 +93,7 @@ const
   cMethod: String = 'TDocumentEditor.SaveButtonClick';
 begin
   LogAction(cMethod,Document.ID);
-  MainForm.ShowMessage('The old version will be backed up in case this doesn''t work.',mtConfirmation,'Got it');
+  //MainForm.ShowMessage('The old version will be backed up in case this doesn''t work.',mtConfirmation,'Got it');
   WriteData;
 
 end;
@@ -130,7 +130,7 @@ begin
 
     if MainForm.Project <> nil then
     begin
-       MainForm.Project.WriteDocumentProperties(Document,lProps).After(@WriteData_PropertiesWritten)
+       MainForm.Project.WriteDocumentProperties(Document,lProps,false).After(@WriteData_PropertiesWritten)
     end
     else
     begin
@@ -156,7 +156,7 @@ begin
   begin
      if MainForm.Project <> nil then
      begin
-        MainForm.Project.WriteDocumentSynopsis(Document,SynopsisEdit.Lines.Text).After(@WriteData_SynopsisWritten)
+        MainForm.Project.WriteDocumentSynopsis(Document,SynopsisEdit.Lines.Text,false).After(@WriteData_SynopsisWritten)
      end
      else
      begin

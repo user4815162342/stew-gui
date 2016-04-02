@@ -246,7 +246,7 @@ begin
 
   // TODO: Once I'm sure that saving is being done right, get rid
   // of this.
-  if FileExists(fPath.ID) then
+  if (fwoCreateBackupOfOriginal in fOptions) and FileExists(fPath.ID) then
     CopyFile(fPath.ID,fPath.ID + '-' + FormatDateTime(TimestampFormat, Now));
   stream := TFileStream.Create(fPath.ID,fmCreate or fmShareDenyWrite);
   try

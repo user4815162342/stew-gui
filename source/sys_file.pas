@@ -28,7 +28,7 @@ type
 
   TFileReadPromise = class;
 
-  TFileWriteOption = (fwoCreateDir, fwoCheckAge);
+  TFileWriteOption = (fwoCreateDir, fwoCheckAge, fwoCreateBackupOfOriginal);
   TFileWriteOptions = set of TFileWriteOption;
   TFileWritePromise = class;
 
@@ -77,14 +77,15 @@ type
     // The 'Writer' is owned by the promise and destroyed when that is destroyed.
     function Write(aOptions: TFileWriteOptions): TFileWritePromise; overload;
     // The 'Writer' is owned by the promise and destroyed when that is destroyed.
-    function Write(aOptions: TFileWriteOptions;
-                    aFileAge: Longint): TFileWritePromise; overload;
+    function Write(aOptions: TFileWriteOptions; aFileAge: Longint
+      ): TFileWritePromise; overload;
     function Write(aText: UTF8String): TFileWritePromise; overload;
     // The 'Writer' is owned by the promise and destroyed when that is destroyed.
-    function Write(aOptions: TFileWriteOptions; aText: UTF8String): TFileWritePromise; overload;
+    function Write(aOptions: TFileWriteOptions; aText: UTF8String
+      ): TFileWritePromise; overload;
     // The 'Writer' is owned by the promise and destroyed when that is destroyed.
-    function Write(aOptions: TFileWriteOptions;
-                    aFileAge: Longint; aText: UTF8String): TFileWritePromise; overload;
+    function Write(aOptions: TFileWriteOptions; aFileAge: Longint; aText: UTF8String
+      ): TFileWritePromise; overload;
     function CopyTo(aTarget: TFile; aFlags: TFileCopyOptions): TFileCopyPromise; overload;
     function CopyTo(aTarget: TFile): TFileCopyPromise; overload;
     function Rename(aTarget: TFile): TFileRenamePromise;
@@ -606,8 +607,7 @@ begin
   result := fSystem.WriteFile(Self,aOptions,NewFileAge);
 end;
 
-function TFile.Write(aOptions: TFileWriteOptions; aFileAge: Longint
-  ): TFileWritePromise;
+function TFile.Write(aOptions: TFileWriteOptions; aFileAge: Longint): TFileWritePromise;
 begin
   result := fSystem.WriteFile(Self,aOptions,aFileAge);
 end;
@@ -621,8 +621,7 @@ begin
   Result.WriteString(aText);
 end;
 
-function TFile.Write(aOptions: TFileWriteOptions; aText: UTF8String
-  ): TFileWritePromise;
+function TFile.Write(aOptions: TFileWriteOptions; aText: UTF8String): TFileWritePromise;
 begin
   result := Write(aOptions);
   Result.WriteString(aText);
