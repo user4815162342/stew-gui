@@ -52,7 +52,7 @@ begin
   Assert(DateTimeToRelativeEnglish(lNow - 800) = '2 YEARS AGO!','RelativeEnglishDates [10]');
   Assert(DateTimeToRelativeEnglish(lNow - 367) = 'LAST YEAR!','RelativeEnglishDates [11]');
   Assert(DateTimeToRelativeEnglish(lNow - 365) = '12 MONTHS AGO!','RelativeEnglishDates [12]');
-  Assert(DateTimeToRelativeEnglish(lNow - 95) = '3 MONTHS AGO!','RelativeEnglishDates [13]');
+  Assert(DateTimeToRelativeEnglish(lNow - 100) = '4 MONTHS AGO!','RelativeEnglishDates [13]');
   Assert(DateTimeToRelativeEnglish(lNow - 40) = '5 WEEKS AGO!','RelativeEnglishDates [14]');
   Assert(DateTimeToRelativeEnglish(lNow - 24) = '3 WEEKS AGO!','RelativeEnglishDates [15]');
   Assert(DateTimeToRelativeEnglish(lNow - 8) = 'LAST WEEK!','RelativeEnglishDates [16]');

@@ -503,8 +503,10 @@ begin
       methodTable := pMethodNameTable((Pointer(vmt) + vmtMethodTable)^);
       if Assigned(MethodTable) then
       begin
+        {$R-}
         for i := 0 to MethodTable^.count - 1 do
           list.Add(MethodTable^.entries[i].name^);
+        {$R+}
       end;
       vmt := pClass(pointer(vmt) + vmtParent)^;
     end;

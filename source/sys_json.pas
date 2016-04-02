@@ -484,7 +484,8 @@ var
 
   procedure Write(aValue: UTF8String);
   begin
-    aStream.Write(aValue[1],Length(aValue));
+    if aValue <> '' then
+       aStream.Write(aValue[1],Length(aValue));
   end;
 
   procedure WriteValue(aValue: TJSValue); forward;

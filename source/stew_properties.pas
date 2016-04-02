@@ -664,7 +664,7 @@ begin
   case aKey of
     RedKey,GreenKey,BlueKey:
     begin
-      lValue := trunc(aValue);
+      lValue := Byte(trunc(aValue));
       Result:=inherited CreateNumberValue(aKey, aRequestType, lValue);
     end
   else

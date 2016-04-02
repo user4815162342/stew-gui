@@ -75,7 +75,11 @@ begin
     lColor.B := $80;
     lColor.G := $80;
     Assert(lColor.AsColor = clGray,'Should be able to set RBG separately to get a correct color');
-    lColor.Put('r',$FF + 2);
+    try
+       lColor.Put('r',$FF + 2);
+    except on E: ERangeError do
+       Assert(false,'Assigning an out of bounds value to a color element should silently truncate the value [error raised]');
+    end;
     Assert(lColor.Get('r').AsNumber = 1,'Assigning an out of bounds value to a color element should silently truncate the value');
   finally
     lColor.Free;
