@@ -1,3 +1,11 @@
+stew-gui-linux (0.1.0.97) precise; urgency=low
+
+  * Fixed access violation which occurred occasionally when tabs were opened after a 
+    previous tab had been closed.
+  * Removed automatic backing up of property files.
+
+ -- Neil Sheldon <neilmsheldon@townsedgetechnology.com>  Sat, 02 Apr 2016 13:46:42 -0500
+
 stew-gui-linux (0.1.0.92) precise; urgency=low
 
   * Move log file output to configuration directory
