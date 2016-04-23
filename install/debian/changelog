@@ -1,3 +1,9 @@
+stew-gui-linux (0.1.0.98) precise; urgency=low
+
+  * Added a UI on the document properties editor to indicate when primary document and notes are already created.
+
+ -- Neil Sheldon <neilmsheldon@townsedgetechnology.com>  Fri, 22 Apr 2016 20:59:24 -0500
+
 stew-gui-linux (0.1.0.97) precise; urgency=low
 
   * Fixed access violation which occurred occasionally when tabs were opened after a 

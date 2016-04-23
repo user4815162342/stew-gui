@@ -620,6 +620,8 @@ begin
        lMessage := lMessage + ' while loading or saving the project properties.';
      paDocumentsListingFailed:
        lMessage := lMessage + ' while listing the contents of a folder.';
+     paAttachmentListingFailed:
+       lMessage := lMessage + ' while listing attachments for a document.';
      paDocumentFolderCheckFailed:
        lMessage := lMessage + ' while checking a document.';
      paDocumentShiftFailed:

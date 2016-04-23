@@ -58,6 +58,7 @@ type
     procedure ProjectPropertiesUpdated(aData: TProjectProperties);
     procedure DocumentRenamed(aOldDocument: TDocumentPath; aNewDocument: TDocumentPath);
     procedure PropertiesUpdated(aData: TDocumentProperties);
+    procedure AttachmentsListed(aData: TAttachmentArray);
     procedure SynopsisUpdated(aData: UTF8String);
     procedure WriteData;
     procedure WriteData_Done;
@@ -237,6 +238,7 @@ begin
   begin
     MainForm.Project.ReadDocumentProperties(Document,true);
     MainForm.Project.ReadDocumentSynopsis(Document,true);
+    MainForm.Project.ListAttachmentsForDocument(Document,true);
   end;
 end;
 
@@ -280,6 +282,11 @@ begin
     paLoadingProjectPropertiesFile,
     paSavingProjectPropertiesFile:
        BeginUIUpdate;
+    paListingDocumentFiles:
+      BeginUIUpdate;
+    paDocumentFilesListed,
+    paDocumentsFileListingFailed:
+      EndUIUpdate;
     paProjectPropertiesFileLoaded,
     paProjectPropertiesFileLoadingFailed,
     paProjectPropertiesFileSaved,
@@ -298,6 +305,11 @@ begin
     paProjectPropertiesDataReceived:
     // Need to update the combo boxes for statuses and categories.
       ProjectPropertiesUpdated((Event as TProjectPropertiesDataReceivedEvent).Properties);
+    paAttachmentListDataReceived:
+      if (Event as TAttachmentListDataReceivedEvent).Document = Document then
+      begin
+        AttachmentsListed((Event as TAttachmentListDataReceivedEvent).List);
+      end;
     paShadowCreated,
     paShadowUncreated:
     // do nothing. But, someday there might be something we want to change in the UI here.
@@ -358,6 +370,7 @@ begin
     begin
       MainForm.Project.ReadDocumentProperties(AValue);
       MainForm.Project.ReadDocumentSynopsis(AValue);
+      MainForm.Project.ListAttachmentsForDocument(AValue);
     end;
 
     SetupControls;
@@ -455,6 +468,32 @@ begin
   SetupControls;
 end;
 
+procedure TDocumentEditor.AttachmentsListed(aData: TAttachmentArray);
+const
+  NoPrimaryCaption = 'Edit';
+  NoNotesCaption = 'Notes';
+  HasPrimaryCaption = 'Edit ✓';
+  HasNotesCaption = 'Notes ✓';
+var
+  i: Longint;
+  l: Longint;
+begin
+  // TODO: Also come up with a combobutton to edit the remaining attachments.
+  // TODO: In fact, if there is more than one primary, or notes, the notes
+  // button should be a dropdown button.
+  // TODO: Eventually, the result will change a button image, not the caption.
+  EditNotesButton.Caption := NoNotesCaption;
+  EditPrimaryButton.Caption := NoPrimaryCaption;
+  l := Length(aData) - 1;
+  for i := 0 to l do
+  begin
+    if aData[i].Kind = atPrimary then
+       EditPrimaryButton.Caption := HasPrimaryCaption;
+    if aData[i].Kind = atNotes then
+       EditNotesButton.Caption := HasNotesCaption;
+  end;
+end;
+
 procedure TDocumentEditor.SynopsisUpdated(aData: UTF8String);
 begin
   fSynopsisAvailable := true;
@@ -486,6 +525,7 @@ begin
   begin
     MainForm.Project.ReadDocumentProperties(Document);
     MainForm.Project.ReadDocumentSynopsis(Document);
+    MainForm.Project.ListAttachmentsForDocument(Document);
   end;
   SetupControls;
 

@@ -63,6 +63,40 @@ type
 
   TDocumentInfoArray = array of TDocumentInfo;
 
+  TAttachmentKind = (atUnknown, atFolder, atPrimary, atProperties, atNotes, atThumbnail, atSynopsis, atBackup);
+
+  { TAttachment }
+
+  TAttachment = record
+    Kind: TAttachmentKind;
+    Descriptor: UTF8String;
+    Extension: UTF8String;
+    class function MakeUnknown(aDescriptor: UTF8String; aExtension: UTF8String): TAttachment; static;
+    class function MakeDirectory: TAttachment; static;
+    class function MakePrimary(aExtension: UTF8String): TAttachment; static;
+    class function MakeProperties: TAttachment; static;
+    class function MakeNotes(aExtension: UTF8String): TAttachment; static;
+    class function MakeThumbnail(aExtension: UTF8String): TAttachment; static;
+    class function MakeSynopsis: TAttachment; static;
+    class function MakeBackup(aDescriptor: UTF8String; aExtension: UTF8String): TAttachment; static;
+    class function Make(aKind: TAttachmentKind; aDescriptor: UTF8String; aExtension: UTF8String): TAttachment; static;
+    class function FromFile(aBase: TFile; aFile: TFile): TAttachment; static;
+    const
+      AttachmentKindStrings: array[TAttachmentKind] of UTF8String =
+    ('unknown file',
+     'folder',
+     'primary',
+     'property file',
+     'note',
+     'thumbnail',
+     'synopsis',
+     'backup'
+    );
+  end;
+
+  TAttachmentArray = array of TAttachment;
+
+
   TProjectEventKind = (
   // The "File" events indicate actual file-based activity. These are necessary
   // to:
@@ -111,6 +145,8 @@ type
      paProjectPropertiesSaveConflictOccurred,
      paDocumentListDataReceived,
      paDocumentsListingFailed,
+     paAttachmentListDataReceived,
+     paAttachmentListingFailed,
      paDocumentFolderCheckFailed,
      paShadowCreated,
      paShadowUncreated,
@@ -167,6 +203,8 @@ type
      'ProjectPropertiesSaveConflictOccurred',
      'DocumentListDataReceived',
      'DocumentsListingFailed',
+     'DocumentAttachmentsListed',
+     'DocumentAttachmentsListingFailed',
      'DocumentFolderCheckFailed',
      'ShadowCreated',
      'ShadowUncreated',
@@ -239,6 +277,17 @@ type
     function GetDescription: UTF8String; override;
   end;
 
+  { TAttachmentListDataReceivedEvent }
+
+  TAttachmentListDataReceivedEvent = class(TDocumentEvent)
+  strict private
+    fList: TAttachmentArray;
+  public
+    constructor Create(aDocument: TDocumentPath; aList: TAttachmentArray);
+    property List: TAttachmentArray read fList;
+    function GetDescription: UTF8String; override;
+  end;
+
   { TDocumentError }
 
   TDocumentError = class(TDocumentEvent)
@@ -275,37 +324,6 @@ type
     function GetDescription: UTF8String; override;
   end;
 
-
-  TAttachmentKind = (atUnknown, atFolder, atPrimary, atProperties, atNotes, atThumbnail, atSynopsis, atBackup);
-
-  { TAttachment }
-
-  TAttachment = record
-    Kind: TAttachmentKind;
-    Descriptor: UTF8String;
-    Extension: UTF8String;
-    class function MakeUnknown(aDescriptor: UTF8String; aExtension: UTF8String): TAttachment; static;
-    class function MakeDirectory: TAttachment; static;
-    class function MakePrimary(aExtension: UTF8String): TAttachment; static;
-    class function MakeProperties: TAttachment; static;
-    class function MakeNotes(aExtension: UTF8String): TAttachment; static;
-    class function MakeThumbnail(aExtension: UTF8String): TAttachment; static;
-    class function MakeSynopsis: TAttachment; static;
-    class function MakeBackup(aDescriptor: UTF8String; aExtension: UTF8String): TAttachment; static;
-    class function Make(aKind: TAttachmentKind; aDescriptor: UTF8String; aExtension: UTF8String): TAttachment; static;
-    class function FromFile(aBase: TFile; aFile: TFile): TAttachment; static;
-    const
-      AttachmentKindStrings: array[TAttachmentKind] of UTF8String =
-    ('unknown file',
-     'folder',
-     'primary',
-     'property file',
-     'note',
-     'thumbnail',
-     'synopsis',
-     'backup'
-    );
-  end;
 
   { TAttachmentEvent }
 
@@ -489,6 +507,20 @@ type
     property List: TDocumentInfoArray read fList;
   end;
 
+  { TAttachmentListPromise }
+
+  TAttachmentListPromise = class(TPromise)
+  strict private
+    fDocument: TDocumentPath;
+  private
+    fList: TAttachmentArray;
+  public
+    constructor Create(aDocument: TDocumentPath);
+    property Document: TDocumentPath read fDocument;
+    property List: TAttachmentArray read fList;
+
+  end;
+
   { TDocumentIsFolderPromise }
 
   TDocumentIsFolderPromise = class(TPromise)
@@ -651,6 +683,20 @@ type
       constructor Defer(aDocument: TDocumentPath; aProject: TStewProject; aPromise: TFileListPromise);
     end;
 
+    { TListAttachmentsForDocumentTask }
+
+    TListAttachmentsForDocumentTask = class(TDeferredTask)
+    strict private
+      fProject: TStewProject;
+      fDocument: TDocumentPath;
+      fFiles: TFileInfoArray;
+    strict protected
+      procedure DoTask(Input: TPromise); override;
+      function CreatePromise: TPromise; override;
+    public
+      constructor Defer(aDocument: TDocumentPath; aProject: TStewProject; aPromise: TFileListPromise);
+    end;
+
     { TDocumentListBuilder }
 
     TDocumentListBuilder = class(TObject)
@@ -749,6 +795,8 @@ type
     procedure ProjectPropertiesWriteError(Sender: TPromise; aError: TPromiseError);
     procedure DocumentListError(Sender: TPromise; aError: TPromiseError);
     procedure DocumentListReceived(Sender: TPromise);
+    procedure AttachmentListReceived(Sender: TPromise);
+    procedure AttachmentListError(Sender: TPromise; aError: TPromiseError);
     procedure DocumentPropertiesDataReceived(Sender: TPromise);
     procedure DocumentPropertiesReadError(Sender: TPromise;
       aError: TPromiseError);
@@ -800,6 +848,7 @@ type
 
     function IsDocumentAFolder(aDocument: TDocumentPath; aForceRefresh: Boolean = false): TDocumentIsFolderPromise;
     function ListDocumentsInFolder(aDocument: TDocumentPath; aForceRefresh: Boolean = false): TDocumentListPromise;
+    function ListAttachmentsForDocument(aDocument: TDocumentPath; aForceRefresh: Boolean = false): TAttachmentListPromise;
     function ReadDocumentSynopsis(aDocument: TDocumentPath; aForceRefresh: Boolean = false): TDocumentSynopsisPromise;
     function WriteDocumentSynopsis(aDocument: TDocumentPath; aSynopsis: UTF8String; aBackup: Boolean = false): TWriteAttachmentPromise;
     function ReadDocumentProperties(aDocument: TDocumentPath; aForceRefresh: Boolean = false): TDocumentPropertiesPromise;
@@ -930,6 +979,113 @@ begin
   L:=Length(Result);
   If (L>0) and (Result[1] = '/') then
     Delete(Result,1,1);
+end;
+
+{ TAttachmentListPromise }
+
+constructor TAttachmentListPromise.Create(aDocument: TDocumentPath);
+begin
+  inherited Create;
+  fDocument := aDocument;
+end;
+
+{ TAttachmentListDataReceivedEvent }
+
+constructor TAttachmentListDataReceivedEvent.Create(aDocument: TDocumentPath;
+  aList: TAttachmentArray);
+begin
+  inherited Create(paAttachmentListDataReceived,aDocument);
+  fList := aList;
+end;
+
+function TAttachmentListDataReceivedEvent.GetDescription: UTF8String;
+var
+  i: Integer;
+begin
+  Result:=inherited GetDescription;
+  result := result + ' [';
+  for i := 0 to Length(fList) - 1 do
+  begin
+    if i > 0 then
+      result := result + ',';
+    result := result + ' ' + TAttachment.AttachmentKindStrings[fList[i].Kind] +
+                       ' "_' + fList[i].Descriptor +
+                       '.' + fList[i].Extension + '"';
+  end;
+  result := result + ']';
+end;
+
+{ TStewProject.TListAttachmentsForDocumentTask }
+
+procedure TStewProject.TListAttachmentsForDocumentTask.DoTask(Input: TPromise);
+var
+  lKind: TAttachmentKind;
+  lFiles: TFileInfoArray;
+  lAttachments: TAttachmentArray;
+  l: Longint;
+  i: Longint;
+begin
+  try
+    lFiles := (Input as TFileListPromise).FilesInfo;
+    l := Length(lFiles);
+    SetLength(lAttachments,l);
+    for i := 0 to l - 1 do
+    begin
+      if fDocument = TDocumentPath.FromFile(fProject.fDisk,lFiles[i].Item) then
+      begin
+        lKind := atUnknown;
+        case lFiles[i].Item.Descriptor of
+          TStewProject.DocumentPropertiesDescriptor:
+             if lFiles[i].Item.Extension = TStewProject.PropertiesExtension then
+                lKind := atProperties;
+          TStewProject.DocumentSynopsisDescriptor:
+             if lFiles[i].Item.Extension = TStewProject.DocumentSynopsisExtension then
+                lKind := atSynopsis;
+          TStewProject.DocumentNotesDescriptor:
+             lKind := atNotes;
+          TStewProject.DocumentThumbnailDescriptor:
+             lKind := atThumbnail;
+          '':
+          begin
+             if lFiles[i].IsFolder and (lFiles[i].Item.Extension = '') then
+                lKind := atFolder
+             else
+                lKind := atPrimary;
+          end
+        else
+          if Pos(TStewProject.DocumentBackupDescriptorPrefix,lFiles[i].Item.Descriptor) = 1 then
+             lKind := atBackup;
+        end;
+        lAttachments[i] := TAttachment.Make(lKind,
+                                           lFiles[i].Item.Descriptor,
+                                           lFiles[i].Item.Extension);
+
+      end;
+    end;
+    (Promise as TAttachmentListPromise).fList := lAttachments;
+    Resolve;
+
+  except
+    on E: Exception do
+    begin
+      LogException('TStewProject.TListAttachmentsForDocumentTask.DoTask',E);
+      Reject(E.Message);
+    end;
+  end;
+end;
+
+function TStewProject.TListAttachmentsForDocumentTask.CreatePromise: TPromise;
+begin
+  Result := TAttachmentListPromise.Create(fDocument);
+
+end;
+
+constructor TStewProject.TListAttachmentsForDocumentTask.Defer(
+  aDocument: TDocumentPath; aProject: TStewProject; aPromise: TFileListPromise);
+begin
+  fDocument := aDocument;
+  fProject := aProject;
+  inherited Defer(aPromise);
 end;
 
 { TDocumentInfo }
@@ -2324,6 +2480,7 @@ begin
   paProjectPropertiesSavingFailed,
   paProjectPropertiesSaveConflictOccurred,
   paDocumentsListingFailed,
+  paAttachmentListingFailed,
   paDocumentFolderCheckFailed,
   paDocumentShiftFailed,
   paDocumentRenamingFailed,
@@ -2610,6 +2767,21 @@ begin
 end;
 
 { TStewProject }
+
+procedure TStewProject.AttachmentListReceived(Sender: TPromise);
+begin
+  ReportEvent(TAttachmentListDataReceivedEvent.Create(
+              (Sender as TAttachmentListPromise).Document,
+              (Sender as TAttachmentListPromise).List));
+end;
+
+procedure TStewProject.AttachmentListError(Sender: TPromise;
+  aError: TPromiseError);
+begin
+  ReportEvent(TDocumentError.Create(paAttachmentListingFailed,
+                                    (Sender as TAttachmentListPromise).Document,
+                                    aError));
+end;
 
 procedure TStewProject.ReportEvent(aEvent: TProjectEvent);
 var
@@ -3009,6 +3181,20 @@ begin
   result := TListDocumentsInFolderTask.Defer(aDocument,Self,lListFiles).Promise as TDocumentListPromise;
   result.After(@DocumentListReceived,@DocumentListError);
 
+end;
+
+function TStewProject.ListAttachmentsForDocument(aDocument: TDocumentPath;
+  aForceRefresh: Boolean): TAttachmentListPromise;
+var
+  lFolderFile: TFile;
+  lListFiles: TFileListPromise;
+begin
+  lFolderFile := GetDocumentFolderPath(fDisk,aDocument.Container);
+  if aForceRefresh then
+    fCache.Uncache(lFolderFile,true);
+  lListFiles := fCache.ListFiles(lFolderFile);
+  result := TListAttachmentsForDocumentTask.Defer(aDocument,Self,lListFiles).Promise as TAttachmentListPromise;
+  result.After(@AttachmentListReceived,@AttachmentListError);
 end;
 
 function TStewProject.ReadDocumentSynopsis(aDocument: TDocumentPath;
