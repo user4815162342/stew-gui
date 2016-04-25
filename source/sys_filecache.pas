@@ -7,6 +7,20 @@ interface
 uses
   Classes, SysUtils, sys_file, contnrs, sys_types, sys_async;
 
+{
+TODO: When refreshing, are we uncaching the right data? Maybe we should
+have separate methods for uncaching list, contents and existence, so we
+only uncache the data we would be retrieving if we called those methods.
+The problem I'm not certain about is how that would work with recursion.
+When recursively uncaching a contents, do I just uncache all contents
+or all files, or maybe I only recursively uncache with the uncacheall.
+The better way to do the uncaching like this would be to do the uncaching
+with a parameter to ReadFile, ListFile, etc. Then we know what we're uncaching.
+But, some questions are, when uncaching a list, do we need to uncache the existence
+of child files? Contents? When uncaching existence, do we need to uncache the
+contents and lists as well?
+}
+
 type
 
   TLongStringMapIteratorCallback = procedure(aKey: UTF8String; aValue: TObject) of object;
@@ -413,8 +427,10 @@ begin
     lIsFolder:= (Sender as TFileExistencePromise).IsFolder;
     fPromiseCache.Delete(lExistsKey);
     fDataCache[lExistsKey] := TFileSystemCacheExists.Create(lExists,lIsFolder);
-    ReportActivity(Sender);
   end;
+  // report the activity either way, since we reported a start, so we should report the
+  // end.
+  ReportActivity(Sender);
   // otherwise, there must be a newer promise with better information...
 end;
 
@@ -448,8 +464,10 @@ begin
       fDataCache[ExistsKey(lFiles[i].Item)] := TFileSystemCacheExists.Create(true,lFiles[i].IsFolder);
     end;
 
-    ReportActivity(Sender);
   end;
+  // report the activity either way, since we reported a start, so we should report the
+  // end.
+  ReportActivity(Sender);
   // otherwise, there must be a newer promise with better information...
 end;
 
@@ -502,8 +520,10 @@ begin
     lContents := (Sender as TFileWritePromise).ReadString;
     fDataCache[lContentsKey] := TFileSystemCacheContents.Create(lContents,lAge);
     // otherwise, there must be a newer promise with better information...
-    ReportActivity(Sender);
   end;
+  // report the activity either way, since we reported a start, so we should report the
+  // end.
+  ReportActivity(Sender);
 end;
 
 procedure TFileSystemCache.FileExistenceCheckError(Sender: TPromise;
@@ -641,9 +661,11 @@ begin
     lAge := (Sender as TFileReadPromise).Age;
     lContents := (Sender as TFileReadPromise).ReadString;
     fDataCache[lContentsKey] := TFileSystemCacheContents.Create(lContents,lAge);
-    ReportActivity(Sender);
   end;
   // otherwise, there must be a newer promise with better information...
+  // report the activity either way, since we reported a start, so we should report the
+  // end.
+  ReportActivity(Sender);
 end;
 
 class function TFileSystemCache.ExistsKey(aFile: TFile): UTF8String;
@@ -920,7 +942,9 @@ begin
   // if a promise is removed from the cache, it won't have any effects
   // when it returns, because the after code checks to see if it's the correct
   // response for that file before it does anything.
-  fPromiseCache.Clear;
+
+  // You know what? Naah. If we're uncaching, leave any existing promises here.
+  //fPromiseCache.Clear;
   fDataCache.Clear;
 
 end;
@@ -937,7 +961,8 @@ begin
   begin
     SetLength(lFiles,1);
     lFiles[0] := aFile;
-    DeleteKeysWhichRepresentContainedFiles(fPromiseCache,lFiles);
+    // Don't uncache promises...
+    //DeleteKeysWhichRepresentContainedFiles(fPromiseCache,lFiles);
     DeleteKeysWhichRepresentContainedFiles(fDataCache,lFiles);
   end
   else
@@ -947,15 +972,17 @@ begin
     lExistsKey := ExistsKey(aFile);
     lContentsKey := ContentsKey(aFile);
     lListKey := ListKey(aFile);
-    fPromiseCache.Delete(lContentsKey);
-    fPromiseCache.Delete(lListKey);
-    fPromiseCache.Delete(lExistsKey);
+    // Don't uncache promises...
+    //fPromiseCache.Delete(lContentsKey);
+    //fPromiseCache.Delete(lListKey);
+    //fPromiseCache.Delete(lExistsKey);
     fDataCache.Delete(lContentsKey);
     fDataCache.Delete(lListKey);
     fDataCache.Delete(lExistsKey);
     // we also need to delete the lists that contain it...
     lListKey := ListKey(aFile.Directory);
-    fPromiseCache.Delete(lListKey);
+    // Don't uncache promises...
+    //fPromiseCache.Delete(lListKey);
     fDataCache.Delete(lListKey);
   end;
 
@@ -968,7 +995,8 @@ var
 begin
   if aRecursive then
   begin
-    DeleteKeysWhichRepresentContainedFiles(fPromiseCache,aFiles);
+    // Don't uncache promises...
+    //DeleteKeysWhichRepresentContainedFiles(fPromiseCache,aFiles);
     DeleteKeysWhichRepresentContainedFiles(fDataCache,aFiles);
   end
   else

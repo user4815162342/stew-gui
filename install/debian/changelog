@@ -1,3 +1,9 @@
+stew-gui-linux (0.1.0.99) precise; urgency=low
+
+  * Fixed a problem with refreshing documents occurring since the last release
+
+ -- Neil Sheldon <neilmsheldon@townsedgetechnology.com>  Mon, 25 Apr 2016 13:50:42 -0500
+
 stew-gui-linux (0.1.0.98) precise; urgency=low
 
   * Added a UI on the document properties editor to indicate when primary document and notes are already created.

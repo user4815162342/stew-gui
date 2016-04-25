@@ -3191,7 +3191,7 @@ var
 begin
   lFolderFile := GetDocumentFolderPath(fDisk,aDocument.Container);
   if aForceRefresh then
-    fCache.Uncache(lFolderFile,true);
+    fCache.Uncache(lFolderFile);
   lListFiles := fCache.ListFiles(lFolderFile);
   result := TListAttachmentsForDocumentTask.Defer(aDocument,Self,lListFiles).Promise as TAttachmentListPromise;
   result.After(@AttachmentListReceived,@AttachmentListError);
