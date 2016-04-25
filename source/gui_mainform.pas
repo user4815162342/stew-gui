@@ -1020,7 +1020,7 @@ procedure TMainForm.UpdateStatus(aProps: TProjectProperties);
     lPanel: TStatusPanel;
     lText: String;
   begin
-    lText := aDeadLine.Name + ' due ' + DateTimeToRelativeEnglish(aDeadLine.Due);
+    lText := aDeadLine.Name + ' due ' + DateTimeToRelativeEnglish(Now,aDeadLine.Due);
     lPanel := MainStatus.Panels.Add;
     lPanel.Text := lText;
     lPanel.Alignment:= aAlign;

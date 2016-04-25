@@ -94,7 +94,7 @@ const
   function ISO8601ToDateTime(const AValue: string): TDateTime;
   function DateTimeToMsecs(const aDateTime: TDateTime): Comp;
   function MsecsToDateTime(const aValue: Comp): TDateTime;
-  function DateTimeToRelativeEnglish(aDate: TDateTime): String;
+  function DateTimeToRelativeEnglish(aFromDate: TDateTime; aToDate: TDateTime): String;
   function MonthDifference(aDate: TDateTime; bDate: TDateTime): Integer;
   function WorkingDaysDifference(aDate: TDateTime; bDate: TDateTime): Integer;
 
@@ -295,7 +295,7 @@ begin
   result := TimeStampToDateTime(MSecsToTimeStamp(aValue));
 end;
 
-function DateTimeToRelativeEnglish(aDate: TDateTime): String;
+function DateTimeToRelativeEnglish(aFromDate: TDateTime; aToDate: TDateTime): String;
 var
   lNow: TDateTime;
   lDays: Integer;
@@ -306,8 +306,8 @@ begin
   // Mar 7 should also be 4 months. I think I somehow have to go
   // to the 'middle' of the month to get it. Or, I actually count
   // the months?
-  lNow := trunc(Now);
-  lDays := trunc(aDate - lNow);
+  lNow := trunc(aFromDate);
+  lDays := trunc(aToDate - lNow);
   case lDays of
      low(Integer)..-731:
        result := IntToStr((-lDays) div 365) + ' YEARS AGO!';
@@ -315,7 +315,7 @@ begin
        result := 'LAST YEAR!';
      -365..-48:
        begin
-         lMonths := MonthDifference(aDate,lNow);
+         lMonths := MonthDifference(aToDate,lNow);
          if lMonths = -1 then
             result := 'LAST MONTH!'
          else
@@ -341,7 +341,7 @@ begin
        result := 'in ' + IntToStr(lDays div 7) + ' weeks';
      48..365:
        begin
-         lMonths := MonthDifference(aDate,lNow);
+         lMonths := MonthDifference(aToDate,lNow);
          if lMonths = 1 then
             result := 'next month'
          else
