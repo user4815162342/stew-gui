@@ -477,20 +477,42 @@ const
 var
   i: Longint;
   l: Longint;
+  lFoundPrimary: Boolean;
+  lFoundNotes: Boolean;
 begin
   // TODO: Also come up with a combobutton to edit the remaining attachments.
   // TODO: In fact, if there is more than one primary, or notes, the notes
   // button should be a dropdown button.
   // TODO: Eventually, the result will change a button image, not the caption.
-  EditNotesButton.Caption := NoNotesCaption;
-  EditPrimaryButton.Caption := NoPrimaryCaption;
+  lFoundNotes := false;
+  lFoundPrimary := false;
   l := Length(aData) - 1;
   for i := 0 to l do
   begin
-    if aData[i].Kind = atPrimary then
-       EditPrimaryButton.Caption := HasPrimaryCaption;
-    if aData[i].Kind = atNotes then
-       EditNotesButton.Caption := HasNotesCaption;
+    if (not lFoundPrimary) and (aData[i].Kind = atPrimary) then
+    begin
+       lFoundPrimary := true;
+    end;
+    if (not lFoundNotes) and (aData[i].Kind = atNotes) then
+    begin
+       lFoundNotes := true;
+    end;
+  end;
+  if lFoundPrimary then
+  begin
+    EditPrimaryButton.Caption := HasPrimaryCaption;
+  end
+  else
+  begin
+    EditPrimaryButton.Caption := NoPrimaryCaption;
+  end;
+  if lFoundNotes then
+  begin
+    EditNotesButton.Caption := HasNotesCaption;
+  end
+  else
+  begin
+    EditNotesButton.Caption := NoNotesCaption;
   end;
 end;
 
