@@ -760,6 +760,7 @@ type
     { TRequestEditAttachmentTask }
 
     TRequestEditAttachmentTask = class(TDeferredTask)
+      procedure NewAttachment_ParentListed(Sender: TPromise);
     strict private
       fProject: TStewProject;
       fDocument: TDocumentPath;
@@ -1234,7 +1235,8 @@ begin
   fNewFile.OpenInEditor;
   (Promise as TRequestEditingAttachmentPromise).fAttachment := TAttachment.FromFile(fProject.fDisk,fNewFile);
   (Promise as TRequestEditingAttachmentPromise).fCancelled := false;
-  Resolve;
+  // need to list the attachments in parent to make sure the new attachment is cached.
+  fProject.ListAttachmentsForDocument(fDocument,true).After(@NewAttachment_ParentListed,@SubPromiseRejected);
 end;
 
 procedure TStewProject.TRequestEditAttachmentTask.TooManyAttachment_PropertiesRead
@@ -1307,6 +1309,14 @@ begin
       Reject(E.Message);
     end;
   end;
+end;
+
+procedure TStewProject.TRequestEditAttachmentTask.NewAttachment_ParentListed(
+  Sender: TPromise);
+begin
+  // don't need to actually do anything. The action was simply meant to cache
+  // the new document.
+  Resolve;
 end;
 
 procedure TStewProject.TRequestEditAttachmentTask.DoTask(Input: TPromise);
