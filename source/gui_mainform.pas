@@ -11,6 +11,36 @@ uses
   stew_properties;
 
 type
+  {
+  Glyphs needed:
+  - Main Menu:
+    - New Project
+    - Open Project
+    - Preferences
+    - Exit
+    - Refresh Project
+    - Project Settings
+  - Project ManagerToolbar:
+    - New Sibling
+    - New Child
+    - Change Name
+    - Move Up
+    - Move Down
+    - Delete
+  - Editor Frame Toolbar:
+    - Close
+  - Document Editor Toolbar:
+    - Save
+    - Refresh
+    - Edit Primary
+    - Edit Notes
+  - Project Settings Toolbar:
+    - Save
+    - Refresh
+    - Edit Notes
+  - TODO: Eventually, a bunch of glyphs to make available for the categories.
+  }
+
 
   TMainForm = class;
   TMainFormAction = (mfaProjectOpened, mfaProjectClosed, mfaDocumentOpened, mfaDocumentClosed);
@@ -20,6 +50,7 @@ type
   { TMainForm }
 
   TMainForm = class(TForm)
+    ApplicationImages: TImageList;
     MainMenu: TMainMenu;
     FileMenuItem: TMenuItem;
     HelpMenuItem: TMenuItem;

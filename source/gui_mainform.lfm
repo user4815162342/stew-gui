@@ -28,6 +28,7 @@ object MainForm: TMainForm
     OnMouseMove = MainStatusMouseMove
   end
   object MainMenu: TMainMenu
+    Images = ApplicationImages
     left = 24
     top = 56
     object FileMenuItem: TMenuItem
@@ -88,5 +89,9 @@ object MainForm: TMainForm
     OnTimer = CloseTimeoutTimerTimer
     left = 24
     top = 120
+  end
+  object ApplicationImages: TImageList
+    left = 33
+    top = 194
   end
 end

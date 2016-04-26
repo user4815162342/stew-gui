@@ -34,6 +34,7 @@ type
     fDocument: TDocumentPath;
   strict protected
     procedure SetDocument(AValue: TDocumentPath); virtual;
+    procedure SetupGlyphs; virtual;
   public
     { public declarations }
     constructor Create(TheOwner: TComponent); override;
@@ -68,10 +69,21 @@ begin
   end;
 end;
 
+procedure TEditorFrame.SetupGlyphs;
+begin
+  if MainForm.ApplicationImages <> nil then
+  begin
+    LeftHandToolbar.Images := MainForm.ApplicationImages;
+    RightHandToolbar.Images := MainForm.ApplicationImages;
+
+  end;
+end;
+
 constructor TEditorFrame.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
   fDocument := TDocumentPath.Null;
+  SetupGlyphs;
 end;
 
 function TEditorFrame.CloseQuery: Boolean;

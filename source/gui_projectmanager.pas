@@ -97,6 +97,7 @@ type
     fCategoryGlyphIndexes: TColorNumberMap;
     procedure UpdateCategoryGlyphs;
     procedure SetupControls;
+    procedure SetupGlyphs;
     procedure CreateNewDocument(aChild: Boolean);
   strict protected
     function GetTreeNodeForDocument(aDocument: TDocumentPath): TProjectInspectorNode;
@@ -745,6 +746,14 @@ begin
 
 end;
 
+procedure TProjectManager.SetupGlyphs;
+begin
+  if MainForm.ApplicationImages <> nil then
+  begin
+    ProjectToolbar.Images := MainForm.ApplicationImages;
+  end;
+end;
+
 procedure TProjectManager.CreateNewDocument(aChild: Boolean);
 var
   lNode: TProjectInspectorNode;
@@ -1116,6 +1125,7 @@ begin
   fCategoryColors.Sorted := true;
   MainForm.Observe(@ObserveMainForm);
   Text := 'Project';
+  SetupGlyphs;
   SetupControls;
 end;
 
