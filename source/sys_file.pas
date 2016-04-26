@@ -91,7 +91,8 @@ type
     function Rename(aTarget: TFile): TFileRenamePromise;
     procedure OpenInEditor;
     function ListTemplatesFor: TFileListTemplatesPromise;
-    function CreateFromTemplate(aTemplate: TTemplate): TFileCopyPromise;
+    function CreateFromTemplate(aTemplate: TTemplate; aFlags: TFileCopyOptions
+      ): TFileCopyPromise;
     property BaseName: UTF8String read GetBaseName;
     property PacketName: UTF8String read GetPacketName;
     property Name: UTF8String read GetName;
@@ -280,7 +281,7 @@ type
     class function GetContainedFile(aFile: TFile; aName: UTF8String): TFile; virtual; abstract;
     class procedure OpenInEditor(aFile: TFile); virtual; abstract;
     class function GetTemplatesFor(aFile: TFile): TFileListTemplatesPromise; virtual; abstract;
-    class function CreateFileFromTemplate(aFile: TFile; aTemplate: TTemplate): TFileCopyPromise; virtual; abstract;
+    class function CreateFileFromTemplate(aFile: TFile; aTemplate: TTemplate; aFlags: TFileCopyOptions): TFileCopyPromise; virtual; abstract;
     class function SplitPath(aFile: TFile; aBasePath: TFile): TStringArray; virtual; abstract;
 
     class function GetFileSystemClass: TFileSystemClass; virtual; abstract;
@@ -713,9 +714,9 @@ begin
   result := fSystem.GetTemplatesFor(Self);
 end;
 
-function TFile.CreateFromTemplate(aTemplate: TTemplate): TFileCopyPromise;
+function TFile.CreateFromTemplate(aTemplate: TTemplate; aFlags: TFileCopyOptions): TFileCopyPromise;
 begin
-  result := fSystem.CreateFileFromTemplate(Self,aTemplate);
+  result := fSystem.CreateFileFromTemplate(Self,aTemplate,aFlags);
 end;
 
 class operator TFile.=(a: TFile; b: TFile): Boolean;

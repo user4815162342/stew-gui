@@ -95,7 +95,7 @@ type
     class function CheckFileExistence(aFile: TFile): TFileExistencePromise; override;
     class function CopyFile(aSource: TFile; aTarget: TFile;
       aOptions: TFileCopyOptions): TFileCopyPromise; override;
-    class function CreateFileFromTemplate(aFile: TFile; aTemplate: TTemplate): TFileCopyPromise;
+    class function CreateFileFromTemplate(aFile: TFile; aTemplate: TTemplate; aFlags: TFileCopyOptions): TFileCopyPromise;
       override;
     class function GetContainedFile(aDir: TFile; aFileName: UTF8String
       ): TFile; override;
@@ -394,9 +394,9 @@ begin
 end;
 
 class function TLocalFileSystem.CreateFileFromTemplate(aFile: TFile;
-  aTemplate: TTemplate): TFileCopyPromise;
+  aTemplate: TTemplate; aFlags: TFileCopyOptions = []): TFileCopyPromise;
 begin
-  result := TOperatingSystemInterface.CreateFileFromTemplate(aTemplate,aFile);
+  result := TOperatingSystemInterface.CreateFileFromTemplate(aTemplate,aFile,aFlags);
 end;
 
 class function TLocalFileSystem.GetContainedFile(aDir: TFile;

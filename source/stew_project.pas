@@ -399,6 +399,8 @@ type
     function GetIsFolder: Boolean;
     function GetPath(aPath: UTF8String): TShadowDocument;
     procedure DeletePath(aPath: UTF8String);
+    function ExtractPath(aPath: UTF8String): TShadowDocument;
+    procedure AddDocument(aPath: UTF8String; aDocument: TShadowDocument);
     procedure SplitPath(aPath: UTF8String; out aChildName: UTF8String; out aChildPath: UTF8String);
   public
     constructor Create(aIsShadow: Boolean);
@@ -413,6 +415,7 @@ type
   public
     function CreateShadow(aDocument: TDocumentPath): TShadowDocument;
     procedure DeleteShadow(aDocument: TDocumentPath);
+    procedure MoveShadow(aOld: TDocumentPath; aNew: TDocumentPath);
     function HasShadow(aDocument: TDocumentPath): Boolean;
     function IsFolder(aDocument: TDocumentPath): Boolean;
     function GetContents(aDocument: TDocumentPath): TDocumentInfoArray;
@@ -762,7 +765,6 @@ type
     { TRequestEditAttachmentTask }
 
     TRequestEditAttachmentTask = class(TDeferredTask)
-      procedure NewAttachment_ParentListed(Sender: TPromise);
     strict private
       fProject: TStewProject;
       fDocument: TDocumentPath;
@@ -776,6 +778,7 @@ type
       procedure NewAttachment_PropertiesRead(Sender: TPromise);
       procedure NewAttachment_TemplatesListed(Sender: TPromise);
       procedure NewAttachment_FileCreated(Sender: TPromise);
+      procedure NewAttachment_ParentListed(Sender: TPromise);
       procedure TooManyAttachment_PropertiesRead(Sender: TPromise);
     public
       constructor Defer(aDocument: TDocumentPath; aAttachment: TAttachmentKind; aProject: TStewProject; aInputPromise: TFileListPromise);
@@ -848,6 +851,7 @@ type
     function IsShadow(aDocument: TDocumentPath): Boolean;
     // Removes the "shadow" from the list of documents.
     procedure DeleteShadow(aDocument: TDocumentPath);
+    procedure MoveShadow(aOld: TDocumentPath; aNew: TDocumentPath);
 
     function IsDocumentAFolder(aDocument: TDocumentPath; aForceRefresh: Boolean = false): TDocumentIsFolderPromise;
     function ListDocumentsInFolder(aDocument: TDocumentPath; aForceRefresh: Boolean = false): TDocumentListPromise;
@@ -1195,6 +1199,9 @@ procedure TStewProject.TRequestEditAttachmentTask.NewAttachment_TemplatesListed(
 var
   lTemplate: TTemplate;
   lData: TTemplateArray;
+  lWriteOptions: TFileWriteOptions;
+  lCopyOptions: TFileCopyOptions;
+
 begin
   try
     lData := (Sender as TFileListTemplatesPromise).Templates;
@@ -1202,7 +1209,11 @@ begin
     begin
       // create a simple, basic, blank file.
       // this is not cached, because editing is not done through cache.
-       fNewFile.Write('').After(@NewAttachment_FileCreated,@SubPromiseRejected);
+      if fProject.IsShadow(fDocument) then
+         lWriteOptions := [fwoCreateDir]
+      else
+         lWriteOptions := [];
+      fNewFile.Write(lWriteOptions,'').After(@NewAttachment_FileCreated,@SubPromiseRejected);
     end
     else
     begin
@@ -1218,7 +1229,11 @@ begin
       end
       else
         lTemplate := lData[0];
-      fNewFile.CreateFromTemplate(lTemplate).After(@NewAttachment_FileCreated,@SubPromiseRejected);
+      if fProject.IsShadow(fDocument) then
+         lCopyOptions := [fcoCreateDir]
+      else
+         lCopyOptions := [];
+      fNewFile.CreateFromTemplate(lTemplate,lCopyOptions).After(@NewAttachment_FileCreated,@SubPromiseRejected);
     end;
 
   except
@@ -1822,6 +1837,18 @@ begin
   DeletePath(aDocument.ID);
 end;
 
+procedure TShadowCache.MoveShadow(aOld: TDocumentPath; aNew: TDocumentPath);
+var
+  lOld: TShadowDocument;
+begin
+  lOld := ExtractPath(aOld.ID);
+  if lOld <> nil then
+  begin
+    AddDocument(aNew.ID,lOld);
+  end;
+
+end;
+
 function TShadowCache.HasShadow(aDocument: TDocumentPath): Boolean;
 var
   lPath: TShadowDocument;
@@ -1938,6 +1965,70 @@ begin
       lChildShadow.DeletePath(lChildPath);
       if not lChildShadow.IsFolder then
         fContents.Delete(i);
+    end;
+  end;
+end;
+
+function TShadowDocument.ExtractPath(aPath: UTF8String): TShadowDocument;
+var
+  lChildName: UTF8String;
+  lChildPath: UTF8String;
+  i: Integer;
+  lChildShadow: TShadowDocument;
+begin
+  SplitPath(aPath,lChildName,lChildPath);
+  i := fContents.FindIndexOf(lChildName);
+  if i > -1 then
+  begin
+    lChildShadow := fContents.Items[i] as TShadowDocument;
+    if lChildPath = '' then
+    begin
+      result := lChildShadow;
+      fContents.Extract(lChildShadow);
+    end
+    else
+    begin
+      result := lChildShadow.ExtractPath(lChildPath);
+      if not lChildShadow.IsFolder then
+        fContents.Delete(i);
+    end;
+  end;
+end;
+
+procedure TShadowDocument.AddDocument(aPath: UTF8String;
+  aDocument: TShadowDocument);
+var
+  lChildName: UTF8String;
+  lChildPath: UTF8String;
+  i: Integer;
+  lChildShadow: TShadowDocument;
+begin
+  SplitPath(aPath,lChildName,lChildPath);
+  i := fContents.FindIndexOf(lChildName);
+  if i = -1 then
+  begin
+    if lChildPath = '' then
+    begin
+      fContents.Add(lChildName,aDocument);
+    end
+    else
+    begin
+      lChildShadow := TShadowDocument.Create(false);
+      fContents.Add(lChildName,lChildShadow);
+      lChildShadow.AddDocument(lChildPath,aDocument);
+    end
+  end
+  else
+  begin
+    if lChildPath = '' then
+    begin
+      // already exists
+      aDocument.Free;
+    end
+    else
+    begin
+      lChildShadow := fContents.Items[i] as TShadowDocument;
+      lChildShadow.AddDocument(lChildPath,aDocument);
     end;
   end;
 end;
@@ -3187,6 +3278,14 @@ begin
   ReportEvent(TDocumentEvent.Create(paShadowUncreated,aDocument));
 end;
 
+procedure TStewProject.MoveShadow(aOld: TDocumentPath; aNew: TDocumentPath);
+begin
+  fShadows.MoveShadow(aOld,aNew);
+  ReportEvent(TDocumentEvent.Create(paShadowUncreated,aOld));
+  ReportEvent(TDocumentEvent.Create(paShadowCreated,aNew));
+
+end;
+
 function TStewProject.IsDocumentAFolder(aDocument: TDocumentPath;
   aForceRefresh: Boolean): TDocumentIsFolderPromise;
 var
@@ -3381,6 +3480,12 @@ begin
   if aNewDocument = TDocumentPath.Root then
     raise Exception.Create('Can''t rename a document to root');
   ReportEvent(TDocumentRenameEvent.Create(paRenamingDocument,aDocument,aNewDocument));
+  if IsShadow(aDocument) then
+  begin
+    // just move it...
+    MoveShadow(aDocument,aNewDocument);
+    Exit;
+  end;
   lDocumentFile := GetDocumentFolderPath(fDisk,aDocument.Container);
   // uncache the document recursively so we make sure we get *all* of the correct files.
   // I don't want to risk their being an extra file lying around that didn't get

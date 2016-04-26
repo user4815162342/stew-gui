@@ -68,7 +68,7 @@ type
     class destructor Destroy;
   public
     class function RunSimpleCommand(aCmd: String; const aArgs: array of string): TRunSimpleCommandTask;
-    class function CreateFileFromTemplate(aTemplate: TTemplate; aFile: TFile): TFileCopyPromise;
+    class function CreateFileFromTemplate(aTemplate: TTemplate; aFile: TFile; aFlags: TFileCopyOptions): TFileCopyPromise;
     class procedure EditFile(aFile: TFile);
     class procedure RunDetachedProcess(const aExecutable: String; aArgs: array of String);
     class procedure AddInternalEditor(aHandler: TInternalEditorHandler);
@@ -173,11 +173,12 @@ begin
   result := TRunSimpleCommandTask.Enqueue(aCmd,aArgs);
 end;
 
-class function TOperatingSystemInterface.CreateFileFromTemplate(aTemplate: TTemplate; aFile: TFile
+class function TOperatingSystemInterface.CreateFileFromTemplate(
+  aTemplate: TTemplate; aFile: TFile; aFlags: TFileCopyOptions
   ): TFileCopyPromise;
 begin
 {$IFDEF Linux}
-  result := LocalFile(aTemplate.ID).CopyTo(aFile)
+  result := LocalFile(aTemplate.ID).CopyTo(aFile,aFlags)
 {$ELSE}
 {$ERROR Required code is not yet written for this platform.}
 {$ENDIF}
