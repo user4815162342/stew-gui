@@ -721,7 +721,11 @@ begin
     canManageNode := fUIUpdateCount = 0;
     canAddChildNode :=
         (fUIUpdateCount = 0) and
-        (ProjectExplorer.Selected as TProjectInspectorNode).ExpandedFirstTime;
+        ((ProjectExplorer.Selected as TProjectInspectorNode).ExpandedFirstTime) or
+        // or, it's not known to be a folder, but we want to allow it to be created
+        // as a folder. Note that this won't work for drag drop, you have to make
+        // sure it's a folder before that.
+        (not ProjectExplorer.Selected.HasChildren);
     // if we're adding a sibling node, then the document is probably already
     // listed.
     canAddSibNode := fUIUpdateCount = 0;
@@ -782,7 +786,10 @@ begin
         end;
         MainForm.Project.CreateShadow(lDocument);
         if aChild and (lNode <> nil) then
+        begin
+           lNode.HasChildren := true;
            lNode.Expanded := true;
+        end;
       end;
     end;
   end;
