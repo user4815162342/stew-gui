@@ -394,15 +394,17 @@ type
   TShadowDocument = class
   strict protected
     fContents: TFPHashObjectList;
+    fIsShadow: Boolean;
     function CreatePath(aPath: UTF8String): TShadowDocument;
     function GetIsFolder: Boolean;
     function GetPath(aPath: UTF8String): TShadowDocument;
     procedure DeletePath(aPath: UTF8String);
     procedure SplitPath(aPath: UTF8String; out aChildName: UTF8String; out aChildPath: UTF8String);
   public
-    constructor Create;
+    constructor Create(aIsShadow: Boolean);
     destructor Destroy; override;
     property IsFolder: Boolean read GetIsFolder;
+    property IsShadow: Boolean read fIsShadow;
   end;
 
   { TShadowCache }
@@ -1821,8 +1823,11 @@ begin
 end;
 
 function TShadowCache.HasShadow(aDocument: TDocumentPath): Boolean;
+var
+  lPath: TShadowDocument;
 begin
-  result := GetPath(aDocument.ID) <> nil;
+  lPath := GetPath(aDocument.ID);
+  result := (lPath <> nil) and lPath.IsShadow;
 end;
 
 function TShadowCache.IsFolder(aDocument: TDocumentPath): Boolean;
@@ -1873,7 +1878,7 @@ begin
   i := fContents.FindIndexOf(lChildName);
   if i = -1 then
   begin
-    lChildShadow := TShadowDocument.Create;
+    lChildShadow := TShadowDocument.Create(lChildPath = '');
     fContents.Add(lChildName,lChildShadow);
   end
   else
@@ -1955,10 +1960,11 @@ begin
   aChildPath:=Copy(aPath,i + 1,MaxInt);
 end;
 
-constructor TShadowDocument.Create;
+constructor TShadowDocument.Create(aIsShadow: Boolean);
 begin
   inherited Create;
   fContents := TFPHashObjectList.Create(true);
+  fIsShadow := aIsShadow;
 end;
 
 destructor TShadowDocument.Destroy;
@@ -2826,7 +2832,12 @@ var
       if Sender.State = psIncomplete then
          ReportEvent(TAttachmentEvent.Create(paLoadingAttachmentFile,lDocument,lAttachment))
       else
-         ReportEvent(TAttachmentEvent.Create(paAttachmentFileLoaded,lDocument,lAttachment))
+      begin
+        // clear the shadow...
+          if Sender.Exists then
+             DeleteShadow(lDocument);
+         ReportEvent(TAttachmentEvent.Create(paAttachmentFileLoaded,lDocument,lAttachment));
+      end;
     end;
   end;
 
@@ -2846,7 +2857,11 @@ var
       if Sender.State = psIncomplete then
          ReportEvent(TAttachmentEvent.Create(paSavingAttachmentFile,lDocument,lAttachment))
       else
-         ReportEvent(TAttachmentEvent.Create(paAttachmentFileSaved,lDocument,lAttachment))
+      begin
+        // clear the shadow...
+        DeleteShadow(lDocument);
+        ReportEvent(TAttachmentEvent.Create(paAttachmentFileSaved,lDocument,lAttachment));
+      end;
     end;
   end;
 
@@ -2858,7 +2873,11 @@ var
       if Sender.State = psIncomplete then
          ReportEvent(TDocumentEvent.Create(paListingDocumentFiles,lDocument))
       else
-         ReportEvent(TDocumentEvent.Create(paDocumentFilesListed,lDocument))
+      begin
+        if Sender.Exists then
+           DeleteShadow(lDocument);
+         ReportEvent(TDocumentEvent.Create(paDocumentFilesListed,lDocument));
+      end;
     end;
     // else, its an attempt to "list" the directory contents of a file. I'm
     // not worried about this.
@@ -2872,7 +2891,11 @@ var
       if Sender.State = psIncomplete then
          ReportEvent(TDocumentEvent.Create(paCheckingDocumentFile,lDocument))
       else
-         ReportEvent(TDocumentEvent.Create(paDocumentFileChecked,lDocument))
+      begin
+        if Sender.Exists then
+           DeleteShadow(lDocument);
+         ReportEvent(TDocumentEvent.Create(paDocumentFileChecked,lDocument));
+      end;
     end;
     // else, its an attempt to "list" the directory contents of a file. I'm
     // not worried about this.
@@ -3127,7 +3150,7 @@ begin
   fCache := TFileSystemCache.Create(fDisk.System);
   fCache.OnActivity:=@CacheActivity;
   fCache.OnError:=@CacheError;
-  fShadows := TShadowCache.Create;
+  fShadows := TShadowCache.Create(false);
   // fObservers := TProjectObserverList.Create;
   fObservers.Init;
 

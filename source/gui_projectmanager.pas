@@ -853,7 +853,8 @@ begin
       end;
 
     end;
-    aNode.IsNew := aInfo.IsShadow;
+    // this is done in updatenodestyle.
+    //aNode.IsNew := aInfo.IsShadow;
     UpdateNodeStyle(aNode);
 
   finally
