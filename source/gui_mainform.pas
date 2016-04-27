@@ -38,6 +38,14 @@ type
     - Save
     - Refresh
     - Edit Notes
+  - JSON editor Toolbar:
+    - New Prop List
+    - New List
+    - New Yes/No
+    - New Number
+    - New String
+    - Delete Item
+
   - TODO: Eventually, a bunch of glyphs to make available for the categories.
   }
 
@@ -122,6 +130,7 @@ type
     function MessageDialog(const Title: String; const Message: String; DlgType: TMsgDlgType; Buttons: TMsgDlgButtons; ButtonCaptions: Array of String): Integer;
     procedure UpdateStatus(aProps: TProjectProperties);
     procedure ResizeStatusPanels;
+    procedure SetupGlyphs;
   public
     { public declarations }
     property Project: TStewProject read GetProject;
@@ -173,7 +182,7 @@ const
 implementation
 
 uses
-  gui_projectmanager, gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor, LCLProc, gui_listdialog, sys_localfile, gui_async, sys_versionsupport, math, sys_log;
+  gui_projectmanager, gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor, LCLProc, gui_listdialog, sys_localfile, gui_async, sys_versionsupport, math, sys_log, gui_glyphs;
 
 {$R *.lfm}
 
@@ -503,6 +512,8 @@ var
   openParam: String;
   stewFolder: TFile;
 begin
+  SetupGlyphs;
+
   TPromiseMonitor.OnStateChanged:=@QueueStateChanged;
 
   fOpenDocuments := TObjectList.create(false);
@@ -1137,6 +1148,31 @@ begin
 
   end;
 
+end;
+
+procedure TMainForm.SetupGlyphs;
+var
+  lGlyph: TStewButtonGlyph;
+  lBitmap: TCustomBitmap;
+begin
+  for lGlyph := Low(TStewButtonGlyph) to high(TStewButtonGlyph) do
+  begin
+    lBitmap := GetStewButtonIcon(lGlyph,ApplicationImages.Width);
+    try
+      ApplicationImages.Add(lBitmap,nil);
+    finally
+      lBitmap.Free;
+    end;
+  end;
+
+  // Add items...
+  NewProjectMenuItem.ImageIndex := ord(sbgNew);
+  OpenProjectMenuItem.ImageIndex := ord(sbgOpen);
+  PreferencesMenuItem.ImageIndex := ord(sbgPreferences);
+  ExitMenuItem.ImageIndex := ord(sbgQuit);
+  RefreshProjectMenuItem.ImageIndex := ord(sbgRefresh);
+  ProjectSettingsMenuItem.ImageIndex := ord(sbgProperties);
+  AboutMenuItem.ImageIndex := ord(sbgAbout);
 end;
 
 function TMainForm.MessageDialog(const Message: String; DlgType: TMsgDlgType;

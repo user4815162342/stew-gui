@@ -4,16 +4,12 @@ inherited ProjectSettingsEditor: TProjectSettingsEditor
   ClientHeight = 643
   ClientWidth = 760
   DesignLeft = 435
-  DesignTop = 172
+  DesignTop = 99
   inherited ToolbarPanel: TPanel
     Height = 24
     Width = 760
     ClientHeight = 24
     ClientWidth = 760
-    inherited RightHandToolbar: TToolBar
-      Left = 718
-      Height = 24
-    end
     inherited LeftHandToolbar: TToolBar
       Height = 24
       Width = 718
@@ -34,9 +30,14 @@ inherited ProjectSettingsEditor: TProjectSettingsEditor
       object EditNotesButton: TToolButton[2]
         Left = 91
         Top = 0
+        AutoSize = True
         Caption = 'Notes'
         OnClick = EditNotesButtonClick
       end
+    end
+    inherited RightHandToolbar: TToolBar
+      Left = 718
+      Height = 24
     end
   end
   object GridsPanel: TPanel[1]

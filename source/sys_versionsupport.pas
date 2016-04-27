@@ -274,7 +274,7 @@ Begin
   // Defensive code to prevent failure if no resource available...
   // TODO: Get a compiler hint here. Worry about it and test it when
   // I try to rebuild this on another platform.
-  Res := FindResource(Instance, PChar(PtrInt(ResID)), PChar(RT_VERSION));
+  Res := FindResource(Instance, {%H-}PChar(PtrInt(ResID)), PChar(RT_VERSION));
   If Res = 0 Then
     Exit;
 

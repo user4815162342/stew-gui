@@ -34,23 +34,21 @@ object ProjectManager: TProjectManager
     Height = 26
     Top = 0
     Width = 253
-    ShowCaptions = True
     TabOrder = 1
     object NewChildDocumentButton: TToolButton
-      Left = 35
+      Left = 24
       Top = 2
       Caption = 'Child+'
-      ImageIndex = 1
       OnClick = NewChildDocumentButtonClick
     end
     object RenameDocumentButton: TToolButton
-      Left = 82
+      Left = 47
       Top = 2
       Caption = 'Name'
       OnClick = RenameDocumentButtonClick
     end
     object DeleteDocumentButton: TToolButton
-      Left = 194
+      Left = 116
       Top = 2
       Caption = 'Del'
       OnClick = DeleteDocumentButtonClick
@@ -59,17 +57,16 @@ object ProjectManager: TProjectManager
       Left = 1
       Top = 2
       Caption = 'Sib+'
-      ImageIndex = 0
       OnClick = NewSiblingDocumentButtonClick
     end
     object MoveDocumentUpButton: TToolButton
-      Left = 125
+      Left = 70
       Top = 2
       Caption = 'Up'
       OnClick = MoveDocumentUpButtonClick
     end
     object MoveDocumentDownButton: TToolButton
-      Left = 150
+      Left = 93
       Top = 2
       Caption = 'Down'
       OnClick = MoveDocumentDownButtonClick

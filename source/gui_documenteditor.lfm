@@ -9,38 +9,41 @@ inherited DocumentEditor: TDocumentEditor
     Width = 537
     ClientHeight = 24
     ClientWidth = 537
-    inherited RightHandToolbar: TToolBar
-      Left = 495
-      Height = 24
-    end
-    inherited LeftHandToolbar: TToolBar
-      Height = 24
-      Width = 495
-      object SaveButton: TToolButton[0]
-        Left = 1
-        Top = 0
-        Caption = 'Save'
-        OnClick = SaveButtonClick
+      inherited LeftHandToolbar: TToolBar
+        Height = 48
+        Width = 325
+        object SaveButton: TToolButton[0]
+          Left = 1
+          Top = 0
+          AutoSize = True
+          Caption = 'Save'
+          OnClick = SaveButtonClick
+        end
+        object RefreshButton: TToolButton[1]
+          Left = 37
+          Top = 0
+          AutoSize = True
+          Caption = 'Refresh'
+          OnClick = RefreshButtonClick
+        end
+        object EditPrimaryButton: TToolButton[2]
+          Left = 91
+          Top = 0
+          AutoSize = True
+          Caption = 'Edit'
+          OnClick = EditPrimaryButtonClick
+        end
+        object EditNotesButton: TToolButton[3]
+          Left = 123
+          Top = 0
+          AutoSize = True
+          Caption = 'Notes'
+          OnClick = EditNotesButtonClick
+        end
       end
-      object RefreshButton: TToolButton[1]
-        Left = 37
-        Top = 0
-        Caption = 'Refresh'
-        OnClick = RefreshButtonClick
+      inherited RightHandToolbar: TToolBar
+        Height = 24
       end
-      object EditPrimaryButton: TToolButton[2]
-        Left = 91
-        Top = 0
-        Caption = 'Edit'
-        OnClick = EditPrimaryButtonClick
-      end
-      object EditNotesButton: TToolButton[3]
-        Left = 123
-        Top = 0
-        Caption = 'Notes'
-        OnClick = EditNotesButtonClick
-      end
-    end
   end
   object DocumentIDLabel: TLabel[1]
     Left = 0

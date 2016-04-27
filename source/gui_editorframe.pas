@@ -34,7 +34,7 @@ type
     fDocument: TDocumentPath;
   strict protected
     procedure SetDocument(AValue: TDocumentPath); virtual;
-    procedure SetupGlyphs; virtual;
+    function SetupGlyphs: Boolean; virtual;
   public
     { public declarations }
     constructor Create(TheOwner: TComponent); override;
@@ -47,7 +47,7 @@ type
 implementation
 
 uses
-  gui_mainform, sys_log;
+  gui_mainform, sys_log, gui_glyphs;
 
 {$R *.lfm}
 
@@ -69,12 +69,14 @@ begin
   end;
 end;
 
-procedure TEditorFrame.SetupGlyphs;
+function TEditorFrame.SetupGlyphs: Boolean;
 begin
-  if MainForm.ApplicationImages <> nil then
+  result := MainForm <> nil;
+  if result then
   begin
     LeftHandToolbar.Images := MainForm.ApplicationImages;
     RightHandToolbar.Images := MainForm.ApplicationImages;
+    CloseButton.ImageIndex := ord(sbgClose);
 
   end;
 end;

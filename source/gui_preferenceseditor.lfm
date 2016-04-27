@@ -1,2 +1,11 @@
 inherited ApplicationPreferencesEditor: TApplicationPreferencesEditor
+  inherited ToolbarPanel: TPanel
+    inherited RightHandToolbarPanel: TPanel
+      inherited RightHandToolbar: TToolBar
+        Left = 127
+        Width = 42
+        Align = alRight
+      end
+    end
+  end
 end

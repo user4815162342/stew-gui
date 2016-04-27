@@ -113,6 +113,8 @@ type
     procedure ObserveMainForm(Sender: TMainForm; aAction: TMainFormAction;
       {%H-}aDocument: TDocumentPath);
     procedure ObserveProject(Sender: TStewProject; Event: TProjectEvent);
+  strict protected
+    function SetupGlyphs: Boolean; override;
   public
     { public declarations }
     constructor Create(TheOwner: TComponent); override;
@@ -131,7 +133,8 @@ implementation
 uses
   sys_types, sys_json,
   clocale, { clocale is required in order to pull in the system locale settings, i.e. for displaying dates properly }
-  sys_log;
+  sys_log,
+  gui_glyphs;
 
 type
   TDefColumnKind = (ckString, ckInteger, ckBoolean, ckRadio, ckColor, ckDate);
@@ -447,6 +450,17 @@ begin
        EndUIUpdate;
     paProjectPropertiesDataReceived:
        ShowData((Event as TProjectPropertiesDataReceivedEvent).Properties);
+  end;
+end;
+
+function TProjectSettingsEditor.SetupGlyphs: Boolean;
+begin
+  Result:=inherited SetupGlyphs;
+  if Result then
+  begin
+    RefreshButton.ImageIndex := ord(sbgRefresh);
+    SaveButton.ImageIndex := ord(sbgSave);
+    EditNotesButton.ImageIndex := ord(sbgEditNotes);
   end;
 end;
 

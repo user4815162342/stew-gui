@@ -73,6 +73,7 @@ type
     procedure WriteData_PropertiesWritten(Sender: TPromise);
   strict protected
     procedure SetDocument(AValue: TDocumentPath); override;
+    function SetupGlyphs: Boolean; override;
   public
     { public declarations }
     constructor Create(TheOwner: TComponent); override;
@@ -83,7 +84,7 @@ type
 implementation
 
 uses
-  Dialogs, sys_types, sys_json, sys_log;
+  Dialogs, sys_types, sys_json, sys_log, gui_glyphs;
 
 {$R *.lfm}
 
@@ -378,6 +379,19 @@ begin
   end;
 end;
 
+function TDocumentEditor.SetupGlyphs: Boolean;
+begin
+  Result:=inherited SetupGlyphs;
+  if Result then
+  begin
+    SaveButton.ImageIndex := ord(sbgSave);
+    RefreshButton.ImageIndex := ord(sbgRefresh);
+    EditPrimaryButton.ImageIndex := ord(sbgEditPrimary);
+    EditNotesButton.ImageIndex := ord(sbgEditNotes);
+
+  end;
+end;
+
 procedure TDocumentEditor.ClearData;
 begin
   fPropsAvailable := false;
@@ -469,11 +483,6 @@ begin
 end;
 
 procedure TDocumentEditor.AttachmentsListed(aData: TAttachmentArray);
-const
-  NoPrimaryCaption = 'Edit';
-  NoNotesCaption = 'Notes';
-  HasPrimaryCaption = 'Edit ✓';
-  HasNotesCaption = 'Notes ✓';
 var
   i: Longint;
   l: Longint;
@@ -500,19 +509,19 @@ begin
   end;
   if lFoundPrimary then
   begin
-    EditPrimaryButton.Caption := HasPrimaryCaption;
+    EditPrimaryButton.ImageIndex := ord(sbgEditPrimary);
   end
   else
   begin
-    EditPrimaryButton.Caption := NoPrimaryCaption;
+    EditPrimaryButton.ImageIndex := ord(sbgCreatePrimary);
   end;
   if lFoundNotes then
   begin
-    EditNotesButton.Caption := HasNotesCaption;
+    EditNotesButton.ImageIndex := ord(sbgEditNotes);
   end
   else
   begin
-    EditNotesButton.Caption := NoNotesCaption;
+    EditNotesButton.ImageIndex := ord(sbgCreateNotes);
   end;
 end;
 

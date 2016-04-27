@@ -91,7 +91,7 @@ object MainForm: TMainForm
     top = 120
   end
   object ApplicationImages: TImageList
-    left = 33
-    top = 194
+    left = 248
+    top = 16
   end
 end

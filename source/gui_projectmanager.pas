@@ -123,7 +123,7 @@ type
 implementation
 
 uses
-  dialogs, sys_types, sys_log;
+  dialogs, sys_types, sys_log, gui_glyphs;
 
 {$R *.lfm}
 
@@ -748,9 +748,15 @@ end;
 
 procedure TProjectManager.SetupGlyphs;
 begin
-  if MainForm.ApplicationImages <> nil then
+  if MainForm <> nil then
   begin
     ProjectToolbar.Images := MainForm.ApplicationImages;
+    NewChildDocumentButton.ImageIndex := ord(sbgNewChild);
+    NewSiblingDocumentButton.ImageIndex := ord(sbgNewSibling);
+    RenameDocumentButton.ImageIndex := ord(sbgEditName);
+    DeleteDocumentButton.ImageIndex := ord(sbgDelete);
+    MoveDocumentDownButton.ImageIndex := ord(sbgMoveDown);
+    MoveDocumentUpButton.ImageIndex := ord(sbgMoveUp);
   end;
 end;
 
