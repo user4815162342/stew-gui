@@ -103,6 +103,7 @@ type
     procedure ClearModified;
     function IsModified: Boolean;
     procedure ShowData(aData: TProjectProperties);
+    procedure AttachmentsListed(aData: TAttachmentArray);
     procedure WriteData;
     procedure BeginUIUpdate;
     procedure EndUIUpdate;
@@ -189,6 +190,7 @@ begin
   begin
     ClearModified;
     MainForm.Project.ReadProjectProperties(true);
+    MainForm.Project.ListAttachmentsForDocument(TDocumentPath.Root,true);
 
   end;
 end;
@@ -346,6 +348,7 @@ begin
     ClearModified;
     fWriting := False;
     MainForm.Project.ReadProjectProperties;
+    MainForm.Project.ListAttachmentsForDocument(TDocumentPath.Root);
     SetupControls;
 
   end;
@@ -427,6 +430,7 @@ begin
     begin
       MainForm.Project.AddObserver(@ObserveProject);
       MainForm.Project.ReadProjectProperties;
+      MainForm.Project.ListAttachmentsForDocument(TDocumentPath.Root);
     end;
     mfaProjectClosed:
     begin
@@ -443,6 +447,11 @@ begin
     paLoadingProjectPropertiesFile,
     paSavingProjectPropertiesFile:
        BeginUIUpdate;
+    paListingDocumentFiles:
+      BeginUIUpdate;
+    paDocumentFilesListed,
+    paDocumentsFileListingFailed:
+      EndUIUpdate;
     paProjectPropertiesFileLoaded,
     paProjectPropertiesFileLoadingFailed,
     paProjectPropertiesFileSaved,
@@ -450,6 +459,11 @@ begin
        EndUIUpdate;
     paProjectPropertiesDataReceived:
        ShowData((Event as TProjectPropertiesDataReceivedEvent).Properties);
+    paAttachmentListDataReceived:
+      if (Event as TAttachmentListDataReceivedEvent).Document = TDocumentPath.Root then
+      begin
+        AttachmentsListed((Event as TAttachmentListDataReceivedEvent).List);
+      end;
   end;
 end;
 
@@ -830,6 +844,34 @@ begin
   end;
 
   SetupControls;
+end;
+
+procedure TProjectSettingsEditor.AttachmentsListed(aData: TAttachmentArray);
+var
+  i: Longint;
+  l: Longint;
+  lFoundNotes: Boolean;
+begin
+  // TODO: Also come up with a combobutton to edit the remaining attachments.
+  // TODO: In fact, if there is more than one primary, or notes, the notes
+  // button should be a dropdown button.
+  lFoundNotes := false;
+  l := Length(aData) - 1;
+  for i := 0 to l do
+  begin
+    if (not lFoundNotes) and (aData[i].Kind = atNotes) then
+    begin
+       lFoundNotes := true;
+    end;
+  end;
+  if lFoundNotes then
+  begin
+    EditNotesButton.ImageIndex := ord(sbgEditNotes);
+  end
+  else
+  begin
+    EditNotesButton.ImageIndex := ord(sbgCreateNotes);
+  end;
 end;
 
 procedure TProjectSettingsEditor.WriteData;
