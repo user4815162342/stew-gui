@@ -39,7 +39,7 @@
         <PackageName Value="LCL"/>
       </Item2>
     </RequiredPackages>
-    <Units Count="24">
+    <Units Count="26">
       <Unit0>
         <Filename Value="stewgui.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -184,6 +184,16 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="gui_gtk2_glyphs"/>
       </Unit23>
+      <Unit24>
+        <Filename Value="sys_dynobject_implementation.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="sys_dynobject_implementation"/>
+      </Unit24>
+      <Unit25>
+        <Filename Value="sys_dynobject.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="sys_dynobject"/>
+      </Unit25>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
