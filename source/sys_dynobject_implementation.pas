@@ -65,9 +65,9 @@ type
 
   TDynamicValueArray = array of IDynamicValue;
 
-  { TDynamicArray }
+  { TDynamicList }
 
-  TDynamicArray = class(TDynamicValue,IDynamicArray)
+  TDynamicList = class(TDynamicValue,IDynamicList)
   strict private
     fList: TDynamicValueArray;
     function GetItem(aIndex: Longint): IDynamicValue;
@@ -87,6 +87,27 @@ type
 
   end;
 
+  TNamedValue = record
+    Name: UTF8String;
+    Value: IDynamicValue;
+  end;
+  TNamedValueArray = array of TNamedValue;
+
+  TDynamicMap = class;
+
+  TDynamicMapEnumerator = class(TInterfacedObject,IDynamicMapEnumerator)
+  private
+    fIndex: Longint;
+    fMap: TDynamicMap;
+    function GetKey: UTF8String;
+    function GetValue: IDynamicValue;
+  public
+    constructor Create(aMap: TDynamicMap);
+    function Next: Boolean;
+    property Key: UTF8String read GetKey;
+    property Value: IDynamicValue read GetValue;
+  end;
+
   { TDynamicMap }
 
   {
@@ -97,28 +118,6 @@ type
   it is worth it at this point.
   }
   TDynamicMap = class(TDynamicValue,IDynamicMap)
-  strict private type
-    TNamedValue = record
-      Name: UTF8String;
-      Value: IDynamicValue;
-    end;
-    TNamedValueArray = array of TNamedValue;
-
-    { TEnumerator }
-
-    TEnumerator = class(TInterfacedObject,IDynamicMapKeyEnumerator)
-    private
-      fIndex: Longint;
-      fMap: TDynamicMap;
-      function GetKey: UTF8String;
-      function GetValue: IDynamicValue;
-    public
-      constructor Create(aMap: TDynamicMap);
-      function Next: Boolean;
-      property Key: UTF8String read GetKey;
-      property Value: IDynamicValue read GetValue;
-    end;
-
   private
     fList: TNamedValueArray;
     function GetItem(aKey: UTF8String): IDynamicValue;
@@ -131,260 +130,33 @@ type
     function Has(aKey: UTF8String): Boolean;
     procedure Delete(aKey: UTF8String);
     procedure Clear;
-    function Enumerate: IDynamicMapKeyEnumerator;
+    function Enumerate: IDynamicMapEnumerator;
     function IsEqualTo(aValue: IDynamicValue): Boolean; override;
     function Owns(aValue: IDynamicValue): Boolean; override;
   end;
 
-  procedure ToJSON(aObject: IDynamicValue; aStream: TStream; aSpace: UTF8String = '');
-  function ToJSON(aObject: IDynamicValue; aSpace: UTF8String = ''): UTF8String;
-
-  const
-    NullText: UTF8String = 'null';
-    TrueText: UTF8String = 'true';
-    FalseText: UTF8String = 'false';
-
 implementation
 
-uses
-  Math;
+{ TDynamicMap.TDynamicMapEnumerator }
 
-procedure ToJSON(aObject: IDynamicValue; aStream: TStream; aSpace: UTF8String);
-var
-  lStack: IDynamicArray;
-  lIndent: UTF8String;
-  lGap: UTF8String;
-
-  procedure Write(aValue: UTF8String);
-  begin
-    if aValue <> '' then
-       aStream.Write(aValue[1],Length(aValue));
-  end;
-
-  procedure WriteValue(aValue: IDynamicValue); forward;
-
-  procedure WriteQuote(aValue: UTF8String);
-  var
-    lText: UTF8String;
-    i: Integer;
-    c: Char;
-  begin
-    lText := '"';
-    for i := 1 to Length(aValue) do
-    begin
-      c := aValue[i];
-      case c of
-        '"','\':
-          lText := lText + '\' + c;
-        #$08,#$0C,#$0A,#$0D,#$09:
-        begin
-          lText := lText + '\';
-          case c of
-            #$08:
-              lText := lText + 'b';
-            #$0C:
-              lText := lText + 'f';
-            #$0A:
-              lText := lText + 'n';
-            #$0D:
-              lText := lText + 'r';
-            #$09:
-              lText := lText + 't';
-          end;
-        end;
-        else if c < ' ' then
-        begin
-          lText := lText +  '\' + 'u' + hexStr(ord(c),4);
-        end
-        else
-          lText := lText + c;
-
-      end;
-    end;
-    lText := lText + '"';
-    Write(lText);
-  end;
-
-  procedure WriteMap(aValue: IDynamicMap);
-  var
-    lStepback: UTF8String;
-    lPropsWritten: Boolean;
-    lHeader: UTF8String;
-    lSeparator: UTF8String;
-    lFooter: UTF8String;
-    lKey: UTF8String;
-    lEnum: IDynamicMapKeyEnumerator;
-    lItem: IDynamicValue;
-  begin
-    if lStack.IndexOf(aValue) > -1 then
-       raise Exception.Create('Cyclical JSON is not allowed');
-    lStack.Add(aValue);
-    lStepback := lIndent;
-    lIndent := lIndent + lGap;
-    lPropsWritten := false;
-
-    if lGap = '' then
-    begin
-      lHeader := '';
-      lSeparator := ',';
-      lFooter := '';
-    end
-    else
-    begin
-      lHeader := #10 + lIndent;
-      lSeparator := ',' + #10 + lIndent;
-      lFooter := #10 + lStepback;
-    end;
-
-    Write('{');
-    lEnum := aValue.Enumerate;
-    while lEnum.Next do
-    begin
-      lKey := lEnum.Key;
-      lItem := lEnum.Value;
-      if lItem.IsDefined then
-      begin
-        if not lPropsWritten then
-          Write(lHeader)
-        else
-          Write(lSeparator);
-        WriteQuote(lKey);
-        if lGap <> '' then
-          Write(': ')
-        else
-          Write(':');
-        WriteValue(lItem);
-        lPropsWritten := true;
-      end;
-    end;
-
-
-    if lPropsWritten then
-       Write(lFooter);
-    Write('}');
-
-
-    lStack.Delete(lStack.Length - 1);
-    lIndent := lStepback;
-  end;
-
-  procedure WriteArray(aValue: IDynamicArray);
-  var
-    lStepback: UTF8String;
-    lItemsWritten: Boolean;
-    lHeader: UTF8String;
-    lSeparator: UTF8String;
-    lFooter: UTF8String;
-    lArrLen: Integer;
-    i: Integer;
-    lItem: IDynamicValue;
-  begin
-    if lStack.IndexOf(aValue) > -1 then
-       raise Exception.Create('Cyclical JSON is not allowed');
-    lStack.Add(aValue);
-    lStepback := lIndent;
-    lIndent := lIndent + lGap;
-    lItemsWritten := false;
-
-    if lGap = '' then
-    begin
-      lHeader := '';
-      lSeparator := ',';
-      lFooter := '';
-    end
-    else
-    begin
-      lHeader := #10 + lIndent;
-      lSeparator := ',' + #10 + lIndent;
-      lFooter := #10 + lStepback;
-    end;
-
-    Write('[');
-
-    lArrLen := aValue.Length;
-    for i := 0 to lArrLen - 1 do
-    begin
-      if not lItemsWritten then
-        Write(lHeader)
-      else
-        Write(lSeparator);
-      lItem := aValue[i];
-      if not lItem.IsDefined then
-        Write(NullText)
-      else
-        WriteValue(lItem);
-      lItemsWritten := true;
-    end;
-
-    if lItemsWritten then
-       Write(lFooter);
-    Write(']');
-
-    lStack.Delete(lStack.Length - 1);
-    lIndent := lStepback;
-
-  end;
-
-  procedure WriteValue(aValue: IDynamicValue);
-  begin
-       if aValue is IDynamicNumber then
-          Write(FloatToStr((aValue as IDynamicNumber).Value))
-       else if aValue is IDynamicBoolean then
-          Write(BoolToStr((aValue as IDynamicBoolean).Value,TrueText,FalseText))
-       else if aValue is IDynamicString then
-          WriteQuote((aValue as IDynamicString).Value)
-       else if aValue is IDynamicArray then
-          WriteArray((aValue as IDynamicArray))
-       else if aValue is IDynamicMap then
-          WriteMap((aValue as IDynamicMap))
-       else
-          Write(NullText);
-  end;
-
-begin
-  lStack := TDynamicValues.NewArray;
-  lIndent := '';
-  // Per EcmaScript specs, the longest indent is 10 characters.
-  // I'm doing a sanity filter by also making sure the string is only
-  // spaces, and not something else.
-  lGap := StringOfChar(' ',math.Min(Length(aSpace),10));
-  WriteValue(aObject);
-end;
-
-function ToJSON(aObject: IDynamicValue; aSpace: UTF8String): UTF8String;
-var
-  lOutput: TStringStream;
-begin
-  lOutput := TStringStream.Create('');
-  try
-    ToJSON(aObject,lOutput,aSpace);
-    Result := lOutput.DataString;
-  finally
-    lOutput.Free;
-  end;
-
-end;
-
-{ TDynamicMap.TEnumerator }
-
-constructor TDynamicMap.TEnumerator.Create(aMap: TDynamicMap);
+constructor TDynamicMapEnumerator.Create(aMap: TDynamicMap);
 begin
   inherited Create;
   fMap := aMap;
   fIndex := -1;
 end;
 
-function TDynamicMap.TEnumerator.GetKey: UTF8String;
+function TDynamicMapEnumerator.GetKey: UTF8String;
 begin
   result := fMap.fList[fIndex].Name;
 end;
 
-function TDynamicMap.TEnumerator.GetValue: IDynamicValue;
+function TDynamicMapEnumerator.GetValue: IDynamicValue;
 begin
   result := fMap.fList[fIndex].Value;
 end;
 
-function TDynamicMap.TEnumerator.Next: Boolean;
+function TDynamicMapEnumerator.Next: Boolean;
 begin
   inc(fIndex);
   result := fIndex < System.Length(fMap.fList);;
@@ -503,9 +275,9 @@ begin
 
 end;
 
-function TDynamicMap.Enumerate: IDynamicMapKeyEnumerator;
+function TDynamicMap.Enumerate: IDynamicMapEnumerator;
 begin
-  result := TEnumerator.Create(Self);
+  result := TDynamicMapEnumerator.Create(Self);
 end;
 
 function TDynamicMap.IsEqualTo(aValue: IDynamicValue): Boolean;
@@ -530,9 +302,9 @@ begin
   end;
 end;
 
-{ TDynamicArray }
+{ TDynamicList }
 
-function TDynamicArray.GetItem(aIndex: Longint): IDynamicValue;
+function TDynamicList.GetItem(aIndex: Longint): IDynamicValue;
 begin
    if (aIndex >= 0) and (aIndex < Length) then
       result := fList[aIndex]
@@ -540,23 +312,23 @@ begin
       result := TDynamicValues.Undefined;
 end;
 
-function TDynamicArray.GetLength: Longint;
+function TDynamicList.GetLength: Longint;
 begin
   result := System.Length(fList);
 
 end;
 
-procedure TDynamicArray.SetItem(aIndex: Longint; AValue: IDynamicValue);
+procedure TDynamicList.SetItem(aIndex: Longint; AValue: IDynamicValue);
 begin
   if (aIndex >= 0) then
   begin
      if AValue.Owns(Self) then
      begin
-        raise Exception.Create('Attempt to create a circular reference in a dynamic array');
+        raise Exception.Create('Attempt to create a circular reference in a dynamic list');
      end;
      if not AValue.IsDefined then
      begin
-        raise Exception.Create('Attempt to add an undefined value to a dynamic array');
+        raise Exception.Create('Attempt to add an undefined value to a dynamic list');
      end;
      if aIndex >= Length then
      begin
@@ -568,10 +340,10 @@ begin
      fList[aIndex] := AValue;
   end
   else
-    raise ERangeError.Create('Invalid index to set in dynamic array: ' + IntToStr(aIndex));
+    raise ERangeError.Create('Invalid index to set in dynamic list: ' + IntToStr(aIndex));
 end;
 
-procedure TDynamicArray.SetLength(AValue: Longint);
+procedure TDynamicList.SetLength(AValue: Longint);
 var
   l: Longint;
 begin
@@ -585,18 +357,18 @@ begin
 
 end;
 
-constructor TDynamicArray.Create;
+constructor TDynamicList.Create;
 begin
   inherited Create;
   System.SetLength(fList,0);
 end;
 
-procedure TDynamicArray.Add(aItem: IDynamicValue);
+procedure TDynamicList.Add(aItem: IDynamicValue);
 begin
   SetItem(Length,aItem);
 end;
 
-procedure TDynamicArray.Delete(aIndex: Longint);
+procedure TDynamicList.Delete(aIndex: Longint);
 var
   l: Longint;
   i: Longint;
@@ -609,13 +381,13 @@ begin
   System.SetLength(fList,l - 1);
 end;
 
-procedure TDynamicArray.Clear;
+procedure TDynamicList.Clear;
 begin
   System.SetLength(fList,0);
 
 end;
 
-function TDynamicArray.IndexOf(aValue: IDynamicValue): Longint;
+function TDynamicList.IndexOf(aValue: IDynamicValue): Longint;
 var
   l: Longint;
   i: longint;
@@ -632,16 +404,16 @@ begin
   end;
 end;
 
-function TDynamicArray.IsEqualTo(aValue: IDynamicValue): Boolean;
+function TDynamicList.IsEqualTo(aValue: IDynamicValue): Boolean;
 begin
-  Result:= (aValue is IDynamicArray);
+  Result:= (aValue is IDynamicList);
   if result then
   begin
-    result := (aValue as IDynamicArray) = (Self as IDynamicArray);
+    result := (aValue as IDynamicList) = (Self as IDynamicList);
   end;
 end;
 
-function TDynamicArray.Owns(aValue: IDynamicValue): Boolean;
+function TDynamicList.Owns(aValue: IDynamicValue): Boolean;
 var
   i: Longint;
   l: Longint;
@@ -740,33 +512,11 @@ begin
     (Self is IDynamicBoolean) or
     (Self is IDynamicNumber) or
     (Self is IDynamicString) or
-    (self is IDynamicArray) or
+    (self is IDynamicList) or
     (Self is IDynamicMap);
 end;
 
-
-procedure Test;
-var
-  lValue: IDynamicValue;
-begin
-  lValue := TDynamicValues.NewMap;
-  IDynamicMap(lValue)['null'] := TDynamicValues.Null;
-  IDynamicMap(lValue)['string'] := TDynamicValues.NewString('foo');
-  IDynamicMap(lValue)['number'] := TDynamicValues.NewNumber(42.24);
-  IDynamicMap(lValue)['array'] := TDynamicValues.NewArray;
-  IDynamicArray(IDynamicMap(lValue)['array']).Add(TDynamicValues.NewNumber(1));
-  IDynamicArray(IDynamicMap(lValue)['array']).Add(TDynamicValues.NewNumber(2));
-  IDynamicArray(IDynamicMap(lValue)['array']).Add(TDynamicValues.NewString('c'));
-  IDynamicMap(lValue)['true'] := TDynamicValues.Boolean(true);
-  WriteLn(ToJSON(lValue,'  '));
-
-
-
-
-end;
-
 initialization
-  Test;
 
 end.
 

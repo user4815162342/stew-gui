@@ -13,7 +13,7 @@ uses
   sys_types, gui_jsoneditor, sys_os, gui_listdialog,
 sys_localfile, sys_versionsupport, gui_async, sys_filecache, sys_log,
 gui_glyphs, gui_gtk2_glyphs, 
-sys_dynobject_implementation, sys_dynobject;
+sys_dynobject_implementation, sys_dynobject, sys_dynobject_json;
 
 {$R *.res}
 
