@@ -741,10 +741,19 @@ begin
           '<LoadingProjectPropertiesFile>',
           '<ProjectPropertiesFileLoaded>',
           '<ProjectPropertiesDataReceived>',
+          '<ListingDocumentFiles> "/"',
+          '<DocumentFilesListed> "/"',
+          '<DocumentAttachmentsListed> "/Chapter 2" [ property file "_properties.json", primary "_.txt"]',
           '<EditingAttachment> "/Chapter 2" <primary> "_.txt"',
           '<ProjectPropertiesDataReceived>',
+          '<ListingDocumentFiles> "/"',
+          '<DocumentFilesListed> "/"',
+          '<DocumentAttachmentsListed> "/Chapter 2" [ property file "_properties.json", thumbnail "_thumbnail.png", primary "_.txt"]',
           '<EditingAttachment> "/Chapter 2" <thumbnail> "_thumbnail.png"',
           '<ProjectPropertiesDataReceived>',
+          '<ListingDocumentFiles> "/"',
+          '<DocumentFilesListed> "/"',
+          '<DocumentAttachmentsListed> "/Chapter 2" [ property file "_properties.json", thumbnail "_thumbnail.png", note "_notes.tst", primary "_.txt"]',
           '<EditingAttachment> "/Chapter 2" <note> "_notes.tst"',
           '<ListingDocumentFiles> "/Notes/Characters"',
           '<DocumentFilesListed> "/Notes/Characters"',
@@ -808,7 +817,7 @@ begin
     end;
     if fProjectEvents[i] <> aExpected[i] then
     begin
-      FailAsync(aTestID,'Expected event: "' + aExpected[i] + '" received: "' + fProjectEvents[i] + '"');
+      FailAsync(aTestID,'Expected event at ' + IntToStr(i) + ': "' + aExpected[i] + '" received: "' + fProjectEvents[i] + '"');
       result := false;
       Exit;
     end;

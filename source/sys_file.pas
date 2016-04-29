@@ -91,7 +91,7 @@ type
     function Rename(aTarget: TFile): TFileRenamePromise;
     procedure OpenInEditor;
     function ListTemplatesFor: TFileListTemplatesPromise;
-    function CreateFromTemplate(aTemplate: TTemplate; aFlags: TFileCopyOptions
+    function CreateFromTemplate(aTemplate: TTemplate; aFlags: TFileCopyOptions = []
       ): TFileCopyPromise;
     property BaseName: UTF8String read GetBaseName;
     property PacketName: UTF8String read GetPacketName;
