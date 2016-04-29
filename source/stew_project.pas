@@ -398,7 +398,7 @@ type
     function CreatePath(aPath: UTF8String): TShadowDocument;
     function GetIsFolder: Boolean;
     function GetPath(aPath: UTF8String): TShadowDocument;
-    procedure DeletePath(aPath: UTF8String);
+    function DeletePath(aPath: UTF8String): Boolean;
     function ExtractPath(aPath: UTF8String): TShadowDocument;
     procedure AddDocument(aPath: UTF8String; aDocument: TShadowDocument);
     procedure SplitPath(aPath: UTF8String; out aChildName: UTF8String; out aChildPath: UTF8String);
@@ -414,7 +414,7 @@ type
   TShadowCache = class(TShadowDocument)
   public
     function CreateShadow(aDocument: TDocumentPath): TShadowDocument;
-    procedure DeleteShadow(aDocument: TDocumentPath);
+    function DeleteShadow(aDocument: TDocumentPath): Boolean;
     procedure MoveShadow(aOld: TDocumentPath; aNew: TDocumentPath);
     function HasShadow(aDocument: TDocumentPath): Boolean;
     function IsFolder(aDocument: TDocumentPath): Boolean;
@@ -1030,12 +1030,14 @@ var
   lFiles: TFileInfoArray;
   lAttachments: TAttachmentArray;
   l: Longint;
+  lResultLength: Longint;
   i: Longint;
 begin
   try
     lFiles := (Input as TFileListPromise).FilesInfo;
     l := Length(lFiles);
-    SetLength(lAttachments,l);
+    SetLength(lAttachments,0);
+    lResultLength := 0;
     for i := 0 to l - 1 do
     begin
       if fDocument = TDocumentPath.FromFile(fProject.fDisk,lFiles[i].Item) then
@@ -1063,9 +1065,11 @@ begin
           if Pos(TStewProject.DocumentBackupDescriptorPrefix,lFiles[i].Item.Descriptor) = 1 then
              lKind := atBackup;
         end;
-        lAttachments[i] := TAttachment.Make(lKind,
+        SetLength(lAttachments,lResultLength + 1);
+        lAttachments[lResultLength] := TAttachment.Make(lKind,
                                            lFiles[i].Item.Descriptor,
                                            lFiles[i].Item.Extension);
+        inc(lResultLength);
 
       end;
     end;
@@ -1829,22 +1833,22 @@ end;
 
 function TShadowCache.CreateShadow(aDocument: TDocumentPath): TShadowDocument;
 begin
-  result := CreatePath(aDocument.ID);
+  result := CreatePath(ExcludeLeadingPathDelimiter(aDocument.ID));
 end;
 
-procedure TShadowCache.DeleteShadow(aDocument: TDocumentPath);
+function TShadowCache.DeleteShadow(aDocument: TDocumentPath): Boolean;
 begin
-  DeletePath(aDocument.ID);
+  result := DeletePath(ExcludeLeadingPathDelimiter(aDocument.ID));
 end;
 
 procedure TShadowCache.MoveShadow(aOld: TDocumentPath; aNew: TDocumentPath);
 var
   lOld: TShadowDocument;
 begin
-  lOld := ExtractPath(aOld.ID);
+  lOld := ExtractPath(ExcludeLeadingPathDelimiter(aOld.ID));
   if lOld <> nil then
   begin
-    AddDocument(aNew.ID,lOld);
+    AddDocument(ExcludeLeadingPathDelimiter(aNew.ID),lOld);
   end;
 
 end;
@@ -1853,7 +1857,7 @@ function TShadowCache.HasShadow(aDocument: TDocumentPath): Boolean;
 var
   lPath: TShadowDocument;
 begin
-  lPath := GetPath(aDocument.ID);
+  lPath := GetPath(ExcludeLeadingPathDelimiter(aDocument.ID));
   result := (lPath <> nil) and lPath.IsShadow;
 end;
 
@@ -1861,7 +1865,7 @@ function TShadowCache.IsFolder(aDocument: TDocumentPath): Boolean;
 var
   lShadow: TShadowDocument;
 begin
-  lShadow := GetPath(aDocument.ID);
+  lShadow := GetPath(ExcludeLeadingPathDelimiter(aDocument.ID));
   result := (lShadow <> nil) and lShadow.IsFolder;
 end;
 
@@ -1874,7 +1878,7 @@ var
   l: Integer;
   i: Integer;
 begin
-  lShadow := GetPath(aDocument.ID);
+  lShadow := GetPath(ExcludeLeadingPathDelimiter(aDocument.ID));
   if lShadow <> nil then
   begin
     l := lShadow.fContents.Count;
@@ -1910,6 +1914,7 @@ begin
   end
   else
     lChildShadow := fContents.Items[i] as TShadowDocument;
+  Assert(fContents.Count > 0);
   if lChildPath = '' then
     result := lChildShadow
   else
@@ -1944,13 +1949,14 @@ begin
   end;
 end;
 
-procedure TShadowDocument.DeletePath(aPath: UTF8String);
+function TShadowDocument.DeletePath(aPath: UTF8String): Boolean;
 var
   lChildName: UTF8String;
   lChildPath: UTF8String;
   i: Integer;
   lChildShadow: TShadowDocument;
 begin
+  result := false;
   SplitPath(aPath,lChildName,lChildPath);
   i := fContents.FindIndexOf(lChildName);
   if i > -1 then
@@ -1958,11 +1964,15 @@ begin
     lChildShadow := fContents.Items[i] as TShadowDocument;
     if lChildPath = '' then
     begin
-      fContents.Delete(i);
+      if not lChildShadow.IsFolder then
+      begin
+         fContents.Delete(i);
+         result := true;
+      end;
     end
     else
     begin
-      lChildShadow.DeletePath(lChildPath);
+      result := lChildShadow.DeletePath(lChildPath);
       if not lChildShadow.IsFolder then
         fContents.Delete(i);
     end;
@@ -3274,8 +3284,8 @@ end;
 
 procedure TStewProject.DeleteShadow(aDocument: TDocumentPath);
 begin
-  fShadows.DeleteShadow(aDocument);
-  ReportEvent(TDocumentEvent.Create(paShadowUncreated,aDocument));
+  if fShadows.DeleteShadow(aDocument) then
+     ReportEvent(TDocumentEvent.Create(paShadowUncreated,aDocument));
 end;
 
 procedure TStewProject.MoveShadow(aOld: TDocumentPath; aNew: TDocumentPath);
