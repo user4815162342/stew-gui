@@ -1,11 +1,11 @@
-unit sys_dynobject_json;
+unit sys_dynval_json;
 
 {$mode objfpc}{$H+}
 
 interface
 
 uses
-  Classes, SysUtils, sys_dynobject, jsonscanner;
+  Classes, SysUtils, sys_dynval, jsonscanner;
 
 type
 

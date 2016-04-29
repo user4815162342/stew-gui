@@ -1,4 +1,4 @@
-unit sys_dynobject_implementation;
+unit sys_dynval_implementation;
 
 {$mode objfpc}{$H+}
 
@@ -7,7 +7,7 @@ interface
 
 
 uses
-  Classes, SysUtils, sys_types, sys_dynobject;
+  Classes, SysUtils, sys_types, sys_dynval;
 
 type
 

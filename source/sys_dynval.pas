@@ -1,4 +1,4 @@
-unit sys_dynobject;
+unit sys_dynval;
 
 {$mode objfpc}{$H+}
 // I'm using com interfaces here, so that I get reference counting. In this case, I *want* reference counting.
@@ -226,7 +226,7 @@ type
 implementation
 
 uses
-  sys_dynobject_implementation;
+  sys_dynval_implementation;
 
 function ReadDynamicValue(aReader: TDynamicValueReader): IDynamicValue;
 

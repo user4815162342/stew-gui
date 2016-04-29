@@ -185,19 +185,19 @@
         <UnitName Value="gui_gtk2_glyphs"/>
       </Unit23>
       <Unit24>
-        <Filename Value="sys_dynobject_implementation.pas"/>
+        <Filename Value="sys_dynval_implementation.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="sys_dynobject_implementation"/>
+        <UnitName Value="sys_dynval_implementation"/>
       </Unit24>
       <Unit25>
-        <Filename Value="sys_dynobject.pas"/>
+        <Filename Value="sys_dynval.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="sys_dynobject"/>
+        <UnitName Value="sys_dynval"/>
       </Unit25>
       <Unit26>
-        <Filename Value="sys_dynobject_json.pas"/>
+        <Filename Value="sys_dynval_json.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="sys_dynobject_json"/>
+        <UnitName Value="sys_dynval_json"/>
       </Unit26>
     </Units>
   </ProjectOptions>
