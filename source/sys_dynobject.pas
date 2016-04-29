@@ -10,6 +10,12 @@ uses
   Classes, SysUtils, sys_types;
 
 {
+
+TODO: Units should be dynval, not dynobject.
+
+TODO: I need to make sure everything's got a const, but that should be in the
+master branch.
+
 TODO:
 A replacement for sys_json, which solves several problems:
 1) removes the extra functionality such as strictly-typed properties and easy
@@ -61,6 +67,11 @@ TODO: There are going to be several parts to this:
     the config object is returned, then the reader is passed on to that constructor.
     Otherwise, the value is read and stored on a cached dynobject for saving to
     later. Writing out works the opposite way.
+    - ReadKey(Key, Reader, var handled)
+      - if not handled then put into the inner object.
+    - ReadItem(Reader, var handled) - for an array.
+    - When writing, the object had to write out it's own objects to the JSON
+      as well.
 
 
 
@@ -73,8 +84,8 @@ type
   IDynamicValue = interface(IUnknown)
     ['{B2B8454B-103C-4690-ACC1-EC75F65F2D76}']
     function Owns(aValue: IDynamicValue): Boolean;
-    function IsEqualTo(aValue: IDynamicValue): Boolean;
     function IsDefined: Boolean;
+    function EqualsDeeply(aValue: IDynamicValue): Boolean;
   end;
 
   { IDynamicNull }

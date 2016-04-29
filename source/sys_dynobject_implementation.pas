@@ -16,15 +16,15 @@ type
   TDynamicValue = class(TInterfacedObject, IDynamicValue)
   public
     function Owns({%H-}aValue: IDynamicValue): Boolean; virtual;
-    function IsEqualTo({%H-}aValue: IDynamicValue): Boolean; virtual;
     function IsDefined: Boolean; virtual;
+    function EqualsDeeply({%H-}aValue: IDynamicValue): Boolean;
   end;
 
   { TDynamicNull }
 
   TDynamicNull = class(TDynamicValue,IDynamicNull)
   public
-    function IsEqualTo(aValue: IDynamicValue): Boolean; override;
+    function EqualsDeeply(aValue: IDynamicValue): Boolean;
   end;
 
   { TDynamicBoolean }
@@ -36,7 +36,7 @@ type
   public
     constructor Create(aValue: Boolean);
     property Value: Boolean read GetValue;
-    function IsEqualTo(aValue: IDynamicValue): Boolean; override;
+    function EqualsDeeply(aValue: IDynamicValue): Boolean;
   end;
 
   { TDynamicNumber }
@@ -48,7 +48,7 @@ type
   public
     constructor Create(aValue: Double);
     property Value: Double read GetValue;
-    function IsEqualTo(aValue: IDynamicValue): Boolean; override;
+    function EqualsDeeply(aValue: IDynamicValue): Boolean;
   end;
 
   { TDynamicString }
@@ -60,7 +60,7 @@ type
   public
     constructor Create(aValue: UTF8String);
     property Value: UTF8String read GetValue;
-    function IsEqualTo(aValue: IDynamicValue): Boolean; override;
+    function EqualsDeeply(aValue: IDynamicValue): Boolean;
   end;
 
   TDynamicValueArray = array of IDynamicValue;
@@ -82,13 +82,13 @@ type
     procedure Delete(aIndex: Longint);
     procedure Clear;
     function IndexOf(aValue: IDynamicValue): Longint;
-    function IsEqualTo(aValue: IDynamicValue): Boolean; override;
+    function EqualsDeeply(aValue: IDynamicValue): Boolean;
     function Owns(aValue: IDynamicValue): Boolean; override;
 
   end;
 
   TNamedValue = record
-    Name: UTF8String;
+    Key: UTF8String;
     Value: IDynamicValue;
   end;
   TNamedValueArray = array of TNamedValue;
@@ -131,11 +131,67 @@ type
     procedure Delete(aKey: UTF8String);
     procedure Clear;
     function Enumerate: IDynamicMapEnumerator;
-    function IsEqualTo(aValue: IDynamicValue): Boolean; override;
+    function EqualsDeeply(aValue: IDynamicValue): Boolean;
     function Owns(aValue: IDynamicValue): Boolean; override;
   end;
 
+  procedure QuickSortNamedValues(var aList: TNamedValueArray; L: Longint; R: Longint);
+
 implementation
+
+uses
+  LazUTF8;
+
+// blatantly ripped off from QuickSort in classes unit.
+procedure QuickSortNamedValues(var aList: TNamedValueArray; L: Longint; R: Longint);
+var
+  I: Longint;
+  J: Longint;
+  P: UTF8String;
+  Q: TNamedValue;
+begin
+ repeat
+   I := L;
+   J := R;
+   P := aList[ (L + R) div 2 ].Key;
+   repeat
+     while UTF8CompareStr(P,aList[I].Key) > 0 do
+       I := I + 1;
+     while UTF8CompareStr(P, aList[J].Key) < 0 do
+       J := J - 1;
+     If I <= J then
+     begin
+       Q := aList[I];
+       aList[I] := aList[J];
+       aList[J] := Q;
+       I := I + 1;
+       J := J - 1;
+     end;
+   until I > J;
+   // sort the smaller range recursively
+   // sort the bigger range via the loop
+   // Reasons: memory usage is O(log(n)) instead of O(n) and loop is faster than recursion
+   if J - L < R - I then
+   begin
+     if L < J then
+       QuickSortNamedValues(aList, L, J);
+     L := I;
+   end
+   else
+   begin
+     if I < R then
+       QuickSortNamedValues(aList, I, R);
+     R := J;
+   end;
+ until L >= R;
+end;
+
+{ TDynamicNull }
+
+function TDynamicNull.EqualsDeeply(aValue: IDynamicValue): Boolean;
+begin
+  result := aValue is IDynamicNull;
+end;
 
 { TDynamicMap.TDynamicMapEnumerator }
 
@@ -148,7 +204,7 @@ end;
 
 function TDynamicMapEnumerator.GetKey: UTF8String;
 begin
-  result := fMap.fList[fIndex].Name;
+  result := fMap.fList[fIndex].Key;
 end;
 
 function TDynamicMapEnumerator.GetValue: IDynamicValue;
@@ -201,7 +257,7 @@ begin
   end
   else
   begin
-    lNamedValue.Name := aKey;
+    lNamedValue.Key := aKey;
     lNamedValue.Value := AValue;
     l := System.Length(fList);
     SetLength(fList,l + 1);
@@ -214,16 +270,16 @@ var
   l: Longint;
   i: Longint;
 begin
-  result := -1;
-  l := System.Length(fList) - 1;
-  for i := 0 to l do
-  begin
-    if fList[i].Name = aKey then
-    begin
-       result := i;
-       break;
-    end;
-  end;
+ result := -1;
+ l := System.Length(fList);
+ for i := 0 to l do
+ begin
+   if fList[i].Key = aKey then
+   begin
+      result := i;
+      break;
+   end;
+ end;
 end;
 
 constructor TDynamicMap.Create;
@@ -241,7 +297,7 @@ begin
   SetLength(Result,l);
   for i := 0 to l - 1 do
   begin
-    Result[i] := fList[i].Name;
+    Result[i] := fList[i].Key;
   end;
 end;
 
@@ -267,12 +323,12 @@ begin
      end;
      SetLength(fList,l - 1);
   end;
+  // this isn't going to change the sorting status at all...
 end;
 
 procedure TDynamicMap.Clear;
 begin
   SetLength(fList,0);
-
 end;
 
 function TDynamicMap.Enumerate: IDynamicMapEnumerator;
@@ -280,10 +336,63 @@ begin
   result := TDynamicMapEnumerator.Create(Self);
 end;
 
-function TDynamicMap.IsEqualTo(aValue: IDynamicValue): Boolean;
+function TDynamicMap.EqualsDeeply(aValue: IDynamicValue): Boolean;
+var
+  lItemsLength: Longint;
+  lTheirValueList: TNamedValueArray;
+
+  procedure GetTheirValues;
+  var
+    lEnum: IDynamicMapEnumerator;
+  begin
+    lEnum := IDynamicMap(aValue).Enumerate;
+    lItemsLength := 0;
+    while lEnum.Next do
+    begin
+       SetLength(lTheirValueList,lItemsLength + 1);
+       lTheirValueList[lItemsLength].Key := lEnum.Key;
+       lTheirValueList[lItemsLength].Value := lEnum.Value;
+       inc(lItemsLength);
+    end;
+  end;
+
+var
+  lMyValues: TNamedValueArray;
+  i: Longint;
 begin
-  if aValue is IDynamicMap then
-     result := (aValue as IDynamicMap) = (Self as IDynamicMap);
+  result := aValue is IDynamicMap;
+  if result then
+  begin
+    GetTheirValues;
+    result := lItemsLength = Length(fList);
+    if result and (lItemsLength > 0) then
+    begin
+      if lItemsLength = 1 then
+      begin
+        // this is much faster since I don't have to copy and sort at all...
+        result := (fList[0].Key = lTheirValueList[0].Key) and
+                  (fList[0].Value.EqualsDeeply(lTheirValueList[0].Value));
+      end
+      else
+      begin
+        // I don't want to sort the real items, because that might confuse
+        // the user. So, make a copy first.
+        lMyValues := Copy(fList,0,lItemsLength - 1);
+        // this seems to be better than a brute force double loop.
+        QuickSortNamedValues(lMyValues,0,lItemsLength - 1);
+        QuickSortNamedValues(lTheirValueList,0,lItemsLength - 1);
+        for i := 0 to lItemsLength - 1 do
+        begin
+          result := (lMyValues[i].Key = lTheirValueList[i].Key) and
+                    (lMyValues[i].Value.EqualsDeeply(lTheirValueList[i].Value));
+          if not result then
+             break;
+
+        end;
+      end;
+
+    end;
+  end;
 end;
 
 function TDynamicMap.Owns(aValue: IDynamicValue): Boolean;
@@ -295,7 +404,7 @@ begin
   l := Length(fList) - 1;
   for i := 0 to l do
   begin
-    result := fList[i].Value.IsEqualTo(aValue) or
+    result := (fList[i].Value = aValue) or
        fList[i].Value.Owns(aValue);
     if result then
        break;
@@ -404,12 +513,28 @@ begin
   end;
 end;
 
-function TDynamicList.IsEqualTo(aValue: IDynamicValue): Boolean;
+function TDynamicList.EqualsDeeply(aValue: IDynamicValue): Boolean;
+var
+  i: Longint;
+  l: LongInt;
+  lValue: IDynamicList;
 begin
-  Result:= (aValue is IDynamicList);
+  result := aValue is IDynamicList;
   if result then
   begin
-    result := (aValue as IDynamicList) = (Self as IDynamicList);
+     l :=  Length;
+     lValue := IDynamicList(aValue);
+     result := l = lValue.Length;
+     if result then
+     begin
+        for i := 0 to l - 1 do
+        begin
+          result := Item[i].EqualsDeeply(lValue[i]);
+          if not result then
+             break;
+        end;
+
+     end;
   end;
 end;
 
@@ -422,7 +547,7 @@ begin
   l := Length - 1;
   for i := 0 to l do
   begin
-    result := fList[i].IsEqualTo(aValue) or
+    result := (fList[i] = aValue) or
        fList[i].Owns(aValue);
     if result then
        break;
@@ -443,9 +568,10 @@ begin
   fValue := aValue;
 end;
 
-function TDynamicString.IsEqualTo(aValue: IDynamicValue): Boolean;
+function TDynamicString.EqualsDeeply(aValue: IDynamicValue): Boolean;
 begin
-  Result:= (aValue is IDynamicString) and ((aValue as IDynamicString).Value = Value);
+  result := (aValue is IDynamicString) and (IDynamicString(aValue).Value = Value);
+
 end;
 
 { TDynamicNumber }
@@ -462,17 +588,13 @@ begin
 
 end;
 
-function TDynamicNumber.IsEqualTo(aValue: IDynamicValue): Boolean;
+function TDynamicNumber.EqualsDeeply(aValue: IDynamicValue): Boolean;
 begin
-  Result:= (aValue is IDynamicNumber) and ((aValue as IDynamicNumber).Value = Value);
+  result := (aValue is IDynamicNumber) and (IDynamicNumber(aValue).Value = Value);
+
 end;
 
 { TDynamicNull }
-
-function TDynamicNull.IsEqualTo(aValue: IDynamicValue): Boolean;
-begin
-  Result:= (aValue is IDynamicNull);
-end;
 
 { TDynamicBoolean }
 
@@ -488,19 +610,14 @@ begin
 
 end;
 
-function TDynamicBoolean.IsEqualTo(aValue: IDynamicValue): Boolean;
+function TDynamicBoolean.EqualsDeeply(aValue: IDynamicValue): Boolean;
 begin
-  Result:= (aValue is IDynamicBoolean) and ((aValue as IDynamicBoolean).Value = Value);
+  result := (aValue is IDynamicBoolean) and (IDynamicBoolean(aValue).Value = Value);
 end;
 
 { TDynamicValue }
 
 function TDynamicValue.Owns(aValue: IDynamicValue): Boolean;
-begin
-  result := false;
-end;
-
-function TDynamicValue.IsEqualTo(aValue: IDynamicValue): Boolean;
 begin
   result := false;
 end;
@@ -514,6 +631,11 @@ begin
     (Self is IDynamicString) or
     (self is IDynamicList) or
     (Self is IDynamicMap);
+end;
+
+function TDynamicValue.EqualsDeeply(aValue: IDynamicValue): Boolean;
+begin
+  result := false;
 end;
 
 initialization
