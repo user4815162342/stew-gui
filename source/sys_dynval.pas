@@ -13,11 +13,6 @@ uses
 
 
 
-TODO: I need to make sure everything's got a const, but that should be in the
-master branch.
-
-TODO: I need some implicit overloading for primitives...
-
 TODO:
 A replacement for sys_json, which solves several problems:
 1) removes the extra functionality such as strictly-typed properties and easy
@@ -85,11 +80,11 @@ type
 
   IDynamicValue = interface(IUnknown)
     ['{B2B8454B-103C-4690-ACC1-EC75F65F2D76}']
-    function GetItem(aKey: IDynamicValue): IDynamicValue;
-    procedure SetItem(aKey: IDynamicValue; AValue: IDynamicValue);
-    function Owns(aValue: IDynamicValue): Boolean;
+    function GetItem(const aKey: IDynamicValue): IDynamicValue;
+    procedure SetItem(const aKey: IDynamicValue; const AValue: IDynamicValue);
+    function Owns(const aValue: IDynamicValue): Boolean;
     function IsDefined: Boolean;
-    function EqualsDeeply(aValue: IDynamicValue): Boolean;
+    function EqualsDeeply(const aValue: IDynamicValue): Boolean;
     property Item[aKey: IDynamicValue]: IDynamicValue read GetItem write SetItem; default;
   end;
 
@@ -127,16 +122,16 @@ type
 
   IDynamicList = interface(IDynamicValue)
     ['{E7D0AE4B-435B-45E5-BC6F-E1F478DD33BC}']
-    function GetItem(aIndex: Longint): IDynamicValue; overload;
+    function GetItem(const aIndex: Longint): IDynamicValue; overload;
     function GetLength: Longint;
-    procedure SetItem(aIndex: Longint; AValue: IDynamicValue); overload;
-    procedure SetLength(AValue: Longint);
+    procedure SetItem(const aIndex: Longint; const AValue: IDynamicValue); overload;
+    procedure SetLength(const AValue: Longint);
     property Item[aIndex: Longint]: IDynamicValue read GetItem write SetItem; default;
     property Length: Longint read GetLength write SetLength;
-    procedure Add(aItem: IDynamicValue);
-    procedure Delete(aIndex: Longint);
+    procedure Add(const aItem: IDynamicValue);
+    procedure Delete(const aIndex: Longint);
     procedure Clear;
-    function IndexOf(aValue: IDynamicValue): Longint;
+    function IndexOf(const aValue: IDynamicValue): Longint;
   end;
 
   { IDynamicMapEnumerator }
@@ -154,12 +149,12 @@ type
 
   IDynamicMap = interface(IDynamicValue)
     ['{B59C4808-7966-4AB2-9E6E-4153F0985562}']
-    function GetItem(aKey: UTF8String): IDynamicValue; overload;
-    procedure SetItem(aKey: UTF8String; AValue: IDynamicValue); overload;
+    function GetItem(const aKey: UTF8String): IDynamicValue; overload;
+    procedure SetItem(const aKey: UTF8String; const AValue: IDynamicValue); overload;
     property Item[aKey: UTF8String]: IDynamicValue read GetItem write SetItem; default;
     function GetKeys: TStringArray;
-    function Has(aKey: UTF8String): Boolean;
-    procedure Delete(aKey: UTF8String);
+    function Has(const aKey: UTF8String): Boolean;
+    procedure Delete(const aKey: UTF8String);
     procedure Clear;
     function Enumerate: IDynamicMapEnumerator;
   end;
@@ -182,9 +177,9 @@ type
     // that I'm not sharing values...
     class function Undefined: IDynamicValue;
     class function Null: IDynamicNull;
-    class function Boolean(aValue: Boolean): IDynamicBoolean;
-    class function NewString(aValue: UTF8String): IDynamicString;
-    class function NewNumber(aValue: Double): IDynamicNumber;
+    class function Boolean(const aValue: Boolean): IDynamicBoolean;
+    class function NewString(const aValue: UTF8String): IDynamicString;
+    class function NewNumber(const aValue: Double): IDynamicNumber;
     class function NewList: IDynamicList;
     class function NewMap: IDynamicMap;
   end;
@@ -192,15 +187,15 @@ type
   TDynamicValueWriter = class abstract
   public
     procedure WriteMapStart; virtual; abstract;
-    procedure WriteMapKey(aValue: UTF8String); virtual; abstract;
+    procedure WriteMapKey(const aValue: UTF8String); virtual; abstract;
     procedure WriteMapEnd; virtual; abstract;
     procedure WriteListStart; virtual; abstract;
     procedure WriteListEnd; virtual; abstract;
     procedure WriteListSeparator; virtual; abstract;
     procedure WriteNull; virtual; abstract;
-    procedure WriteNumber(aValue: Double); virtual; abstract;
-    procedure WriteBoolean(aValue: Boolean); virtual; abstract;
-    procedure WriteString(aValue: UTF8String); virtual; abstract;
+    procedure WriteNumber(const aValue: Double); virtual; abstract;
+    procedure WriteBoolean(const aValue: Boolean); virtual; abstract;
+    procedure WriteString(const aValue: UTF8String); virtual; abstract;
   end;
 
   TDynamicValueReader = class abstract
@@ -225,9 +220,9 @@ type
     procedure ReadNull; virtual; abstract;
   end;
 
-  function ReadDynamicValue(aReader: TDynamicValueReader): IDynamicValue;
+  function ReadDynamicValue(const aReader: TDynamicValueReader): IDynamicValue;
 
-  procedure WriteDynamicValue(aValue: IDynamicValue; aWriter: TDynamicValueWriter);
+  procedure WriteDynamicValue(const aValue: IDynamicValue; const aWriter: TDynamicValueWriter);
 
   // Just overload the operators we need as they are needed.
   operator :=(aValue: Double): IDynamicValue;
@@ -240,7 +235,7 @@ implementation
 uses
   sys_dynval_implementation;
 
-function ReadDynamicValue(aReader: TDynamicValueReader): IDynamicValue;
+function ReadDynamicValue(const aReader: TDynamicValueReader): IDynamicValue;
 
   function ReadValue: IDynamicValue; forward;
 
@@ -313,11 +308,11 @@ begin
   result := ReadValue;
 end;
 
-procedure WriteDynamicValue(aValue: IDynamicValue; aWriter: TDynamicValueWriter);
+procedure WriteDynamicValue(const aValue: IDynamicValue; const aWriter: TDynamicValueWriter);
 
-  procedure WriteValue(aValue: IDynamicValue); forward;
+  procedure WriteValue(const aValue: IDynamicValue); forward;
 
-  procedure WriteMap(aValue: IDynamicMap);
+  procedure WriteMap(const aValue: IDynamicMap);
   var
     lEnum: IDynamicMapEnumerator;
     lFoundItem: Boolean;
@@ -337,7 +332,7 @@ procedure WriteDynamicValue(aValue: IDynamicValue; aWriter: TDynamicValueWriter)
 
   end;
 
-  procedure WriteList(aValue: IDynamicList);
+  procedure WriteList(const aValue: IDynamicList);
   var
     l: Longint;
     i: Longint;
@@ -357,7 +352,7 @@ procedure WriteDynamicValue(aValue: IDynamicValue; aWriter: TDynamicValueWriter)
 
   end;
 
-  procedure WriteValue(aValue: IDynamicValue);
+  procedure WriteValue(const aValue: IDynamicValue);
   begin
     if aValue is IDynamicBoolean then
        aWriter.WriteBoolean(IDynamicBoolean(aValue).Value)
@@ -435,12 +430,12 @@ begin
 
 end;
 
-class function TDynamicValues.NewString(aValue: UTF8String): IDynamicString;
+class function TDynamicValues.NewString(const aValue: UTF8String): IDynamicString;
 begin
   result := TDynamicString.Create(aValue);
 end;
 
-class function TDynamicValues.Boolean(aValue: Boolean): IDynamicBoolean;
+class function TDynamicValues.Boolean(const aValue: Boolean): IDynamicBoolean;
 begin
   if aValue then
   begin
@@ -456,7 +451,7 @@ begin
   end;
 end;
 
-class function TDynamicValues.NewNumber(aValue: Double): IDynamicNumber;
+class function TDynamicValues.NewNumber(const aValue: Double): IDynamicNumber;
 begin
   result := TDynamicNumber.Create(aValue);
 end;

@@ -28,30 +28,30 @@ type
 
   TJSONWriter = class(TDynamicValueWriter)
   private
-    procedure SetItemsWritten(AValue: Boolean);
+    procedure SetItemsWritten(const AValue: Boolean);
   private
     fStack: TJSONWriterStateArray;
     fStream: TStream;
     fGap: LongInt;
-    procedure Write(aValue: UTF8String);
-    procedure WriteQuote(aValue: UTF8String);
+    procedure Write(const aValue: UTF8String);
+    procedure WriteQuote(const aValue: UTF8String);
     procedure WriteValueHeader;
     procedure Pop;
     function Peek: TJSONWriterState;
-    procedure Push(aIsMap: Boolean);
+    procedure Push(const aIsMap: Boolean);
   public
     constructor Create(aStream: TStream; aIndent: Word);
     destructor Destroy; override;
-    procedure WriteBoolean(aValue: Boolean); override;
+    procedure WriteBoolean(const aValue: Boolean); override;
     procedure WriteListEnd; override;
     procedure WriteListSeparator; override;
     procedure WriteListStart; override;
     procedure WriteMapEnd; override;
-    procedure WriteMapKey(aValue: UTF8String); override;
+    procedure WriteMapKey(const aValue: UTF8String); override;
     procedure WriteMapStart; override;
     procedure WriteNull; override;
-    procedure WriteNumber(aValue: Double); override;
-    procedure WriteString(aValue: UTF8String); override;
+    procedure WriteNumber(const aValue: Double); override;
+    procedure WriteString(const aValue: UTF8String); override;
   end;
 
   TJSONTokens = set of TJSONToken;
@@ -64,7 +64,7 @@ type
   private
     // FUTURE: Make sure this is the best scanner available
     fScanner: TJSONScanner;
-    procedure Expect(aTokens: TJSONTokens; const aValue: UTF8String);
+    procedure Expect(const aTokens: TJSONTokens; const aValue: UTF8String);
     procedure SkipWhitespace;
   public
     constructor Create(aStream: TStream);
@@ -90,10 +90,10 @@ type
 
   end;
 
-procedure ToJSON(aObject: IDynamicValue; aStream: TStream; aIndent: Word = 0);
-function ToJSON(aObject: IDynamicValue; aIndent: Word = 0): UTF8String;
-function FromJSON(aStream: TStream): IDynamicValue;
-function FromJSON(aString: UTF8String): IDynamicValue;
+procedure ToJSON(const aObject: IDynamicValue; const aStream: TStream; aIndent: Word = 0);
+function ToJSON(const aObject: IDynamicValue; const aIndent: Word = 0): UTF8String;
+function FromJSON(const aStream: TStream): IDynamicValue;
+function FromJSON(const aString: UTF8String): IDynamicValue;
 
 const
   NullText: UTF8String = 'null';
@@ -105,7 +105,7 @@ implementation
 uses
   Math;
 
-procedure ToJSON(aObject: IDynamicValue; aStream: TStream; aIndent: Word);
+procedure ToJSON(const aObject: IDynamicValue; const aStream: TStream; aIndent: Word);
 var
   lWriter: TJSONWriter;
 begin
@@ -118,7 +118,7 @@ begin
 
 end;
 
-function ToJSON(aObject: IDynamicValue; aIndent: Word): UTF8String;
+function ToJSON(const aObject: IDynamicValue; const aIndent: Word): UTF8String;
 var
   lOutput: TStringStream;
 begin
@@ -132,7 +132,7 @@ begin
 
 end;
 
-function FromJSON(aStream: TStream): IDynamicValue;
+function FromJSON(const aStream: TStream): IDynamicValue;
 var
   lReader: TJSONReader;
 begin
@@ -145,7 +145,7 @@ begin
 
 end;
 
-function FromJSON(aString: UTF8String): IDynamicValue;
+function FromJSON(const aString: UTF8String): IDynamicValue;
 var
   lStream: TStringStream;
 begin
@@ -160,7 +160,7 @@ end;
 
 { TJSONReader }
 
-procedure TJSONReader.Expect(aTokens: TJSONTokens; const aValue: UTF8String);
+procedure TJSONReader.Expect(const aTokens: TJSONTokens; const aValue: UTF8String);
 begin
   if not (fScanner.CurToken in aTokens) then
      raise Exception.Create('Expected ' + aValue + ' in JSON data.');
@@ -325,7 +325,7 @@ end;
 
 { TJSONWriter }
 
-procedure TJSONWriter.SetItemsWritten(AValue: Boolean);
+procedure TJSONWriter.SetItemsWritten(const AValue: Boolean);
 var
   l: Longint;
 begin
@@ -338,13 +338,13 @@ begin
    raise Exception.Create('TJSONWriter has gone past the top of the stack');
 end;
 
-procedure TJSONWriter.Write(aValue: UTF8String);
+procedure TJSONWriter.Write(const aValue: UTF8String);
 begin
  if aValue <> '' then
     fStream.Write(aValue[1],Length(aValue));
 end;
 
-procedure TJSONWriter.WriteQuote(aValue: UTF8String);
+procedure TJSONWriter.WriteQuote(const aValue: UTF8String);
 var
   lText: UTF8String;
   i: Integer;
@@ -420,7 +420,7 @@ begin
    raise Exception.Create('TJSONWriter has gone past the top of the stack');
 end;
 
-procedure TJSONWriter.Push(aIsMap: Boolean);
+procedure TJSONWriter.Push(const aIsMap: Boolean);
 var
   l: Longint;
   lIndent: UTF8String;
@@ -457,7 +457,7 @@ begin
   inherited Destroy;
 end;
 
-procedure TJSONWriter.WriteBoolean(aValue: Boolean);
+procedure TJSONWriter.WriteBoolean(const aValue: Boolean);
 begin
  Write(BoolToStr(aValue,TrueText,FalseText));
 end;
@@ -501,7 +501,7 @@ begin
 
 end;
 
-procedure TJSONWriter.WriteMapKey(aValue: UTF8String);
+procedure TJSONWriter.WriteMapKey(const aValue: UTF8String);
 begin
    if fGap > 0 then
    begin
@@ -520,14 +520,14 @@ begin
   Write(NullText);
 end;
 
-procedure TJSONWriter.WriteNumber(aValue: Double);
+procedure TJSONWriter.WriteNumber(const aValue: Double);
 begin
   WriteValueHeader;
   Write(FloatToStr(aValue));
 
 end;
 
-procedure TJSONWriter.WriteString(aValue: UTF8String);
+procedure TJSONWriter.WriteString(const aValue: UTF8String);
 begin
   WriteValueHeader;
   WriteQuote(aValue);

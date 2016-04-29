@@ -15,12 +15,12 @@ type
 
   TDynamicValue = class(TInterfacedObject, IDynamicValue)
   protected
-    function GetItem({%H-}aKey: IDynamicValue): IDynamicValue; virtual;
-    procedure SetItem({%H-}aKey: IDynamicValue; {%H-}AValue: IDynamicValue); virtual;
+    function GetItem(const {%H-}aKey: IDynamicValue): IDynamicValue; virtual;
+    procedure SetItem(const {%H-}aKey: IDynamicValue; const {%H-}AValue: IDynamicValue); virtual;
   public
-    function Owns({%H-}aValue: IDynamicValue): Boolean; virtual;
+    function Owns(const {%H-}aValue: IDynamicValue): Boolean; virtual;
     function IsDefined: Boolean; virtual;
-    function EqualsDeeply({%H-}aValue: IDynamicValue): Boolean;
+    function EqualsDeeply(const {%H-}aValue: IDynamicValue): Boolean;
     property Item[aKey: IDynamicValue]: IDynamicValue read GetItem write SetItem;
   end;
 
@@ -28,7 +28,7 @@ type
 
   TDynamicNull = class(TDynamicValue,IDynamicNull)
   public
-    function EqualsDeeply(aValue: IDynamicValue): Boolean;
+    function EqualsDeeply(const aValue: IDynamicValue): Boolean;
   end;
 
   { TDynamicBoolean }
@@ -40,7 +40,7 @@ type
   public
     constructor Create(aValue: Boolean);
     property Value: Boolean read GetValue;
-    function EqualsDeeply(aValue: IDynamicValue): Boolean;
+    function EqualsDeeply(const aValue: IDynamicValue): Boolean;
   end;
 
   { TDynamicNumber }
@@ -52,7 +52,7 @@ type
   public
     constructor Create(aValue: Double);
     property Value: Double read GetValue;
-    function EqualsDeeply(aValue: IDynamicValue): Boolean;
+    function EqualsDeeply(const aValue: IDynamicValue): Boolean;
   end;
 
   { TDynamicString }
@@ -64,7 +64,7 @@ type
   public
     constructor Create(aValue: UTF8String);
     property Value: UTF8String read GetValue;
-    function EqualsDeeply(aValue: IDynamicValue): Boolean;
+    function EqualsDeeply(const aValue: IDynamicValue): Boolean;
   end;
 
   TDynamicValueArray = array of IDynamicValue;
@@ -74,23 +74,23 @@ type
   TDynamicList = class(TDynamicValue,IDynamicList)
   strict private
     fList: TDynamicValueArray;
-    function GetItem(aIndex: Longint): IDynamicValue; overload;
+    function GetItem(const aIndex: Longint): IDynamicValue; overload;
     function GetLength: Longint;
-    procedure SetItem(aIndex: Longint; AValue: IDynamicValue); overload;
-    procedure SetLength(AValue: Longint);
+    procedure SetItem(const aIndex: Longint; const AValue: IDynamicValue); overload;
+    procedure SetLength(const AValue: Longint);
   protected
-    function GetItem(aKey: IDynamicValue): IDynamicValue; override;
-    procedure SetItem(aKey: IDynamicValue; AValue: IDynamicValue); override;
+    function GetItem(const aKey: IDynamicValue): IDynamicValue; override;
+    procedure SetItem(const aKey: IDynamicValue; const AValue: IDynamicValue); override;
   public
     constructor Create;
     property Item[aIndex: Longint]: IDynamicValue read GetItem write SetItem; default;
     property Length: Longint read GetLength write SetLength;
-    procedure Add(aItem: IDynamicValue);
-    procedure Delete(aIndex: Longint);
+    procedure Add(const aItem: IDynamicValue);
+    procedure Delete(const aIndex: Longint);
     procedure Clear;
-    function IndexOf(aValue: IDynamicValue): Longint;
-    function EqualsDeeply(aValue: IDynamicValue): Boolean;
-    function Owns(aValue: IDynamicValue): Boolean; override;
+    function IndexOf(const aValue: IDynamicValue): Longint;
+    function EqualsDeeply(const aValue: IDynamicValue): Boolean;
+    function Owns(const aValue: IDynamicValue): Boolean; override;
 
   end;
 
@@ -127,22 +127,22 @@ type
   TDynamicMap = class(TDynamicValue,IDynamicMap)
   private
     fList: TNamedValueArray;
-    function GetItem(aKey: UTF8String): IDynamicValue; overload;
-    procedure SetItem(aKey: UTF8String; AValue: IDynamicValue); overload;
-    function Find(aKey: UTF8String): Longint;
+    function GetItem(const aKey: UTF8String): IDynamicValue; overload;
+    procedure SetItem(const aKey: UTF8String; const AValue: IDynamicValue); overload;
+    function Find(const aKey: UTF8String): Longint;
   protected
-    function GetItem(aKey: IDynamicValue): IDynamicValue; override;
-    procedure SetItem(aKey: IDynamicValue; AValue: IDynamicValue); override;
+    function GetItem(const aKey: IDynamicValue): IDynamicValue; override;
+    procedure SetItem(const aKey: IDynamicValue; const AValue: IDynamicValue); override;
   public
     constructor Create;
     property Item[aKey: UTF8String]: IDynamicValue read GetItem write SetItem; default;
     function GetKeys: TStringArray;
-    function Has(aKey: UTF8String): Boolean;
-    procedure Delete(aKey: UTF8String);
+    function Has(const aKey: UTF8String): Boolean;
+    procedure Delete(const aKey: UTF8String);
     procedure Clear;
     function Enumerate: IDynamicMapEnumerator;
-    function EqualsDeeply(aValue: IDynamicValue): Boolean;
-    function Owns(aValue: IDynamicValue): Boolean; override;
+    function EqualsDeeply(const aValue: IDynamicValue): Boolean;
+    function Owns(const aValue: IDynamicValue): Boolean; override;
   end;
 
   procedure QuickSortNamedValues(var aList: TNamedValueArray; L: Longint; R: Longint);
@@ -198,7 +198,7 @@ end;
 
 { TDynamicNull }
 
-function TDynamicNull.EqualsDeeply(aValue: IDynamicValue): Boolean;
+function TDynamicNull.EqualsDeeply(const aValue: IDynamicValue): Boolean;
 begin
   result := aValue is IDynamicNull;
 end;
@@ -230,7 +230,7 @@ end;
 
 { TDynamicMap }
 
-function TDynamicMap.GetItem(aKey: UTF8String): IDynamicValue;
+function TDynamicMap.GetItem(const aKey: UTF8String): IDynamicValue;
 var
   lIndex: Longint;
 begin
@@ -246,7 +246,7 @@ begin
   end;
 end;
 
-procedure TDynamicMap.SetItem(aKey: UTF8String; AValue: IDynamicValue);
+procedure TDynamicMap.SetItem(const aKey: UTF8String; const AValue: IDynamicValue);
 var
   lNamedValue: TNamedValue;
   lIndex: LongInt;
@@ -275,7 +275,7 @@ begin
   end;
 end;
 
-function TDynamicMap.GetItem(aKey: IDynamicValue): IDynamicValue;
+function TDynamicMap.GetItem(const aKey: IDynamicValue): IDynamicValue;
 begin
   if aKey is IDynamicString then
   begin
@@ -285,7 +285,7 @@ begin
   Result:=inherited GetItem(aKey);
 end;
 
-procedure TDynamicMap.SetItem(aKey: IDynamicValue; AValue: IDynamicValue);
+procedure TDynamicMap.SetItem(const aKey: IDynamicValue; const AValue: IDynamicValue);
 begin
   if aKey is IDynamicString then
   begin
@@ -295,7 +295,7 @@ begin
   inherited SetItem(aKey, AValue);
 end;
 
-function TDynamicMap.Find(aKey: UTF8String): Longint;
+function TDynamicMap.Find(const aKey: UTF8String): Longint;
 var
   l: Longint;
   i: Longint;
@@ -331,13 +331,13 @@ begin
   end;
 end;
 
-function TDynamicMap.Has(aKey: UTF8String): Boolean;
+function TDynamicMap.Has(const aKey: UTF8String): Boolean;
 begin
   result := Find(aKey) > -1;
 
 end;
 
-procedure TDynamicMap.Delete(aKey: UTF8String);
+procedure TDynamicMap.Delete(const aKey: UTF8String);
 var
   l: Longint;
   lIndex: Longint;
@@ -366,7 +366,7 @@ begin
   result := TDynamicMapEnumerator.Create(Self);
 end;
 
-function TDynamicMap.EqualsDeeply(aValue: IDynamicValue): Boolean;
+function TDynamicMap.EqualsDeeply(const aValue: IDynamicValue): Boolean;
 var
   lItemsLength: Longint;
   lTheirValueList: TNamedValueArray;
@@ -425,7 +425,7 @@ begin
   end;
 end;
 
-function TDynamicMap.Owns(aValue: IDynamicValue): Boolean;
+function TDynamicMap.Owns(const aValue: IDynamicValue): Boolean;
 var
   i: Longint;
   l: Longint;
@@ -443,7 +443,7 @@ end;
 
 { TDynamicList }
 
-function TDynamicList.GetItem(aIndex: Longint): IDynamicValue;
+function TDynamicList.GetItem(const aIndex: Longint): IDynamicValue;
 begin
    if (aIndex >= 0) and (aIndex < Length) then
       result := fList[aIndex]
@@ -457,7 +457,7 @@ begin
 
 end;
 
-procedure TDynamicList.SetItem(aIndex: Longint; AValue: IDynamicValue);
+procedure TDynamicList.SetItem(const aIndex: Longint; const AValue: IDynamicValue);
 begin
   if (aIndex >= 0) then
   begin
@@ -482,7 +482,7 @@ begin
     raise ERangeError.Create('Invalid index to set in dynamic list: ' + IntToStr(aIndex));
 end;
 
-procedure TDynamicList.SetLength(AValue: Longint);
+procedure TDynamicList.SetLength(const AValue: Longint);
 var
   l: Longint;
 begin
@@ -496,7 +496,7 @@ begin
 
 end;
 
-function TDynamicList.GetItem(aKey: IDynamicValue): IDynamicValue;
+function TDynamicList.GetItem(const aKey: IDynamicValue): IDynamicValue;
 var
   lIndexFloat: Double;
   lIndex: LongInt;
@@ -514,7 +514,7 @@ begin
   result := inherited GetItem(aKey);
 end;
 
-procedure TDynamicList.SetItem(aKey: IDynamicValue; AValue: IDynamicValue);
+procedure TDynamicList.SetItem(const aKey: IDynamicValue; const AValue: IDynamicValue);
 var
   lIndexFloat: Double;
   lIndex: LongInt;
@@ -538,12 +538,12 @@ begin
   System.SetLength(fList,0);
 end;
 
-procedure TDynamicList.Add(aItem: IDynamicValue);
+procedure TDynamicList.Add(const aItem: IDynamicValue);
 begin
   SetItem(Length,aItem);
 end;
 
-procedure TDynamicList.Delete(aIndex: Longint);
+procedure TDynamicList.Delete(const aIndex: Longint);
 var
   l: Longint;
   i: Longint;
@@ -562,7 +562,7 @@ begin
 
 end;
 
-function TDynamicList.IndexOf(aValue: IDynamicValue): Longint;
+function TDynamicList.IndexOf(const aValue: IDynamicValue): Longint;
 var
   l: Longint;
   i: longint;
@@ -579,7 +579,7 @@ begin
   end;
 end;
 
-function TDynamicList.EqualsDeeply(aValue: IDynamicValue): Boolean;
+function TDynamicList.EqualsDeeply(const aValue: IDynamicValue): Boolean;
 var
   i: Longint;
   l: LongInt;
@@ -604,7 +604,7 @@ begin
   end;
 end;
 
-function TDynamicList.Owns(aValue: IDynamicValue): Boolean;
+function TDynamicList.Owns(const aValue: IDynamicValue): Boolean;
 var
   i: Longint;
   l: Longint;
@@ -634,7 +634,7 @@ begin
   fValue := aValue;
 end;
 
-function TDynamicString.EqualsDeeply(aValue: IDynamicValue): Boolean;
+function TDynamicString.EqualsDeeply(const aValue: IDynamicValue): Boolean;
 begin
   result := (aValue is IDynamicString) and (IDynamicString(aValue).Value = Value);
 
@@ -654,7 +654,7 @@ begin
 
 end;
 
-function TDynamicNumber.EqualsDeeply(aValue: IDynamicValue): Boolean;
+function TDynamicNumber.EqualsDeeply(const aValue: IDynamicValue): Boolean;
 begin
   result := (aValue is IDynamicNumber) and (IDynamicNumber(aValue).Value = Value);
 
@@ -676,24 +676,24 @@ begin
 
 end;
 
-function TDynamicBoolean.EqualsDeeply(aValue: IDynamicValue): Boolean;
+function TDynamicBoolean.EqualsDeeply(const aValue: IDynamicValue): Boolean;
 begin
   result := (aValue is IDynamicBoolean) and (IDynamicBoolean(aValue).Value = Value);
 end;
 
 { TDynamicValue }
 
-function TDynamicValue.GetItem(aKey: IDynamicValue): IDynamicValue;
+function TDynamicValue.GetItem(const aKey: IDynamicValue): IDynamicValue;
 begin
   result := TDynamicValues.Undefined;
 end;
 
-procedure TDynamicValue.SetItem(aKey: IDynamicValue; AValue: IDynamicValue);
+procedure TDynamicValue.SetItem(const aKey: IDynamicValue; const AValue: IDynamicValue);
 begin
  // nothing...
 end;
 
-function TDynamicValue.Owns(aValue: IDynamicValue): Boolean;
+function TDynamicValue.Owns(const aValue: IDynamicValue): Boolean;
 begin
   result := false;
 end;
@@ -709,7 +709,7 @@ begin
     (Self is IDynamicMap);
 end;
 
-function TDynamicValue.EqualsDeeply(aValue: IDynamicValue): Boolean;
+function TDynamicValue.EqualsDeeply(const aValue: IDynamicValue): Boolean;
 begin
   result := false;
 end;
