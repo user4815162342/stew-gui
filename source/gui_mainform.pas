@@ -11,6 +11,19 @@ uses
   stew_properties;
 
 type
+  {TODO: I really need to go through all of this code and change every procedure
+  parameter to const when possible.
+
+  The following regex should find all parameters with just a name and a type.
+  I'm not sure what kind of false positives we might get.
+    // find: ((function|procedure)[^;]+[(;]\s*)([^ :]+\s*:\s*[^ ;)]+)
+    // replace with: $1const $3
+
+    You will have to go through again after each pass, as the final variables
+    will be fixed first.
+  }
+
+
   {
   Glyphs needed:
   - Main Menu:
