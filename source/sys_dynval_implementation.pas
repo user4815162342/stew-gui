@@ -14,10 +14,14 @@ type
   { TDynamicValue }
 
   TDynamicValue = class(TInterfacedObject, IDynamicValue)
+  protected
+    function GetItem({%H-}aKey: IDynamicValue): IDynamicValue; virtual;
+    procedure SetItem({%H-}aKey: IDynamicValue; {%H-}AValue: IDynamicValue); virtual;
   public
     function Owns({%H-}aValue: IDynamicValue): Boolean; virtual;
     function IsDefined: Boolean; virtual;
     function EqualsDeeply({%H-}aValue: IDynamicValue): Boolean;
+    property Item[aKey: IDynamicValue]: IDynamicValue read GetItem write SetItem;
   end;
 
   { TDynamicNull }
@@ -70,10 +74,13 @@ type
   TDynamicList = class(TDynamicValue,IDynamicList)
   strict private
     fList: TDynamicValueArray;
-    function GetItem(aIndex: Longint): IDynamicValue;
+    function GetItem(aIndex: Longint): IDynamicValue; overload;
     function GetLength: Longint;
-    procedure SetItem(aIndex: Longint; AValue: IDynamicValue);
+    procedure SetItem(aIndex: Longint; AValue: IDynamicValue); overload;
     procedure SetLength(AValue: Longint);
+  protected
+    function GetItem(aKey: IDynamicValue): IDynamicValue; override;
+    procedure SetItem(aKey: IDynamicValue; AValue: IDynamicValue); override;
   public
     constructor Create;
     property Item[aIndex: Longint]: IDynamicValue read GetItem write SetItem; default;
@@ -120,9 +127,12 @@ type
   TDynamicMap = class(TDynamicValue,IDynamicMap)
   private
     fList: TNamedValueArray;
-    function GetItem(aKey: UTF8String): IDynamicValue;
-    procedure SetItem(aKey: UTF8String; AValue: IDynamicValue);
+    function GetItem(aKey: UTF8String): IDynamicValue; overload;
+    procedure SetItem(aKey: UTF8String; AValue: IDynamicValue); overload;
     function Find(aKey: UTF8String): Longint;
+  protected
+    function GetItem(aKey: IDynamicValue): IDynamicValue; override;
+    procedure SetItem(aKey: IDynamicValue; AValue: IDynamicValue); override;
   public
     constructor Create;
     property Item[aKey: UTF8String]: IDynamicValue read GetItem write SetItem; default;
@@ -265,13 +275,33 @@ begin
   end;
 end;
 
+function TDynamicMap.GetItem(aKey: IDynamicValue): IDynamicValue;
+begin
+  if aKey is IDynamicString then
+  begin
+    result := GetItem(IDynamicString(aKey).Value);
+    Exit;
+  end;
+  Result:=inherited GetItem(aKey);
+end;
+
+procedure TDynamicMap.SetItem(aKey: IDynamicValue; AValue: IDynamicValue);
+begin
+  if aKey is IDynamicString then
+  begin
+    SetItem(IDynamicString(aKey).Value,AValue);
+    Exit;
+  end;
+  inherited SetItem(aKey, AValue);
+end;
+
 function TDynamicMap.Find(aKey: UTF8String): Longint;
 var
   l: Longint;
   i: Longint;
 begin
  result := -1;
- l := System.Length(fList);
+ l := System.Length(fList) - 1;
  for i := 0 to l do
  begin
    if fList[i].Key = aKey then
@@ -377,7 +407,7 @@ begin
       begin
         // I don't want to sort the real items, because that might confuse
         // the user. So, make a copy first.
-        lMyValues := Copy(fList,0,lItemsLength - 1);
+        lMyValues := Copy(fList,0,lItemsLength);
         // this seems to be better than a brute force double loop.
         QuickSortNamedValues(lMyValues,0,lItemsLength - 1);
         QuickSortNamedValues(lTheirValueList,0,lItemsLength - 1);
@@ -464,6 +494,42 @@ begin
     inc(l);
   end;
 
+end;
+
+function TDynamicList.GetItem(aKey: IDynamicValue): IDynamicValue;
+var
+  lIndexFloat: Double;
+  lIndex: LongInt;
+begin
+  if aKey is IDynamicNumber then
+  begin
+     lIndexFloat := IDynamicNumber(aKey).Value;
+     lIndex := trunc(lIndexFloat);
+     if lIndex = lIndexFloat then
+     begin
+       result := GetItem(lIndex);
+       Exit;
+     end;
+  end;
+  result := inherited GetItem(aKey);
+end;
+
+procedure TDynamicList.SetItem(aKey: IDynamicValue; AValue: IDynamicValue);
+var
+  lIndexFloat: Double;
+  lIndex: LongInt;
+begin
+  if aKey is IDynamicNumber then
+  begin
+     lIndexFloat := IDynamicNumber(aKey).Value;
+     lIndex := trunc(lIndexFloat);
+     if lIndex = lIndexFloat then
+     begin
+       SetItem(lIndex,AValue);
+       Exit;
+     end;
+  end;
+  inherited SetItem(aKey,AValue);
 end;
 
 constructor TDynamicList.Create;
@@ -616,6 +682,16 @@ begin
 end;
 
 { TDynamicValue }
+
+function TDynamicValue.GetItem(aKey: IDynamicValue): IDynamicValue;
+begin
+  result := TDynamicValues.Undefined;
+end;
+
+procedure TDynamicValue.SetItem(aKey: IDynamicValue; AValue: IDynamicValue);
+begin
+ // nothing...
+end;
 
 function TDynamicValue.Owns(aValue: IDynamicValue): Boolean;
 begin

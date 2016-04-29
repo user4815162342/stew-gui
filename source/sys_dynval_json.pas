@@ -44,6 +44,7 @@ type
     destructor Destroy; override;
     procedure WriteBoolean(aValue: Boolean); override;
     procedure WriteListEnd; override;
+    procedure WriteListSeparator; override;
     procedure WriteListStart; override;
     procedure WriteMapEnd; override;
     procedure WriteMapKey(aValue: UTF8String); override;
@@ -78,6 +79,7 @@ type
     function IsString: Boolean; override;
     function ReadBoolean: Boolean; override;
     procedure ReadListEnd; override;
+    procedure ReadListSeparator; override;
     procedure ReadListStart; override;
     procedure ReadMapEnd; override;
     function ReadMapKey: UTF8String; override;
@@ -247,6 +249,13 @@ begin
 
 end;
 
+procedure TJSONReader.ReadListSeparator;
+begin
+  Expect([tkComma],'List separator');
+  fScanner.FetchToken;
+  SkipWhitespace;
+end;
+
 procedure TJSONReader.ReadListStart;
 begin
   Expect([tkSquaredBraceOpen],'List start');
@@ -379,12 +388,9 @@ end;
 
 procedure TJSONWriter.WriteValueHeader;
 begin
- if (Length(fStack) > 0) and (not Peek.IsMap) then
+ if (fGap > 0) and (Length(fStack) > 0) and (not Peek.IsMap) then
  begin
-   if not Peek.ItemsWritten then
-      Write(#10 + Peek.Indent)
-   else
-      Write(',' + #10 + Peek.Indent);
+   Write(#10 + Peek.Indent)
  end;
 end;
 
@@ -473,6 +479,11 @@ begin
 
 end;
 
+procedure TJSONWriter.WriteListSeparator;
+begin
+  Write(',');
+end;
+
 procedure TJSONWriter.WriteMapStart;
 begin
  WriteValueHeader;
@@ -494,10 +505,7 @@ procedure TJSONWriter.WriteMapKey(aValue: UTF8String);
 begin
    if fGap > 0 then
    begin
-     if not Peek.ItemsWritten then
-        Write(#10 + Peek.Indent)
-     else
-        Write(',' + #10 + Peek.Indent);
+     Write(#10 + Peek.Indent)
    end;
    WriteQuote(aValue);
    if fGap > 0 then

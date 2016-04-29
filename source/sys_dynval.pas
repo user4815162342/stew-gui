@@ -11,10 +11,12 @@ uses
 
 {
 
-TODO: Units should be dynval, not dynobject.
+
 
 TODO: I need to make sure everything's got a const, but that should be in the
 master branch.
+
+TODO: I need some implicit overloading for primitives...
 
 TODO:
 A replacement for sys_json, which solves several problems:
@@ -83,9 +85,12 @@ type
 
   IDynamicValue = interface(IUnknown)
     ['{B2B8454B-103C-4690-ACC1-EC75F65F2D76}']
+    function GetItem(aKey: IDynamicValue): IDynamicValue;
+    procedure SetItem(aKey: IDynamicValue; AValue: IDynamicValue);
     function Owns(aValue: IDynamicValue): Boolean;
     function IsDefined: Boolean;
     function EqualsDeeply(aValue: IDynamicValue): Boolean;
+    property Item[aKey: IDynamicValue]: IDynamicValue read GetItem write SetItem; default;
   end;
 
   { IDynamicNull }
@@ -122,9 +127,9 @@ type
 
   IDynamicList = interface(IDynamicValue)
     ['{E7D0AE4B-435B-45E5-BC6F-E1F478DD33BC}']
-    function GetItem(aIndex: Longint): IDynamicValue;
+    function GetItem(aIndex: Longint): IDynamicValue; overload;
     function GetLength: Longint;
-    procedure SetItem(aIndex: Longint; AValue: IDynamicValue);
+    procedure SetItem(aIndex: Longint; AValue: IDynamicValue); overload;
     procedure SetLength(AValue: Longint);
     property Item[aIndex: Longint]: IDynamicValue read GetItem write SetItem; default;
     property Length: Longint read GetLength write SetLength;
@@ -149,8 +154,8 @@ type
 
   IDynamicMap = interface(IDynamicValue)
     ['{B59C4808-7966-4AB2-9E6E-4153F0985562}']
-    function GetItem(aKey: UTF8String): IDynamicValue;
-    procedure SetItem(aKey: UTF8String; AValue: IDynamicValue);
+    function GetItem(aKey: UTF8String): IDynamicValue; overload;
+    procedure SetItem(aKey: UTF8String; AValue: IDynamicValue); overload;
     property Item[aKey: UTF8String]: IDynamicValue read GetItem write SetItem; default;
     function GetKeys: TStringArray;
     function Has(aKey: UTF8String): Boolean;
@@ -191,6 +196,7 @@ type
     procedure WriteMapEnd; virtual; abstract;
     procedure WriteListStart; virtual; abstract;
     procedure WriteListEnd; virtual; abstract;
+    procedure WriteListSeparator; virtual; abstract;
     procedure WriteNull; virtual; abstract;
     procedure WriteNumber(aValue: Double); virtual; abstract;
     procedure WriteBoolean(aValue: Boolean); virtual; abstract;
@@ -202,6 +208,7 @@ type
     function IsMapStart: Boolean; virtual; abstract;
     procedure ReadMapStart; virtual; abstract;
     function ReadMapKey: UTF8String; virtual; abstract;
+    procedure ReadListSeparator; virtual; abstract;
     function IsMapEnd: Boolean; virtual; abstract;
     procedure ReadMapEnd; virtual; abstract;
     function IsListStart: Boolean; virtual; abstract;
@@ -222,6 +229,11 @@ type
 
   procedure WriteDynamicValue(aValue: IDynamicValue; aWriter: TDynamicValueWriter);
 
+  // Just overload the operators we need as they are needed.
+  operator :=(aValue: Double): IDynamicValue;
+  operator :=(aValue: UTF8String): IDynamicValue;
+  operator :=(aValue: Boolean): IDynamicValue;
+
 
 implementation
 
@@ -238,10 +250,16 @@ function ReadDynamicValue(aReader: TDynamicValueReader): IDynamicValue;
   begin
     aReader.ReadMapStart;
     result := TDynamicValues.NewMap;
-    while not aReader.IsMapEnd do
+    if not aReader.IsMapEnd then
     begin
       lKey := aReader.ReadMapKey;
       result[lKey] := ReadValue;
+      while not aReader.IsMapEnd do
+      begin
+        aReader.ReadListSeparator;
+        lKey := aReader.ReadMapKey;
+        result[lKey] := ReadValue;
+      end;
     end;
     aReader.ReadMapEnd;
 
@@ -251,11 +269,16 @@ function ReadDynamicValue(aReader: TDynamicValueReader): IDynamicValue;
   begin
     aReader.ReadListStart;
     result := TDynamicValues.NewList;
-    while not aReader.IsListEnd do
+    if not aReader.IsListEnd then
     begin
       result.Add(ReadValue);
+      while not aReader.IsListEnd do
+      begin
+        aReader.ReadListSeparator;
+        result.Add(ReadValue);
+      end;
     end;
-    aReader.ReadMapEnd;
+    aReader.ReadListEnd;
 
   end;
 
@@ -297,13 +320,18 @@ procedure WriteDynamicValue(aValue: IDynamicValue; aWriter: TDynamicValueWriter)
   procedure WriteMap(aValue: IDynamicMap);
   var
     lEnum: IDynamicMapEnumerator;
+    lFoundItem: Boolean;
   begin
     aWriter.WriteMapStart;
     lEnum := aValue.Enumerate;
+    lFoundItem := false;
     while lEnum.Next do
     begin
+      if lFoundItem then
+         aWriter.WriteListSeparator;
       aWriter.WriteMapKey(lEnum.Key);
       WriteValue(lEnum.Value);
+      lFoundItem := true;
     end;
     aWriter.WriteMapEnd;
 
@@ -313,12 +341,17 @@ procedure WriteDynamicValue(aValue: IDynamicValue; aWriter: TDynamicValueWriter)
   var
     l: Longint;
     i: Longint;
+    lFoundItem: Boolean;
   begin
     aWriter.WriteListStart;
     l := aValue.Length - 1;
+    lFoundItem := false;
     for i := 0 to l do
     begin
-      WriteValue(aValue);
+      if lFoundItem then
+         aWriter.WriteListSeparator;
+      WriteValue(aValue[i]);
+      lFoundItem := true;
     end;
     aWriter.WriteListEnd;
 
@@ -342,6 +375,39 @@ procedure WriteDynamicValue(aValue: IDynamicValue; aWriter: TDynamicValueWriter)
 
 begin
   WriteValue(aValue);
+end;
+
+operator:=(aValue: Double): IDynamicValue;
+begin
+  result := TDynamicValues.NewNumber(aValue);
+end;
+
+
+operator:=(aValue: UTF8String): IDynamicValue;
+begin
+  result := TDynamicValues.NewString(aValue);
+end;
+
+operator:=(aValue: Boolean): IDynamicValue;
+begin
+  result := TDynamicValues.Boolean(aValue);
+
+end;
+
+operator=(aValueB: UTF8String; aValueA: IDynamicValue): Boolean;
+begin
+  result := (aValueA is IDynamicString) and ((IDynamicString(aValueA).Value = aValueB));
+
+end;
+
+operator:=(aValue: Longint): IDynamicNumber;
+begin
+  result := TDynamicValues.NewNumber(aValue);
+end;
+
+operator:=(aValue: ShortInt): IDynamicNumber;
+begin
+  result := TDynamicValues.NewNumber(aValue);
 end;
 
 { TDynamicValues }
