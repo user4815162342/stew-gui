@@ -1,7 +1,7 @@
 unit sys_dynval;
 
 {$mode objfpc}{$H+}
-// I'm using com interfaces here, so that I get reference counting. In this case, I *want* reference counting.
+// I'm using com interfaces here, so that I get reference counting, which I want.
 {$interfaces COM}
 
 interface
@@ -12,8 +12,10 @@ uses
 {
 
 
+TODO: Make use of this
 
-TODO:
+
+
 A replacement for sys_json, which solves several problems:
 1) removes the extra functionality such as strictly-typed properties and easy
 type conversion which is really unnecessary for our purposes.
@@ -39,38 +41,6 @@ need to make sure the garbage collector runs occasionally.
 counted, not truly garbage collected, but memory management is much easier. I
 just make sure that they can't 'own' themselves in circular references, and
 there's no problem with that.
-
-
-TODO: There are going to be several parts to this:
-- sys_dynobject:
-  - defines interfaces for dynamic objects. Each one is as simple as possible.
-- sys_dynobject_implementation:
-  - defines implementations and a class factory for dynamic objects.
-- sys_dynobject_json:
-  - defines json serializers and deserializers which work with the interfaces
-  - reader basically consists of a bunch of methods which "expect" various tokens.
-  - saver basically works backwards to write out tokens, so you would do
-    WriteObjectStart, WriteObjectProperty, WriteObjectEnd, etc.
-  - fromJSON and ToJSOn are going to be utility methods which just read into
-  default values, but you can use readers and writers directly as well.
-- sys_dynobject_storage:
-  - (not sure about name) These are wrapper objects which maintain references to
-  dynobjects, but control access to them through a class hierarchy, and validate
-  the syntax as they are being read from JSON.
-    - constructor takes a stream or a JSONReader (or nil to create a new one), and
-    the reader is used to load it in. Reading this consists of ReadObjectStart,
-    followed by a series of ReadObjectKey. Once a key is found, it calls a virtual
-    function CreateChild(aKey): which returns another config object or nil. If
-    the config object is returned, then the reader is passed on to that constructor.
-    Otherwise, the value is read and stored on a cached dynobject for saving to
-    later. Writing out works the opposite way.
-    - ReadKey(Key, Reader, var handled)
-      - if not handled then put into the inner object.
-    - ReadItem(Reader, var handled) - for an array.
-    - When writing, the object had to write out it's own objects to the JSON
-      as well.
-
-
 
 }
 
@@ -184,47 +154,100 @@ type
     class function NewMap: IDynamicMap;
   end;
 
+  { TDynamicValueWriter }
+
   TDynamicValueWriter = class abstract
+  private
+    fStack: IDynamicList;
+    fFoundItem: Boolean;
+  strict protected
+    procedure WriteNullToken; virtual; abstract;
+    procedure WriteNumberToken(const aValue: Double); virtual; abstract;
+    procedure WriteBooleanToken(const aValue: Boolean); virtual; abstract;
+    procedure WriteStringToken(const aValue: UTF8String); virtual; abstract;
+    procedure WriteMapStartToken; virtual; abstract;
+    procedure WriteMapEndToken; virtual; abstract;
+    procedure WriteListStartToken; virtual; abstract;
+    procedure WriteListEndToken; virtual; abstract;
+    procedure WriteKeyIndicatorToken; virtual; abstract;
+    procedure WriteGap(aIndentCount: Longint); virtual; abstract;
+    procedure WriteListSeparatorToken; virtual; abstract;
+    procedure WritePrimitive(const aValue: IDynamicValue);
   public
-    procedure WriteMapStart; virtual; abstract;
-    procedure WriteMapKey(const aValue: UTF8String); virtual; abstract;
-    procedure WriteMapEnd; virtual; abstract;
-    procedure WriteListStart; virtual; abstract;
-    procedure WriteListEnd; virtual; abstract;
-    procedure WriteListSeparator; virtual; abstract;
-    procedure WriteNull; virtual; abstract;
-    procedure WriteNumber(const aValue: Double); virtual; abstract;
-    procedure WriteBoolean(const aValue: Boolean); virtual; abstract;
-    procedure WriteString(const aValue: UTF8String); virtual; abstract;
+    constructor Create;
+    destructor Destroy; override;
+    procedure WriteMapStart(const aValue: IDynamicMap);
+    procedure WriteMapEnd;
+    procedure WriteListStart(const aValue: IDynamicList);
+    procedure WriteListEnd;
+    procedure WriteList(const AValue: IDynamicList);
+    procedure WriteMap(const aValue: IDynamicMap);
+    procedure WriteValue(const aValue: IDynamicValue);
+    procedure WriteKeyValue(const aKey: UTF8String; const aValue: IDynamicValue);
   end;
+
+  { TDynamicValueReader }
 
   TDynamicValueReader = class abstract
-  public
+  private type
+    TStackInfo = record
+      ItemsFound: Boolean;
+      IsMap: Boolean;
+    end;
+
+  private
+    fStack: array of TStackInfo;
+    procedure Push(const aIsMap: Boolean);
+    procedure Pop;
+    function Peek: TStackInfo;
+    procedure SetItemsFoundToStack;
+  strict protected
+    procedure ReadListSeparatorToken; virtual; abstract;
+    procedure ReadNullToken; virtual; abstract;
+    function ReadNumberToken: Double; virtual; abstract;
+    function ReadBooleanToken: Boolean; virtual; abstract;
+    function ReadStringToken: UTF8String; virtual; abstract;
+    procedure ReadMapStartToken; virtual; abstract;
+    procedure ReadMapEndToken; virtual; abstract;
+    procedure ReadListStartToken; virtual; abstract;
+    procedure ReadListEndToken; virtual; abstract;
+    procedure ReadKeyIndicatorToken; virtual; abstract;
+    procedure ReadListSeparator;
+    function ReadInnerMap: IDynamicMap;
+    function ReadInnerList: IDynamicList;
     function IsMapStart: Boolean; virtual; abstract;
-    procedure ReadMapStart; virtual; abstract;
-    function ReadMapKey: UTF8String; virtual; abstract;
-    procedure ReadListSeparator; virtual; abstract;
-    function IsMapEnd: Boolean; virtual; abstract;
-    procedure ReadMapEnd; virtual; abstract;
     function IsListStart: Boolean; virtual; abstract;
-    procedure ReadListStart; virtual; abstract;
-    function IsListEnd: Boolean; virtual; abstract;
-    procedure ReadListEnd; virtual; abstract;
     function IsString: Boolean; virtual; abstract;
-    function ReadString: UTF8String; virtual; abstract;
     function IsBoolean: Boolean; virtual; abstract;
-    function ReadBoolean: Boolean; virtual; abstract;
     function IsNumber: Boolean; virtual; abstract;
-    function ReadNumber: Double; virtual; abstract;
     function IsNull: Boolean; virtual; abstract;
-    procedure ReadNull; virtual; abstract;
+  public
+    // The other 'is' functions aren't accessible to other objects, because
+    // they're functionality depends on state: if the list separator hasn't been
+    // read yet, then they'll return false, despite the fact that the Read* function
+    // will possibly be fine. These, however, can be used to know if we should
+    // stop reading items in a map or list.
+    function IsMapEnd: Boolean; virtual; abstract;
+    function IsListEnd: Boolean; virtual; abstract;
+    constructor Create;
+    procedure ReadMapStart;
+    function ReadMapKey: UTF8String;
+    procedure ReadMapEnd;
+    procedure ReadListStart;
+    procedure ReadListEnd;
+    function ReadString: IDynamicString;
+    function ReadBoolean: IDynamicBoolean;
+    function ReadNumber: IDynamicNumber;
+    function ReadNull: IDynamicNull;
+    function ReadList: IDynamicList;
+    function ReadMap: IDynamicMap;
+    function ReadValue: IDynamicValue;
   end;
 
-  function ReadDynamicValue(const aReader: TDynamicValueReader): IDynamicValue;
-
-  procedure WriteDynamicValue(const aValue: IDynamicValue; const aWriter: TDynamicValueWriter);
-
   // Just overload the operators we need as they are needed.
+  // These operator overloads make it easier to move real values and primitives around
+  // inside maps (combines with the Default property of an IDynamicValue which
+  // allows getting and setting based on index.
   operator :=(aValue: Double): IDynamicValue;
   operator :=(aValue: UTF8String): IDynamicValue;
   operator :=(aValue: Boolean): IDynamicValue;
@@ -234,143 +257,6 @@ implementation
 
 uses
   sys_dynval_implementation;
-
-function ReadDynamicValue(const aReader: TDynamicValueReader): IDynamicValue;
-
-  function ReadValue: IDynamicValue; forward;
-
-  function ReadMap: IDynamicMap;
-  var
-    lKey: UTF8String;
-  begin
-    aReader.ReadMapStart;
-    result := TDynamicValues.NewMap;
-    if not aReader.IsMapEnd then
-    begin
-      lKey := aReader.ReadMapKey;
-      result[lKey] := ReadValue;
-      while not aReader.IsMapEnd do
-      begin
-        aReader.ReadListSeparator;
-        lKey := aReader.ReadMapKey;
-        result[lKey] := ReadValue;
-      end;
-    end;
-    aReader.ReadMapEnd;
-
-  end;
-
-  function ReadList: IDynamicList;
-  begin
-    aReader.ReadListStart;
-    result := TDynamicValues.NewList;
-    if not aReader.IsListEnd then
-    begin
-      result.Add(ReadValue);
-      while not aReader.IsListEnd do
-      begin
-        aReader.ReadListSeparator;
-        result.Add(ReadValue);
-      end;
-    end;
-    aReader.ReadListEnd;
-
-  end;
-
-  function ReadValue: IDynamicValue;
-  begin
-    if aReader.IsMapStart then
-       result := ReadMap
-    else if aReader.IsListStart then
-       result := ReadList
-    else if aReader.IsNull then
-    begin
-      aReader.ReadNull;
-      result := TDynamicValues.Null;
-    end
-    else if aReader.IsBoolean then
-    begin
-      result := TDynamicValues.Boolean(aReader.ReadBoolean);
-    end
-    else if aReader.IsNumber then
-    begin
-      Result := TDynamicValues.NewNumber(aReader.ReadNumber);
-    end
-    else if aReader.IsString then
-    begin
-      Result := TDynamicValues.NewString(aReader.ReadString);
-    end
-    else
-      raise Exception.Create('Invalid reader state');
-  end;
-
-begin
-  result := ReadValue;
-end;
-
-procedure WriteDynamicValue(const aValue: IDynamicValue; const aWriter: TDynamicValueWriter);
-
-  procedure WriteValue(const aValue: IDynamicValue); forward;
-
-  procedure WriteMap(const aValue: IDynamicMap);
-  var
-    lEnum: IDynamicMapEnumerator;
-    lFoundItem: Boolean;
-  begin
-    aWriter.WriteMapStart;
-    lEnum := aValue.Enumerate;
-    lFoundItem := false;
-    while lEnum.Next do
-    begin
-      if lFoundItem then
-         aWriter.WriteListSeparator;
-      aWriter.WriteMapKey(lEnum.Key);
-      WriteValue(lEnum.Value);
-      lFoundItem := true;
-    end;
-    aWriter.WriteMapEnd;
-
-  end;
-
-  procedure WriteList(const aValue: IDynamicList);
-  var
-    l: Longint;
-    i: Longint;
-    lFoundItem: Boolean;
-  begin
-    aWriter.WriteListStart;
-    l := aValue.Length - 1;
-    lFoundItem := false;
-    for i := 0 to l do
-    begin
-      if lFoundItem then
-         aWriter.WriteListSeparator;
-      WriteValue(aValue[i]);
-      lFoundItem := true;
-    end;
-    aWriter.WriteListEnd;
-
-  end;
-
-  procedure WriteValue(const aValue: IDynamicValue);
-  begin
-    if aValue is IDynamicBoolean then
-       aWriter.WriteBoolean(IDynamicBoolean(aValue).Value)
-    else if aValue is IDynamicNumber then
-       aWriter.WriteNumber(IDynamicNumber(aValue).Value)
-    else if aValue is IDynamicString then
-       aWriter.WriteString(IDynamicString(aValue).Value)
-    else if aValue is IDynamicList then
-       WriteList(IDynamicList(aValue))
-    else if aValue is IDynamicMap then
-       WriteMap(IDynamicMap(aValue))
-    else
-      aWriter.WriteNull;
-  end;
-
-begin
-  WriteValue(aValue);
-end;
 
 operator:=(aValue: Double): IDynamicValue;
 begin
@@ -403,6 +289,372 @@ end;
 operator:=(aValue: ShortInt): IDynamicNumber;
 begin
   result := TDynamicValues.NewNumber(aValue);
+end;
+
+{ TDynamicValueWriter }
+
+procedure TDynamicValueWriter.WritePrimitive(const aValue: IDynamicValue);
+begin
+  if (fStack.Length > 0) and
+     (fStack[fStack.Length - 1] is IDynamicList) then
+  begin
+    if fFoundItem then
+       WriteListSeparatorToken;
+    WriteGap(fStack.Length);
+  end;
+  if aValue is IDynamicBoolean then
+     WriteBooleanToken(IDynamicBoolean(aValue).Value)
+  else if aValue is IDynamicNumber then
+     WriteNumberToken(IDynamicNumber(aValue).Value)
+  else if aValue is IDynamicString then
+    WriteStringToken(IDynamicString(aValue).Value)
+  else
+    WriteNullToken;
+  fFoundItem := true;
+end;
+
+constructor TDynamicValueWriter.Create;
+begin
+  inherited Create;
+  fStack := TDynamicValues.NewList;
+end;
+
+destructor TDynamicValueWriter.Destroy;
+begin
+  fStack := nil;
+  inherited Destroy;
+end;
+
+procedure TDynamicValueWriter.WriteMapStart(const aValue: IDynamicMap);
+begin
+  if fStack.IndexOf(aValue) > -1 then
+     raise Exception.Create('Attempt to write recursive map');
+  if (fStack.Length > 0) and
+     (fStack[fStack.Length - 1] is IDynamicList) then
+  begin
+    if fFoundItem then
+       WriteListSeparatorToken;
+    WriteGap(fStack.Length);
+  end;
+  fFoundItem := false;
+  if aValue <> nil then
+     fStack.Add(aValue)
+  else
+     fStack.Add(TDynamicValues.NewMap);
+  WriteMapStartToken;
+end;
+
+procedure TDynamicValueWriter.WriteMapEnd;
+begin
+  if (fStack.Length > 0) and
+     (fStack[fStack.Length - 1] is IDynamicMap) then
+  begin
+    WriteGap(fStack.Length - 1);
+  end
+  else
+    raise Exception.Create('Can''t write map end, not in map.');
+  WriteMapEndToken;
+  fStack.Delete(fStack.Length - 1);
+  fFoundItem := True;
+end;
+
+procedure TDynamicValueWriter.WriteListStart(const aValue: IDynamicList);
+begin
+  if fStack.IndexOf(aValue) > -1 then
+     raise Exception.Create('Attempt to write recursive map');
+  if (fStack.Length > 0) and
+     (fStack[fStack.Length - 1] is IDynamicList) then
+  begin
+    if fFoundItem then
+       WriteListSeparatorToken;
+    WriteGap(fStack.Length);
+  end;
+  fFoundItem := false;
+  if aValue <> nil then
+     fStack.Add(aValue)
+  else
+     fStack.Add(TDynamicValues.NewList);
+  WriteListStartToken;
+end;
+
+procedure TDynamicValueWriter.WriteListEnd;
+begin
+  if (fStack.Length > 0) and
+     (fStack[fStack.Length - 1] is IDynamicList) then
+  begin
+    WriteGap(fStack.Length - 1);
+  end
+  else
+  begin
+    raise Exception.Create('Can''t write list end, not in list');
+  end;
+  WriteListEndToken;
+  fStack.Delete(fStack.Length - 1);
+  fFoundItem := True;
+end;
+
+procedure TDynamicValueWriter.WriteList(const AValue: IDynamicList);
+var
+  l: Longint;
+  i: Longint;
+begin
+  WriteListStart(AValue);
+  l := aValue.Length - 1;
+  for i := 0 to l do
+  begin
+    WriteValue(aValue[i]);
+  end;
+  WriteListEnd;
+end;
+
+procedure TDynamicValueWriter.WriteMap(const aValue: IDynamicMap);
+var
+  lEnum: IDynamicMapEnumerator;
+begin
+  WriteMapStart(aValue);
+  lEnum := aValue.Enumerate;
+  while lEnum.Next do
+  begin
+    WriteKeyValue(lEnum.Key,lEnum.Value);
+  end;
+  WriteMapEnd;
+end;
+
+procedure TDynamicValueWriter.WriteValue(const aValue: IDynamicValue);
+begin
+  if aValue is IDynamicList then
+     WriteList(IDynamicList(aValue))
+  else if aValue is IDynamicMap then
+     WriteMap(IDynamicMap(aValue))
+  else
+     WritePrimitive(aValue);
+end;
+
+procedure TDynamicValueWriter.WriteKeyValue(const aKey: UTF8String;
+  const aValue: IDynamicValue);
+begin
+  if (fStack.Length > 0) and
+     (fStack[0] is IDynamicMap) then
+  begin
+     if fFoundItem then
+        WriteListSeparatorToken;
+     WriteGap(fStack.Length);
+  end
+  else
+     raise Exception.Create('Can''t write key-value, not in map');
+  WriteStringToken(aKey);
+  WriteKeyIndicatorToken;
+  WriteValue(aValue);
+end;
+
+{ TDynamicValueReader }
+
+procedure TDynamicValueReader.Push(const aIsMap: Boolean);
+var
+  l: LongInt;
+begin
+  l := Length(fStack);
+  SetLength(fStack,l + 1);
+  fStack[l].ItemsFound := false;
+  fStack[l].IsMap := aIsMap;
+
+end;
+
+procedure TDynamicValueReader.Pop;
+begin
+  SetLength(fStack,Length(fStack) - 1);
+
+end;
+
+function TDynamicValueReader.Peek: TStackInfo;
+var
+  l: LongInt;
+begin
+  l := Length(fStack);
+  if l > 0 then
+  begin
+     result := fStack[l - 1]
+  end
+  else
+  begin
+     result.IsMap := false;
+     result.ItemsFound := false;
+  end;
+end;
+
+procedure TDynamicValueReader.SetItemsFoundToStack;
+var
+  l: Longint;
+begin
+  l := Length(fStack);
+  if l > 0 then
+     fStack[l - 1].ItemsFound := true;
+end;
+
+procedure TDynamicValueReader.ReadListSeparator;
+var
+  lStack: TStackInfo;
+begin
+  lStack := Peek;
+  if (not lStack.IsMap) and (lStack.ItemsFound) then
+     ReadListSeparatorToken;
+
+end;
+
+function TDynamicValueReader.ReadInnerMap: IDynamicMap;
+var
+  lKey: UTF8String;
+begin
+  result := TDynamicValues.NewMap;
+  while not IsMapEnd do
+  begin
+    lKey := ReadMapKey;
+    result[lKey] := ReadValue;
+  end;
+end;
+
+function TDynamicValueReader.ReadInnerList: IDynamicList;
+begin
+  result := TDynamicValues.NewList;
+  while not IsListEnd do
+  begin
+    result.Add(ReadValue);
+  end;
+end;
+
+constructor TDynamicValueReader.Create;
+begin
+  SetLength(fStack,0);
+end;
+
+procedure TDynamicValueReader.ReadMapStart;
+begin
+  ReadListSeparator;
+  ReadMapStartToken;
+  Push(true);
+end;
+
+function TDynamicValueReader.ReadMapKey: UTF8String;
+begin
+  if Peek.ItemsFound then
+     ReadListSeparatorToken;
+  result := ReadStringToken;
+  ReadKeyIndicatorToken;
+end;
+
+procedure TDynamicValueReader.ReadMapEnd;
+begin
+  ReadMapEndToken;
+  Pop;
+  SetItemsFoundToStack;
+
+end;
+
+procedure TDynamicValueReader.ReadListStart;
+begin
+  ReadListSeparator;
+  Push(False);
+  ReadListStartToken;
+
+end;
+
+procedure TDynamicValueReader.ReadListEnd;
+begin
+  ReadListEndToken;
+  Pop;
+  SetItemsFoundToStack;
+
+end;
+
+function TDynamicValueReader.ReadString: IDynamicString;
+begin
+  ReadListSeparator;
+  result := TDynamicValues.NewString(ReadStringToken);
+  SetItemsFoundToStack;
+
+end;
+
+function TDynamicValueReader.ReadBoolean: IDynamicBoolean;
+begin
+  ReadListSeparator;
+  result := TDynamicValues.Boolean(ReadBooleanToken);
+  SetItemsFoundToStack;
+
+end;
+
+function TDynamicValueReader.ReadNumber: IDynamicNumber;
+begin
+  ReadListSeparator;
+  result := TDynamicValues.NewNumber(ReadNumberToken);
+  SetItemsFoundToStack;
+
+end;
+
+function TDynamicValueReader.ReadNull: IDynamicNull;
+begin
+  ReadListSeparator;
+  ReadNullToken;
+  result := TDynamicValues.Null;
+  SetItemsFoundToStack;
+
+end;
+
+function TDynamicValueReader.ReadList: IDynamicList;
+begin
+  ReadListStart;
+  result := ReadInnerList;
+  ReadListEnd;
+end;
+
+function TDynamicValueReader.ReadMap: IDynamicMap;
+begin
+  ReadMapStart;
+  result := ReadInnerMap;
+  ReadMapEnd;
+end;
+
+function TDynamicValueReader.ReadValue: IDynamicValue;
+begin
+  // can't just defer the list separator to the values, because we need to
+  // know what type it is before we check...
+  ReadListSeparator;
+  if IsMapStart then
+  begin
+     // Can't just call ReadMapStart, because that also reads the list separator.
+    ReadMapStartToken;
+    Push(true);
+    result := ReadInnerMap;
+    ReadMapEnd;
+  end
+  else if IsListStart then
+  begin
+    // Can't just call ReadListStart, because that also reads the list separator.
+    ReadListStartToken;
+    Push(false);
+    result := ReadInnerList;
+    ReadListEnd;
+  end
+  else if IsNull then
+  begin
+    ReadNullToken;
+    result := TDynamicValues.Null;
+  end
+  else if IsBoolean then
+  begin
+    result := TDynamicValues.Boolean(ReadBooleanToken);
+  end
+  else if IsNumber then
+  begin
+    Result := TDynamicValues.NewNumber(ReadNumberToken);
+  end
+  else if IsString then
+  begin
+    Result := TDynamicValues.NewString(ReadStringToken);
+  end
+  else
+    raise Exception.Create('Invalid reader state');
+  SetItemsFoundToStack;
+
 end;
 
 { TDynamicValues }

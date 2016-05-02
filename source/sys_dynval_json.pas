@@ -27,31 +27,26 @@ type
 
 
   TJSONWriter = class(TDynamicValueWriter)
-  private
-    procedure SetItemsWritten(const AValue: Boolean);
-  private
-    fStack: TJSONWriterStateArray;
+  strict private
     fStream: TStream;
     fGap: LongInt;
     procedure Write(const aValue: UTF8String);
     procedure WriteQuote(const aValue: UTF8String);
-    procedure WriteValueHeader;
-    procedure Pop;
-    function Peek: TJSONWriterState;
-    procedure Push(const aIsMap: Boolean);
+  strict protected
+    procedure WriteBooleanToken(const aValue: Boolean); override;
+    procedure WriteGap(aIndentCount: Longint); override;
+    procedure WriteNullToken; override;
+    procedure WriteNumberToken(const aValue: Double); override;
+    procedure WriteStringToken(const aValue: UTF8String); override;
+    procedure WriteMapStartToken; override;
+    procedure WriteMapEndToken; override;
+    procedure WriteListEndToken; override;
+    procedure WriteListStartToken; override;
+    procedure WriteKeyIndicatorToken; override;
+    procedure WriteListSeparatorToken; override;
   public
     constructor Create(aStream: TStream; aIndent: Word);
     destructor Destroy; override;
-    procedure WriteBoolean(const aValue: Boolean); override;
-    procedure WriteListEnd; override;
-    procedure WriteListSeparator; override;
-    procedure WriteListStart; override;
-    procedure WriteMapEnd; override;
-    procedure WriteMapKey(const aValue: UTF8String); override;
-    procedure WriteMapStart; override;
-    procedure WriteNull; override;
-    procedure WriteNumber(const aValue: Double); override;
-    procedure WriteString(const aValue: UTF8String); override;
   end;
 
   TJSONTokens = set of TJSONToken;
@@ -61,14 +56,23 @@ type
 
 
   TJSONReader = class(TDynamicValueReader)
-  private
+  strict private
     // FUTURE: Make sure this is the best scanner available
     fScanner: TJSONScanner;
     procedure Expect(const aTokens: TJSONTokens; const aValue: UTF8String);
     procedure SkipWhitespace;
+  strict protected
+    function ReadBooleanToken: Boolean; override;
+    procedure ReadListEndToken; override;
+    procedure ReadListSeparatorToken; override;
+    procedure ReadListStartToken; override;
+    procedure ReadMapEndToken; override;
+    procedure ReadMapStartToken; override;
+    procedure ReadNullToken; override;
+    function ReadNumberToken: Double; override;
+    function ReadStringToken: UTF8String; override;
+    procedure ReadKeyIndicatorToken; override;
   public
-    constructor Create(aStream: TStream);
-    destructor Destroy; override;
     function IsBoolean: Boolean; override;
     function IsListEnd: Boolean; override;
     function IsListStart: Boolean; override;
@@ -77,17 +81,8 @@ type
     function IsNull: Boolean; override;
     function IsNumber: Boolean; override;
     function IsString: Boolean; override;
-    function ReadBoolean: Boolean; override;
-    procedure ReadListEnd; override;
-    procedure ReadListSeparator; override;
-    procedure ReadListStart; override;
-    procedure ReadMapEnd; override;
-    function ReadMapKey: UTF8String; override;
-    procedure ReadMapStart; override;
-    procedure ReadNull; override;
-    function ReadNumber: Double; override;
-    function ReadString: UTF8String; override;
-
+    constructor Create(aStream: TStream);
+    destructor Destroy; override;
   end;
 
 procedure ToJSON(const aObject: IDynamicValue; const aStream: TStream; aIndent: Word = 0);
@@ -111,7 +106,7 @@ var
 begin
   lWriter := TJSONWriter.Create(aStream,aIndent);
   try
-    WriteDynamicValue(aObject,lWriter);
+    lWriter.WriteValue(aObject);
   finally
     lWriter.Free;
   end;
@@ -138,7 +133,7 @@ var
 begin
   lReader := TJSONReader.Create(aStream);
   try
-    Result := ReadDynamicValue(lReader);
+    Result := lReader.ReadValue;
   finally
     lReader.Free;
   end;
@@ -178,6 +173,7 @@ begin
   fScanner := TJSONScanner.Create(aStream,true);
   fScanner.Strict := true;
   fScanner.FetchToken;
+  SkipWhitespace;
 end;
 
 destructor TJSONReader.Destroy;
@@ -232,7 +228,7 @@ begin
 
 end;
 
-function TJSONReader.ReadBoolean: Boolean;
+function TJSONReader.ReadBooleanToken: Boolean;
 begin
   Expect([tkTrue,tkFalse],'Boolean');
   result := fScanner.CurToken = tkTrue;
@@ -241,7 +237,7 @@ begin
 
 end;
 
-procedure TJSONReader.ReadListEnd;
+procedure TJSONReader.ReadListEndToken;
 begin
   Expect([tkSquaredBraceClose],'List end');
   fScanner.FetchToken;
@@ -249,14 +245,14 @@ begin
 
 end;
 
-procedure TJSONReader.ReadListSeparator;
+procedure TJSONReader.ReadListSeparatorToken;
 begin
   Expect([tkComma],'List separator');
   fScanner.FetchToken;
   SkipWhitespace;
 end;
 
-procedure TJSONReader.ReadListStart;
+procedure TJSONReader.ReadListStartToken;
 begin
   Expect([tkSquaredBraceOpen],'List start');
   fScanner.FetchToken;
@@ -264,7 +260,7 @@ begin
 
 end;
 
-procedure TJSONReader.ReadMapEnd;
+procedure TJSONReader.ReadMapEndToken;
 begin
   Expect([tkCurlyBraceClose],'Map end');
   fScanner.FetchToken;
@@ -272,19 +268,7 @@ begin
 
 end;
 
-function TJSONReader.ReadMapKey: UTF8String;
-begin
-  Expect([tkString],'Map key');
-  result := fScanner.CurTokenString;
-  fScanner.FetchToken;
-  SkipWhitespace;
-  Expect([tkColon],'Map key indicator');
-  fScanner.FetchToken;
-  SkipWhitespace;
-
-end;
-
-procedure TJSONReader.ReadMapStart;
+procedure TJSONReader.ReadMapStartToken;
 begin
   Expect([tkCurlyBraceOpen],'Map start');
   fScanner.FetchToken;
@@ -292,7 +276,7 @@ begin
 
 end;
 
-procedure TJSONReader.ReadNull;
+procedure TJSONReader.ReadNullToken;
 begin
   Expect([tkNull],'Null');
   fScanner.FetchToken;
@@ -300,7 +284,7 @@ begin
 
 end;
 
-function TJSONReader.ReadNumber: Double;
+function TJSONReader.ReadNumberToken: Double;
 var
   lResult: UTF8String;
 begin
@@ -314,7 +298,7 @@ begin
 
 end;
 
-function TJSONReader.ReadString: UTF8String;
+function TJSONReader.ReadStringToken: UTF8String;
 begin
   Expect([tkString],'String');
   result := fScanner.CurTokenString;
@@ -323,20 +307,15 @@ begin
 
 end;
 
-{ TJSONWriter }
-
-procedure TJSONWriter.SetItemsWritten(const AValue: Boolean);
-var
-  l: Longint;
+procedure TJSONReader.ReadKeyIndicatorToken;
 begin
- l := Length(fStack);
- if l > 0 then
- begin
-   fStack[l - 1].ItemsWritten := AValue;
- end
- else
-   raise Exception.Create('TJSONWriter has gone past the top of the stack');
+ Expect([tkColon],'Key indicator');
+ fScanner.FetchToken;
+ SkipWhitespace;
+
 end;
+
+{ TJSONWriter }
 
 procedure TJSONWriter.Write(const aValue: UTF8String);
 begin
@@ -386,63 +365,10 @@ begin
   Write(lText);
 end;
 
-procedure TJSONWriter.WriteValueHeader;
-begin
- if (fGap > 0) and (Length(fStack) > 0) and (not Peek.IsMap) then
- begin
-   Write(#10 + Peek.Indent)
- end;
-end;
-
-procedure TJSONWriter.Pop;
-var
-  l: Longint;
-begin
- l := Length(fStack);
- if l > 0 then
- begin
-   SetLength(fStack,l - 1);
- end
- else
-   raise Exception.Create('TJSONWriter has gone past the top of the stack');
-end;
-
-function TJSONWriter.Peek: TJSONWriterState;
-var
-  l: Longint;
-begin
- l := Length(fStack);
- if l > 0 then
- begin
-   result := fStack[l - 1];
- end
- else
-   raise Exception.Create('TJSONWriter has gone past the top of the stack');
-end;
-
-procedure TJSONWriter.Push(const aIsMap: Boolean);
-var
-  l: Longint;
-  lIndent: UTF8String;
-begin
- l := Length(fStack);
- if l > 0 then
-   lIndent := fStack[l - 1].Indent
- else
-   lIndent := '';
- SetLength(fStack,l + 1);
- fStack[l].Indent := lIndent + StringOfChar(' ',fGap);
- fStack[l].StepBack := lIndent;
- fStack[l].ItemsWritten := false;
- // TODO: Not sure if I need this...
- fStack[l].IsMap := aIsMap;
-end;
-
 constructor TJSONWriter.Create(aStream: TStream; aIndent: Word);
 begin
   inherited Create;
   fStream := aStream;
-  SetLength(fStack,0);
 
   // In EcmaScript specs for JSON.stringify, the longest indent is 10 characters.
   // I'm doing a sanity filter by also making sure the string is only
@@ -453,83 +379,71 @@ end;
 
 destructor TJSONWriter.Destroy;
 begin
-  fStack := nil;
   inherited Destroy;
 end;
 
-procedure TJSONWriter.WriteBoolean(const aValue: Boolean);
+procedure TJSONWriter.WriteBooleanToken(const aValue: Boolean);
 begin
  Write(BoolToStr(aValue,TrueText,FalseText));
 end;
 
-
-procedure TJSONWriter.WriteListStart;
+procedure TJSONWriter.WriteGap(aIndentCount: Longint);
 begin
- WriteValueHeader;
- Push(false);
+ if (fGap > 0) then
+ begin
+   Write(#10 + StringOfChar(' ',aIndentCount * fGap))
+ end;
+end;
+
+
+procedure TJSONWriter.WriteListStartToken;
+begin
  Write('[');
 end;
 
-procedure TJSONWriter.WriteListEnd;
+procedure TJSONWriter.WriteKeyIndicatorToken;
 begin
- if (fGap > 0) and Peek.ItemsWritten then
-    Write(#10 + Peek.StepBack);
+ if fGap > 0 then
+    Write(': ')
+ else
+    Write(':');
+end;
+
+procedure TJSONWriter.WriteListEndToken;
+begin
  Write(']');
- Pop;
 
 end;
 
-procedure TJSONWriter.WriteListSeparator;
+procedure TJSONWriter.WriteListSeparatorToken;
 begin
   Write(',');
 end;
 
-procedure TJSONWriter.WriteMapStart;
+procedure TJSONWriter.WriteMapStartToken;
 begin
- WriteValueHeader;
- Push(true);
-
  Write('{');
 end;
 
-procedure TJSONWriter.WriteMapEnd;
+procedure TJSONWriter.WriteMapEndToken;
 begin
- if (fGap > 0) and Peek.ItemsWritten then
-   Write(#10 + Peek.StepBack);
  Write('}');
- Pop;
 
 end;
 
-procedure TJSONWriter.WriteMapKey(const aValue: UTF8String);
+procedure TJSONWriter.WriteNullToken;
 begin
-   if fGap > 0 then
-   begin
-     Write(#10 + Peek.Indent)
-   end;
-   WriteQuote(aValue);
-   if fGap > 0 then
-      Write(': ')
-   else
-      Write(':');
-end;
-
-procedure TJSONWriter.WriteNull;
-begin
-  WriteValueHeader;
   Write(NullText);
 end;
 
-procedure TJSONWriter.WriteNumber(const aValue: Double);
+procedure TJSONWriter.WriteNumberToken(const aValue: Double);
 begin
-  WriteValueHeader;
   Write(FloatToStr(aValue));
 
 end;
 
-procedure TJSONWriter.WriteString(const aValue: UTF8String);
+procedure TJSONWriter.WriteStringToken(const aValue: UTF8String);
 begin
-  WriteValueHeader;
   WriteQuote(aValue);
 
 end;

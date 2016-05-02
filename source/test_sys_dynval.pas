@@ -222,7 +222,8 @@ begin
     Item[Length] := 'there!';
   end;
 
-  lJSON := ToJSON(lObject1);
+  lJSON := ToJSON(lObject1,4);
+  Report(lJSON);
 
   lObject2 := FromJSON(lJSON);
   Assert(lObject2.EqualsDeeply(lObject1),'Object created from the JSON serialized from another object should be deep equals with that other object');
