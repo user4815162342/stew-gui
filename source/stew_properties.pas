@@ -5,7 +5,7 @@ unit stew_properties;
 interface
 
 uses
-  Classes, SysUtils, Graphics, sys_file, sys_json;
+  Classes, SysUtils, Graphics, sys_file, sys_json, sys_dynval, sys_dynval_data, sys_types;
 
 type
 
@@ -22,6 +22,16 @@ type
     property User: TJSObject read GetUser;
   end;
 
+  { TProperties2 }
+
+  TProperties2 = class(TDataStoreMap)
+  private
+    function GetUser: IDynamicValue;
+    procedure SetUser(AValue: IDynamicValue);
+  public
+    property User: IDynamicValue read GetUser write SetUser;
+  end;
+
   { TDocumentIndexProperty }
 
   TDocumentIndexProperty = class(TJSArray)
@@ -29,6 +39,8 @@ type
     function RequestType(aKey: UTF8String; aType: TJSValueClass
        ): TJSValueClass; override;
   end;
+
+  { TDocumentIndexProperty2 }
 
   { TDocumentProperties }
 
@@ -52,6 +64,27 @@ type
     property Category: UTF8String read GetCategory write SetCategory;
     property Status: UTF8String read GetStatus write SetStatus;
     property Index: TDocumentIndexProperty read GetIndex;
+  end;
+
+  { TDocumentProperties2 }
+
+  TDocumentProperties2 = class(TProperties2)
+  private
+    fTitle: UTF8String;
+    fPublish: Boolean;
+    fCategory: UTF8String;
+    fStatus: UTF8String;
+    fIndex: TStringArray2;
+  protected
+    function ReadManagedKey(const aKey: UTF8String; aReader: TDynamicValueReader): Boolean; override;
+    procedure WriteManagedKeys(aWriter: TDynamicValueWriter); override;
+  public
+    destructor Destroy; override;
+    property Title: UTF8String read fTitle write fTitle;
+    property Publish: Boolean read fPublish write fPublish;
+    property Category: UTF8String read fCategory write fCategory;
+    property Status: UTF8String read fStatus write fStatus;
+    property Index: TStringArray2 read fIndex;
   end;
 
   { TJSColor }
@@ -95,6 +128,19 @@ type
   end;
 
   TKeywordDefinitionClass = class of TKeywordDefinition;
+
+  { TKeywordDefinition2 }
+
+  TKeywordDefinition2 = class(TDataStoreMap)
+  private
+    fColor: TColor;
+  protected
+    function ReadManagedKey(const aKey: UTF8String;
+       aReader: TDynamicValueReader): Boolean; override;
+    procedure WriteManagedKeys(aWriter: TDynamicValueWriter); override;
+  public
+    property Color: TColor read fColor;
+  end;
 
   { TCategoryDefinition }
 
@@ -245,6 +291,134 @@ implementation
 
 uses
   LCLProc;
+
+{ TKeywordDefinition2 }
+
+function TKeywordDefinition2.ReadManagedKey(const aKey: UTF8String;
+  aReader: TDynamicValueReader): Boolean;
+var
+  lKey: UTF8String;
+  b: Byte;
+  r: Byte;
+  g: Byte;
+begin
+  if aKey = ColorKey then
+  begin
+    aReader.ReadMapStart;
+    b := Graphics.Blue(clDefault);
+    r := Graphics.Red(clDefault);
+    g := Graphics.Green(clDefault);
+    while not aReader.IsMapEnd do
+    begin
+      lKey := aReader.ReadMapKey;
+      case lKey of
+        BlueKey:
+           b := trunc(aReader.ReadNumber.Value);
+        GreenKey:
+           g := trunc(aReader.ReadNumber.Value);
+        RedKey:
+           r := trunc(aReader.ReadNumber.Value);
+      else
+        // this one we ignore everything else.
+        aReader.ReadValue;
+      end;
+    end;
+    aReader.ReadMapEnd;
+    fColor := RGBToColor(r,g,b);
+    result := true;
+  end
+  else
+     Result:=inherited ReadManagedKey(aKey, aReader);
+end;
+
+procedure TKeywordDefinition2.WriteManagedKeys(aWriter: TDynamicValueWriter);
+var
+  r: Byte;
+  g: Byte;
+  b: Byte;
+begin
+  inherited WriteManagedKeys(aWriter);
+  r := Graphics.Red(fColor);
+  g := Graphics.Green(fColor);
+  b := Graphics.Blue(fColor);
+  aWriter.WriteKey(ColorKey);
+  aWriter.WriteMapStart(nil);
+  aWriter.WriteKeyValue(RedKey,r);
+  aWriter.WriteKeyValue(BlueKey,b);
+  aWriter.WriteKeyValue(GreenKey,g);
+  aWriter.WriteMapEnd;
+end;
+
+{ TDocumentProperties2 }
+
+function TDocumentProperties2.ReadManagedKey(const aKey: UTF8String;
+  aReader: TDynamicValueReader): Boolean;
+var
+  l: Longint;
+begin
+  result := true;
+  case aKey of
+    TitleKey: fTitle := aReader.ReadString.Value;
+    PublishKey: fPublish := aReader.ReadBoolean.Value;
+    CategoryKey: fCategory := aReader.ReadString.Value;
+    StatusKey: fStatus := aReader.ReadString.Value;
+    IndexKey:
+    begin
+      l := 0;
+      fIndex.Count := 0;
+      aReader.ReadListStart;
+      while not aReader.IsListEnd do
+      begin
+        fIndex.Count := l + 1;
+        fIndex[l] := aReader.ReadString.Value;
+        inc(l);
+      end;
+      aReader.ReadListEnd;
+    end
+  else
+    result := inherited ReadManagedKey(aKey,aReader);
+  end;
+end;
+
+procedure TDocumentProperties2.WriteManagedKeys(aWriter: TDynamicValueWriter);
+var
+  l: Longint;
+  i: Longint;
+begin
+  inherited WriteManagedKeys(aWriter);
+  aWriter.WriteKeyValue(TitleKey,fTitle);
+  aWriter.WriteKeyValue(PublishKey,fPublish);
+  aWriter.WriteKeyValue(CategoryKey,fCategory);
+  aWriter.WriteKeyValue(StatusKey,fStatus);
+  aWriter.WriteKey(IndexKey);
+  aWriter.WriteListStart(nil);
+  l := fIndex.Count - 1;
+  for i := 0 to l do
+  begin
+    aWriter.WriteValue(fIndex[i]);
+  end;
+  aWriter.WriteListEnd;
+
+end;
+
+destructor TDocumentProperties2.Destroy;
+begin
+  FreeAndNil(fIndex);
+  inherited Destroy;
+end;
+
+{ TProperties2 }
+
+function TProperties2.GetUser: IDynamicValue;
+begin
+  result := Backing[UserKey];
+end;
+
+procedure TProperties2.SetUser(AValue: IDynamicValue);
+begin
+  Backing[UserKey] := AValue;
+
+end;
 
 { TDeadlines }
 

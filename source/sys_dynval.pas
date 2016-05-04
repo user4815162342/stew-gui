@@ -184,6 +184,7 @@ type
     procedure WriteMap(const aValue: IDynamicMap);
     procedure WriteValue(const aValue: IDynamicValue);
     procedure WriteKeyValue(const aKey: UTF8String; const aValue: IDynamicValue);
+    procedure WriteKey(const aKey: UTF8String);
   end;
 
   { TDynamicValueReader }
@@ -433,6 +434,12 @@ end;
 procedure TDynamicValueWriter.WriteKeyValue(const aKey: UTF8String;
   const aValue: IDynamicValue);
 begin
+  WriteKey(aKey);
+  WriteValue(aValue);
+end;
+
+procedure TDynamicValueWriter.WriteKey(const aKey: UTF8String);
+begin
   if (fStack.Length > 0) and
      (fStack[0] is IDynamicMap) then
   begin
@@ -444,7 +451,6 @@ begin
      raise Exception.Create('Can''t write key-value, not in map');
   WriteStringToken(aKey);
   WriteKeyIndicatorToken;
-  WriteValue(aValue);
 end;
 
 { TDynamicValueReader }

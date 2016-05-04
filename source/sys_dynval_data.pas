@@ -19,76 +19,74 @@ uses
   Classes, SysUtils, sys_dynval;
 
 type
-  TDataObject = class
+
+  { TDataStoreObject }
+
+  TDataStoreObject = class
   public
+    constructor Create(aReader: TDynamicValueReader);
     procedure Serialize(aWriter: TDynamicValueWriter); virtual; abstract;
+    procedure Deserialize(aReader: TDynamicValueReader); virtual; abstract;
 
   end;
 
-  { TDataMap }
+  { TDataStoreMap }
 
-  TDataMap = class(TDataObject)
+  TDataStoreMap = class(TDataStoreObject)
   private
     // backing is not visible outside by default, if you want it to be, you
     // have to handle it yourself.
     fBacking: IDynamicMap;
   protected
+    property Backing: IDynamicMap read fBacking;
     function ReadManagedKey(const {%H-}aKey: UTF8String; {%H-}aReader: TDynamicValueReader): Boolean; virtual;
     procedure WriteManagedKeys({%H-}aWriter: TDynamicValueWriter); virtual;
   public
-    constructor Create(aReader: TDynamicValueReader);
     procedure Serialize(aWriter: TDynamicValueWriter); override;
+    procedure Deserialize(aReader: TDynamicValueReader); override;
   end;
 
-  { TDataList }
-
-  TDataList = class(TDataObject)
+  { TDataStoreList }
+  TDataStoreList = class(TDataStoreObject)
   private
     fBacking: IDynamicList;
   protected
-    function ReadManagedItem({%H-}aReader: TDynamicValueReader): Boolean; virtual;
+    property Backing: IDynamicList read fBacking;
+    function ReadManagedItem({%H-}aReader: TDynamicValueReader): IDynamicValue; virtual;
     procedure WriteManagedItems({%H-}aWriter: TDynamicValueWriter); virtual;
   public
-    constructor Create(aReader: TDynamicValueReader);
     procedure Serialize(aWriter: TDynamicValueWriter); override;
+    procedure Deserialize(aReader: TDynamicValueReader); override;
   end;
 
 implementation
 
+{ TDataStoreObject }
 
-{ TDataMap }
+constructor TDataStoreObject.Create(aReader: TDynamicValueReader);
+begin
+  inherited Create;
+  if aReader <> nil then
+  begin
+    Deserialize(aReader);
+  end;
+end;
 
-function TDataMap.ReadManagedKey(const aKey: UTF8String;
+
+{ TDataStoreMap }
+
+function TDataStoreMap.ReadManagedKey(const aKey: UTF8String;
   aReader: TDynamicValueReader): Boolean;
 begin
   result := false;
 end;
 
-procedure TDataMap.WriteManagedKeys(aWriter: TDynamicValueWriter);
+procedure TDataStoreMap.WriteManagedKeys(aWriter: TDynamicValueWriter);
 begin
   // do nothing... subclass handles this...
 end;
 
-constructor TDataMap.Create(aReader: TDynamicValueReader);
-var
-  lKey: UTF8String;
-  lHandled: Boolean;
-begin
-  inherited Create;
-  aReader.ReadMapStart;
-  fBacking := TDynamicValues.NewMap;
-  while not aReader.IsMapEnd do
-  begin
-    lKey := aReader.ReadMapKey;
-    lHandled := ReadManagedKey(lKey,aReader);
-    if not lHandled then
-       fBacking[lKey] := aReader.ReadValue;
-  end;
-  aReader.ReadMapEnd;
-
-end;
-
-procedure TDataMap.Serialize(aWriter: TDynamicValueWriter);
+procedure TDataStoreMap.Serialize(aWriter: TDynamicValueWriter);
 var
   lEnum: IDynamicMapEnumerator;
 begin
@@ -102,43 +100,36 @@ begin
   aWriter.WriteMapEnd;
 end;
 
-
-{ TDataList }
-
-function TDataList.ReadManagedItem(aReader: TDynamicValueReader): Boolean;
+procedure TDataStoreMap.Deserialize(aReader: TDynamicValueReader);
+var
+  lKey: UTF8String;
 begin
-  result := false;
+  aReader.ReadMapStart;
+  fBacking := TDynamicValues.NewMap;
+  while not aReader.IsMapEnd do
+  begin
+    lKey := aReader.ReadMapKey;
+    if not ReadManagedKey(lKey,aReader) then
+       fBacking[lKey] := aReader.ReadValue;
+  end;
+  aReader.ReadMapEnd;
 end;
 
-procedure TDataList.WriteManagedItems(aWriter: TDynamicValueWriter);
+
+{ TDataStoreList }
+
+function TDataStoreList.ReadManagedItem(aReader: TDynamicValueReader
+  ): IDynamicValue;
+begin
+  result := nil;
+end;
+
+procedure TDataStoreList.WriteManagedItems(aWriter: TDynamicValueWriter);
 begin
   // do nothing... subclass handles this...
 end;
 
-constructor TDataList.Create(aReader: TDynamicValueReader);
-var
-  lManaged: Boolean;
-begin
-  inherited Create;
-  aReader.ReadListStart;
-  fBacking := TDynamicValues.NewList;
-  lManaged := true;
-  // allow the subclass to read in managed items until the items are no longer
-  // managed, then start putting into backing from there.
-  while lManaged and not aReader.IsListEnd do
-  begin
-    lManaged := ReadManagedItem(aReader);
-    if not lManaged then
-       fBacking.Add(aReader.ReadValue);
-  end;
-  while not aReader.IsListEnd do
-  begin
-    fBacking.Add(aReader.ReadValue);
-  end;
-  aReader.ReadListEnd;
-end;
-
-procedure TDataList.Serialize(aWriter: TDynamicValueWriter);
+procedure TDataStoreList.Serialize(aWriter: TDynamicValueWriter);
 var
   i: Longint;
   l: Longint;
@@ -151,6 +142,28 @@ begin
     aWriter.WriteValue(fBacking[i]);
   end;
   aWriter.WriteListEnd;
+end;
+
+procedure TDataStoreList.Deserialize(aReader: TDynamicValueReader);
+var
+  lUnmanaged: IDynamicValue;
+begin
+  aReader.ReadListStart;
+  fBacking := TDynamicValues.NewList;
+  lUnmanaged := nil;
+  // allow the subclass to read in managed items until the items are no longer
+  // managed, then start putting into backing from there.
+  while (lUnmanaged <> nil) and not aReader.IsListEnd do
+  begin
+    lUnmanaged := ReadManagedItem(aReader);
+    if lUnmanaged <> nil then
+       fBacking.Add(lUnmanaged);
+  end;
+  while not aReader.IsListEnd do
+  begin
+    fBacking.Add(aReader.ReadValue);
+  end;
+  aReader.ReadListEnd;
 end;
 
 
