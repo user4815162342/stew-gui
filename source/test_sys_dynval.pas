@@ -192,7 +192,7 @@ begin
        try
           // make sure this all works with a descendant of jsobject as well.
           lObject2 := FromJSON(lFile2);
-          Assert(lObject2.EqualsDeeply(lObject1),'Objects parsed from the same file should be deep equals');
+          Assert(lObject2.IsStructurallyEqualTo(lObject1),'Objects parsed from the same file should be deep equals');
        finally
          lFile2.Free;
        end;
@@ -226,7 +226,7 @@ begin
   Report(lJSON);
 
   lObject2 := FromJSON(lJSON);
-  Assert(lObject2.EqualsDeeply(lObject1),'Object created from the JSON serialized from another object should be deep equals with that other object');
+  Assert(lObject2.IsStructurallyEqualTo(lObject1),'Object created from the JSON serialized from another object should be deep equals with that other object');
 end;
 
 end.

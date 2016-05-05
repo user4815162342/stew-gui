@@ -54,7 +54,8 @@ type
     procedure SetItem(const aKey: IDynamicValue; const AValue: IDynamicValue);
     function Owns(const aValue: IDynamicValue): Boolean;
     function IsDefined: Boolean;
-    function EqualsDeeply(const aValue: IDynamicValue): Boolean;
+    function IsStructurallyEqualTo(const aValue: IDynamicValue): Boolean;
+    function IsEqualTo(const aValue: IDynamicValue): Boolean;
     property Item[aKey: IDynamicValue]: IDynamicValue read GetItem write SetItem; default;
   end;
 
@@ -247,7 +248,6 @@ type
   operator :=(aValue: UTF8String): IDynamicValue;
   operator :=(aValue: Boolean): IDynamicValue;
 
-
 implementation
 
 uses
@@ -267,12 +267,6 @@ end;
 operator:=(aValue: Boolean): IDynamicValue;
 begin
   result := TDynamicValues.Boolean(aValue);
-
-end;
-
-operator=(aValueB: UTF8String; aValueA: IDynamicValue): Boolean;
-begin
-  result := (aValueA is IDynamicString) and ((IDynamicString(aValueA).Value = aValueB));
 
 end;
 
@@ -698,7 +692,7 @@ begin
   else
   begin
     if fFalse = nil then
-       fFalse := TDynamicBoolean.Create(true);
+       fFalse := TDynamicBoolean.Create(false);
     result := fFalse;
   end;
 end;

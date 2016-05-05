@@ -18,10 +18,10 @@ type
     procedure SetupTest; override;
   published
     procedure Test_DocumentProperties;
-    procedure Test_JSColor;
+//    procedure Test_JSColor;
     procedure Test_Keyword;
     procedure Test_CategoryDefinition;
-    procedure Test_KeywordDefinitions;
+//    procedure Test_KeywordDefinitions;
     procedure Test_KeywordDefinitions_Parsing;
     procedure Test_ProjectProperties;
   end;
@@ -29,7 +29,7 @@ type
 implementation
 
 uses
-  sys_localfile, FileUtil, sys_json, Graphics, sys_types;
+  sys_localfile, FileUtil, sys_json, Graphics, sys_types, sys_dynval;
 
 { TPropertiesSpec }
 
@@ -42,18 +42,19 @@ end;
 procedure TPropertiesSpec.Test_DocumentProperties;
 var
   lStream: TFileStream;
- lProps: TDocumentProperties;
+ lProps: TDocumentProperties2;
 begin
   lStream := TFileStream.Create(fTestRootDir.GetContainedFile('Chapter 1','properties','json',false).ID,fmOpenRead);
   try
-      lProps := FromJSON(TDocumentProperties,lStream) as TDocumentProperties;
+      lProps := TDocumentProperties2.Create;
       try
+        lProps.Deserialize(lStream);
         Assert(lProps.Category = 'Chapter','Category should return correct value');
         Assert(lProps.Status = 'Unwritten','Status should return correct value');
         Assert(lProps.Title = 'The Cottage','Title should return correct value');
         Assert(lProps.Publish = false,'Publish should return correct value');
-        Assert(lProps.Index.Length = 0,'Index should return correct value');
-        Assert(lProps.User.Get('place').AsString = 'Jen''s Lakeside Cottage','User properties should return correct values');
+        Assert(lProps.Index.Count = 0,'Index should return correct value');
+        Assert(lProps.User['place'].IsEqualTo('Jen''s Lakeside Cottage'),'User properties should return correct values');
       finally
         lProps.Free;
       end;
@@ -64,7 +65,7 @@ begin
 
 end;
 
-procedure TPropertiesSpec.Test_JSColor;
+{procedure TPropertiesSpec.Test_JSColor;
 var
   lColor: TJSColor;
 begin
@@ -85,14 +86,15 @@ begin
     lColor.Free;
   end;
 
-end;
+end;}
 
 procedure TPropertiesSpec.Test_Keyword;
 var
-  lKeyword: TKeywordDefinition;
+  lKeyword: TKeywordDefinition2;
 begin
-  lKeyword := TKeywordDefinition.Create;
+  lKeyword := TKeywordDefinition2.Create;
   try
+    Assert(lKeyword.Color = clDefault,'Default value for color must be clDefault');
     lKeyword.Color := clBlue;
     Assert(lKeyword.Color = clBlue,'Assigning color property should retain value');
   finally
@@ -103,9 +105,9 @@ end;
 
 procedure TPropertiesSpec.Test_CategoryDefinition;
 var
-  lCategory: TCategoryDefinition;
+  lCategory: TCategoryDefinition2;
 begin
-  lCategory := TCategoryDefinition.Create;
+  lCategory := TCategoryDefinition2.Create;
   try
     lCategory.PublishTitle := true;
     Assert(lCategory.PublishTitle,'Publish Title should be correct');
@@ -125,7 +127,7 @@ begin
   end;
 end;
 
-procedure TPropertiesSpec.Test_KeywordDefinitions;
+{procedure TPropertiesSpec.Test_KeywordDefinitions;
 var
   lDefs: TStatusDefinitions;
   lArray: TJSArray;
@@ -146,17 +148,18 @@ begin
   finally
     lDefs.Free;
   end;
-end;
+end;}
 
 procedure TPropertiesSpec.Test_KeywordDefinitions_Parsing;
 const
   lText: UTF8String = '["Unwritten","Written","Final"]';
 var
-  lDefs: TStatusDefinitions;
+  lDefs: TStatusDefinitions2;
 begin
-  lDefs := FromJSON(TStatusDefinitions,lText) as TStatusDefinitions;
+  lDefs := TStatusDefinitions2.Create;
   try
-    Assert(lDefs.Get('Unwritten') is TStatusDefinition,'Parsing an array of strings should create a mapped KeywordDefinition in KeywordDefinitions object');
+    lDefs.Deserialize(lText);
+    Assert(lDefs['Unwritten'] is TStatusDefinition2,'Parsing an array of strings should create a mapped KeywordDefinition in KeywordDefinitions object');
 
   finally
     lDefs.Free;
@@ -167,23 +170,24 @@ end;
 procedure TPropertiesSpec.Test_ProjectProperties;
 var
   lStream: TFileStream;
-  lProps: TProjectProperties;
-  lDeadlines: TDeadlines;
+  lProps: TProjectProperties2;
+  lDeadlines: TDeadlines2;
 begin
   lStream := TFileStream.Create(fTestRootDir.GetContainedFile('','stew','json',true).ID,fmOpenRead);
   try
-    lProps := FromJSON(TProjectProperties,lStream) as TProjectProperties;
+    lProps := TProjectProperties2.Create;
     try
-      Assert(Length(lProps.Categories.keys) > 0,'Combination of parsing and GetPath should have gotten some data');
-      Assert((lProps.Categories.Get('Chapter') as TCategoryDefinition).PublishTitleLevel = 0,'Project category definitions should work');
-      Assert(lProps.Categories.hasOwnProperty('Scene'),'Project categories should work');
+      lProps.Deserialize(lStream);
+      Assert(lProps.Categories.Keys.Count > 0,'Combination of parsing and GetPath should have gotten some data');
+      Assert((lProps.Categories['Chapter'] as TCategoryDefinition2).PublishTitleLevel = 0,'Project category definitions should work');
+      Assert(lProps.Categories.Has('Scene'),'Project categories should work');
       Assert(lProps.DefaultCategory = 'Chapter','Project default category should work');
       Assert(lProps.DefaultDocExtension = 'txt','Project default doc extension should work');
       // (sic) I want the default notes extension to be weird, for template testing later.
       Assert(lProps.DefaultNotesExtension = 'tst','Project default notes extension should work');
       Assert(lProps.DefaultStatus = 'Unwritten','Project default status should work');
       Assert(lProps.DefaultThumbnailExtension = 'png','Project default thumbnail extension should work');
-      Assert((lProps.Statuses.Get('Unwritten') as TStatusDefinition).Color = clRed,'Project statuses should work');
+      Assert((lProps.Statuses['Unwritten'] as TStatusDefinition2).Color = clRed,'Project statuses should work');
       lProps.DefaultDocExtension := '.doc';
       Assert(lProps.DefaultDocExtension = 'doc','Default doc extension should trim off the "." when assigning');
 
@@ -200,7 +204,6 @@ begin
   finally
     lStream.Free;
   end;
-  // test path as well...
 
 end;
 

@@ -23,10 +23,16 @@ type
   { TDataStoreObject }
 
   TDataStoreObject = class
+  protected
+    procedure InitializeBlank; virtual; abstract;
   public
-    constructor Create(aReader: TDynamicValueReader);
-    procedure Serialize(aWriter: TDynamicValueWriter); virtual; abstract;
-    procedure Deserialize(aReader: TDynamicValueReader); virtual; abstract;
+    constructor Create;
+    procedure Serialize(aWriter: TDynamicValueWriter); virtual; abstract; overload;
+    procedure Serialize(aStream: TStream); overload;
+    function Serialize: UTF8String; overload;
+    procedure Deserialize(aReader: TDynamicValueReader); virtual; abstract; overload;
+    procedure Deserialize(aStream: TStream); overload;
+    procedure Deserialize(aString: UTF8String); overload;
 
   end;
 
@@ -61,15 +67,68 @@ type
 
 implementation
 
+uses
+  sys_dynval_json;
+
 { TDataStoreObject }
 
-constructor TDataStoreObject.Create(aReader: TDynamicValueReader);
+constructor TDataStoreObject.Create;
 begin
   inherited Create;
-  if aReader <> nil then
-  begin
-    Deserialize(aReader);
+  InitializeBlank;
+end;
+
+procedure TDataStoreObject.Serialize(aStream: TStream);
+var
+  lWriter: TJSONWriter;
+begin
+  lWriter := TJSONWriter.Create(aStream,0);
+  try
+    Serialize(lWriter);
+  finally
+    lWriter.Free;
   end;
+
+end;
+
+function TDataStoreObject.Serialize: UTF8String;
+var
+  lStream: TStringStream;
+begin
+  lStream := TStringStream.Create('');
+  try
+    Serialize(lStream);
+    result := lStream.DataString;
+  finally
+    lStream.Free;
+  end;
+
+end;
+
+procedure TDataStoreObject.Deserialize(aStream: TStream);
+var
+  lReader: TJSONReader;
+begin
+  lReader := TJSONReader.Create(aStream);
+  try
+    Deserialize(lReader);
+  finally
+    lReader.Free;
+  end;
+end;
+
+procedure TDataStoreObject.Deserialize(aString: UTF8String);
+var
+  lStream: TStringStream;
+begin
+  lStream := TStringStream.Create(aString);
+  try
+    Deserialize(lStream);
+
+  finally
+    lStream.Free;
+  end;
+
 end;
 
 
@@ -104,15 +163,20 @@ procedure TDataStoreMap.Deserialize(aReader: TDynamicValueReader);
 var
   lKey: UTF8String;
 begin
-  aReader.ReadMapStart;
   fBacking := TDynamicValues.NewMap;
-  while not aReader.IsMapEnd do
-  begin
-    lKey := aReader.ReadMapKey;
-    if not ReadManagedKey(lKey,aReader) then
-       fBacking[lKey] := aReader.ReadValue;
-  end;
-  aReader.ReadMapEnd;
+  InitializeBlank;
+  if aReader <> nil then
+  begin;
+    aReader.ReadMapStart;
+    while not aReader.IsMapEnd do
+    begin
+      lKey := aReader.ReadMapKey;
+      if not ReadManagedKey(lKey,aReader) then
+         fBacking[lKey] := aReader.ReadValue;
+    end;
+    aReader.ReadMapEnd;
+
+  end
 end;
 
 
@@ -145,24 +209,28 @@ end;
 
 procedure TDataStoreList.Deserialize(aReader: TDynamicValueReader);
 begin
-  aReader.ReadListStart;
   fBacking := TDynamicValues.NewList;
-  // basically, two loops. The first one gives us a chance to read items
-  // that are managed, up until the first item that isn't manageable.
-  while not aReader.IsListEnd do
+  InitializeBlank;
+  if aReader <> nil then
   begin
-    if not ReadManagedItem(aReader) then
-       break;
-  end;
-  // the second loop reads in all of the unmanaged ones. It's possible
-  // that this one contains values that *could* be managed, but if we
-  // put those in, then we lose the original order.
-  while not aReader.IsListEnd do
-  begin
-    // read the unmanaged items.
-    fBacking.Add(aReader.ReadValue);
-  end;
-  aReader.ReadListEnd;
+    aReader.ReadListStart;
+    // basically, two loops. The first one gives us a chance to read items
+    // that are managed, up until the first item that isn't manageable.
+    while not aReader.IsListEnd do
+    begin
+      if not ReadManagedItem(aReader) then
+         break;
+    end;
+    // the second loop reads in all of the unmanaged ones. It's possible
+    // that this one contains values that *could* be managed, but if we
+    // put those in, then we lose the original order.
+    while not aReader.IsListEnd do
+    begin
+      // read the unmanaged items.
+      fBacking.Add(aReader.ReadValue);
+    end;
+    aReader.ReadListEnd;
+  end
 end;
 
 

@@ -20,7 +20,8 @@ type
   public
     function Owns(const {%H-}aValue: IDynamicValue): Boolean; virtual;
     function IsDefined: Boolean; virtual;
-    function EqualsDeeply(const {%H-}aValue: IDynamicValue): Boolean;
+    function IsStructurallyEqualTo(const {%H-}aValue: IDynamicValue): Boolean; virtual;
+    function IsEqualTo(const {%H-}aValue: IDynamicValue): Boolean; virtual;
     property Item[aKey: IDynamicValue]: IDynamicValue read GetItem write SetItem;
   end;
 
@@ -28,7 +29,7 @@ type
 
   TDynamicNull = class(TDynamicValue,IDynamicNull)
   public
-    function EqualsDeeply(const aValue: IDynamicValue): Boolean;
+    function IsEqualTo(const aValue: IDynamicValue): Boolean; override;
   end;
 
   { TDynamicBoolean }
@@ -40,7 +41,7 @@ type
   public
     constructor Create(aValue: Boolean);
     property Value: Boolean read GetValue;
-    function EqualsDeeply(const aValue: IDynamicValue): Boolean;
+    function IsEqualTo(const aValue: IDynamicValue): Boolean; override;
   end;
 
   { TDynamicNumber }
@@ -52,7 +53,7 @@ type
   public
     constructor Create(aValue: Double);
     property Value: Double read GetValue;
-    function EqualsDeeply(const aValue: IDynamicValue): Boolean;
+    function IsEqualTo(const aValue: IDynamicValue): Boolean; override;
   end;
 
   { TDynamicString }
@@ -64,7 +65,7 @@ type
   public
     constructor Create(aValue: UTF8String);
     property Value: UTF8String read GetValue;
-    function EqualsDeeply(const aValue: IDynamicValue): Boolean;
+    function IsEqualTo(const aValue: IDynamicValue): Boolean; override;
   end;
 
   TDynamicValueArray = array of IDynamicValue;
@@ -89,7 +90,7 @@ type
     procedure Delete(const aIndex: Longint);
     procedure Clear;
     function IndexOf(const aValue: IDynamicValue): Longint;
-    function EqualsDeeply(const aValue: IDynamicValue): Boolean;
+    function IsStructurallyEqualTo(const aValue: IDynamicValue): Boolean; override;
     function Owns(const aValue: IDynamicValue): Boolean; override;
 
   end;
@@ -141,7 +142,7 @@ type
     procedure Delete(const aKey: UTF8String);
     procedure Clear;
     function Enumerate: IDynamicMapEnumerator;
-    function EqualsDeeply(const aValue: IDynamicValue): Boolean;
+    function IsStructurallyEqualTo(const aValue: IDynamicValue): Boolean; override;
     function Owns(const aValue: IDynamicValue): Boolean; override;
   end;
 
@@ -198,7 +199,7 @@ end;
 
 { TDynamicNull }
 
-function TDynamicNull.EqualsDeeply(const aValue: IDynamicValue): Boolean;
+function TDynamicNull.IsEqualTo(const aValue: IDynamicValue): Boolean;
 begin
   result := aValue is IDynamicNull;
 end;
@@ -366,7 +367,7 @@ begin
   result := TDynamicMapEnumerator.Create(Self);
 end;
 
-function TDynamicMap.EqualsDeeply(const aValue: IDynamicValue): Boolean;
+function TDynamicMap.IsStructurallyEqualTo(const aValue: IDynamicValue): Boolean;
 var
   lItemsLength: Longint;
   lTheirValueList: TNamedValueArray;
@@ -401,7 +402,7 @@ begin
       begin
         // this is much faster since I don't have to copy and sort at all...
         result := (fList[0].Key = lTheirValueList[0].Key) and
-                  (fList[0].Value.EqualsDeeply(lTheirValueList[0].Value));
+                  (fList[0].Value.IsStructurallyEqualTo(lTheirValueList[0].Value));
       end
       else
       begin
@@ -414,7 +415,7 @@ begin
         for i := 0 to lItemsLength - 1 do
         begin
           result := (lMyValues[i].Key = lTheirValueList[i].Key) and
-                    (lMyValues[i].Value.EqualsDeeply(lTheirValueList[i].Value));
+                    (lMyValues[i].Value.IsStructurallyEqualTo(lTheirValueList[i].Value));
           if not result then
              break;
 
@@ -581,7 +582,7 @@ begin
   end;
 end;
 
-function TDynamicList.EqualsDeeply(const aValue: IDynamicValue): Boolean;
+function TDynamicList.IsStructurallyEqualTo(const aValue: IDynamicValue): Boolean;
 var
   i: Longint;
   l: LongInt;
@@ -597,7 +598,7 @@ begin
      begin
         for i := 0 to l - 1 do
         begin
-          result := Item[i].EqualsDeeply(lValue[i]);
+          result := Item[i].IsStructurallyEqualTo(lValue[i]);
           if not result then
              break;
         end;
@@ -636,7 +637,7 @@ begin
   fValue := aValue;
 end;
 
-function TDynamicString.EqualsDeeply(const aValue: IDynamicValue): Boolean;
+function TDynamicString.IsEqualTo(const aValue: IDynamicValue): Boolean;
 begin
   result := (aValue is IDynamicString) and (IDynamicString(aValue).Value = Value);
 
@@ -656,7 +657,7 @@ begin
 
 end;
 
-function TDynamicNumber.EqualsDeeply(const aValue: IDynamicValue): Boolean;
+function TDynamicNumber.IsEqualTo(const aValue: IDynamicValue): Boolean;
 begin
   result := (aValue is IDynamicNumber) and (IDynamicNumber(aValue).Value = Value);
 
@@ -678,7 +679,7 @@ begin
 
 end;
 
-function TDynamicBoolean.EqualsDeeply(const aValue: IDynamicValue): Boolean;
+function TDynamicBoolean.IsEqualTo(const aValue: IDynamicValue): Boolean;
 begin
   result := (aValue is IDynamicBoolean) and (IDynamicBoolean(aValue).Value = Value);
 end;
@@ -711,7 +712,12 @@ begin
     (Self is IDynamicMap);
 end;
 
-function TDynamicValue.EqualsDeeply(const aValue: IDynamicValue): Boolean;
+function TDynamicValue.IsStructurallyEqualTo(const aValue: IDynamicValue): Boolean;
+begin
+  result := IsEqualTo(aValue);
+end;
+
+function TDynamicValue.IsEqualTo(const aValue: IDynamicValue): Boolean;
 begin
   result := false;
 end;

@@ -26,10 +26,13 @@ type
 
   TProperties2 = class(TDataStoreMap)
   private
-    function GetUser: IDynamicValue;
-    procedure SetUser(AValue: IDynamicValue);
+    fUser: IDynamicValue;
+  protected
+    function ReadManagedKey(const aKey: UTF8String;
+       aReader: TDynamicValueReader): Boolean; override;
+    procedure WriteManagedKeys(aWriter: TDynamicValueWriter); override;
   public
-    property User: IDynamicValue read GetUser write SetUser;
+    property User: IDynamicValue read fUser write fUser;
   end;
 
   { TDocumentIndexProperty }
@@ -48,8 +51,8 @@ type
   protected
     function ReadManagedItem(aReader: TDynamicValueReader): Boolean; override;
     procedure WriteManagedItems(aWriter: TDynamicValueWriter); override;
+    procedure InitializeBlank; override;
   public
-    procedure Deserialize(aReader: TDynamicValueReader); override;
     property Index: TStringArray2 read fIndex;
   end;
 
@@ -90,7 +93,9 @@ type
   protected
     function ReadManagedKey(const aKey: UTF8String; aReader: TDynamicValueReader): Boolean; override;
     procedure WriteManagedKeys(aWriter: TDynamicValueWriter); override;
+    procedure InitializeBlank; override;
   public
+    constructor Create;
     destructor Destroy; override;
     property Title: UTF8String read fTitle write fTitle;
     property Publish: Boolean read fPublish write fPublish;
@@ -150,8 +155,9 @@ type
     function ReadManagedKey(const aKey: UTF8String;
        aReader: TDynamicValueReader): Boolean; override;
     procedure WriteManagedKeys(aWriter: TDynamicValueWriter); override;
+    procedure InitializeBlank; override;
   public
-    property Color: TColor read fColor;
+    property Color: TColor read fColor write fColor;
   end;
 
   { TCategoryDefinition }
@@ -193,6 +199,7 @@ type
     function ReadManagedKey(const aKey: UTF8String;
        aReader: TDynamicValueReader): Boolean; override;
     procedure WriteManagedKeys(aWriter: TDynamicValueWriter); override;
+    procedure InitializeBlank; override;
   public
     property PublishTitle: Boolean read fPublishTitle write fPublishTitle;
     property PublishTitleLevel: Integer read fPublishTitleLevel write fPublishTitleLevel;
@@ -206,6 +213,8 @@ type
   TStatusDefinition = class(TKeywordDefinition)
     // just holds color, so nothing special...
   end;
+
+  { TStatusDefinition2 }
 
   TStatusDefinition2 = class(TKeywordDefinition2)
   // just holds color, so nothing special...
@@ -232,13 +241,15 @@ type
     function ReadManagedKey(const {%H-}aKey: UTF8String;
        {%H-}aReader: TDynamicValueReader): Boolean; override;
     procedure WriteManagedKeys(aWriter: TDynamicValueWriter); override;
+    procedure InitializeBlank; override;
   public
-    constructor Create(aReader: TDynamicValueReader);
+    constructor Create;
     destructor Destroy; override;
-    procedure Deserialize(aReader: TDynamicValueReader); override;
     property Item[const aName: UTF8String]: MemberType read GetItem; default;
     property Keys: TStringArray2 read GetKeys;
     procedure Delete(const aName: UTF8String);
+    function Has(const aName: UTF8String): Boolean;
+    function Add(const aName: UTF8String): MemberType;
 
   end;
 
@@ -249,7 +260,11 @@ type
     function GetStatus(aKey: UTF8String): TStatusDefinition;
   end;
 
+  { TStatusDefinitions2 }
+
   TStatusDefinitions2 = class(specialize GKeywordDefinitions2<TStatusDefinition2>)
+  public
+    procedure Deserialize(aReader: TDynamicValueReader); override;
   end;
 
   { TCategoryDefinitions }
@@ -288,6 +303,7 @@ type
     function ReadManagedKey(const aKey: UTF8String;
        aReader: TDynamicValueReader): Boolean; override;
     procedure WriteManagedKeys(aWriter: TDynamicValueWriter); override;
+    procedure InitializeBlank; override;
   public
     property Due: TDateTime read fDue write fDue;
     property Name: UTF8String read fName write fName;
@@ -318,8 +334,9 @@ type
   protected
     function ReadManagedItem(aReader: TDynamicValueReader): Boolean; override;
     procedure WriteManagedItems(aWriter: TDynamicValueWriter); override;
+    procedure InitializeBlank; override;
   public
-    constructor Create(aReader: TDynamicValueReader);
+    constructor Create;
     destructor Destroy; override;
     procedure Deserialize(aReader: TDynamicValueReader); override;
     property Count: Longint read GetCount;
@@ -374,15 +391,20 @@ type
     fDefaultStatus: UTF8String;
     fDefaultThumbnailExtension: UTF8String;
     fStatuses: TStatusDefinitions2;
+    procedure SetDefaultDocExtension(AValue: UTF8String);
+    procedure SetDefaultNotesExtension(AValue: UTF8String);
+    procedure SetDefaultThumbnailExtension(AValue: UTF8String);
   protected
     function ReadManagedKey(const aKey: UTF8String;
        aReader: TDynamicValueReader): Boolean; override;
     procedure WriteManagedKeys(aWriter: TDynamicValueWriter); override;
+    procedure InitializeBlank; override;
   public
+    constructor Create;
     destructor Destroy; override;
-    property DefaultDocExtension: UTF8String read fDefaultDocExtension write fDefaultDocExtension;
-    property DefaultThumbnailExtension: UTF8String read fDefaultThumbnailExtension write fDefaultThumbnailExtension;
-    property DefaultNotesExtension: UTF8String read fDefaultNotesExtension write fDefaultNotesExtension;
+    property DefaultDocExtension: UTF8String read fDefaultDocExtension write SetDefaultDocExtension;
+    property DefaultThumbnailExtension: UTF8String read fDefaultThumbnailExtension write SetDefaultThumbnailExtension;
+    property DefaultNotesExtension: UTF8String read fDefaultNotesExtension write SetDefaultNotesExtension;
     property Categories: TCategoryDefinitions2 read fCategories;
     property DefaultCategory: UTF8String read fDefaultCategory write fDefaultCategory;
     property Statuses: TStatusDefinitions2 read fStatuses;
@@ -423,37 +445,65 @@ implementation
 uses
   LCLProc;
 
+{ TStatusDefinitions2 }
+
+procedure TStatusDefinitions2.Deserialize(aReader: TDynamicValueReader);
+begin
+  // a special case for statuses, you can store an array of strings
+  // in certain older versions of stew...
+  if aReader.IsListStart then
+  begin
+    aReader.ReadListStart;
+    while not aReader.IsListEnd do
+    begin
+      Add(aReader.ReadString.Value);
+    end;
+    aReader.ReadListEnd;
+  end
+  else
+    inherited Deserialize(aReader);
+end;
+
 { TProjectProperties2 }
+
+procedure TProjectProperties2.SetDefaultDocExtension(AValue: UTF8String);
+begin
+  if fDefaultDocExtension=AValue then Exit;
+  fDefaultDocExtension:=ExcludeExtensionDelimiter(aValue)
+end;
+
+procedure TProjectProperties2.SetDefaultNotesExtension(AValue: UTF8String);
+begin
+  if fDefaultNotesExtension=AValue then Exit;
+  fDefaultNotesExtension:=ExcludeExtensionDelimiter(aValue)
+end;
+
+procedure TProjectProperties2.SetDefaultThumbnailExtension(AValue: UTF8String);
+begin
+  if fDefaultThumbnailExtension=AValue then Exit;
+  fDefaultThumbnailExtension:=ExcludeExtensionDelimiter(aValue)
+end;
 
 function TProjectProperties2.ReadManagedKey(const aKey: UTF8String;
   aReader: TDynamicValueReader): Boolean;
 begin
   case aKey of
     DefaultDocExtensionKey:
-      fDefaultDocExtension := aReader.ReadString.Value;
+      DefaultDocExtension := aReader.ReadString.Value;
     DefaultThumbnailExtensionKey:
-      fDefaultThumbnailExtension := aReader.ReadString.Value;
+      DefaultThumbnailExtension := aReader.ReadString.Value;
     DefaultNotesExtensionKey:
-      fDefaultNotesExtension := aReader.ReadString.Value;
+      DefaultNotesExtension := aReader.ReadString.Value;
     DefaultCategoryKey:
       fDefaultCategory := aReader.ReadString.Value;
     DefaultStatusKey:
       fDefaultStatus := aReader.ReadString.Value;
     CategoriesKey:
-      if fCategories = nil then
-         fCategories := TCategoryDefinitions2.Create(aReader)
-      else
-         fCategories.Deserialize(aReader);
+      fCategories.Deserialize(aReader);
     StatusesKey:
-      if fStatuses = nil then
-         fStatuses := TStatusDefinitions2.Create(aReader)
-      else
-         fStatuses.Deserialize(aReader);
+      fStatuses.Deserialize(aReader);
     DeadlinesKey:
-      if fDeadlines = nil then
-         fDeadlines := TDeadlines2.Create(aReader)
-      else
-         fDeadlines.Deserialize(aReader);
+      fDeadlines.Deserialize(aReader);
   else
      Result:=inherited ReadManagedKey(aKey, aReader);
 
@@ -490,6 +540,26 @@ begin
   inherited WriteManagedKeys(aWriter);
 end;
 
+procedure TProjectProperties2.InitializeBlank;
+begin
+  fCategories.InitializeBlank;
+  fDeadlines.InitializeBlank;
+  fStatuses.InitializeBlank;
+  fDefaultCategory := '';
+  fDefaultDocExtension:= '';
+  fDefaultNotesExtension:='';
+  fDefaultStatus:= '';
+  fDefaultThumbnailExtension:='';
+end;
+
+constructor TProjectProperties2.Create;
+begin
+  fStatuses := TStatusDefinitions2.Create;
+  fCategories := TCategoryDefinitions2.Create;
+  fDeadlines := TDeadlines2.Create;
+  inherited Create;
+end;
+
 destructor TProjectProperties2.Destroy;
 begin
   FreeAndNil(fStatuses);
@@ -511,10 +581,16 @@ begin
 end;
 
 function TDeadlines2.ReadManagedItem(aReader: TDynamicValueReader): Boolean;
+var
+  lItem: TDeadLine2;
 begin
   result := aReader.IsMapStart;
   if result then
-     fList.Add(TDeadLine2.Create(aReader));
+  begin
+    lItem := TDeadLine2.Create;
+     fList.Add(lItem);
+     lItem.Deserialize(aReader);
+  end;
 end;
 
 procedure TDeadlines2.WriteManagedItems(aWriter: TDynamicValueWriter);
@@ -528,10 +604,16 @@ begin
   inherited WriteManagedItems(aWriter);
 end;
 
-constructor TDeadlines2.Create(aReader: TDynamicValueReader);
+procedure TDeadlines2.InitializeBlank;
+begin
+  fList.Clear;
+
+end;
+
+constructor TDeadlines2.Create;
 begin
   fList := TFPObjectList.Create(true);
-  inherited Create(aReader);
+  inherited Create;
 
 end;
 
@@ -549,14 +631,14 @@ end;
 
 function TDeadlines2.Add: TDeadline2;
 begin
-  result := TDeadLine2.Create(nil);
+  result := TDeadLine2.Create;
   fList.Add(result);
 end;
 
 function TDeadlines2.Add(const aName: UTF8String; const aDue: TDateTime
   ): TDeadline2;
 begin
-  result := TDeadLine2.Create(nil);
+  result := TDeadLine2.Create;
   fList.Add(Result);
   result.Name := aName;
   result.Due := aDue;
@@ -593,6 +675,12 @@ begin
   inherited WriteManagedKeys(aWriter);
 end;
 
+procedure TDeadLine2.InitializeBlank;
+begin
+  fDue := 0;
+  fName := '';
+end;
+
 { GKeywordDefinitions2 }
 
 function GKeywordDefinitions2.GetItem(const aName: UTF8String): MemberType;
@@ -614,7 +702,7 @@ end;
 function GKeywordDefinitions2.ReadManagedKey(const aKey: UTF8String;
   aReader: TDynamicValueReader): Boolean;
 begin
-  fList.Add(aKey,MemberType.Create(aReader));
+  Add(aKey).Deserialize(aReader);
   result := true;
 end;
 
@@ -631,10 +719,15 @@ begin
   end;
 end;
 
-constructor GKeywordDefinitions2.Create(aReader: TDynamicValueReader);
+procedure GKeywordDefinitions2.InitializeBlank;
+begin
+  fList.Clear;
+end;
+
+constructor GKeywordDefinitions2.Create;
 begin
   fList := TFPHashObjectList.Create(true);
-  inherited Create(aReader);
+  inherited Create;
 
 end;
 
@@ -642,12 +735,6 @@ destructor GKeywordDefinitions2.Destroy;
 begin
   FreeAndNil(fList);
   inherited Destroy;
-end;
-
-procedure GKeywordDefinitions2.Deserialize(aReader: TDynamicValueReader);
-begin
-  fList.Clear;
-  inherited Deserialize(aReader);
 end;
 
 procedure GKeywordDefinitions2.Delete(const aName: UTF8String);
@@ -658,6 +745,17 @@ begin
   if i > -1 then
      fList.Delete(i);
 
+end;
+
+function GKeywordDefinitions2.Has(const aName: UTF8String): Boolean;
+begin
+  result := (fList.FindIndexOf(aName) > -1);
+end;
+
+function GKeywordDefinitions2.Add(const aName: UTF8String): MemberType;
+begin
+  result := MemberType.Create;
+  fList.Add(aName,Result);
 end;
 
 { TCategoryDefinition2 }
@@ -700,6 +798,17 @@ begin
   inherited WriteManagedKeys(aWriter);
 end;
 
+procedure TCategoryDefinition2.InitializeBlank;
+begin
+  inherited InitializeBlank;
+  fPublishMarkerAfter := false;
+  fPublishMarkerBefore:= false;
+  fPublishMarkerBetween:= False;
+  fPublishTitle:= false;
+  fPublishTitleLevel:=0;
+  fPublishTitlePrefix:='';
+end;
+
 { TDocumentIndexProperty2 }
 
 function TDocumentIndexProperty2.ReadManagedItem(aReader: TDynamicValueReader
@@ -723,10 +832,9 @@ begin
      aWriter.WriteValue(fIndex[i]);
 end;
 
-procedure TDocumentIndexProperty2.Deserialize(aReader: TDynamicValueReader);
+procedure TDocumentIndexProperty2.InitializeBlank;
 begin
   fIndex.Count := 0;
-  inherited Deserialize(aReader);
 end;
 
 { TKeywordDefinition2 }
@@ -786,6 +894,11 @@ begin
   aWriter.WriteMapEnd;
 end;
 
+procedure TKeywordDefinition2.InitializeBlank;
+begin
+  fColor := clDefault;
+end;
+
 { TDocumentProperties2 }
 
 function TDocumentProperties2.GetIndex: TStringArray2;
@@ -804,10 +917,7 @@ begin
     StatusKey: fStatus := aReader.ReadString.Value;
     IndexKey:
     begin
-      if fIndex = nil then
-         fIndex := TDocumentIndexProperty2.Create(aReader)
-      else
-         fIndex.Deserialize(aReader);
+      fIndex.Deserialize(aReader);
     end
   else
     result := inherited ReadManagedKey(aKey,aReader);
@@ -833,6 +943,21 @@ begin
 
 end;
 
+procedure TDocumentProperties2.InitializeBlank;
+begin
+  fTitle := '';
+  fPublish := false;
+  fCategory := '';
+  fStatus := '';
+  fIndex.InitializeBlank;
+end;
+
+constructor TDocumentProperties2.Create;
+begin
+  fIndex := TDocumentIndexProperty2.Create;
+  inherited Create;
+end;
+
 destructor TDocumentProperties2.Destroy;
 begin
   FreeAndNil(fIndex);
@@ -841,15 +966,19 @@ end;
 
 { TProperties2 }
 
-function TProperties2.GetUser: IDynamicValue;
+function TProperties2.ReadManagedKey(const aKey: UTF8String;
+  aReader: TDynamicValueReader): Boolean;
 begin
-  result := Backing[UserKey];
+  if aKey = UserKey then
+     fUser := aReader.ReadValue
+  else
+     Result:=inherited ReadManagedKey(aKey, aReader);
 end;
 
-procedure TProperties2.SetUser(AValue: IDynamicValue);
+procedure TProperties2.WriteManagedKeys(aWriter: TDynamicValueWriter);
 begin
-  Backing[UserKey] := AValue;
-
+  aWriter.WriteKeyValue(UserKey,fUser);
+  inherited WriteManagedKeys(aWriter);
 end;
 
 { TDeadlines }
