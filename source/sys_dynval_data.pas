@@ -52,7 +52,7 @@ type
     fBacking: IDynamicList;
   protected
     property Backing: IDynamicList read fBacking;
-    function ReadManagedItem({%H-}aReader: TDynamicValueReader): IDynamicValue; virtual;
+    function ReadManagedItem({%H-}aReader: TDynamicValueReader): Boolean; virtual;
     procedure WriteManagedItems({%H-}aWriter: TDynamicValueWriter); virtual;
   public
     procedure Serialize(aWriter: TDynamicValueWriter); override;
@@ -118,10 +118,9 @@ end;
 
 { TDataStoreList }
 
-function TDataStoreList.ReadManagedItem(aReader: TDynamicValueReader
-  ): IDynamicValue;
+function TDataStoreList.ReadManagedItem(aReader: TDynamicValueReader): Boolean;
 begin
-  result := nil;
+  result := false;
 end;
 
 procedure TDataStoreList.WriteManagedItems(aWriter: TDynamicValueWriter);
@@ -145,22 +144,22 @@ begin
 end;
 
 procedure TDataStoreList.Deserialize(aReader: TDynamicValueReader);
-var
-  lUnmanaged: IDynamicValue;
 begin
   aReader.ReadListStart;
   fBacking := TDynamicValues.NewList;
-  lUnmanaged := nil;
-  // allow the subclass to read in managed items until the items are no longer
-  // managed, then start putting into backing from there.
-  while (lUnmanaged <> nil) and not aReader.IsListEnd do
-  begin
-    lUnmanaged := ReadManagedItem(aReader);
-    if lUnmanaged <> nil then
-       fBacking.Add(lUnmanaged);
-  end;
+  // basically, two loops. The first one gives us a chance to read items
+  // that are managed, up until the first item that isn't manageable.
   while not aReader.IsListEnd do
   begin
+    if not ReadManagedItem(aReader) then
+       break;
+  end;
+  // the second loop reads in all of the unmanaged ones. It's possible
+  // that this one contains values that *could* be managed, but if we
+  // put those in, then we lose the original order.
+  while not aReader.IsListEnd do
+  begin
+    // read the unmanaged items.
     fBacking.Add(aReader.ReadValue);
   end;
   aReader.ReadListEnd;

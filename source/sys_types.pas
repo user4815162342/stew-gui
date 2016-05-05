@@ -82,8 +82,6 @@ type
      property Items[Index: Integer]: ItemType read GetItem; default;
   end;
 
-type
-
   TStringArray2 = specialize GArray<UTF8String>;
 
 const

@@ -490,6 +490,8 @@ begin
   System.SetLength(fList,AValue);
   while (aValue > l) do
   begin
+    // in this case, assign null. I don't want to assign undefined values here,
+    // because then it looks like we're 'containing' undefined values.
     fList[l] := TDynamicValues.Null;
     inc(l);
   end;

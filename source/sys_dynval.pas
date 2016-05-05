@@ -192,16 +192,16 @@ type
   TDynamicValueReader = class abstract
   private type
     TStackInfo = record
-      ItemsFound: Boolean;
-      IsMap: Boolean;
+      ListDoesNotContinue: Boolean;
+      IsInlist: Boolean;
     end;
 
   private
     fStack: array of TStackInfo;
-    procedure Push(const aIsMap: Boolean);
+    procedure Push;
     procedure Pop;
     function Peek: TStackInfo;
-    procedure SetItemsFoundToStack;
+    procedure SetListDoesNotContinueToStack;
   strict protected
     procedure ReadListSeparatorToken; virtual; abstract;
     procedure ReadNullToken; virtual; abstract;
@@ -214,20 +214,14 @@ type
     procedure ReadListEndToken; virtual; abstract;
     procedure ReadKeyIndicatorToken; virtual; abstract;
     procedure ReadListSeparator;
-    function ReadInnerMap: IDynamicMap;
-    function ReadInnerList: IDynamicList;
+    procedure CheckListContinues;
+  public
     function IsMapStart: Boolean; virtual; abstract;
     function IsListStart: Boolean; virtual; abstract;
     function IsString: Boolean; virtual; abstract;
     function IsBoolean: Boolean; virtual; abstract;
     function IsNumber: Boolean; virtual; abstract;
     function IsNull: Boolean; virtual; abstract;
-  public
-    // The other 'is' functions aren't accessible to other objects, because
-    // they're functionality depends on state: if the list separator hasn't been
-    // read yet, then they'll return false, despite the fact that the Read* function
-    // will possibly be fine. These, however, can be used to know if we should
-    // stop reading items in a map or list.
     function IsMapEnd: Boolean; virtual; abstract;
     function IsListEnd: Boolean; virtual; abstract;
     constructor Create;
@@ -455,14 +449,14 @@ end;
 
 { TDynamicValueReader }
 
-procedure TDynamicValueReader.Push(const aIsMap: Boolean);
+procedure TDynamicValueReader.Push;
 var
   l: LongInt;
 begin
   l := Length(fStack);
   SetLength(fStack,l + 1);
-  fStack[l].ItemsFound := false;
-  fStack[l].IsMap := aIsMap;
+  fStack[l].ListDoesNotContinue := false;
+  fStack[l].IsInlist := true;
 
 end;
 
@@ -483,18 +477,18 @@ begin
   end
   else
   begin
-     result.IsMap := false;
-     result.ItemsFound := false;
+     result.IsInList := false;
+     result.ListDoesNotContinue := false;
   end;
 end;
 
-procedure TDynamicValueReader.SetItemsFoundToStack;
+procedure TDynamicValueReader.SetListDoesNotContinueToStack;
 var
   l: Longint;
 begin
   l := Length(fStack);
   if l > 0 then
-     fStack[l - 1].ItemsFound := true;
+     fStack[l - 1].ListDoesNotContinue := true;
 end;
 
 procedure TDynamicValueReader.ReadListSeparator;
@@ -502,30 +496,32 @@ var
   lStack: TStackInfo;
 begin
   lStack := Peek;
-  if (not lStack.IsMap) and (lStack.ItemsFound) then
+  if lStack.IsInlist and not (IsMapEnd or IsListEnd) then
+  begin
      ReadListSeparatorToken;
+  end
+  else
+  begin
+     SetListDoesNotContinueToStack;
+  end;
 
 end;
 
-function TDynamicValueReader.ReadInnerMap: IDynamicMap;
+procedure TDynamicValueReader.CheckListContinues;
 var
-  lKey: UTF8String;
+  lStack: TStackInfo;
 begin
-  result := TDynamicValues.NewMap;
-  while not IsMapEnd do
+  lStack := Peek;
+  // an error occurs if the list doesn't continue and we're not at the
+  // end of a list or the end of a map. This means, if other code calls
+  // Read* when it should have known better, the error will be an unexpected
+  // list end. Whereas if it's a matter of the JSON syntax being incorrect,
+  // the error will be here.
+  if (lStack.ListDoesNotContinue) and (IsListEnd or IsMapEnd) then
   begin
-    lKey := ReadMapKey;
-    result[lKey] := ReadValue;
+     raise Exception.Create('List shouldn''t continue');
   end;
-end;
 
-function TDynamicValueReader.ReadInnerList: IDynamicList;
-begin
-  result := TDynamicValues.NewList;
-  while not IsListEnd do
-  begin
-    result.Add(ReadValue);
-  end;
 end;
 
 constructor TDynamicValueReader.Create;
@@ -535,15 +531,14 @@ end;
 
 procedure TDynamicValueReader.ReadMapStart;
 begin
-  ReadListSeparator;
+  CheckListContinues;
   ReadMapStartToken;
-  Push(true);
+  Push;
 end;
 
 function TDynamicValueReader.ReadMapKey: UTF8String;
 begin
-  if Peek.ItemsFound then
-     ReadListSeparatorToken;
+  CheckListContinues;
   result := ReadStringToken;
   ReadKeyIndicatorToken;
 end;
@@ -552,14 +547,14 @@ procedure TDynamicValueReader.ReadMapEnd;
 begin
   ReadMapEndToken;
   Pop;
-  SetItemsFoundToStack;
+  ReadListSeparator;
 
 end;
 
 procedure TDynamicValueReader.ReadListStart;
 begin
-  ReadListSeparator;
-  Push(False);
+  CheckListContinues;
+  Push;
   ReadListStartToken;
 
 end;
@@ -568,98 +563,97 @@ procedure TDynamicValueReader.ReadListEnd;
 begin
   ReadListEndToken;
   Pop;
-  SetItemsFoundToStack;
+  ReadListSeparator;
 
 end;
 
 function TDynamicValueReader.ReadString: IDynamicString;
 begin
-  ReadListSeparator;
+  CheckListContinues;
   result := TDynamicValues.NewString(ReadStringToken);
-  SetItemsFoundToStack;
+  ReadListSeparator;
 
 end;
 
 function TDynamicValueReader.ReadBoolean: IDynamicBoolean;
 begin
-  ReadListSeparator;
+  CheckListContinues;
   result := TDynamicValues.Boolean(ReadBooleanToken);
-  SetItemsFoundToStack;
+  ReadListSeparator;
 
 end;
 
 function TDynamicValueReader.ReadNumber: IDynamicNumber;
 begin
-  ReadListSeparator;
+  CheckListContinues;
   result := TDynamicValues.NewNumber(ReadNumberToken);
-  SetItemsFoundToStack;
+  ReadListSeparator;
 
 end;
 
 function TDynamicValueReader.ReadNull: IDynamicNull;
 begin
-  ReadListSeparator;
+  CheckListContinues;
   ReadNullToken;
   result := TDynamicValues.Null;
-  SetItemsFoundToStack;
+  ReadListSeparator;
 
 end;
 
 function TDynamicValueReader.ReadList: IDynamicList;
 begin
   ReadListStart;
-  result := ReadInnerList;
+  result := TDynamicValues.NewList;
+  while not IsListEnd do
+  begin
+    result.Add(ReadValue);
+  end;
   ReadListEnd;
 end;
 
 function TDynamicValueReader.ReadMap: IDynamicMap;
+var
+  lKey: UTF8String;
 begin
   ReadMapStart;
-  result := ReadInnerMap;
+  result := TDynamicValues.NewMap;
+  while not IsMapEnd do
+  begin
+    lKey := ReadMapKey;
+    result[lKey] := ReadValue;
+  end;
   ReadMapEnd;
 end;
 
 function TDynamicValueReader.ReadValue: IDynamicValue;
 begin
-  // can't just defer the list separator to the values, because we need to
-  // know what type it is before we check...
-  ReadListSeparator;
+  CheckListContinues;
   if IsMapStart then
   begin
-     // Can't just call ReadMapStart, because that also reads the list separator.
-    ReadMapStartToken;
-    Push(true);
-    result := ReadInnerMap;
-    ReadMapEnd;
+     result := ReadMap;
   end
   else if IsListStart then
   begin
-    // Can't just call ReadListStart, because that also reads the list separator.
-    ReadListStartToken;
-    Push(false);
-    result := ReadInnerList;
-    ReadListEnd;
+     result := ReadList;
   end
   else if IsNull then
   begin
-    ReadNullToken;
-    result := TDynamicValues.Null;
+     result := ReadNull;
   end
   else if IsBoolean then
   begin
-    result := TDynamicValues.Boolean(ReadBooleanToken);
+     result := ReadBoolean;
   end
   else if IsNumber then
   begin
-    Result := TDynamicValues.NewNumber(ReadNumberToken);
+     result := ReadNumber;
   end
   else if IsString then
   begin
-    Result := TDynamicValues.NewString(ReadStringToken);
+     result := ReadString;
   end
   else
     raise Exception.Create('Invalid reader state');
-  SetItemsFoundToStack;
 
 end;
 
