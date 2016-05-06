@@ -84,7 +84,7 @@ begin
   with TDynamicValues.NewMap do
   begin
     Item['foo'] := TDynamicValues.NewString('bar');
-    Assert(Length(GetKeys) = 1,'Object should now contain exactly one key');
+    Assert(GetKeys.Count = 1,'Object should now contain exactly one key');
     Assert(GetKeys[0] = 'foo','Objects only key should be "foo"');
   end;
 end;
@@ -94,9 +94,9 @@ begin
   with TDynamicValues.NewMap do
   begin
     Item['foo'] := TDynamicValues.NewString('bar');
-    Assert(Length(GetKeys) = 1,'Object should now contain exactly one key');
+    Assert(GetKeys.Count = 1,'Object should now contain exactly one key');
     delete('foo');
-    Assert(Length(GetKeys) = 0,'Object should now be empty');
+    Assert(GetKeys.Count = 0,'Object should now be empty');
   end;
 end;
 

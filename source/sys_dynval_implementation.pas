@@ -137,7 +137,7 @@ type
   public
     constructor Create;
     property Item[aKey: UTF8String]: IDynamicValue read GetItem write SetItem; default;
-    function GetKeys: TStringArray;
+    function GetKeys: TStringArray2;
     function Has(const aKey: UTF8String): Boolean;
     procedure Delete(const aKey: UTF8String);
     procedure Clear;
@@ -319,13 +319,13 @@ begin
   SetLength(fList,0);
 end;
 
-function TDynamicMap.GetKeys: TStringArray;
+function TDynamicMap.GetKeys: TStringArray2;
 var
   l: Longint;
   i: Longint;
 begin
   l := System.Length(fList);
-  SetLength(Result,l);
+  Result{%H-}.Count := l;
   for i := 0 to l - 1 do
   begin
     Result[i] := fList[i].Key;

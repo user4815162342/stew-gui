@@ -35,6 +35,16 @@ type
     property User: IDynamicValue read fUser write fUser;
   end;
 
+  { TProperties3 }
+
+  TProperties3 = object(TDataStoreMap2)
+  private
+    function GetUser: IDynamicValue;
+    procedure SetUser(AValue: IDynamicValue);
+  public
+    property User: IDynamicValue read GetUser write SetUser;
+  end;
+
   { TDocumentIndexProperty }
 
   TDocumentIndexProperty = class(TJSArray)
@@ -54,6 +64,22 @@ type
     procedure InitializeBlank; override;
   public
     property Index: TStringArray2 read fIndex;
+  end;
+
+  { TDocumentIndexProperty3 }
+
+  TDocumentIndexProperty3 = object(TDataStoreList2)
+  private
+    FCount: Longint;
+    function GetItem(const aIndex: LongInt): UTF8String;
+    procedure SetCount(AValue: Longint);
+    procedure SetItem(const aIndex: LongInt; AValue: UTF8String);
+  public
+    property Item[const aIndex: LongInt]: UTF8String read GetItem write SetItem;
+    property Count: Longint read FCount write SetCount;
+    procedure Add(const aValue: UTF8String);
+    procedure Delete(const aIndex: Longint);
+    function AsArray: TStringArray2;
   end;
 
   { TDocumentProperties }
@@ -104,6 +130,28 @@ type
     property Index: TStringArray2 read GetIndex;
   end;
 
+  { TDocumentProperties3 }
+
+  TDocumentProperties3 = object(TProperties3)
+  private
+    function GetCategory: UTF8String;
+    function GetIndex: TDocumentIndexProperty3;
+    function GetPublish: Boolean;
+    function GetStatus: UTF8String;
+    function GetTitle: UTF8String;
+    procedure SetCategory(AValue: UTF8String);
+    procedure SetIndex(AValue: TDocumentIndexProperty3);
+    procedure SetPublish(AValue: Boolean);
+    procedure SetStatus(AValue: UTF8String);
+    procedure SetTitle(AValue: UTF8String);
+  public
+    property Title: UTF8String read GetTitle write SetTitle;
+    property Publish: Boolean read GetPublish write SetPublish;
+    property Category: UTF8String read GetCategory write SetCategory;
+    property Status: UTF8String read GetStatus write SetStatus;
+    property Index: TDocumentIndexProperty3 read GetIndex write SetIndex;
+  end;
+
   { TJSColor }
 
   TJSColor = class(TJSObject)
@@ -128,6 +176,25 @@ type
     property R: Byte read GetRed write SetRed;
     property B: Byte read GetBlue write SetBlue;
     property G: Byte read GetGreen write SetGreen;
+    property AsColor: TColor read GetColor write SetColor;
+  end;
+
+  { TColorMap }
+
+  TColorMap = object(TDataStoreMap2)
+  private
+    function GetBlue: Byte;
+    function GetColor: TColor;
+    function GetGreen: Byte;
+    function GetRed: Byte;
+    procedure SetBlue(AValue: Byte);
+    procedure SetColor(AValue: TColor);
+    procedure SetGreen(AValue: Byte);
+    procedure SetRed(AValue: Byte);
+  public
+    property Red: Byte read GetRed write SetRed;
+    property Blue: Byte read GetBlue write SetBlue;
+    property Green: Byte read GetGreen write SetGreen;
     property AsColor: TColor read GetColor write SetColor;
   end;
 
@@ -158,6 +225,16 @@ type
     procedure InitializeBlank; override;
   public
     property Color: TColor read fColor write fColor;
+  end;
+
+  { TKeywordDefinition3 }
+
+  TKeywordDefinition3 = object(TDataStoreMap2)
+  private
+    function GetColor: TColor;
+    procedure SetColor(AValue: TColor);
+  public
+    property Color: TColor read GetColor write SetColor;
   end;
 
   { TCategoryDefinition }
@@ -210,6 +287,31 @@ type
 
   end;
 
+  { TCategoryDefinition3 }
+
+  TCategoryDefinition3 = object(TKeywordDefinition3)
+  private
+    function GetPublishMarkerAfter: Boolean;
+    function GetPublishMarkerBefore: Boolean;
+    function GetPublishMarkerBetween: Boolean;
+    function GetPublishTitle: Boolean;
+    function GetPublishTitleLevel: Integer;
+    function GetPublishTitlePrefix: UTF8String;
+    procedure SetPublishMarkerAfter(AValue: Boolean);
+    procedure SetPublishMarkerBefore(AValue: Boolean);
+    procedure SetPublishMarkerBetween(AValue: Boolean);
+    procedure SetPublishTitle(AValue: Boolean);
+    procedure SetPublishTitleLevel(AValue: Integer);
+    procedure SetPublishTitlePrefix(AValue: UTF8String);
+  public
+    property PublishTitle: Boolean read GetPublishTitle write SetPublishTitle;
+    property PublishTitleLevel: Integer read GetPublishTitleLevel write SetPublishTitleLevel;
+    property PublishTitlePrefix: UTF8String read GetPublishTitlePrefix write SetPublishTitlePrefix;
+    property PublishMarkerBefore: Boolean read GetPublishMarkerBefore write SetPublishMarkerBefore;
+    property PublishMarkerAfter: Boolean read GetPublishMarkerAfter write SetPublishMarkerAfter;
+    property PublishMarkerBetween: Boolean read GetPublishMarkerBetween write SetPublishMarkerBetween;
+  end;
+
   TStatusDefinition = class(TKeywordDefinition)
     // just holds color, so nothing special...
   end;
@@ -217,6 +319,10 @@ type
   { TStatusDefinition2 }
 
   TStatusDefinition2 = class(TKeywordDefinition2)
+  // just holds color, so nothing special...
+  end;
+
+  TStatusDefinition3 = object(TKeywordDefinition3)
   // just holds color, so nothing special...
   end;
 
@@ -253,6 +359,20 @@ type
 
   end;
 
+  { GKeywordDefinitions3 }
+
+  generic GKeywordDefinitions3<MemberType> = object(TDataStoreMap2)
+  private
+    function GetItem(const aName: UTF8String): MemberType;
+    function GetKeys: TStringArray2;
+    procedure SetItem(const {%H-}aName: UTF8String; {%H-}AValue: MemberType);
+  public
+    property Item[const aName: UTF8String]: MemberType read GetItem write SetItem; default;
+    property Keys: TStringArray2 read GetKeys;
+    procedure Delete(const aName: UTF8String);
+    function Has(const aName: UTF8String): Boolean;
+  end;
+
   { TStatusDefinitions }
 
   TStatusDefinitions = class(specialize TKeywordDefinitions<TStatusDefinition>)
@@ -267,6 +387,18 @@ type
     procedure Deserialize(aReader: TDynamicValueReader); override;
   end;
 
+  { TStatusDefinitions3 }
+
+  TStatusDefinitions3 = object(specialize GKeywordDefinitions3<TStatusDefinition3>)
+  protected
+    class function ConvertListToMap(const aValue: IDynamicList): IDynamicMap;
+    procedure InitializeBacking(const aBacking: IDynamicValue); virtual;
+  public
+    constructor Initialize(const aBacking: IDynamicList);
+    constructor Initialize(const aBacking: IDynamicMap);
+
+  end;
+
   { TCategoryDefinitions }
 
   TCategoryDefinitions = class(specialize TKeywordDefinitions<TCategoryDefinition>)
@@ -276,6 +408,10 @@ type
 
   TCategoryDefinitions2 = class(specialize GKeywordDefinitions2<TCategoryDefinition2>)
   end;
+
+  TCategoryDefinitions3 = object(specialize GKeywordDefinitions3<TCategoryDefinition3>)
+  end;
+
 
   { TDeadline }
 
@@ -307,6 +443,19 @@ type
   public
     property Due: TDateTime read fDue write fDue;
     property Name: UTF8String read fName write fName;
+  end;
+
+  { TDeadLine3 }
+
+  TDeadLine3 = object(TDataStoreMap2)
+  private
+    function GetDue: TDateTime;
+    function GetName: UTF8String;
+    procedure SetDue(AValue: TDateTime);
+    procedure SetName(AValue: UTF8String);
+  public
+    property Due: TDateTime read GetDue write SetDue;
+    property Name: UTF8String read GetName write SetName;
   end;
 
   { TDeadlines }
@@ -344,6 +493,21 @@ type
     function Add: TDeadline2;
     function Add(const aName: UTF8String; const aDue: TDateTime): TDeadline2;
     procedure Delete(aIndex: Longint);
+  end;
+
+  { TDeadlines3 }
+
+  TDeadlines3 = object(TDataStoreList2)
+  private
+    function GetCount: Longint;
+    function GetItem(const aIndex: LongInt): TDeadLine3;
+    procedure SetItem(const aIndex: LongInt; AValue: TDeadLine3);
+  public
+    property Item[const aIndex: LongInt]: TDeadLine3 read GetItem write SetItem; default;
+    property Count: Longint read GetCount;
+    procedure Add(const aValue: TDeadLine3);
+    procedure Add(const aName: UTF8String; const aDue: TDateTime);
+    procedure Delete(const aIndex: Longint);
   end;
 
   { TProjectProperties }
@@ -412,6 +576,34 @@ type
     property Deadlines: TDeadlines2 read fDeadlines;
   end;
 
+  { TProjectProperties3 }
+
+  TProjectProperties3 = object(TProperties3)
+  private
+    function GetCategories: TCategoryDefinitions3;
+    function GetDeadlines: TDeadlines3;
+    function GetDefaultCategory: UTF8String;
+    function GetDefaultDocExtension: UTF8String;
+    function GetDefaultNotesExtension: UTF8String;
+    function GetDefaultStatus: UTF8String;
+    function GetDefaultThumbnailExtension: UTF8String;
+    function GetStatuses: TStatusDefinitions3;
+    procedure SetDefaultCategory(AValue: UTF8String);
+    procedure SetDefaultDocExtension(AValue: UTF8String);
+    procedure SetDefaultNotesExtension(AValue: UTF8String);
+    procedure SetDefaultStatus(AValue: UTF8String);
+    procedure SetDefaultThumbnailExtension(AValue: UTF8String);
+  public
+    property DefaultDocExtension: UTF8String read GetDefaultDocExtension write SetDefaultDocExtension;
+    property DefaultThumbnailExtension: UTF8String read GetDefaultThumbnailExtension write SetDefaultThumbnailExtension;
+    property DefaultNotesExtension: UTF8String read GetDefaultNotesExtension write SetDefaultNotesExtension;
+    property Categories: TCategoryDefinitions3 read GetCategories;
+    property DefaultCategory: UTF8String read GetDefaultCategory write SetDefaultCategory;
+    property Statuses: TStatusDefinitions3 read GetStatuses;
+    property DefaultStatus: UTF8String read GetDefaultStatus write SetDefaultStatus;
+    property Deadlines: TDeadlines3 read GetDeadlines;
+  end;
+
   const
     UserKey = 'user';
     CategoriesKey = 'categories';
@@ -444,6 +636,494 @@ implementation
 
 uses
   LCLProc;
+
+{ TColorMap }
+
+function TColorMap.GetBlue: Byte;
+begin
+  result := Byte(trunc(GetInteger(BlueKey,Graphics.Blue(clDefault))));
+end;
+
+function TColorMap.GetColor: TColor;
+var
+  r: Longint;
+  g: Longint;
+  b: Longint;
+begin
+  r := GetInteger(RedKey,-1);
+  g := GetInteger(GreenKey,-1);
+  b := GetInteger(BlueKey,-1);
+  if (r > -1) or (g > -1) or (b > -1) then
+     result := RGBToColor(Byte(Red),Byte(Green),Byte(Blue))
+  else
+    result := clDefault;
+
+end;
+
+function TColorMap.GetGreen: Byte;
+begin
+  result := Byte(trunc(GetInteger(GreenKey,Graphics.Blue(clDefault))));
+
+end;
+
+function TColorMap.GetRed: Byte;
+begin
+  result := Byte(trunc(GetInteger(RedKey,Graphics.Blue(clDefault))));
+
+end;
+
+procedure TColorMap.SetBlue(AValue: Byte);
+begin
+  SetValue(BlueKey,AValue,-1);
+
+end;
+
+procedure TColorMap.SetColor(AValue: TColor);
+begin
+  if AValue = clDefault then
+  begin
+    SetValue(RedKey,-1,-1);
+    SetValue(GreenKey,-1,-1);
+    SetValue(BlueKey,-1,-1);
+  end
+  else
+  begin
+    Red := Graphics.Red(AValue);
+    Green := Graphics.Green(AValue);
+    Blue := Graphics.Blue(AValue);
+  end;
+
+end;
+
+procedure TColorMap.SetGreen(AValue: Byte);
+begin
+  SetValue(GreenKey,AValue,-1);
+
+end;
+
+procedure TColorMap.SetRed(AValue: Byte);
+begin
+  SetValue(RedKey,AValue,-1);
+
+
+end;
+
+{ TProjectProperties3 }
+
+function TProjectProperties3.GetCategories: TCategoryDefinitions3;
+begin
+  result{%H-}.Initialize(GetMap(CategoriesKey));
+end;
+
+function TProjectProperties3.GetDeadlines: TDeadlines3;
+begin
+  result{%H-}.Initialize(GetList(DeadlinesKey));
+
+end;
+
+function TProjectProperties3.GetDefaultCategory: UTF8String;
+begin
+  result := GetString(DefaultCategoryKey,'');
+end;
+
+function TProjectProperties3.GetDefaultDocExtension: UTF8String;
+begin
+  result := ExcludeExtensionDelimiter(GetString(DefaultDocExtensionKey,''));
+end;
+
+function TProjectProperties3.GetDefaultNotesExtension: UTF8String;
+begin
+  result := ExcludeExtensionDelimiter(GetString(DefaultNotesExtensionKey,''));
+
+end;
+
+function TProjectProperties3.GetDefaultStatus: UTF8String;
+begin
+  result := GetString(DefaultStatusKey,'');
+
+end;
+
+function TProjectProperties3.GetDefaultThumbnailExtension: UTF8String;
+begin
+  result := ExcludeExtensionDelimiter(GetString(DefaultThumbnailExtensionKey,''));
+
+end;
+
+function TProjectProperties3.GetStatuses: TStatusDefinitions3;
+var
+  lValue: IDynamicValue;
+begin
+  lValue := fBacking[StatusesKey];
+  if lValue is IDynamicList then
+    result{%H-}.Initialize(IDynamicList(StatusesKey))
+  else
+    result.Initialize(GetMap(StatusesKey))
+end;
+
+procedure TProjectProperties3.SetDefaultCategory(AValue: UTF8String);
+begin
+  SetValue(DefaultCategoryKey,AValue,'');
+end;
+
+procedure TProjectProperties3.SetDefaultDocExtension(AValue: UTF8String);
+begin
+  SetValue(DefaultDocExtensionKey,ExcludeExtensionDelimiter(AValue),'');
+
+end;
+
+procedure TProjectProperties3.SetDefaultNotesExtension(AValue: UTF8String);
+begin
+  SetValue(DefaultNotesExtensionKey,ExcludeExtensionDelimiter(AValue),'');
+
+end;
+
+procedure TProjectProperties3.SetDefaultStatus(AValue: UTF8String);
+begin
+  SetValue(DefaultStatusKey,AValue,'');
+
+end;
+
+procedure TProjectProperties3.SetDefaultThumbnailExtension(AValue: UTF8String);
+begin
+  SetValue(DefaultThumbnailExtensionKey,ExcludeExtensionDelimiter(AValue),'');
+
+end;
+
+{ TDeadlines3 }
+
+function TDeadlines3.GetCount: Longint;
+begin
+  result := IDynamicList(fBacking).Length;
+end;
+
+function TDeadlines3.GetItem(const aIndex: LongInt): TDeadLine3;
+begin
+  result{%H-}.Initialize(GetMap(aIndex));
+end;
+
+procedure TDeadlines3.SetItem(const aIndex: LongInt; AValue: TDeadLine3);
+begin
+  fBacking[aIndex] := AValue.fBacking;
+end;
+
+procedure TDeadlines3.Add(const aValue: TDeadLine3);
+begin
+  fBacking[Count] := aValue.fBacking;
+end;
+
+procedure TDeadlines3.Add(const aName: UTF8String; const aDue: TDateTime);
+var
+  lDeadline: TDeadLine3;
+begin
+  lDeadline.Initialize(TDynamicValues.NewMap);
+  lDeadline.Name := aName;
+  lDeadline.Due := aDue;
+  Add(lDeadline);
+
+end;
+
+procedure TDeadlines3.Delete(const aIndex: Longint);
+begin
+  IDynamicList(fBacking).Delete(aIndex);
+
+end;
+
+{ TDeadLine3 }
+
+function TDeadLine3.GetDue: TDateTime;
+begin
+  result := GetDateTime(DueKey);
+end;
+
+function TDeadLine3.GetName: UTF8String;
+begin
+  result := GetString(NameKey,'');
+end;
+
+procedure TDeadLine3.SetDue(AValue: TDateTime);
+begin
+  SetValue(DueKey,AValue);
+end;
+
+procedure TDeadLine3.SetName(AValue: UTF8String);
+begin
+  SetValue(NameKey,AValue,'');
+
+end;
+
+{ TStatusDefinitions3 }
+
+class function TStatusDefinitions3.ConvertListToMap(const aValue: IDynamicList
+  ): IDynamicMap;
+var
+  l: Longint;
+  i: Longint;
+begin
+  // convert a list of strings to a map with those strings as keys.
+  result := TDynamicValues.NewMap;
+  l := aValue.Length - 1;
+  for i := 0 to l do
+  begin
+    if aValue[i] is IDynamicString then
+       Result[IDynamicString(aValue[i])] := TDynamicValues.NewMap;
+  end;
+end;
+
+procedure TStatusDefinitions3.InitializeBacking(const aBacking: IDynamicValue);
+begin
+  if aBacking is IDynamicList then
+     inherited InitializeBacking(ConvertListToMap(IDynamicList(aBacking)))
+  else
+    inherited InitializeBacking(aBacking);
+end;
+
+constructor TStatusDefinitions3.Initialize(const aBacking: IDynamicList);
+begin
+  inherited Initialize(ConvertListToMap(aBacking));
+
+end;
+
+constructor TStatusDefinitions3.Initialize(const aBacking: IDynamicMap);
+begin
+  inherited Initialize(aBacking);
+end;
+
+{ TCategoryDefinition3 }
+
+function TCategoryDefinition3.GetPublishMarkerAfter: Boolean;
+begin
+  result := GetBoolean(PublishMarkerAfterKey,false);
+end;
+
+function TCategoryDefinition3.GetPublishMarkerBefore: Boolean;
+begin
+  result := GetBoolean(PublishMarkerBeforeKey,false);
+
+end;
+
+function TCategoryDefinition3.GetPublishMarkerBetween: Boolean;
+begin
+  result := GetBoolean(PublishMarkerBetweenKey,false);
+
+end;
+
+function TCategoryDefinition3.GetPublishTitle: Boolean;
+begin
+  result := GetBoolean(PublishTitleKey,false);
+
+end;
+
+function TCategoryDefinition3.GetPublishTitleLevel: Integer;
+begin
+  result := GetInteger(PublishTitleLevelKey,0);
+end;
+
+function TCategoryDefinition3.GetPublishTitlePrefix: UTF8String;
+begin
+  result := GetString(PublishTitlePrefixKey,'');
+
+end;
+
+procedure TCategoryDefinition3.SetPublishMarkerAfter(AValue: Boolean);
+begin
+  SetValue(PublishMarkerAfterKey,AValue,false);
+
+end;
+
+procedure TCategoryDefinition3.SetPublishMarkerBefore(AValue: Boolean);
+begin
+  SetValue(PublishMarkerBeforeKey,AValue,false);
+
+end;
+
+procedure TCategoryDefinition3.SetPublishMarkerBetween(AValue: Boolean);
+begin
+  SetValue(PublishMarkerBetweenKey,AValue,false);
+
+end;
+
+procedure TCategoryDefinition3.SetPublishTitle(AValue: Boolean);
+begin
+  SetValue(PublishTitleKey,AValue,false);
+
+end;
+
+procedure TCategoryDefinition3.SetPublishTitleLevel(AValue: Integer);
+begin
+  SetValue(PublishTitleLevelKey,AValue,0);
+
+end;
+
+procedure TCategoryDefinition3.SetPublishTitlePrefix(AValue: UTF8String);
+begin
+  SetValue(PublishTitlePrefixKey,AValue,'');
+
+end;
+
+{ GKeywordDefinitions3 }
+
+function GKeywordDefinitions3.GetItem(const aName: UTF8String): MemberType;
+begin
+  result{%H-}.Initialize(GetMap(aName));
+end;
+
+function GKeywordDefinitions3.GetKeys: TStringArray2;
+
+begin
+  result := IDynamicMap(fBacking).GetKeys
+end;
+
+procedure GKeywordDefinitions3.SetItem(const aName: UTF8String;
+  AValue: MemberType);
+begin
+  fBacking[aName] := AValue.fBacking;
+
+end;
+
+procedure GKeywordDefinitions3.Delete(const aName: UTF8String);
+begin
+  IDynamicMap(fBacking).Delete(aName);
+end;
+
+function GKeywordDefinitions3.Has(const aName: UTF8String): Boolean;
+begin
+  result := IDynamicMap(fBacking).Has(aName)
+end;
+
+{ TKeywordDefinition3 }
+
+function TKeywordDefinition3.GetColor: TColor;
+var
+  lColor: TColorMap;
+begin
+  lColor.Initialize(GetMap(ColorKey));
+  result := lColor.AsColor;
+end;
+
+procedure TKeywordDefinition3.SetColor(AValue: TColor);
+var
+  lColor: TColorMap;
+begin
+  lColor.Initialize(GetMap(ColorKey));
+  lColor.AsColor := AValue;
+end;
+
+{ TDocumentProperties3 }
+
+function TDocumentProperties3.GetCategory: UTF8String;
+begin
+  result := GetString(CategoryKey,'');
+end;
+
+function TDocumentProperties3.GetIndex: TDocumentIndexProperty3;
+begin
+  result{%H-}.Initialize(GetList(IndexKey));
+end;
+
+function TDocumentProperties3.GetPublish: Boolean;
+begin
+  result := GetBoolean(PublishKey,false);
+
+end;
+
+function TDocumentProperties3.GetStatus: UTF8String;
+begin
+  result := GetString(StatusKey,'');
+
+end;
+
+function TDocumentProperties3.GetTitle: UTF8String;
+begin
+  result := GetString(TitleKey,'');
+
+end;
+
+procedure TDocumentProperties3.SetCategory(AValue: UTF8String);
+begin
+  SetValue(CategoryKey,AValue,'');
+end;
+
+procedure TDocumentProperties3.SetIndex(AValue: TDocumentIndexProperty3);
+begin
+  fBacking[IndexKey] := AValue.fBacking;
+end;
+
+procedure TDocumentProperties3.SetPublish(AValue: Boolean);
+begin
+  SetValue(PublishKey,aValue,false);
+end;
+
+procedure TDocumentProperties3.SetStatus(AValue: UTF8String);
+begin
+  SetValue(StatusKey,AValue,'');
+end;
+
+procedure TDocumentProperties3.SetTitle(AValue: UTF8String);
+begin
+  SetValue(TitleKey,AValue,'');
+end;
+
+{ TDocumentIndexProperty3 }
+
+function TDocumentIndexProperty3.GetItem(const aIndex: LongInt): UTF8String;
+begin
+  result := GetString(aIndex,'');
+end;
+
+procedure TDocumentIndexProperty3.SetCount(AValue: Longint);
+begin
+  if fBacking is IDynamicList then
+  begin
+    IDynamicList(fBacking).Length := AValue;
+  end;
+end;
+
+procedure TDocumentIndexProperty3.SetItem(const aIndex: LongInt;
+  AValue: UTF8String);
+begin
+  SetValue(aIndex,AValue,'');
+
+end;
+
+procedure TDocumentIndexProperty3.Add(const aValue: UTF8String);
+begin
+  SetValue(Count,AValue,'');
+end;
+
+procedure TDocumentIndexProperty3.Delete(const aIndex: Longint);
+begin
+  if fBacking is IDynamicList then
+  begin
+    IDynamicList(fBacking).Delete(aIndex);
+  end;
+
+end;
+
+function TDocumentIndexProperty3.AsArray: TStringArray2;
+var
+  i: Longint;
+  l: Longint;
+begin
+  l := Count;
+  result{%H-}.Count := l;
+  for i := 0 to l - 1 do
+  begin
+    result[i] := Item[i];
+  end;
+
+end;
+
+{ TProperties3 }
+
+function TProperties3.GetUser: IDynamicValue;
+begin
+  result := fBacking[UserKey];
+end;
+
+procedure TProperties3.SetUser(AValue: IDynamicValue);
+begin
+  fBacking[UserKey] := AValue;
+end;
 
 { TStatusDefinitions2 }
 

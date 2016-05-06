@@ -123,7 +123,7 @@ type
     function GetItem(const aKey: UTF8String): IDynamicValue; overload;
     procedure SetItem(const aKey: UTF8String; const AValue: IDynamicValue); overload;
     property Item[aKey: UTF8String]: IDynamicValue read GetItem write SetItem; default;
-    function GetKeys: TStringArray;
+    function GetKeys: TStringArray2;
     function Has(const aKey: UTF8String): Boolean;
     procedure Delete(const aKey: UTF8String);
     procedure Clear;
