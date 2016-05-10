@@ -18,7 +18,7 @@ type
     procedure SetupTest; override;
   published
     procedure Test_DocumentProperties;
-    procedure Test_Color;
+//    procedure Test_Color;
     procedure Test_Keyword;
     procedure Test_CategoryDefinition;
 //    procedure Test_KeywordDefinitions;
@@ -42,17 +42,23 @@ end;
 procedure TPropertiesSpec.Test_DocumentProperties;
 var
   lStream: TFileStream;
- lProps: TDocumentProperties3;
+ lProps: TDocumentProperties2;
 begin
   lStream := TFileStream.Create(fTestRootDir.GetContainedFile('Chapter 1','properties','json',false).ID,fmOpenRead);
   try
-    lProps.Initialize(IDynamicMap(TDocumentProperties3.Deserialize(lStream)));
-        Assert(lProps.Category = 'Chapter','Category should return correct value');
-        Assert(lProps.Status = 'Unwritten','Status should return correct value');
-        Assert(lProps.Title = 'The Cottage','Title should return correct value');
-        Assert(lProps.Publish = false,'Publish should return correct value');
-        Assert(lProps.Index.Count = 0,'Index should return correct value');
-        Assert(lProps.User['place'].IsEqualTo('Jen''s Lakeside Cottage'),'User properties should return correct values');
+    lProps := TDocumentProperties2.Create;
+    try
+      lProps.Deserialize(lStream);
+      Assert(lProps.Category = 'Chapter','Category should return correct value');
+      Assert(lProps.Status = 'Unwritten','Status should return correct value');
+      Assert(lProps.Title = 'The Cottage','Title should return correct value');
+      Assert(lProps.Publish = false,'Publish should return correct value');
+      Assert(lProps.Index.Count = 0,'Index should return correct value');
+      Assert(lProps.User['place'].IsEqualTo('Jen''s Lakeside Cottage'),'User properties should return correct values');
+
+    finally
+      lProps.Free;
+    end;
   finally
     lStream.Free;
   end;
@@ -60,35 +66,46 @@ begin
 
 end;
 
-procedure TPropertiesSpec.Test_Color;
+{procedure TPropertiesSpec.Test_Color;
 var
-  lColor: TColorMap;
+  lColor: TJSColor;
 begin
-  lColor.Initialize(TDynamicValues.NewMap);
+  lColor := TJSColor.Create;
+  try
     Assert(lColor.AsColor = clDefault,'Default value for color must be clDefault');
     lColor.Red := $80;
     lColor.Blue := $80;
     lColor.Green := $80;
     Assert(lColor.AsColor = clGray,'Should be able to set RBG separately to get a correct color');
 
-end;
+  finally
+    lColor.Free;
+  end;
+
+end;}
 
 procedure TPropertiesSpec.Test_Keyword;
 var
-  lKeyword: TKeywordDefinition3;
+  lKeyword: TKeywordDefinition2;
 begin
-  lKeyword.Initialize(TDynamicValues.NewMap);
+  lKeyword := TKeywordDefinition2.Create;
+  try
     Assert(lKeyword.Color = clDefault,'Default value for color must be clDefault');
     lKeyword.Color := clBlue;
     Assert(lKeyword.Color = clBlue,'Assigning color property should retain value');
+
+  finally
+    lKeyword.Free;
+  end;
 
 end;
 
 procedure TPropertiesSpec.Test_CategoryDefinition;
 var
-  lCategory: TCategoryDefinition3;
+  lCategory: TCategoryDefinition2;
 begin
-  lCategory.Initialize(TDynamicValues.NewMap);
+  lCategory := TCategoryDefinition2.Create;
+  try
     lCategory.PublishTitle := true;
     Assert(lCategory.PublishTitle,'Publish Title should be correct');
     lCategory.PublishTitleLevel:=2;
@@ -101,6 +118,9 @@ begin
     Assert(lCategory.PublishMarkerAfter,'Publish Marker before should be correct');
     lCategory.PublishMarkerBetween:=true;
     Assert(lCategory.PublishMarkerBetween,'Publish Marker before should be correct');
+  finally
+    lCategory.Free;
+  end;
 
 end;
 
@@ -131,23 +151,31 @@ procedure TPropertiesSpec.Test_KeywordDefinitions_Parsing;
 const
   lText: UTF8String = '["Unwritten","Written","Final"]';
 var
-  lDefs: TStatusDefinitions3;
+  lDefs: TStatusDefinitions2;
 begin
-  lDefs.Initialize(IDynamicList(TStatusDefinitions3.Deserialize(lText)));
+  lDefs := TStatusDefinitions2.Create;
+  try
+    lDefs.Deserialize(lText);
     Assert(lDefs.Has('Unwritten'),'Parsing an array of strings should create a mapped KeywordDefinition in KeywordDefinitions object [1]');
     Assert(lDefs['Unwritten'].Color = clDefault,'Parsing an array of strings should create a mapped KeywordDefinition in KeywordDefinitions object [2]');
+
+  finally
+    lDefs.Free;
+  end;
 
 end;
 
 procedure TPropertiesSpec.Test_ProjectProperties;
 var
   lStream: TFileStream;
-  lProps: TProjectProperties3;
-  lDeadlines: TDeadlines3;
+  lProps: TProjectProperties2;
+  lDeadlines: TDeadlines2;
 begin
   lStream := TFileStream.Create(fTestRootDir.GetContainedFile('','stew','json',true).ID,fmOpenRead);
   try
-    lProps.Initialize(IDynamicMap(TProjectProperties3.Deserialize(lStream)));
+    lProps := TProjectProperties2.Create;
+    try
+      lProps.Deserialize(lStream);
       Assert(lProps.Categories.Keys.Count > 0,'Combination of parsing and GetPath should have gotten some data');
       Assert(lProps.Categories['Chapter'].PublishTitleLevel = 0,'Project category definitions should work');
       Assert(lProps.Categories.Has('Scene'),'Project categories should work');
@@ -167,6 +195,10 @@ begin
       lDeadlines.Add('All Done',ISO8601ToDateTime('2072-01-28T05:25:36'));
       Assert(lDeadlines[0].Name = 'First Chapter Done','Deadline name should be stored correctly');
       Assert(lDeadlines[1].Due = ISO8601ToDateTime('2072-01-28T05:25:36'),'Deadline due should be stored correctly.');
+
+    finally
+      lProps.Free;
+    end;
 
   finally
     lStream.Free;
