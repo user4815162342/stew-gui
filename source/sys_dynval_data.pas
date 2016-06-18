@@ -70,7 +70,7 @@ type
 implementation
 
 uses
-  sys_dynval_json, sys_types;
+  sys_dynval_json;
 
 { TDataStoreObject }
 
@@ -111,11 +111,19 @@ procedure TDataStoreObject.Deserialize(aStream: TStream);
 var
   lReader: TJSONReader;
 begin
-  lReader := TJSONReader.Create(aStream);
-  try
-    Deserialize(lReader);
-  finally
-    lReader.Free;
+  if aStream <> nil then
+  begin
+    lReader := TJSONReader.Create(aStream);
+    try
+      Deserialize(lReader);
+    finally
+      lReader.Free;
+    end;
+
+  end
+  else
+  begin
+    Deserialize((TDynamicValueReader(nil)));
   end;
 end;
 

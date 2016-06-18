@@ -14,20 +14,24 @@ type
   { TDynamicValue }
 
   TDynamicValue = class(TInterfacedObject, IDynamicValue)
-  protected
+  strict protected
     function GetItem(const {%H-}aKey: IDynamicValue): IDynamicValue; virtual;
     procedure SetItem(const {%H-}aKey: IDynamicValue; const {%H-}AValue: IDynamicValue); virtual;
+    function GetKindOf: TDynamicValueKind; virtual;
   public
     function Owns(const {%H-}aValue: IDynamicValue): Boolean; virtual;
     function IsDefined: Boolean; virtual;
     function IsStructurallyEqualTo(const {%H-}aValue: IDynamicValue): Boolean; virtual;
     function IsEqualTo(const {%H-}aValue: IDynamicValue): Boolean; virtual;
     property Item[aKey: IDynamicValue]: IDynamicValue read GetItem write SetItem;
+    property KindOf: TDynamicValueKind read GetKindOf;
   end;
 
   { TDynamicNull }
 
   TDynamicNull = class(TDynamicValue,IDynamicNull)
+  strict protected
+    function GetKindOf: TDynamicValueKind; override;
   public
     function IsEqualTo(const aValue: IDynamicValue): Boolean; override;
   end;
@@ -38,6 +42,8 @@ type
   strict private
     fValue: Boolean;
     function GetValue: Boolean;
+  strict protected
+    function GetKindOf: TDynamicValueKind; override;
   public
     constructor Create(aValue: Boolean);
     property Value: Boolean read GetValue;
@@ -50,6 +56,8 @@ type
   strict private
     fValue: Double;
     function GetValue: Double;
+  strict protected
+    function GetKindOf: TDynamicValueKind; override;
   public
     constructor Create(aValue: Double);
     property Value: Double read GetValue;
@@ -62,6 +70,8 @@ type
   strict private
     fValue: UTF8String;
     function GetValue: UTF8String;
+  strict protected
+    function GetKindOf: TDynamicValueKind; override;
   public
     constructor Create(aValue: UTF8String);
     property Value: UTF8String read GetValue;
@@ -79,7 +89,8 @@ type
     function GetLength: Longint;
     procedure SetItem(const aIndex: Longint; const AValue: IDynamicValue); overload;
     procedure SetLength(const AValue: Longint);
-  protected
+  strict protected
+    function GetKindOf: TDynamicValueKind; override;
     function GetItem(const aKey: IDynamicValue): IDynamicValue; override;
     procedure SetItem(const aKey: IDynamicValue; const AValue: IDynamicValue); override;
   public
@@ -131,7 +142,8 @@ type
     function GetItem(const aKey: UTF8String): IDynamicValue; overload;
     procedure SetItem(const aKey: UTF8String; const AValue: IDynamicValue); overload;
     function Find(const aKey: UTF8String): Longint;
-  protected
+  strict protected
+    function GetKindOf: TDynamicValueKind; override;
     function GetItem(const aKey: IDynamicValue): IDynamicValue; override;
     procedure SetItem(const aKey: IDynamicValue; const AValue: IDynamicValue); override;
   public
@@ -198,6 +210,11 @@ begin
 end;
 
 { TDynamicNull }
+
+function TDynamicNull.GetKindOf: TDynamicValueKind;
+begin
+  Result:=dvkNull;
+end;
 
 function TDynamicNull.IsEqualTo(const aValue: IDynamicValue): Boolean;
 begin
@@ -311,6 +328,11 @@ begin
       break;
    end;
  end;
+end;
+
+function TDynamicMap.GetKindOf: TDynamicValueKind;
+begin
+  Result:=dvkMap;
 end;
 
 constructor TDynamicMap.Create;
@@ -499,6 +521,11 @@ begin
 
 end;
 
+function TDynamicList.GetKindOf: TDynamicValueKind;
+begin
+  Result:=dvkList;
+end;
+
 function TDynamicList.GetItem(const aKey: IDynamicValue): IDynamicValue;
 var
   lIndexFloat: Double;
@@ -631,6 +658,11 @@ begin
   result := fValue;
 end;
 
+function TDynamicString.GetKindOf: TDynamicValueKind;
+begin
+  Result:=dvkString;
+end;
+
 constructor TDynamicString.Create(aValue: UTF8String);
 begin
   inherited Create;
@@ -648,6 +680,11 @@ end;
 function TDynamicNumber.GetValue: Double;
 begin
   result := fValue;
+end;
+
+function TDynamicNumber.GetKindOf: TDynamicValueKind;
+begin
+  Result:=dvkNumber;
 end;
 
 constructor TDynamicNumber.Create(aValue: Double);
@@ -672,6 +709,11 @@ begin
   result := fValue;
 end;
 
+function TDynamicBoolean.GetKindOf: TDynamicValueKind;
+begin
+  Result:=dvkBoolean;
+end;
+
 constructor TDynamicBoolean.Create(aValue: Boolean);
 begin
   inherited Create;
@@ -694,6 +736,11 @@ end;
 procedure TDynamicValue.SetItem(const aKey: IDynamicValue; const AValue: IDynamicValue);
 begin
  // nothing...
+end;
+
+function TDynamicValue.GetKindOf: TDynamicValueKind;
+begin
+  result := dvkUndefined;
 end;
 
 function TDynamicValue.Owns(const aValue: IDynamicValue): Boolean;

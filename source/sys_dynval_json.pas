@@ -5,12 +5,9 @@ unit sys_dynval_json;
 interface
 
 uses
-  Classes, SysUtils, sys_dynval, jsonscanner;
+  Classes, SysUtils, sys_dynval, jsonscanner, sys_json;
 
 type
-
-  // TODO: Test JSON Reading and writing...
-  // TODO: Then, work on the dynobject_store stuff.
 
   { TJSONWriterState }
 
@@ -90,6 +87,9 @@ function ToJSON(const aObject: IDynamicValue; const aIndent: Word = 0): UTF8Stri
 function FromJSON(const aStream: TStream): IDynamicValue;
 function FromJSON(const aString: UTF8String): IDynamicValue;
 
+function ToOldJSONValue(const aValue: IDynamicValue): TJSValue;
+function FromOldJSONValue(const aValue: TJSValue): IDynamicValue;
+
 const
   NullText: UTF8String = 'null';
   TrueText: UTF8String = 'true';
@@ -151,6 +151,16 @@ begin
     lStream.Free;
   end;
 
+end;
+
+function ToOldJSONValue(const aValue: IDynamicValue): TJSValue;
+begin
+  result := sys_json.FromJSON(ToJSON(aValue,0));
+end;
+
+function FromOldJSONValue(const aValue: TJSValue): IDynamicValue;
+begin
+  result := FromJSON(sys_json.ToJSON(aValue));
 end;
 
 { TJSONReader }

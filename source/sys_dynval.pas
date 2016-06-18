@@ -12,7 +12,18 @@ uses
 {
 
 
+
 TODO: Make use of this
+1. Don't do this from the top down, go from the bottom up. So, instead of just switching
+from TProjectProperties to TProjectProperties2, switch the lower end pieces until
+TProjectProperties is identical to TProjectProperties2, then just get rid of it.
+2. Make use of the ToOldJSONValue functions to do this.
+3. As things are moved over, make them use dynval natively, but allow conversion to
+other stuff as necessary. Then, once everything is using dynval natively, we can
+get rid of the TJSValue stuff.
+4. Let's start with the gui_jsoneditor, since that's actually the most complex. Then,
+work with the document settings editor, the project settings editor, and project explorer,
+then the various property promises, and finally stew_project itself.
 
 
 
@@ -46,17 +57,21 @@ there's no problem with that.
 
 type
 
+  TDynamicValueKind = (dvkUndefined, dvkNull, dvkBoolean, dvkNumber, dvkString, dvkList, dvkMap);
+
   { IDynamicValue }
 
   IDynamicValue = interface(IUnknown)
     ['{B2B8454B-103C-4690-ACC1-EC75F65F2D76}']
     function GetItem(const aKey: IDynamicValue): IDynamicValue;
+    function GetKindOf: TDynamicValueKind;
     procedure SetItem(const aKey: IDynamicValue; const AValue: IDynamicValue);
     function Owns(const aValue: IDynamicValue): Boolean;
     function IsDefined: Boolean;
     function IsStructurallyEqualTo(const aValue: IDynamicValue): Boolean;
     function IsEqualTo(const aValue: IDynamicValue): Boolean;
     property Item[aKey: IDynamicValue]: IDynamicValue read GetItem write SetItem; default;
+    property KindOf: TDynamicValueKind read GetKindOf;
   end;
 
   { IDynamicNull }
@@ -247,6 +262,7 @@ type
   operator :=(aValue: Double): IDynamicValue;
   operator :=(aValue: UTF8String): IDynamicValue;
   operator :=(aValue: Boolean): IDynamicValue;
+
 
 implementation
 
