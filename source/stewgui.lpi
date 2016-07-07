@@ -17,7 +17,7 @@
       <UseVersionInfo Value="True"/>
       <AutoIncrementBuild Value="True"/>
       <MinorVersionNr Value="1"/>
-      <BuildNr Value="102"/>
+      <BuildNr Value="103"/>
       <StringTable CompanyName="Town's Edge Technology, LLC" FileDescription="A manuscript management and notekeeping tool." LegalCopyright="Copyright © 2015 Neil M. Sheldon" ProductName="Stew" ProductVersion="0.1"/>
     </VersionInfo>
     <BuildModes Count="1">
@@ -39,7 +39,7 @@
         <PackageName Value="LCL"/>
       </Item2>
     </RequiredPackages>
-    <Units Count="24">
+    <Units Count="28">
       <Unit0>
         <Filename Value="stewgui.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -184,6 +184,26 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="gui_gtk2_glyphs"/>
       </Unit23>
+      <Unit24>
+        <Filename Value="sys_dynval_implementation.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="sys_dynval_implementation"/>
+      </Unit24>
+      <Unit25>
+        <Filename Value="sys_dynval.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="sys_dynval"/>
+      </Unit25>
+      <Unit26>
+        <Filename Value="sys_dynval_json.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="sys_dynval_json"/>
+      </Unit26>
+      <Unit27>
+        <Filename Value="sys_dynval_data.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="sys_dynval_data"/>
+      </Unit27>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

@@ -664,8 +664,11 @@ begin
   if lChild <> nil then
   begin
     result := TJSObject.Create;
-    lChild.AddToJSON(Result,lChild.Key);
-    lChild := lChild.GetNextSibling as TJSONTreeNode;
+    while lChild <> nil do
+    begin
+      lChild.AddToJSON(Result,lChild.Key);
+      lChild := lChild.GetNextSibling as TJSONTreeNode;
+    end;
   end
   else
     result := nil;
