@@ -88,6 +88,7 @@ function FromJSON(const aStream: TStream): IDynamicValue;
 function FromJSON(const aString: UTF8String): IDynamicValue;
 
 function ToOldJSONValue(const aValue: IDynamicValue): TJSValue;
+function ToOldJSONValue(const aClass: TJSValueClass; const aValue: IDynamicValue): TJSValue;
 function FromOldJSONValue(const aValue: TJSValue): IDynamicValue;
 
 const
@@ -159,6 +160,16 @@ begin
      result := sys_json.FromJSON(ToJSON(aValue,0))
   else
      result := nil;
+end;
+
+function ToOldJSONValue(const aClass: TJSValueClass; const aValue: IDynamicValue
+  ): TJSValue;
+begin
+  if aValue <> nil then
+     result := sys_json.FromJSON(aClass,ToJSON(aValue,0))
+  else
+     result := nil;
+
 end;
 
 function FromOldJSONValue(const aValue: TJSValue): IDynamicValue;

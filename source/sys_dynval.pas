@@ -14,9 +14,23 @@ uses
 
 
 TODO: Make use of this
-1. Don't do this from the top down, go from the bottom up. So, instead of just switching
-from TProjectProperties to TProjectProperties2, switch the lower end pieces until
-TProjectProperties is identical to TProjectProperties2, then just get rid of it.
+1. Don't do this from the top down, changing everything at once. Go from the bottom
+up. So, instead of just switching from TProjectProperties to TProjectProperties2 in
+stew_project, switch the various editors over, using some conversion functions to
+quickly convert back and forth when communicating with higher level units. If,
+in the process of doing this, I discover another more complicated place, then I
+can backtrack and start off with a smaller section.
+-- DONE gui_jsoneditor
+-- gui_documenteditor -- start using the Properties2 classes instead of Properties.
+   Use To and From Old JSOn convert functions to communicate with stew_project.
+-- gui_projectsettingseditor -- same as gui_documenteditor.
+-- gui_mainform -- Not sure here, but probably the same as gui_documenteditor
+-- gui_config -- convert over to the new JSON format for saving data.
+-- stew_project -- start converting everything into the new properties.
+-- stew_properties -- get rid of the old properties
+-- sys_dynval -- get rid of the conversion functions.
+-- sys_json -- get rid of this entirely.
+
 2. Make use of the ToOldJSONValue functions to do this.
 3. As things are moved over, make them use dynval natively, but allow conversion to
 other stuff as necessary. Then, once everything is using dynval natively, we can
