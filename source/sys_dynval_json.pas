@@ -155,12 +155,18 @@ end;
 
 function ToOldJSONValue(const aValue: IDynamicValue): TJSValue;
 begin
-  result := sys_json.FromJSON(ToJSON(aValue,0));
+  if aValue <> nil then
+     result := sys_json.FromJSON(ToJSON(aValue,0))
+  else
+     result := nil;
 end;
 
 function FromOldJSONValue(const aValue: TJSValue): IDynamicValue;
 begin
-  result := FromJSON(sys_json.ToJSON(aValue));
+  if aValue <> nil then
+     result := FromJSON(sys_json.ToJSON(aValue))
+  else
+     result := nil;
 end;
 
 { TJSONReader }
