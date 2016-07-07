@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, ExtCtrls,
-  Menus, ComCtrls, sys_json;
+  Menus, ComCtrls, sys_dynval;
 
 type
 
@@ -14,7 +14,7 @@ type
 
   TJSONTreeNode = class(TTreeNode)
   strict private
-    FDataType: TJSValueClass;
+    FDataType: TDynamicValueKind;
     function GetAsBoolean: Boolean;
     function GetAsNumber: Double;
     function GetAsString: String;
@@ -23,7 +23,7 @@ type
     procedure SetAsBoolean(AValue: Boolean);
     procedure SetAsNumber(AValue: Double);
     procedure SetAsString(AValue: String);
-    procedure SetDataType(AValue: TJSValueClass);
+    procedure SetDataType(AValue: TDynamicValueKind);
     procedure ExtractKeyAndValue(out aKey: String; out aValue: String);
     procedure SetKeyAndValue(const aKey: String; const aValue: String);
     procedure SetTextValue(const aValue: String);
@@ -32,7 +32,7 @@ type
   private
     procedure SetKey(AValue: String);
   public
-    property DataType: TJSValueClass read fDataType write SetDataType;
+    property DataType: TDynamicValueKind read fDataType write SetDataType;
     property AsBoolean: Boolean read GetAsBoolean write SetAsBoolean;
     property AsNumber: Double read GetAsNumber write SetAsNumber;
     property AsString: String read GetAsString write SetAsString;
@@ -41,8 +41,9 @@ type
     function IsProperty: Boolean;
     function Edited(var NewText: String): Boolean;
     procedure Editing(var AllowEdit: Boolean);
-    procedure SetJSON(aJSON: TJSValue);
-    function AddToJSON(aParent: TJSValue; aKey: UTF8String): TJSValue;
+    procedure SetValue(aJSON: IDynamicValue);
+    function GetValue: IDynamicValue;
+
   end;
 
   { TJSONEditor }
@@ -77,75 +78,122 @@ type
   strict private
     { private declarations }
     fModified: Boolean;
-    procedure AddNode(aDataType: TJSValueClass);
+    procedure AddNode(aDataType: TDynamicValueKind);
     procedure EnableDisable;
     function GetModified: Boolean;
     procedure SetModified(AValue: Boolean);
   public
     { public declarations }
     constructor Create(TheOwner: TComponent); override;
-    procedure SetJSON(aData: TJSObject);
-    function CreateJSON2: TJSObject;
+    procedure SetMap(aData: IDynamicValue);
+    function GetMap: IDynamicMap;
     property Modified: Boolean read GetModified write SetModified;
   end;
+
+  procedure SetTreeNodeValue(aParent: TTreeNodes; aNode: TJSONTreeNode; aJSON: IDynamicValue);
+
 
 implementation
 
 uses
-  Dialogs, sys_types;
+  Dialogs;
 
 const
   TrueCaption: String = 'yes';
   FalseCaption: String = 'no';
 
+procedure SetTreeNodeValue(aParent: TTreeNodes; aNode: TJSONTreeNode; aJSON: IDynamicValue);
+var
+  i: Integer;
+  l: Integer;
+  aChild: TJSONTreeNode;
+  lList: IDynamicList;
+  lEnumerator: IDynamicMapEnumerator;
+begin
+  if aNode <> nil then
+  begin
+    aNode.DataType := aJSON.KindOf;
+    aNode.DeleteChildren;
+  end;
+  case aJSON.KindOf of
+    dvkList:
+      begin
+        lList := aJSON as IDynamicList;
+        l := lList.Length;
+        for i := 0 to l - 1 do
+        begin
+          aChild := aParent.AddChild(aNode,'') as TJSONTreeNode;
+          aChild.SetKey(IntToStr(i));
+          aChild.SetValue(lList[i]);
+        end;
+
+      end;
+    dvkMap:
+      begin
+        lEnumerator := (aJSON as IDynamicMap).Enumerate;
+        while lEnumerator.Next do
+        begin
+          aChild := aParent.AddChild(aNode,'') as TJSONTreeNode;
+          aChild.SetKey(lEnumerator.Key);
+          aChild.SetValue(lEnumerator.Value);
+        end;
+        if aNode <> nil then
+           aNode.Expanded := true;
+      end;
+    dvkNumber:
+      if aNode <> nil then
+         aNode.AsNumber := (aJSON as IDynamicNumber).Value;
+    dvkString:
+      if aNode <> nil then
+         aNode.AsString := (aJSON as IDynamicString).Value;
+    dvkBoolean:
+      if aNode <> nil then
+         aNode.AsBoolean := (aJSON as IDynamicBoolean).Value;
+  end;
+end;
+
 {$R *.lfm}
 
 { TJSONTreeNode }
 
-procedure TJSONTreeNode.SetDataType(AValue: TJSValueClass);
+procedure TJSONTreeNode.SetDataType(AValue: TDynamicValueKind);
 begin
   if FDataType=AValue then Exit;
 
   // clear all the data from the old data type
   DeleteChildren;
   FDataType := AValue;
-  ImageIndex := ord(AValue.GetTypeOf);
-  case AValue.GetTypeOf of
-    jstBoolean:
+  ImageIndex := ord(AValue);
+  case AValue of
+    dvkBoolean:
       AsBoolean := false;
-    jstNumber:
+    dvkNumber:
       AsNumber := 0;
-    jstString:
+    dvkString:
       AsString := '';
   else
     SetTextValue('');
   end;
 end;
 
-function CorrectTypeText(aClass: TJSValueClass; const aValue: String): String;
+function CorrectTypeText(aClass: TDynamicValueKind; const aValue: String): String;
 begin
-  if aClass = nil then
-    result := aValue
+  case aClass of
+    dvkList:
+      result := '<list>';
+    dvkMap:
+      result := '<map>';
+    dvkNull:
+      result := '<missing>';
+    dvkUndefined:
+      result := '<unassigned>';
   else
-  begin
-    case aClass.GetTypeOf of
-      jstObject:
-        if aClass.InheritsFrom(TJSArray) then
-           result := '<array>'
-        else
-           result := '<object>';
-      jstNull:
-        result := '<null>';
-      jstUndefined:
-        result := '<undefined>';
-    else
-      result := aValue;
-    end;
+    result := aValue;
   end;
 
 end;
 
-function BuildKeyAndValue(aType: TJSValueClass; const aKey: String; const aValue: String): String;
+function BuildKeyAndValue(aType: TDynamicValueKind; const aKey: String; const aValue: String): String;
 begin
   result := aKey + ': ' + CorrectTypeText(aType,aValue);
 end;
@@ -212,16 +260,16 @@ var
   aDummy1: Boolean;
   aDummy2: Double;
 begin
-  case FDataType.GetTypeOf of
-    jstUndefined, jstNull, jstObject:
+  case FDataType of
+    dvkUndefined, dvkNull, dvkMap, dvkList:
       // accepts any value, but it will just be switched back to the type. This
       // makes it possible to change the key.
       result := false;
-    jstBoolean:
+    dvkBoolean:
       result := TryStrToBool(aValue,aDummy1);
-    jstNumber:
+    dvkNumber:
       result := TryStrToFloat(aValue,aDummy2);
-    jstString:
+    dvkString:
       result := true;
   end;
 end;
@@ -254,7 +302,7 @@ var
   aParent: TJSONTreeNode;
 begin
   aParent := Parent as TJSONTreeNode;
-  result := (aParent = nil) or ((aParent.DataType.GetTypeOf = jstObject) and (not aParent.DataType.InheritsFrom(TJSArray)));
+  result := (aParent = nil) or ((aParent.DataType = dvkMap));
 end;
 
 function TJSONTreeNode.Edited(var NewText: String): Boolean;
@@ -268,7 +316,7 @@ begin
     begin
       // the user didn't assign a property name, so we're going to make
       // some assumptions here:
-      if FDataType.GetTypeOf in [jstNull,jstObject,jstUndefined] then
+      if FDataType in [dvkNull,dvkMap,dvkList,dvkUndefined] then
       begin
         // if this is a non-editable value, then assume the change was
         // supposed to be the property name.
@@ -285,7 +333,7 @@ begin
     // now, since the value is being changed, make sure it's valid,
     // and if so, make sure the new text has the key in there.
     if IsValidKey(aKey) and
-       ((FDataType.GetTypeOf in [jstNull,jstObject,jstUndefined]) or
+       ((FDataType in [dvkNull,dvkMap,dvkList,dvkUndefined]) or
         IsValidTextValue(aValue)) then
        NewText := BuildKeyAndValue(FDataType,aKey,aValue)
     else
@@ -302,91 +350,51 @@ end;
 
 procedure TJSONTreeNode.Editing(var AllowEdit: Boolean);
 begin
-  AllowEdit := (DataType.GetTypeOf in [jstBoolean,jstNumber,jstString]) or IsProperty;
+  AllowEdit := (DataType in [dvkBoolean,dvkNumber,dvkString]) or IsProperty;
 end;
 
-procedure TJSONTreeNode.SetJSON(aJSON: TJSValue);
-var
-  i: Integer;
-  l: Integer;
-  aChild: TJSONTreeNode;
-  lKeys: TStringArray;
+procedure TJSONTreeNode.SetValue(aJSON: IDynamicValue);
 begin
-  DataType := TJSValueClass(aJSON.ClassType);
-  DeleteChildren;
-  case DataType.GetTypeOf of
-    jstObject:
-      if DataType.InheritsFrom(TJSArray) then
-      begin
-        l := trunc(aJSON.Get('length').AsNumber);
-        for i := 0 to l - 1 do
-        begin
-          aChild := TreeNodes.AddChild(Self,'') as TJSONTreeNode;
-          aChild.SetKey(IntToStr(i));
-          aChild.SetJSON(aJSON.Get(i));
-        end;
-
-      end
-      else
-      begin
-        lKeys := aJSON.keys;
-        for i := 0 to Length(lKeys) -1 do
-        begin
-          aChild := TreeNodes.AddChild(Self,'') as TJSONTreeNode;
-          aChild.SetKey(lKeys[i]);
-          aChild.SetJSON(aJSON.Get(lkeys[i]));
-        end;
-        Expanded := true;
-      end;
-    jstNumber:
-      AsNumber := aJSON.AsNumber;
-    jstString:
-      AsString := aJSON.AsString;
-    jstBoolean:
-      AsBoolean := aJSON.AsBoolean;
-  end;
+  SetTreeNodeValue(TreeNodes,Self,aJSON);
 end;
 
-function TJSONTreeNode.AddToJSON(aParent: TJSValue; aKey: UTF8String): TJSValue;
+function TJSONTreeNode.GetValue: IDynamicValue;
 var
-  rObject: TJSObject;
-  rArray: TJSArray;
+  rObject: IDynamicMap;
+  rArray: IDynamicList;
   aChild: TJSONTreeNode;
 begin
-  case FDataType.GetTypeOf of
-    jstUndefined:
+  case FDataType of
+    dvkUndefined:
       ;
-    jstNull:
-      result := aParent.PutNull(aKey);
-    jstBoolean:
-      result := aParent.Put(aKey,AsBoolean);
-    jstNumber:
-      result := aParent.Put(aKey,AsNumber);
-    jstString:
-      result := aParent.Put(aKey,AsString);
-    jstObject:
+    dvkNull:
+      result := TDynamicValues.Null;
+    dvkBoolean:
+      result := TDynamicValues.Boolean(AsBoolean);
+    dvkNumber:
+      result := TDynamicValues.NewNumber(AsNumber);
+    dvkString:
+      result := TDynamicValues.NewString(AsString);
+    dvkList:
       begin
-        if FDataType.InheritsFrom(TJSArray) then
+        rArray := TDynamicValues.NewList;
+        result := rArray;
+        aChild := GetFirstChild as TJSONTreeNode;
+        while aChild <> nil do
         begin
-          rArray := aParent.PutNewArray(aKey) as TJSArray;
-          result := rArray;
-          aChild := GetFirstChild as TJSONTreeNode;
-          while aChild <> nil do
-          begin
-            aChild.AddToJSON(rArray,IntToStr(rArray.Length));
-            aChild := aChild.GetNextSibling as TJSONTreeNode;
-          end;
-        end
-        else
+          rArray.Add(aChild.GetValue);
+          aChild := aChild.GetNextSibling as TJSONTreeNode;
+        end;
+      end;
+    dvkMap:
+      begin
+        rObject := TDynamicValues.NewMap;
+        result := rObject;
+        aChild := GetFirstChild as TJSONTreeNode;
+        while aChild <> nil do
         begin
-          rObject := aParent.PutNewObject(aKey) as TJSObject;
-          result := rObject;
-          aChild := GetFirstChild as TJSONTreeNode;
-          while aChild <> nil do
-          begin
-            aChild.AddToJSON(rObject,aChild.GetKey);
-            aChild := aChild.GetNextSibling as TJSONTreeNode;
-          end;
+          rObject.SetItem(aChild.GetKey,aChild.GetValue);
+          aChild := aChild.GetNextSibling as TJSONTreeNode;
         end;
       end;
   end;
@@ -394,32 +402,32 @@ end;
 
 function TJSONTreeNode.GetAsBoolean: Boolean;
 begin
-  case FDataType.GetTypeOf of
-    jstNumber:
+  case FDataType of
+    dvkNumber:
       result := TextValue <> '0';
-    jstString:
+    dvkString:
       result := TextValue <> '';
-    jstBoolean:
+    dvkBoolean:
       result := TextValue = TrueCaption;
-    jstNull, jstUndefined:
+    dvkNull, dvkUndefined:
       result := false;
-    jstObject:
+    dvkMap,dvkList:
       result := true;
   end;
 end;
 
 function TJSONTreeNode.GetAsNumber: Double;
 begin
-  case FDataType.GetTypeOf of
-    jstNumber, jstString:
+  case FDataType of
+    dvkNumber, dvkString:
       if not TryStrToFloat(TextValue,result) then
          result := 0;
-    jstBoolean:
+    dvkBoolean:
       if TextValue = TrueCaption then
         result := 1
       else
         result := 0;
-    jstNull, jstUndefined, jstObject:
+    dvkNull, dvkUndefined, dvkMap, dvkList:
       result := 0;
   end;
 
@@ -446,12 +454,12 @@ end;
 
 procedure TJSONTreeNode.SetAsBoolean(AValue: Boolean);
 begin
-  case FDataType.GetTypeOf of
-    jstNumber:
+  case FDataType of
+    dvkNumber:
       AsNumber := ord(AValue);
-    jstString:
+    dvkString:
       AsString := BoolToStr(aValue,TrueCaption,FalseCaption);
-    jstBoolean:
+    dvkBoolean:
       SetTextValue(BoolToStr(aValue,TrueCaption,FalseCaption));
   else
     // nothing
@@ -460,12 +468,12 @@ end;
 
 procedure TJSONTreeNode.SetAsNumber(AValue: Double);
 begin
-  case FDataType.GetTypeOf of
-    jstNumber:
+  case FDataType of
+    dvkNumber:
       SetTextValue(FloatToStr(AValue));
-    jstString:
+    dvkString:
       AsString := FloatToStr(AValue);
-    jstBoolean:
+    dvkBoolean:
       AsBoolean := aValue <> 0;
   else
       // nothing
@@ -474,12 +482,12 @@ end;
 
 procedure TJSONTreeNode.SetAsString(AValue: String);
 begin
-  case FDataType.GetTypeOf of
-    jstNumber:
+  case FDataType of
+    dvkNumber:
       AsNumber := StrToFloat(AValue);
-    jstBoolean:
+    dvkBoolean:
       AsBoolean := StrToBool(aValue);
-    jstString:
+    dvkString:
       SetTextValue(aValue);
   else
       // nothing;
@@ -490,32 +498,32 @@ end;
 
 procedure TJSONEditor.AddArrayButtonClick(Sender: TObject);
 begin
-  AddNode(TJSArray);
+  AddNode(dvkList);
 end;
 
 procedure TJSONEditor.AddBooleanButtonClick(Sender: TObject);
 begin
-  AddNode(TJSBoolean);
+  AddNode(dvkBoolean);
 end;
 
 procedure TJSONEditor.AddNullButtonClick(Sender: TObject);
 begin
-  AddNode(TJSNull);
+  AddNode(dvkNull);
 end;
 
 procedure TJSONEditor.AddNumberButtonClick(Sender: TObject);
 begin
-  AddNode(TJSNumber);
+  AddNode(dvkNumber);
 end;
 
 procedure TJSONEditor.AddObjectButtonClick(Sender: TObject);
 begin
-  AddNode(TJSObject);
+  AddNode(dvkMap);
 end;
 
 procedure TJSONEditor.AddStringButtonClick(Sender: TObject);
 begin
-  AddNode(TJSString);
+  AddNode(dvkString);
 end;
 
 procedure TJSONEditor.DeleteElementButtonClick(Sender: TObject);
@@ -577,14 +585,14 @@ begin
   EnableDisable;
 end;
 
-procedure TJSONEditor.AddNode(aDataType: TJSValueClass);
+procedure TJSONEditor.AddNode(aDataType: TDynamicValueKind);
 var
   aNew: TJSONTreeNode;
   aParent: TJSONTreeNode;
 begin
   if (JSONTree.Selected = nil) then
     aParent := nil
-  else if (JSONTree.Selected as TJSONTreeNode).DataType.GetTypeOf in [jstObject] then
+  else if (JSONTree.Selected as TJSONTreeNode).DataType in [dvkMap,dvkList] then
     aParent := JSONTree.Selected as TJSONTreeNode
   else
     aParent := JSONTree.Selected.Parent as TJSONTreeNode;
@@ -636,36 +644,37 @@ begin
   fModified := false;
 end;
 
-procedure TJSONEditor.SetJSON(aData: TJSObject);
+procedure TJSONEditor.SetMap(aData: IDynamicValue);
 var
-  lKeys: TStringArray;
-  i: Integer;
-  lChild: TJSONTreeNode;
+  lMap: IDynamicMap;
 begin
   JSONTree.Items.Clear;
-  if aData <> nil then
+  if aData is IDynamicMap then
   begin
-    lKeys := aData.keys;
-    for i := 0 to length(lKeys) - 1 do
-    begin
-      lChild := JSONTree.Items.AddChild(nil,'') as TJSONTreeNode;
-      lChild.SetKey(lKeys[i]);
-      lChild.SetJSON(aData.Get(lKeys[i]));
-    end;
+     lMap := aData as IDynamicMap;
+  end
+  else
+  begin
+    lMap := TDynamicValues.NewMap;
+    lMap['0'] := aData;
   end;
+  SetTreeNodeValue(JSONTree.Items,nil,lMap);
   fModified := true;
 end;
 
-function TJSONEditor.CreateJSON2: TJSObject;
+function TJSONEditor.GetMap: IDynamicMap;
 var
   lChild: TJSONTreeNode;
 begin
   lChild := JSONTree.Items.GetFirstNode as TJSONTreeNode;
   if lChild <> nil then
   begin
-    result := TJSObject.Create;
-    lChild.AddToJSON(Result,lChild.Key);
-    lChild := lChild.GetNextSibling as TJSONTreeNode;
+    result := TDynamicValues.NewMap;
+    while lChild <> nil do
+    begin
+      result.SetItem(lChild.Key,lChild.GetValue);
+      lChild := lChild.GetNextSibling as TJSONTreeNode;
+    end;
   end
   else
     result := nil;

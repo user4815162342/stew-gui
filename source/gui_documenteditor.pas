@@ -84,7 +84,7 @@ type
 implementation
 
 uses
-  Dialogs, sys_types, sys_json, sys_log, gui_glyphs;
+  Dialogs, sys_types, sys_json, sys_log, gui_glyphs, sys_dynval, sys_dynval_json;
 
 {$R *.lfm}
 
@@ -120,7 +120,7 @@ begin
 
     // I need to create and destroy this object because
     // it gets cloned when setting the property.
-    lUser := fUserPropertiesEditor.CreateJSON2;
+    lUser := ToOldJSONValue(fUserPropertiesEditor.GetMap) as TJSObject;
     if lUser <> nil then
       try
         lProps.User.Assign(lUser);
@@ -401,7 +401,7 @@ begin
   CategoryEdit.Text := '';
   StatusEdit.Text := '';
   SynopsisEdit.Lines.Clear;
-  fUserPropertiesEditor.SetJSON(TJSObject(nil));
+  fUserPropertiesEditor.SetMap(nil);
   ClearModified;
   SetupControls;
 end;
@@ -476,7 +476,7 @@ begin
   end;
   if not fUserPropertiesEditor.Modified then
   begin
-    fUserPropertiesEditor.SetJSON(aData.User);
+    fUserPropertiesEditor.SetMap(FromOldJSONValue(aData.User));
     fUserPropertiesEditor.Modified := false;
   end;
   SetupControls;
