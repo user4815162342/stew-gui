@@ -283,6 +283,7 @@ type
     constructor CreateBoolean({%H-}aValue: Boolean); override;
     constructor CreateNumber({%H-}aValue: Double); override;
     constructor CreateString({%H-}aValue: UTF8String); override;
+    procedure Clear; virtual;
     destructor Destroy; override;
     class function GetTypeOf: TJSType; override;
     procedure Assign(aValue: TJSValue); override;
@@ -326,6 +327,8 @@ type
     const LengthKey: UTF8String = 'length';
     constructor Create; override;
     destructor Destroy; override;
+    procedure Clear; override;
+    procedure Assign(aValue: TJSValue); override;
     property Length: Integer read GetLength write SetLength;
     function Join(sep: UTF8String = ','): UTF8String;
     function IndexOf(aValue: TJSValue): Integer;
@@ -1285,6 +1288,49 @@ begin
   inherited Destroy;
 end;
 
+procedure TJSArray.Clear;
+begin
+  inherited Clear;
+  SetLength(0);
+end;
+
+procedure TJSArray.Assign(aValue: TJSValue);
+var
+  lArray: TJSArray;
+  i: Integer;
+  lValue: TJSValue;
+begin
+  if aValue is TJSArray then
+  begin
+    lArray := aValue as TJSArray;
+    Length := 0;
+    for i := 0 to lArray.Length - 1 do
+    begin
+      lValue := (aValue as TJSArray).Get(i);
+      if lValue is TJSArray then
+        PutNewArray(i).Assign(lValue)
+      else if lValue is TJSObject then
+        PutNewObject(i).Assign(lValue)
+      else if lValue is TJSNull then
+        PutNull(i)
+      else if lValue is TJSUndefined then
+        PutUndefined(i)
+      else if lValue is TJSString then
+        Put(i,lValue.AsString)
+      else if lValue is TJSBoolean then
+        Put(i,lValue.AsBoolean)
+      else if lValue is TJSNumber then
+        Put(i,lValue.AsNumber)
+      else
+      begin
+        CreateValue(i,TJSValueClass(lValue.ClassType)).Assign(lValue);
+      end;
+    end;
+  end
+  else
+    inherited Assign(aValue);
+end;
+
 function TJSArray.GetAsNumber: Double;
 begin
   // yes, this is the way the EcmaScript spec says it happens.
@@ -2174,12 +2220,32 @@ begin
   raise Exception.Create('Can''t set primitive value on object');
 end;
 
+procedure TJSObject.Clear;
+var
+  i: Integer;
+  value: TJSValue;
+begin
+  // free the objects in the list and delete their keys
+  while fList.Count > 0 do
+  begin
+    value := fList[fList.Count - 1] as TJSValue;
+    if not ((value is TJSNull) or (value is TJSUndefined)) then
+    begin
+      value.Free;
+    end;
+    fList.Delete(fList.Count - 1);
+  end;
+end;
+
 destructor TJSObject.Destroy;
 var
   i: Integer;
   value: TJSValue;
 begin
-  // clear the list
+  // clear the list. Don't just call clear, as that could be overridden
+  // to initialize values.
+  // Note that this does not delete the keys either, so this is a little
+  // weaker than clear anyway.
   for i := 0 to fList.Count - 1 do
   begin
     value := fList[i] as TJSValue;
@@ -2199,6 +2265,7 @@ begin
   if aValue is TJSObject then
   begin
     lKeys := (aValue as TJSObject).keys;
+    Clear;
     for i := 0 to Length(lKeys) - 1 do
     begin
       lValue := (aValue as TJSObject).Get(lKeys[i]);
