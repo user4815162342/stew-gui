@@ -149,6 +149,8 @@ begin
     dvkBoolean:
       if aNode <> nil then
          aNode.AsBoolean := (aJSON as IDynamicBoolean).Value;
+  else
+    // setting the data type should have set the default value...
   end;
 end;
 
@@ -172,6 +174,7 @@ begin
     dvkString:
       AsString := '';
   else
+    // everything else will be corrected by type.
     SetTextValue('');
   end;
 end;
@@ -187,8 +190,12 @@ begin
       result := '<missing>';
     dvkUndefined:
       result := '<unassigned>';
+    dvkObject:
+      result := '<internal data>';
+    dvkBoolean, dvkNumber, dvkString:
+      result := aValue;
   else
-    result := aValue;
+    raise Exception.Create('Unknown dynamic value kind: ' + GUIDToString(DynamicValueKinds[aClass]));
   end;
 
 end;
@@ -261,16 +268,16 @@ var
   aDummy2: Double;
 begin
   case FDataType of
-    dvkUndefined, dvkNull, dvkMap, dvkList:
-      // accepts any value, but it will just be switched back to the type. This
-      // makes it possible to change the key.
-      result := false;
     dvkBoolean:
       result := TryStrToBool(aValue,aDummy1);
     dvkNumber:
       result := TryStrToFloat(aValue,aDummy2);
     dvkString:
       result := true;
+  else
+    // accepts any value, but it will just be switched back to the type. This
+    // makes it possible to change the key.
+    result := false;
   end;
 end;
 
@@ -365,8 +372,6 @@ var
   aChild: TJSONTreeNode;
 begin
   case FDataType of
-    dvkUndefined:
-      ;
     dvkNull:
       result := TDynamicValues.Null;
     dvkBoolean:
@@ -397,6 +402,9 @@ begin
           aChild := aChild.GetNextSibling as TJSONTreeNode;
         end;
       end;
+  else
+    // undefined or some other data type which I don't know...
+    ;
   end;
 end;
 
@@ -409,10 +417,11 @@ begin
       result := TextValue <> '';
     dvkBoolean:
       result := TextValue = TrueCaption;
-    dvkNull, dvkUndefined:
-      result := false;
     dvkMap,dvkList:
       result := true;
+  else
+    // everything else (undefined, null, etc.) returns false
+      result := false;
   end;
 end;
 
@@ -427,7 +436,8 @@ begin
         result := 1
       else
         result := 0;
-    dvkNull, dvkUndefined, dvkMap, dvkList:
+  else
+    // everything else returns 0.
       result := 0;
   end;
 
