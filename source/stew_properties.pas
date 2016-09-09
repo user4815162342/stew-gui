@@ -9,6 +9,161 @@ uses
 
 type
 
+    // TODO: Now, Need to fix all of the hints and warnings now that I've added
+    // IDynamicValue capabilities to the parent data objects. This also involves
+    // changing the storage types of member objects to IDynamicValue descendants.
+    // TODO: The interfaces should be here. The classes should be in stew_properties_implementation.
+    // TODO: Similarly, there should be a sys_dynval_data_implementation.
+
+  { IProperties }
+
+  IProperties = interface(IDynamicObject)
+    function GetUser: IDynamicValue;
+    procedure SetUser(AValue: IDynamicValue);
+    property User: IDynamicValue read GetUser write SetUser;
+  end;
+
+  IDocumentIndex = interface(IDynamicObject)
+    function GetItem(const aIndex: Longint): IDynamicString; overload;
+    function GetLength: Longint;
+    procedure SetItem(const aIndex: Longint; const AValue: IDynamicString); overload;
+    procedure SetLength(const AValue: Longint);
+    property Item[aIndex: Longint]: IDynamicString read GetItem write SetItem; default;
+    property Length: Longint read GetLength write SetLength;
+    procedure Add(const aItem: IDynamicString);
+    procedure Delete(const aIndex: Longint);
+    procedure Clear;
+    function IndexOf(const aValue: IDynamicString): Longint;
+  end;
+
+  { IDocumentProperties }
+
+  IDocumentProperties = interface(IProperties)
+    function GetCategory: UTF8String;
+    function GetIndex: IDocumentIndex;
+    function GetPublish: Boolean;
+    function GetStatus: UTF8String;
+    function GetTitle: UTF8String;
+    procedure SetCategory(AValue: UTF8String);
+    procedure SetIndex(AValue: IDocumentIndex);
+    procedure SetPublish(AValue: Boolean);
+    procedure SetStatus(AValue: UTF8String);
+    procedure SetTitle(AValue: UTF8String);
+    property Title: UTF8String read GetTitle write SetTitle;
+    property Publish: Boolean read GetPublish write SetPublish;
+    property Category: UTF8String read GetCategory write SetCategory;
+    property Status: UTF8String read GetStatus write SetStatus;
+    property Index: IDocumentIndex read GetIndex write SetIndex;
+  end;
+
+  { IKeywordDefinition }
+
+  IKeywordDefinition = interface(IDynamicObject)
+    function GetColor: TColor;
+    procedure SetColor(AValue: TColor);
+    property Color: TColor read GetColor write SetColor;
+  end;
+
+  { ICategoryDefinition }
+
+  ICategoryDefinition = interface(IKeywordDefinition)
+    function GetPublishMarkerAfter: Boolean;
+    function GetPublishMarkerBefore: Boolean;
+    function GetPublishMarkerBetween: Boolean;
+    function GetPublishTitle: Boolean;
+    function GetPublishTitleLevel: Integer;
+    function GetPublishTitlePrefix: UTF8String;
+    procedure SetPublishMarkerAfter(AValue: Boolean);
+    procedure SetPublishMarkerBefore(AValue: Boolean);
+    procedure SetPublishMarkerBetween(AValue: Boolean);
+    procedure SetPublishTitle(AValue: Boolean);
+    procedure SetPublishTitleLevel(AValue: Integer);
+    procedure SetPublishTitlePrefix(AValue: UTF8String);
+    property PublishTitle: Boolean read GetPublishTitle write SetPublishTitle;
+    property PublishTitleLevel: Integer read GetPublishTitleLevel write SetPublishTitleLevel;
+    property PublishTitlePrefix: UTF8String read GetPublishTitlePrefix write SetPublishTitlePrefix;
+    property PublishMarkerBefore: Boolean read GetPublishMarkerBefore write SetPublishMarkerBefore;
+    property PublishMarkerAfter: Boolean read GetPublishMarkerAfter write SetPublishMarkerAfter;
+    property PublishMarkerBetween: Boolean read GetPublishMarkerBetween write SetPublishMarkerBetween;
+  end;
+
+  IStatusDefinition = interface(IKeywordDefinition)
+    // just holds color, so nothing special.
+  end;
+
+  IKeywordDefinitions = interface(IDynamicObject)
+    function GetKeys: TStringArray2;
+    function Has(const aKey: UTF8String): Boolean;
+    procedure Delete(const aKey: UTF8String);
+    procedure Clear;
+    function Enumerate: IDynamicMapEnumerator;
+  end;
+
+  { ICategoryDefinitions }
+
+  ICategoryDefinitions = interface(IKeywordDefinitions)
+    function GetDefinition(aKey: UTF8String): ICategoryDefinition;
+    procedure SetDefinition(aKey: UTF8String; AValue: ICategoryDefinition);
+    property Definition[aKey: UTF8String]: ICategoryDefinition read GetDefinition write SetDefinition; default;
+  end;
+
+  { IStatusDefinitions }
+
+  IStatusDefinitions = interface(IKeywordDefinitions)
+    function GetDefinition(aKey: UTF8String): IStatusDefinition;
+    procedure SetDefinition(aKey: UTF8String; AValue: IStatusDefinition);
+    property Definition[aKey: UTF8String]: IStatusDefinition read GetDefinition write SetDefinition; default;
+  end;
+
+  { IDeadline }
+
+  IDeadline = interface(IDynamicObject)
+    function GetDue: TDateTime;
+    function GetName: UTF8String;
+    procedure SetDue(AValue: TDateTime);
+    procedure SetName(AValue: UTF8String);
+    property Due: TDateTime read GetDue write SetDue;
+    property Name: UTF8String read GetName write SetName;
+  end;
+
+  IDeadlines = interface(IDynamicObject)
+    function GetItem(const aIndex: Longint): IDeadline; overload;
+    function GetLength: Longint;
+    procedure SetItem(const aIndex: Longint; const AValue: IDeadline); overload;
+    procedure SetLength(const AValue: Longint);
+    property Item[aIndex: Longint]: IDeadline read GetItem write SetItem; default;
+    property Length: Longint read GetLength write SetLength;
+    procedure Add(const aItem: IDeadline);
+    procedure Delete(const aIndex: Longint);
+    procedure Clear;
+    function IndexOf(const aValue: IDeadline): Longint;
+  end;
+
+  { IProjectProperties }
+
+  IProjectProperties = interface(IProperties)
+    function GetCategories: ICategoryDefinitions;
+    function GetDeadlines: IDeadlines;
+    function GetDefaultCategory: UTF8String;
+    function GetDefaultDocExtension: UTF8String;
+    function GetDefaultNotesExtension: UTF8String;
+    function GetDefaultStatus: UTF8String;
+    function GetDefaultThumbnailExtension: UTF8String;
+    function GetStatuses: IStatusDefinitions;
+    procedure SetDefaultCategory(AValue: UTF8String);
+    procedure SetDefaultDocExtension(AValue: UTF8String);
+    procedure SetDefaultNotesExtension(AValue: UTF8String);
+    procedure SetDefaultStatus(AValue: UTF8String);
+    procedure SetDefaultThumbnailExtension(AValue: UTF8String);
+    property DefaultDocExtension: UTF8String read GetDefaultDocExtension write SetDefaultDocExtension;
+    property DefaultThumbnailExtension: UTF8String read GetDefaultThumbnailExtension write SetDefaultThumbnailExtension;
+    property DefaultNotesExtension: UTF8String read GetDefaultNotesExtension write SetDefaultNotesExtension;
+    property Categories: ICategoryDefinitions read GetCategories;
+    property DefaultCategory: UTF8String read GetDefaultCategory write SetDefaultCategory;
+    property Statuses: IStatusDefinitions read GetStatuses;
+    property DefaultStatus: UTF8String read GetDefaultStatus write SetDefaultStatus;
+    property Deadlines: IDeadlines read GetDeadlines;
+  end;
 
   { TProperties }
 
