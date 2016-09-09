@@ -15,18 +15,33 @@ is not, however, that data is stored into a IDynamicValue backing data store.
 When the object is serialized again, that data will also be serialized, in
 addition to the properties the object needs to serialize.
 
+TODO: Split the interfaces from the implementation.
+
+TODO: Some of the 'abstract' methods can just be deleted once we make sure
+all of the subclasses handle them.
+
 }
 
 uses
-  Classes, SysUtils, sys_dynval;
+  Classes, SysUtils, sys_dynval, sys_dynval_implementation;
 
 type
 
+  IDataStoreObject = interface
+    procedure Serialize(aWriter: TDynamicValueWriter); overload;
+    procedure Serialize(aStream: TStream); overload;
+    function Serialize: UTF8String; overload;
+    procedure Deserialize(aReader: TDynamicValueReader); overload;
+    procedure Deserialize(aStream: TStream); overload;
+    procedure Deserialize(aString: UTF8String); overload;
+  end;
+
   { TDataStoreObject }
 
-  TDataStoreObject = class
-  protected
+  TDataStoreObject = class(TDynamicValue, IDynamicObject, IDataStoreObject)
+  strict protected
     procedure InitializeBlank; virtual; abstract;
+    function GetKindOf: TDynamicValueKind; override;
   public
     constructor Create;
     procedure Serialize(aWriter: TDynamicValueWriter); virtual; abstract; overload;
@@ -35,36 +50,77 @@ type
     procedure Deserialize(aReader: TDynamicValueReader); virtual; abstract; overload;
     procedure Deserialize(aStream: TStream); overload;
     procedure Deserialize(aString: UTF8String); overload;
-
   end;
 
   { TDataStoreMap }
+
+  // Data store object that uses a map as a backing to store the unknown keys,
+  // and also acts as a map for the data it has. The backing data is not available
+  // to the outside, and can't be edited, but the editable data is available by
+  // key. It is up to the implementation for how to store the accessible data.
+  // ** Although it behaves like a map, I can't justify implementing IDynamicMap,
+  // because that will make the Readers and Writers be able to treat it like one,
+  // which it shouldn't.
 
   TDataStoreMap = class(TDataStoreObject)
   private
     // backing is not visible outside by default, if you want it to be, you
     // have to handle it yourself.
     fBacking: IDynamicMap;
-  protected
+  strict protected
     property Backing: IDynamicMap read fBacking;
     function ReadManagedKey(const {%H-}aKey: UTF8String; {%H-}aReader: TDynamicValueReader): Boolean; virtual;
     procedure WriteManagedKeys({%H-}aWriter: TDynamicValueWriter); virtual;
+    function GetItem(const aKey: UTF8String): IDynamicValue; overload; virtual; abstract;
+    procedure SetItem(const aKey: UTF8String; const AValue: IDynamicValue); overload; virtual; abstract;
+    function GetItem(const {%H-}aKey: IDynamicValue): IDynamicValue; override; overload;
+    procedure SetItem(const {%H-}aKey: IDynamicValue; const {%H-}AValue: IDynamicValue); override; overload;
   public
     procedure Serialize(aWriter: TDynamicValueWriter); override;
     procedure Deserialize(aReader: TDynamicValueReader); override;
+    function Owns(const {%H-}aValue: IDynamicValue): Boolean; override; abstract;
+    function IsStructurallyEqualTo(const {%H-}aValue: IDynamicValue): Boolean; override; abstract;
+    function IsEqualTo(const {%H-}aValue: IDynamicValue): Boolean; override; abstract;
+    property Item[aKey: UTF8String]: IDynamicValue read GetItem write SetItem; default;
   end;
 
   { TDataStoreList }
+  // Data store object that uses a map as a backing to store the unknown keys,
+  // and also acts as a listfor the data it has. The backing data is not available
+  // to the outside, and can't be edited, but the editable data is available by
+  // key. It is up to the implementation for how to store the accessible data.
+  // ** Although it behaves like a list, I can't justify implementing IDynamicList,
+  // because that will make the Readers and Writers be able to treat it like one,
+  // which it shouldn't.
+
+
   TDataStoreList = class(TDataStoreObject)
   private
     fBacking: IDynamicList;
-  protected
+  strict protected
     property Backing: IDynamicList read fBacking;
     function ReadManagedItem({%H-}aReader: TDynamicValueReader): Boolean; virtual;
     procedure WriteManagedItems({%H-}aWriter: TDynamicValueWriter); virtual;
+    function GetLength: Longint; virtual; abstract;
+    procedure SetLength(AValue: Longint); virtual; abstract;
+    function GetItem(const aKey: Longint): IDynamicValue; overload; virtual; abstract;
+    procedure SetItem(const aKey: Longint; const AValue: IDynamicValue); overload; virtual; abstract;
+    function GetItem(const {%H-}aKey: IDynamicValue): IDynamicValue; override; overload;
+    procedure SetItem(const {%H-}aKey: IDynamicValue; const {%H-}AValue: IDynamicValue); override; overload;
   public
     procedure Serialize(aWriter: TDynamicValueWriter); override;
     procedure Deserialize(aReader: TDynamicValueReader); override;
+  public
+    function Owns(const {%H-}aValue: IDynamicValue): Boolean; override; abstract;
+    function IsStructurallyEqualTo(const {%H-}aValue: IDynamicValue): Boolean; override; abstract;
+    function IsEqualTo(const {%H-}aValue: IDynamicValue): Boolean; override; abstract;
+    property Item[aKey: Longint]: IDynamicValue read GetItem write SetItem; default;
+    property Length: Longint read GetLength write SetLength;
+    procedure Add(const aItem: IDynamicValue); virtual; abstract;
+    procedure Delete(const aIndex: Longint); virtual; abstract;
+    procedure Clear; virtual; abstract;
+    function IndexOf(const aValue: IDynamicValue): Longint; virtual; abstract;
+
   end;
 
 implementation
@@ -141,6 +197,11 @@ begin
 
 end;
 
+function TDataStoreObject.GetKindOf: TDynamicValueKind;
+begin
+  Result:=dvkObject;
+end;
+
 
 { TDataStoreMap }
 
@@ -153,6 +214,27 @@ end;
 procedure TDataStoreMap.WriteManagedKeys(aWriter: TDynamicValueWriter);
 begin
   // do nothing... subclass handles this...
+end;
+
+function TDataStoreMap.GetItem(const aKey: IDynamicValue): IDynamicValue;
+begin
+  if aKey is IDynamicString then
+  begin
+    result := GetItem(IDynamicString(aKey).Value);
+    Exit;
+  end;
+  Result:=inherited GetItem(aKey);
+end;
+
+procedure TDataStoreMap.SetItem(const aKey: IDynamicValue;
+  const AValue: IDynamicValue);
+begin
+  if aKey is IDynamicString then
+  begin
+    SetItem(IDynamicString(aKey).Value,AValue);
+    Exit;
+  end;
+  inherited SetItem(aKey, AValue);
 end;
 
 procedure TDataStoreMap.Serialize(aWriter: TDynamicValueWriter);
@@ -241,6 +323,43 @@ begin
     end;
     aReader.ReadListEnd;
   end
+end;
+
+function TDataStoreList.GetItem(const aKey: IDynamicValue): IDynamicValue;
+var
+  lIndexFloat: Double;
+  lIndex: LongInt;
+begin
+  if aKey is IDynamicNumber then
+  begin
+     lIndexFloat := IDynamicNumber(aKey).Value;
+     lIndex := trunc(lIndexFloat);
+     if lIndex = lIndexFloat then
+     begin
+       result := GetItem(lIndex);
+       Exit;
+     end;
+  end;
+  result := inherited GetItem(aKey);
+end;
+
+procedure TDataStoreList.SetItem(const aKey: IDynamicValue;
+  const AValue: IDynamicValue);
+var
+  lIndexFloat: Double;
+  lIndex: LongInt;
+begin
+  if aKey is IDynamicNumber then
+  begin
+     lIndexFloat := IDynamicNumber(aKey).Value;
+     lIndex := trunc(lIndexFloat);
+     if lIndex = lIndexFloat then
+     begin
+       SetItem(lIndex,AValue);
+       Exit;
+     end;
+  end;
+  inherited SetItem(aKey,AValue);
 end;
 
 
