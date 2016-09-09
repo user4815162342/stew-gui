@@ -14,6 +14,31 @@ uses
 
 
 TODO: Make use of this
+- Property objects implement IDynamicObject. This allows me to use Dynamic Maps
+to store Status Definitions, and things like that.
+0. This doesn't make sense yet, unless the property objects are memory managed
+in the same ways. Without that, I'm going to be having to maintain instances
+constantly. I need to convert those into Interfaces as well. Their interfaces
+won't descend from the dynval interfaces, but a separate 'IDataStore'
+interface. But they will use those internally. The idea is that I can pass
+the configuration objects around like primitives, and this won't work if they
+are classes.
+  -- okay, if I just start creating interfaces and change these to new objects,
+     it gets complicated about the time I have to store the interfaces in hash lists,
+     which isn't going to work right.
+  -- I'm thinking that, instead, I should reimplement them as IDynamicMaps and IDynamicLists, etc.
+     Not descended from the default implementations, but new ones which wrap real IDynamicMaps
+     inside and handle the serialization/deserialization. This would allow me
+     to store IStatusDefinition as an IDynamicValue inside a Map. However, this
+     would mean I'd have to support all keys and such that are in maps.
+  -- An alternative is, create an IDynamicObject which allows us to store native
+  data as IDynamicValues (using as much IDynamicValue data as possible). These things
+  would not be serializable through the regular methods (and we have to make sure
+  of this), or creatable using TDynamicValues (we would need a separate mechanism).
+  This prevents their appearance inside a 'user' object. But, it should be doable.
+  This will also allow me to contain them in other special dynval entities for
+  entire documents, if I wanted to.
+
 1. Don't do this from the top down, changing everything at once. Go from the bottom
 up. So, instead of just switching from TProjectProperties to TProjectProperties2 in
 stew_project, switch the various editors over, using some conversion functions to
@@ -68,15 +93,44 @@ just make sure that they can't 'own' themselves in circular references, and
 there's no problem with that.
 
 }
+const
+  DynamicValueGUID = '{B2B8454B-103C-4690-ACC1-EC75F65F2D76}';
+  DynamicNullGUID = '{99D3970C-83F8-4DBE-A282-44D7AD500B1C}';
+  DynamicBooleanGUID = '{D44976DF-AED6-4626-BA33-EE83DC4080CA}';
+  DynamicNumberGUID = '{2970D3E8-3C5C-4D41-8D13-95CEBE87AB9C}';
+  DynamicStringGUID = '{D919EF1C-2E6B-4CE4-B2B2-07545A1BE7F7}';
+  DynamicListGUID = '{E7D0AE4B-435B-45E5-BC6F-E1F478DD33BC}';
+  DynamicMapGUID = '{B59C4808-7966-4AB2-9E6E-4153F0985562}';
+  DynamicObjectGUID = '{95E0839B-256C-4323-8AE9-237C9AF814CF}';
 
 type
 
-  TDynamicValueKind = (dvkUndefined, dvkNull, dvkBoolean, dvkNumber, dvkString, dvkList, dvkMap);
+  TDynamicValueKind = (dvkUndefined,
+                       dvkNull,
+                       dvkBoolean,
+                       dvkNumber,
+                       dvkString,
+                       dvkList,
+                       dvkMap,
+                       dvkObject);
+
+const
+  DynamicValueKinds: array[TDynamicValueKind] of TGUID =
+                      (DynamicValueGUID,
+                      DynamicNullGUID,
+                      DynamicBooleanGUID,
+                      DynamicNumberGUID,
+                      DynamicStringGUID,
+                      DynamicListGUID,
+                      DynamicMapGUID,
+                      DynamicObjectGUID);
+
+type
 
   { IDynamicValue }
 
   IDynamicValue = interface(IUnknown)
-    ['{B2B8454B-103C-4690-ACC1-EC75F65F2D76}']
+    [DynamicValueGUID]
     function GetItem(const aKey: IDynamicValue): IDynamicValue;
     function GetKindOf: TDynamicValueKind;
     procedure SetItem(const aKey: IDynamicValue; const AValue: IDynamicValue);
@@ -91,13 +145,13 @@ type
   { IDynamicNull }
 
   IDynamicNull = interface(IDynamicValue)
-    ['{99D3970C-83F8-4DBE-A282-44D7AD500B1C}']
+    [DynamicNullGUID]
   end;
 
   { IDynamicBoolean }
 
   IDynamicBoolean = interface(IDynamicValue)
-    ['{D44976DF-AED6-4626-BA33-EE83DC4080CA}']
+    [DynamicBooleanGUID]
     function GetValue: Boolean;
     property Value: Boolean read GetValue;
   end;
@@ -105,7 +159,7 @@ type
   { IDynamicNumber }
 
   IDynamicNumber = interface(IDynamicValue)
-    ['{2970D3E8-3C5C-4D41-8D13-95CEBE87AB9C}']
+    [DynamicNumberGUID]
     function GetValue: Double;
     property Value: Double read GetValue;
   end;
@@ -113,7 +167,7 @@ type
   { IDynamicString }
 
   IDynamicString = interface(IDynamicValue)
-    ['{D919EF1C-2E6B-4CE4-B2B2-07545A1BE7F7}']
+    [DynamicStringGUID]
     function GetValue: UTF8String;
     property Value: UTF8String read GetValue;
   end;
@@ -121,7 +175,7 @@ type
   { IDynamicList }
 
   IDynamicList = interface(IDynamicValue)
-    ['{E7D0AE4B-435B-45E5-BC6F-E1F478DD33BC}']
+    [DynamicListGUID]
     function GetItem(const aIndex: Longint): IDynamicValue; overload;
     function GetLength: Longint;
     procedure SetItem(const aIndex: Longint; const AValue: IDynamicValue); overload;
@@ -148,7 +202,7 @@ type
   { IDynamicMap }
 
   IDynamicMap = interface(IDynamicValue)
-    ['{B59C4808-7966-4AB2-9E6E-4153F0985562}']
+    [DynamicMapGUID]
     function GetItem(const aKey: UTF8String): IDynamicValue; overload;
     procedure SetItem(const aKey: UTF8String; const AValue: IDynamicValue); overload;
     property Item[aKey: UTF8String]: IDynamicValue read GetItem write SetItem; default;
@@ -157,6 +211,15 @@ type
     procedure Delete(const aKey: UTF8String);
     procedure Clear;
     function Enumerate: IDynamicMapEnumerator;
+  end;
+
+  // This one can be used to allow native objects to be stored inside of
+  // a dynamic map or list. This is going to be useful for dynamic values
+  // used for property entities, since I can now essentially use the IDynamicMap
+  // as a sort of hash map inside. Objects can not be created with the class
+  // factory below. More than likely, they'll be separate object types anyway.
+  IDynamicObject = interface(IDynamicValue)
+    [DynamicObjectGUID]
   end;
 
   { TDynamicValues }

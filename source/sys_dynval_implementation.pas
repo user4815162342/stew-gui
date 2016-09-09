@@ -158,6 +158,7 @@ type
     function Owns(const aValue: IDynamicValue): Boolean; override;
   end;
 
+
   procedure QuickSortNamedValues(var aList: TNamedValueArray; L: Longint; R: Longint);
 
 implementation
@@ -756,7 +757,8 @@ begin
     (Self is IDynamicNumber) or
     (Self is IDynamicString) or
     (self is IDynamicList) or
-    (Self is IDynamicMap);
+    (Self is IDynamicMap) or
+    (Self is IDynamicObject);
 end;
 
 function TDynamicValue.IsStructurallyEqualTo(const aValue: IDynamicValue): Boolean;
