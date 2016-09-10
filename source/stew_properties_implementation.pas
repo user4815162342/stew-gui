@@ -13,14 +13,14 @@ type
 
   TProperties = class(TDataStoreMap,IProperties)
   private
-    fUser: IDynamicValue;
+    fUser: IDynamicMap;
   strict protected
     function GetItem(const aKey: UTF8String): IDynamicValue; overload; override;
     procedure InitializeBlank; override;
     procedure SetItem(const aKey: UTF8String; const AValue: IDynamicValue);
       overload; override;
-    function GetUser: IDynamicValue;
-    procedure SetUser(AValue: IDynamicValue);
+    function GetUser: IDynamicMap;
+    procedure SetUser(AValue: IDynamicMap);
     function ReadManagedKey(const aKey: UTF8String;
        aReader: TDynamicValueReader): Boolean; override;
     procedure WriteManagedKeys(aWriter: TDynamicValueWriter); override;
@@ -399,17 +399,29 @@ function TProjectProperties.ReadManagedKey(const aKey: UTF8String;
 begin
   case aKey of
     CategoriesKey:
+    begin
       fCategories.Deserialize(aReader);
+      result := true;
+    end;
     DeadlinesKey:
+    begin
       fDeadlines.Deserialize(aReader);
+      result := true;
+    end;
     StatusesKey:
+    begin
       fStatuses.Deserialize(aReader);
+      result := true;
+    end;
     DefaultCategoryKey,
     DefaultDocExtensionKey,
     DefaultNotesExtensionKey,
     DefaultStatusKey,
     DefaultThumbnailExtensionKey:
+    begin
       SetItem(aKey,aReader.ReadValue);
+      result := true;
+    end
   else
     Result:=inherited ReadManagedKey(aKey, aReader);
   end;
@@ -691,7 +703,10 @@ begin
   case aKey of
     DueKey,
     NameKey:
+    begin
       SetItem(aKey,aReader.ReadValue);
+      result := true;
+    end
   else
     Result:=inherited ReadManagedKey(aKey, aReader);
   end;
@@ -1348,7 +1363,7 @@ end;
 
 procedure TProperties.InitializeBlank;
 begin
-  fUser := TDynamicValues.Undefined;
+  fUser := TDynamicValues.NewMap;
   inherited InitializeBlank;
 end;
 
@@ -1356,15 +1371,20 @@ procedure TProperties.SetItem(const aKey: UTF8String;
   const AValue: IDynamicValue);
 begin
   if aKey = UserKey then
-     SetUser(AValue);
+  begin
+    if AValue is IDynamicMap then
+       SetUser(AValue as IDynamicMap)
+    else
+       RaiseInvalidKeyValue(UserKey,AValue);
+  end;
 end;
 
-function TProperties.GetUser: IDynamicValue;
+function TProperties.GetUser: IDynamicMap;
 begin
   result := fUser;
 end;
 
-procedure TProperties.SetUser(AValue: IDynamicValue);
+procedure TProperties.SetUser(AValue: IDynamicMap);
 begin
   fUser := AValue;
 
@@ -1375,7 +1395,7 @@ function TProperties.ReadManagedKey(const aKey: UTF8String;
 begin
   if aKey = UserKey then
   begin
-     fUser := aReader.ReadValue;
+    SetItem(UserKey,aReader.ReadValue);
      result := true;
   end
   else

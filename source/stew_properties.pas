@@ -28,9 +28,9 @@ type
 
   IProperties = interface(IDataStoreObject)
     [PropertiesGUID]
-    function GetUser: IDynamicValue;
-    procedure SetUser(AValue: IDynamicValue);
-    property User: IDynamicValue read GetUser write SetUser;
+    function GetUser: IDynamicMap;
+    procedure SetUser(AValue: IDynamicMap);
+    property User: IDynamicMap read GetUser write SetUser;
   end;
 
   { IDocumentProperties }

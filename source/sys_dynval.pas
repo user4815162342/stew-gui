@@ -21,7 +21,7 @@ quickly convert back and forth when communicating with higher level units. If,
 in the process of doing this, I discover another more complicated place, then I
 can backtrack and start off with a smaller section.
 -- DONE gui_jsoneditor
--- gui_documenteditor -- start using the Properties2 classes instead of Properties.
+-- gui_documenteditor -- start using the IDocumentProperties classes instead of Properties.
    Use To and From Old JSOn convert functions to communicate with stew_project.
 -- gui_projectsettingseditor -- same as gui_documenteditor.
 -- gui_mainform -- Not sure here, but probably the same as gui_documenteditor
