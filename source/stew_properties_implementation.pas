@@ -5,7 +5,7 @@ unit stew_properties_implementation;
 interface
 
 uses
-  Classes, SysUtils, stew_properties, sys_dynval, sys_dynval_data_implementation, sys_types, Graphics;
+  Classes, SysUtils, stew_properties, sys_dynval, sys_dynval_implementation, sys_dynval_data_implementation, sys_types, Graphics;
 
 type
 
@@ -25,6 +25,7 @@ type
        aReader: TDynamicValueReader): Boolean; override;
     procedure WriteManagedKeys(aWriter: TDynamicValueWriter); override;
     procedure ListManagedKeys(var aValue: TStringArray2); override;
+    procedure BuildClone(var aValue: TDynamicValue); override;
   public
     destructor Destroy; override;
   end;
@@ -57,6 +58,7 @@ type
     procedure SetPublish(AValue: Boolean);
     procedure SetStatus(AValue: UTF8String);
     procedure SetTitle(AValue: UTF8String);
+    procedure BuildClone(var aValue: TDynamicValue); override;
   public
     destructor Destroy; override;
   end;
@@ -77,6 +79,7 @@ type
        aReader: TDynamicValueReader): Boolean; override;
     procedure WriteManagedKeys(aWriter: TDynamicValueWriter); override;
     procedure ListManagedKeys(var aValue: TStringArray2); override;
+    procedure BuildClone(var aValue: TDynamicValue); override;
   end;
 
   { TCategoryDefinition }
@@ -110,9 +113,15 @@ type
     procedure SetPublishTitle(AValue: Boolean);
     procedure SetPublishTitleLevel(AValue: Integer);
     procedure SetPublishTitlePrefix(AValue: UTF8String);
+    procedure BuildClone(var aValue: TDynamicValue); override;
+  public
   end;
 
+  { TStatusDefinition }
+
   TStatusDefinition = class(TKeywordDefinition,IStatusDefinition)
+  strict protected
+    procedure BuildClone(var aValue: TDynamicValue); override;
   end;
 
   { TKeywordDefinitions }
@@ -133,6 +142,7 @@ type
     function GetItem(const {%H-}aKey: IDynamicValue): IDynamicValue; override; overload;
     procedure SetItem(const {%H-}aKey: IDynamicValue; const {%H-}AValue: IDynamicValue); override; overload;
     function CreateDefinition: IKeywordDefinition; virtual; abstract;
+    procedure BuildClone(var aValue: TDynamicValue); override;
   public
     procedure Deserialize(aReader: TDynamicValueReader); override;
     procedure Serialize(aWriter: TDynamicValueWriter); override;
@@ -146,7 +156,7 @@ type
     procedure SetCategory(aKey: UTF8String; AValue: ICategoryDefinition);
     procedure SetItem(const aKey: UTF8String; const AValue: IKeywordDefinition); override;
     function CreateDefinition: IKeywordDefinition; override;
-
+    procedure BuildClone(var aValue: TDynamicValue); override;
   end;
 
   { TStatusDefinitions }
@@ -157,7 +167,7 @@ type
     function GetStatus(aKey: UTF8String): IStatusDefinition;
     procedure SetStatus(aKey: UTF8String; AValue: IStatusDefinition);
     procedure SetItem(const aKey: UTF8String; const AValue: IKeywordDefinition); override;
-
+    procedure BuildClone(var aValue: TDynamicValue); override;
   end;
 
   { TDeadline }
@@ -179,6 +189,7 @@ type
        aReader: TDynamicValueReader): Boolean; override;
     procedure WriteManagedKeys(aWriter: TDynamicValueWriter); override;
     procedure ListManagedKeys(var aValue: TStringArray2); override;
+    procedure BuildClone(var aValue: TDynamicValue); override;
   end;
 
   { TDeadlines }
@@ -197,6 +208,7 @@ type
     procedure SetDeadline(const aIndex: Longint; const AValue: IDeadline); overload;
     function ReadManagedItem(aReader: TDynamicValueReader): Boolean; override;
     procedure WriteManagedItems(aWriter: TDynamicValueWriter); override;
+    procedure BuildClone(var aValue: TDynamicValue); override;
   public
     procedure Add(const aItem: IDynamicValue); override;
     procedure Add(const aItem: IDeadline);
@@ -206,7 +218,6 @@ type
     function IndexOf(const aValue: IDynamicValue): Longint; override;
     function IndexOf(const aValue: IDeadline): Longint;
     function Owns(const aValue: IDynamicValue): Boolean; override;
-
   end;
 
   { TProjectProperties }
@@ -243,6 +254,7 @@ type
     procedure SetDefaultNotesExtension(AValue: UTF8String);
     procedure SetDefaultStatus(AValue: UTF8String);
     procedure SetDefaultThumbnailExtension(AValue: UTF8String);
+    procedure BuildClone(var aValue: TDynamicValue); override;
   public
     destructor Destroy; override;
     property DefaultDocExtension: UTF8String read GetDefaultDocExtension write SetDefaultDocExtension;
@@ -315,6 +327,15 @@ begin
       lMessage := lMessage + 'object';
   end;
   raise Exception.Create(lMessage);
+end;
+
+{ TStatusDefinition }
+
+procedure TStatusDefinition.BuildClone(var aValue: TDynamicValue);
+begin
+  if aValue = nil then
+     aValue := TStatusDefinition.Create;
+  inherited BuildClone(aValue);
 end;
 
 { TProjectProperties }
@@ -522,6 +543,21 @@ begin
   fDefaultThumbnailExtension := ExcludeExtensionDelimiter(AValue);
 end;
 
+procedure TProjectProperties.BuildClone(var aValue: TDynamicValue);
+begin
+  if aValue = nil then
+     aValue := TProjectProperties.Create;
+  (aValue as TProjectProperties).fCategories := fCategories.Clone as ICategoryDefinitions;
+  (aValue as TProjectProperties).fDeadlines := fDeadlines.Clone as IDeadlines;
+  (aValue as TProjectProperties).fDefaultCategory:= fDefaultCategory;
+  (aValue as TProjectProperties).fDefaultDocExtension:= fDefaultDocExtension;
+  (aValue as TProjectProperties).fDefaultNotesExtension:= fDefaultNotesExtension;
+  (aValue as TProjectProperties).fDefaultStatus:= fDefaultStatus;
+  (aValue as TProjectProperties).fDefaultThumbnailExtension:= fDefaultThumbnailExtension;
+  (aValue as TProjectProperties).fStatuses := fStatuses.Clone as IStatusDefinitions;
+  inherited BuildClone(aValue);
+end;
+
 destructor TProjectProperties.Destroy;
 begin
   fStatuses := nil;
@@ -637,6 +673,14 @@ begin
      aWriter.WriteValue(fItems[i]);
 end;
 
+procedure TDeadlines.BuildClone(var aValue: TDynamicValue);
+begin
+  if aValue = nil then
+     aValue := TDeadlines.Create;
+  (aValue as TDeadlines).fItems := fItems.Clone as IDynamicList;
+  inherited BuildClone(aValue);
+end;
+
 { TDeadline }
 
 function TDeadline.GetItem(const aKey: UTF8String): IDynamicValue;
@@ -726,6 +770,15 @@ begin
   inherited ListManagedKeys(aValue);
 end;
 
+procedure TDeadline.BuildClone(var aValue: TDynamicValue);
+begin
+  if aValue = nil then
+     aValue := TDeadline.Create;
+  (aValue as TDeadline).fName := fName;
+  (aValue as TDeadline).fDue := fDue;
+  inherited BuildClone(aValue);
+end;
+
 { TStatusDefinitions }
 
 function TStatusDefinitions.CreateDefinition: IKeywordDefinition;
@@ -751,6 +804,13 @@ begin
      fValues.SetItem(aKey,AValue)
   else
      raise Exception.Create('TStatusDefinitions can only contain TStatusDefinition');
+end;
+
+procedure TStatusDefinitions.BuildClone(var aValue: TDynamicValue);
+begin
+  if aValue = nil then
+     aValue := TStatusDefinitions.Create;
+  inherited BuildClone(aValue);
 end;
 
 { TCategoryDefinitions }
@@ -779,6 +839,13 @@ end;
 function TCategoryDefinitions.CreateDefinition: IKeywordDefinition;
 begin
   result := TPropertyObjects.NewCategoryDefinition;
+end;
+
+procedure TCategoryDefinitions.BuildClone(var aValue: TDynamicValue);
+begin
+  if aValue = nil then
+     aValue := TCategoryDefinitions.Create;
+  inherited BuildClone(aValue);
 end;
 
 { TKeywordDefinitions }
@@ -831,6 +898,14 @@ begin
      SetItem(aKey,AValue as IKeywordDefinition)
   else
      raise Exception.Create('Invalid value for keyword definitions');
+end;
+
+procedure TKeywordDefinitions.BuildClone(var aValue: TDynamicValue);
+begin
+  if aValue = nil then
+     aValue := TKeywordDefinitions.Create;
+  (aValue as TKeywordDefinitions).fValues := fValues.Clone as IDynamicMap;
+  inherited BuildClone(aValue);
 end;
 
 procedure TKeywordDefinitions.Deserialize(aReader: TDynamicValueReader);
@@ -1058,6 +1133,19 @@ begin
   fPublishTitlePrefix:=AValue;
 end;
 
+procedure TCategoryDefinition.BuildClone(var aValue: TDynamicValue);
+begin
+  if aValue = nil then
+     aValue := TCategoryDefinition.Create;
+  (aValue as TCategoryDefinition).fPublishMarkerAfter:=fPublishMarkerAfter;
+  (aValue as TCategoryDefinition).fPublishMarkerBefore:=fPublishMarkerBefore;
+  (aValue as TCategoryDefinition).fPublishMarkerBetween:=fPublishMarkerBetween;
+  (aValue as TCategoryDefinition).fPublishTitle:=fPublishTitle;
+  (aValue as TCategoryDefinition).fPublishTitleLevel:=fPublishTitleLevel;
+  (aValue as TCategoryDefinition).fPublishTitlePrefix:=fPublishTitlePrefix;
+  inherited BuildClone(aValue);
+end;
+
 { TKeywordDefinition }
 
 function TKeywordDefinition.GetItem(const aKey: UTF8String): IDynamicValue;
@@ -1159,6 +1247,14 @@ procedure TKeywordDefinition.ListManagedKeys(var aValue: TStringArray2);
 begin
   aValue.Add(ColorKey);
   inherited ListManagedKeys(aValue);
+end;
+
+procedure TKeywordDefinition.BuildClone(var aValue: TDynamicValue);
+begin
+  if aValue = nil then
+     aValue := TKeywordDefinition.Create;
+  (aValue as TKeywordDefinition).fColor := fColor;
+  inherited BuildClone(aValue);
 end;
 
 { TDocumentProperties }
@@ -1343,6 +1439,20 @@ begin
   fTitle := AValue;
 end;
 
+procedure TDocumentProperties.BuildClone(var aValue: TDynamicValue);
+begin
+  if aValue = nil then
+     aValue := TDocumentProperties.Create;
+
+  (aValue as TDocumentProperties).fCategory:=fCategory;
+  (aValue as TDocumentProperties).fIndex:=fIndex;
+  (aValue as TDocumentProperties).fPublish:=fPublish;
+  (aValue as TDocumentProperties).fStatus:=fStatus;
+  (aValue as TDocumentProperties).fTitle:=fTitle;
+
+  inherited BuildClone(aValue);
+end;
+
 destructor TDocumentProperties.Destroy;
 begin
   fIndex.Count := 0;
@@ -1412,6 +1522,14 @@ procedure TProperties.ListManagedKeys(var aValue: TStringArray2);
 begin
   aValue.Add(UserKey);
   inherited ListManagedKeys(aValue);
+end;
+
+procedure TProperties.BuildClone(var aValue: TDynamicValue);
+begin
+  if aValue = nil then
+     aValue := TProperties.Create;
+  (aValue as TProperties).fUser := fUser.Clone as IDynamicMap;
+  inherited BuildClone(aValue);
 end;
 
 destructor TProperties.Destroy;

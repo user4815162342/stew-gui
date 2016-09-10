@@ -22,6 +22,7 @@ type
   strict protected
     procedure InitializeBlank; virtual; abstract;
     function GetKindOf: TDynamicValueKind; override;
+    procedure BuildClone(var aValue: TDynamicValue); override;
   public
     constructor Create;
     procedure Serialize(aWriter: TDynamicValueWriter); virtual; abstract; overload;
@@ -57,6 +58,7 @@ type
     procedure SetItem(const {%H-}aKey: UTF8String; const {%H-}AValue: IDynamicValue); overload; virtual;
     function GetItem(const {%H-}aKey: IDynamicValue): IDynamicValue; override; overload;
     procedure SetItem(const {%H-}aKey: IDynamicValue; const {%H-}AValue: IDynamicValue); override; overload;
+    procedure BuildClone(var aValue: TDynamicValue); override;
   public
     procedure Serialize(aWriter: TDynamicValueWriter); override;
     procedure Deserialize(aReader: TDynamicValueReader); override;
@@ -90,6 +92,7 @@ type
     procedure SetItem(const aKey: Longint; const AValue: IDynamicValue); overload; virtual; abstract;
     function GetItem(const {%H-}aKey: IDynamicValue): IDynamicValue; override; overload;
     procedure SetItem(const {%H-}aKey: IDynamicValue; const {%H-}AValue: IDynamicValue); override; overload;
+    procedure BuildClone(var aValue: TDynamicValue); override;
   public
     procedure Serialize(aWriter: TDynamicValueWriter); override;
     procedure Deserialize(aReader: TDynamicValueReader); override;
@@ -186,6 +189,13 @@ begin
   Result:=dvkObject;
 end;
 
+procedure TDataStoreObject.BuildClone(var aValue: TDynamicValue);
+begin
+  if aValue = nil then
+    aValue := TDataStoreObject.Create;
+  inherited BuildClone(aValue);
+end;
+
 
 { TDataStoreMap }
 
@@ -240,6 +250,14 @@ begin
     Exit;
   end;
   inherited SetItem(aKey, AValue);
+end;
+
+procedure TDataStoreMap.BuildClone(var aValue: TDynamicValue);
+begin
+  if aValue = nil then
+    aValue := TDataStoreMap.Create;
+  (aValue as TDataStoreMap).fBacking := fBacking.Clone as IDynamicMap;
+  inherited BuildClone(aValue);
 end;
 
 procedure TDataStoreMap.Serialize(aWriter: TDynamicValueWriter);
@@ -441,6 +459,14 @@ begin
      end;
   end;
   inherited SetItem(aKey,AValue);
+end;
+
+procedure TDataStoreList.BuildClone(var aValue: TDynamicValue);
+begin
+  if aValue = nil then
+     aValue := TDataStoreList.Create;
+  (aValue as TDataStoreList).fBacking := fBacking.Clone as IDynamicList;
+  inherited BuildClone(aValue);
 end;
 
 

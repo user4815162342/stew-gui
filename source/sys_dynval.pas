@@ -21,12 +21,12 @@ quickly convert back and forth when communicating with higher level units. If,
 in the process of doing this, I discover another more complicated place, then I
 can backtrack and start off with a smaller section.
 -- DONE gui_jsoneditor
--- gui_documenteditor -- start using the IDocumentProperties classes instead of Properties.
-   Use To and From Old JSOn convert functions to communicate with stew_project.
--- gui_projectsettingseditor -- same as gui_documenteditor.
--- gui_mainform -- Not sure here, but probably the same as gui_documenteditor
 -- gui_config -- convert over to the new JSON format for saving data.
 -- stew_project -- start converting everything into the new properties.
+-- gui_documenteditor -- Can wait until we switch over from Stew_Project, because
+there isn't going to be too much to change.
+-- gui_projectsettingseditor -- same as gui_documenteditor.
+-- gui_mainform -- Not sure here, but probably the same as gui_documenteditor
 -- stew_properties -- get rid of the old properties
 -- sys_dynval -- get rid of the conversion functions.
 -- sys_json -- get rid of this entirely.
@@ -118,6 +118,7 @@ type
     function IsEqualTo(const aValue: IDynamicValue): Boolean;
     property Item[aKey: IDynamicValue]: IDynamicValue read GetItem write SetItem; default;
     property KindOf: TDynamicValueKind read GetKindOf;
+    function Clone: IDynamicValue;
   end;
 
   { IDynamicNull }

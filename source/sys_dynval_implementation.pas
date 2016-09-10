@@ -18,6 +18,7 @@ type
     function GetItem(const {%H-}aKey: IDynamicValue): IDynamicValue; virtual;
     procedure SetItem(const {%H-}aKey: IDynamicValue; const {%H-}AValue: IDynamicValue); virtual;
     function GetKindOf: TDynamicValueKind; virtual;
+    procedure BuildClone(var aValue: TDynamicValue); virtual;
   public
     function Owns(const {%H-}aValue: IDynamicValue): Boolean; virtual;
     function IsDefined: Boolean; virtual;
@@ -25,6 +26,7 @@ type
     function IsEqualTo(const {%H-}aValue: IDynamicValue): Boolean; virtual;
     property Item[aKey: IDynamicValue]: IDynamicValue read GetItem write SetItem;
     property KindOf: TDynamicValueKind read GetKindOf;
+    function Clone: IDynamicValue;
   end;
 
   { TDynamicNull }
@@ -32,6 +34,7 @@ type
   TDynamicNull = class(TDynamicValue,IDynamicNull)
   strict protected
     function GetKindOf: TDynamicValueKind; override;
+    procedure BuildClone(var aValue: TDynamicValue); override;
   public
     function IsEqualTo(const aValue: IDynamicValue): Boolean; override;
   end;
@@ -44,6 +47,7 @@ type
     function GetValue: Boolean;
   strict protected
     function GetKindOf: TDynamicValueKind; override;
+    procedure BuildClone(var aValue: TDynamicValue); override;
   public
     constructor Create(aValue: Boolean);
     property Value: Boolean read GetValue;
@@ -58,6 +62,7 @@ type
     function GetValue: Double;
   strict protected
     function GetKindOf: TDynamicValueKind; override;
+    procedure BuildClone(var aValue: TDynamicValue); override;
   public
     constructor Create(aValue: Double);
     property Value: Double read GetValue;
@@ -72,6 +77,7 @@ type
     function GetValue: UTF8String;
   strict protected
     function GetKindOf: TDynamicValueKind; override;
+    procedure BuildClone(var aValue: TDynamicValue); override;
   public
     constructor Create(aValue: UTF8String);
     property Value: UTF8String read GetValue;
@@ -93,6 +99,7 @@ type
     function GetKindOf: TDynamicValueKind; override;
     function GetItem(const aKey: IDynamicValue): IDynamicValue; override;
     procedure SetItem(const aKey: IDynamicValue; const AValue: IDynamicValue); override;
+    procedure BuildClone(var aValue: TDynamicValue); override;
   public
     constructor Create;
     property Item[aIndex: Longint]: IDynamicValue read GetItem write SetItem; default;
@@ -146,6 +153,7 @@ type
     function GetKindOf: TDynamicValueKind; override;
     function GetItem(const aKey: IDynamicValue): IDynamicValue; override;
     procedure SetItem(const aKey: IDynamicValue; const AValue: IDynamicValue); override;
+    procedure BuildClone(var aValue: TDynamicValue); override;
   public
     constructor Create;
     property Item[aKey: UTF8String]: IDynamicValue read GetItem write SetItem; default;
@@ -215,6 +223,13 @@ end;
 function TDynamicNull.GetKindOf: TDynamicValueKind;
 begin
   Result:=dvkNull;
+end;
+
+procedure TDynamicNull.BuildClone(var aValue: TDynamicValue);
+begin
+  if aValue = nil then
+     aValue := TDynamicValues.Null as TDynamicNull;
+  inherited BuildClone(aValue);
 end;
 
 function TDynamicNull.IsEqualTo(const aValue: IDynamicValue): Boolean;
@@ -312,6 +327,18 @@ begin
     Exit;
   end;
   inherited SetItem(aKey, AValue);
+end;
+
+procedure TDynamicMap.BuildClone(var aValue: TDynamicValue);
+var
+  lEnum: IDynamicMapEnumerator;
+begin
+  if aValue = nil then
+     aValue := TDynamicMap.Create;
+  lEnum := Enumerate;
+  while lEnum.Next do
+     (aValue as TDynamicMap).SetItem(lEnum.Key,lEnum.Value.Clone);
+  inherited BuildClone(aValue);
 end;
 
 function TDynamicMap.Find(const aKey: UTF8String): Longint;
@@ -563,6 +590,22 @@ begin
   inherited SetItem(aKey,AValue);
 end;
 
+procedure TDynamicList.BuildClone(var aValue: TDynamicValue);
+var
+  l: Longint;
+  i: Longint;
+begin
+  if aValue = nil then
+     aValue := TDynamicList.Create;
+  l := Length;
+  (aValue as TDynamicList).Length := l;
+  for i := 0 to l - 1 do
+  begin
+    (aValue as TDynamicList)[i] := Self[i].Clone;
+  end;
+  inherited BuildClone(aValue);
+end;
+
 constructor TDynamicList.Create;
 begin
   inherited Create;
@@ -664,6 +707,15 @@ begin
   Result:=dvkString;
 end;
 
+procedure TDynamicString.BuildClone(var aValue: TDynamicValue);
+begin
+  if aValue = nil then
+     aValue := TDynamicString.Create(fValue)
+  else
+     (aValue as TDynamicString).fValue := fValue;
+  inherited BuildClone(aValue);
+end;
+
 constructor TDynamicString.Create(aValue: UTF8String);
 begin
   inherited Create;
@@ -686,6 +738,15 @@ end;
 function TDynamicNumber.GetKindOf: TDynamicValueKind;
 begin
   Result:=dvkNumber;
+end;
+
+procedure TDynamicNumber.BuildClone(var aValue: TDynamicValue);
+begin
+  if aValue = nil then
+     aValue := TDynamicNumber.Create(fValue)
+  else
+     (aValue as TDynamicNumber).fValue := fValue;
+  inherited BuildClone(aValue);
 end;
 
 constructor TDynamicNumber.Create(aValue: Double);
@@ -713,6 +774,15 @@ end;
 function TDynamicBoolean.GetKindOf: TDynamicValueKind;
 begin
   Result:=dvkBoolean;
+end;
+
+procedure TDynamicBoolean.BuildClone(var aValue: TDynamicValue);
+begin
+  if aValue = nil then
+     aValue := TDynamicBoolean.Create(fValue)
+  else
+     (aValue as TDynamicBoolean).fValue := fValue;
+  inherited BuildClone(aValue);
 end;
 
 constructor TDynamicBoolean.Create(aValue: Boolean);
@@ -744,6 +814,12 @@ begin
   result := dvkUndefined;
 end;
 
+procedure TDynamicValue.BuildClone(var aValue: TDynamicValue);
+begin
+  if aValue = nil then
+     aValue := TDynamicValues.Undefined as TDynamicValue;
+end;
+
 function TDynamicValue.Owns(const aValue: IDynamicValue): Boolean;
 begin
   result := false;
@@ -769,6 +845,15 @@ end;
 function TDynamicValue.IsEqualTo(const aValue: IDynamicValue): Boolean;
 begin
   result := false;
+end;
+
+function TDynamicValue.Clone: IDynamicValue;
+var
+  lClone: TDynamicValue;
+begin
+  lClone := nil;
+  BuildClone(lClone);
+  result := lClone;
 end;
 
 initialization
