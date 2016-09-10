@@ -14,31 +14,6 @@ uses
 
 
 TODO: Make use of this
-- Property objects implement IDynamicObject. This allows me to use Dynamic Maps
-to store Status Definitions, and things like that.
-0. This doesn't make sense yet, unless the property objects are memory managed
-in the same ways. Without that, I'm going to be having to maintain instances
-constantly. I need to convert those into Interfaces as well. Their interfaces
-won't descend from the dynval interfaces, but a separate 'IDataStore'
-interface. But they will use those internally. The idea is that I can pass
-the configuration objects around like primitives, and this won't work if they
-are classes.
-  -- okay, if I just start creating interfaces and change these to new objects,
-     it gets complicated about the time I have to store the interfaces in hash lists,
-     which isn't going to work right.
-  -- I'm thinking that, instead, I should reimplement them as IDynamicMaps and IDynamicLists, etc.
-     Not descended from the default implementations, but new ones which wrap real IDynamicMaps
-     inside and handle the serialization/deserialization. This would allow me
-     to store IStatusDefinition as an IDynamicValue inside a Map. However, this
-     would mean I'd have to support all keys and such that are in maps.
-  -- An alternative is, create an IDynamicObject which allows us to store native
-  data as IDynamicValues (using as much IDynamicValue data as possible). These things
-  would not be serializable through the regular methods (and we have to make sure
-  of this), or creatable using TDynamicValues (we would need a separate mechanism).
-  This prevents their appearance inside a 'user' object. But, it should be doable.
-  This will also allow me to contain them in other special dynval entities for
-  entire documents, if I wanted to.
-
 1. Don't do this from the top down, changing everything at once. Go from the bottom
 up. So, instead of just switching from TProjectProperties to TProjectProperties2 in
 stew_project, switch the various editors over, using some conversion functions to
@@ -136,10 +111,9 @@ type
     procedure SetItem(const aKey: IDynamicValue; const AValue: IDynamicValue);
     function Owns(const aValue: IDynamicValue): Boolean;
     function IsDefined: Boolean;
-    // TODO: I'm not sure if I actually use or need EqualTo or StructurallyEqualTo.
-    // Consider getting rid of them to have less to maintain. They might
-    // be used in testing, but I can create functionality there to handle
-    // that if I need it.
+    // TODO: I don't think IsEqualTo and IsStructurallyEqualTo are really used
+    // anywhere, except in testing. They are not supported in IDynamicObject
+    // at all. We can probably get rid of these.
     function IsStructurallyEqualTo(const aValue: IDynamicValue): Boolean;
     function IsEqualTo(const aValue: IDynamicValue): Boolean;
     property Item[aKey: IDynamicValue]: IDynamicValue read GetItem write SetItem; default;

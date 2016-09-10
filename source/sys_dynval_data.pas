@@ -6,10 +6,6 @@ unit sys_dynval_data;
 
 interface
 
-{
-TODO: Split the interfaces from the implementation.
-
-}
 
 uses
   Classes, SysUtils, sys_dynval;

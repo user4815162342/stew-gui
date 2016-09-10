@@ -303,8 +303,8 @@ end;
 function TDataStoreMap.IsStructurallyEqualTo(const aValue: IDynamicValue
   ): Boolean;
 begin
-  // TODO: I'm not even sure how I use this, except for testing...
-  // Let's just say objects are not equal unless they are the same anyway.
+  // TODO: I don't know for sure that I even need this, so I simply won't
+  // support it.
   result := false;
 end;
 
@@ -396,7 +396,8 @@ end;
 function TDataStoreList.IsStructurallyEqualTo(const aValue: IDynamicValue
   ): Boolean;
 begin
-  // TODO: I think I'm getting rid of this.
+  // TODO: I don't know for sure that I even need this, so I simply won't
+  // support it.
   result := false;
 end;
 
