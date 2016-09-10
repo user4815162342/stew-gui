@@ -13,7 +13,8 @@ uses
   gui_async, stew_project, test_sys_filecache_local, test_stew_project,
   stew_properties, test_stew_properties, test_longstringmap, test_gui,
   stew_query, test_sys_types, test_sys_dynval, sys_dynval,
-  sys_dynval_implementation, sys_dynval_json, sys_dynval_data;
+  sys_dynval_implementation, sys_dynval_json, sys_dynval_data,
+  stew_properties_implementation;
 
 {$R *.res}
 

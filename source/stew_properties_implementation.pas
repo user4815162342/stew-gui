@@ -117,7 +117,7 @@ type
 
   { TKeywordDefinitions }
 
-  TKeywordDefinitions = class(TDataStoreMap,IKeywordDefinitions)
+  TKeywordDefinitions = class(TDataStoreObject,IKeywordDefinitions)
   private
     fValues: IDynamicMap;
   strict protected
@@ -127,13 +127,15 @@ type
     procedure Delete(const aKey: UTF8String);
     procedure Clear;
     function Enumerate: IDynamicMapEnumerator;
-    function GetItem(const aKey: UTF8String): IDynamicValue; overload; override;
-    procedure SetItem(const aKey: UTF8String; const AValue: IDynamicValue);
-      overload; override; abstract;
-    function ReadManagedKey(const aKey: UTF8String;
-       aReader: TDynamicValueReader): Boolean; override;
-    procedure WriteManagedKeys(aWriter: TDynamicValueWriter); override;
-    procedure ListManagedKeys(var aValue: TStringArray2); override;
+    function GetItem(const aKey: UTF8String): IKeywordDefinition;
+    procedure SetItem(const aKey: UTF8String; const AValue: IKeywordDefinition);
+      virtual; abstract;
+    function GetItem(const {%H-}aKey: IDynamicValue): IDynamicValue; override; overload;
+    procedure SetItem(const {%H-}aKey: IDynamicValue; const {%H-}AValue: IDynamicValue); override; overload;
+    function CreateDefinition: IKeywordDefinition; virtual; abstract;
+  public
+    procedure Deserialize(aReader: TDynamicValueReader); override;
+    procedure Serialize(aWriter: TDynamicValueWriter); override;
   end;
 
   { TCategoryDefinitions }
@@ -142,9 +144,8 @@ type
   strict protected
     function GetCategory(aKey: UTF8String): ICategoryDefinition;
     procedure SetCategory(aKey: UTF8String; AValue: ICategoryDefinition);
-    procedure SetItem(const aKey: UTF8String; const AValue: IDynamicValue);
-      overload; override;
-    function New: ICategoryDefinition;
+    procedure SetItem(const aKey: UTF8String; const AValue: IKeywordDefinition); override;
+    function CreateDefinition: IKeywordDefinition; override;
 
   end;
 
@@ -152,11 +153,10 @@ type
 
   TStatusDefinitions = class(TKeywordDefinitions,IStatusDefinitions)
   strict protected
+    function CreateDefinition: IKeywordDefinition; override;
     function GetStatus(aKey: UTF8String): IStatusDefinition;
     procedure SetStatus(aKey: UTF8String; AValue: IStatusDefinition);
-    procedure SetItem(const aKey: UTF8String; const AValue: IDynamicValue);
-       overload; override;
-    function New: IStatusDefinition;
+    procedure SetItem(const aKey: UTF8String; const AValue: IKeywordDefinition); override;
 
   end;
 
@@ -200,12 +200,12 @@ type
   public
     procedure Add(const aItem: IDynamicValue); override;
     procedure Add(const aItem: IDeadline);
+    procedure Add(const aName: UTF8String; const aDue: TDateTime);
     procedure Clear; override;
     procedure Delete(const aIndex: Longint); override;
     function IndexOf(const aValue: IDynamicValue): Longint; override;
     function IndexOf(const aValue: IDeadline): Longint;
     function Owns(const aValue: IDynamicValue): Boolean; override;
-    function New: IDeadline;
 
   end;
 
@@ -345,14 +345,14 @@ end;
 
 procedure TProjectProperties.InitializeBlank;
 begin
-  fCategories := TCategoryDefinitions.Create;
-  fDeadlines := TDeadlines.Create;
+  fCategories := TPropertyObjects.NewCategoryDefinitions;
+  fDeadlines := TPropertyObjects.NewDeadlines;
   fDefaultCategory := '';
   fDefaultDocExtension := '';
   fDefaultNotesExtension := '';
   fDefaultStatus := '';
   fDefaultThumbnailExtension := '';
-  fStatuses := TStatusDefinitions.Create;
+  fStatuses := TPropertyObjects.NewStatusDefinitions;
   inherited InitializeBlank;
 end;
 
@@ -533,6 +533,17 @@ begin
   fItems.Add(aItem);
 end;
 
+procedure TDeadlines.Add(const aName: UTF8String; const aDue: TDateTime);
+var
+  lDeadline: IDeadline;
+begin
+  lDeadline := TPropertyObjects.NewDeadline;
+  lDeadline.Name := aName;
+  lDeadline.Due := aDue;
+  Add(lDeadline);
+
+end;
+
 procedure TDeadlines.Clear;
 begin
   fItems.Clear;
@@ -568,14 +579,10 @@ begin
   result := fItems.Owns(aValue);
 end;
 
-function TDeadlines.New: IDeadline;
-begin
-  result := TDeadline.Create;
-end;
-
 procedure TDeadlines.InitializeBlank;
 begin
   fItems := TDynamicValues.NewList;
+  inherited InitializeBlank;
 end;
 
 procedure TDeadlines.SetItem(const aKey: Longint; const AValue: IDynamicValue);
@@ -636,6 +643,7 @@ procedure TDeadline.InitializeBlank;
 begin
   fDue := 0;
   fName := '';
+  inherited InitializeBlank;
 end;
 
 procedure TDeadline.SetItem(const aKey: UTF8String; const AValue: IDynamicValue
@@ -705,6 +713,11 @@ end;
 
 { TStatusDefinitions }
 
+function TStatusDefinitions.CreateDefinition: IKeywordDefinition;
+begin
+    result := TPropertyObjects.NewStatusDefinition;
+end;
+
 function TStatusDefinitions.GetStatus(aKey: UTF8String): IStatusDefinition;
 begin
   result := GetItem(aKey) as IStatusDefinition;
@@ -717,17 +730,12 @@ begin
 end;
 
 procedure TStatusDefinitions.SetItem(const aKey: UTF8String;
-  const AValue: IDynamicValue);
+  const AValue: IKeywordDefinition);
 begin
   if AValue is IStatusDefinition then
      fValues.SetItem(aKey,AValue)
   else
      raise Exception.Create('TStatusDefinitions can only contain TStatusDefinition');
-end;
-
-function TStatusDefinitions.New: IStatusDefinition;
-begin
-  result := TStatusDefinition.Create;
 end;
 
 { TCategoryDefinitions }
@@ -745,7 +753,7 @@ begin
 end;
 
 procedure TCategoryDefinitions.SetItem(const aKey: UTF8String;
-  const AValue: IDynamicValue);
+  const AValue: IKeywordDefinition);
 begin
   if AValue is ICategoryDefinition then
      fValues.SetItem(aKey,AValue)
@@ -753,9 +761,9 @@ begin
      raise Exception.Create('TCategoryDefinitions can only contain TCategoryDefinition');
 end;
 
-function TCategoryDefinitions.New: ICategoryDefinition;
+function TCategoryDefinitions.CreateDefinition: IKeywordDefinition;
 begin
-  result := TCategoryDefinition.Create;
+  result := TPropertyObjects.NewCategoryDefinition;
 end;
 
 { TKeywordDefinitions }
@@ -790,34 +798,76 @@ begin
   result := fValues.Enumerate;
 end;
 
-function TKeywordDefinitions.GetItem(const aKey: UTF8String): IDynamicValue;
+function TKeywordDefinitions.GetItem(const aKey: UTF8String
+  ): IKeywordDefinition;
+begin
+  Result:=fValues.GetItem(aKey) as IKeywordDefinition;
+end;
+
+function TKeywordDefinitions.GetItem(const aKey: IDynamicValue): IDynamicValue;
 begin
   Result:=fValues.GetItem(aKey);
 end;
 
-function TKeywordDefinitions.ReadManagedKey(const aKey: UTF8String;
-  aReader: TDynamicValueReader): Boolean;
+procedure TKeywordDefinitions.SetItem(const aKey: IDynamicValue;
+  const AValue: IDynamicValue);
 begin
-  SetItem(aKey,aReader.ReadValue);
-  result := true;
+  if AValue is IKeywordDefinition then
+     SetItem(aKey,AValue as IKeywordDefinition)
+  else
+     raise Exception.Create('Invalid value for keyword definitions');
 end;
 
-procedure TKeywordDefinitions.WriteManagedKeys(aWriter: TDynamicValueWriter);
+procedure TKeywordDefinitions.Deserialize(aReader: TDynamicValueReader);
 var
-  lEnumerator: IDynamicMapEnumerator;
+  lKey: UTF8String;
+  lKeywordDefinition: IKeywordDefinition;
 begin
-  lEnumerator := fValues.Enumerate;
-  while lEnumerator.Next do
-     aWriter.WriteKeyValue(lEnumerator.Key,lEnumerator.Value);
+  InitializeBlank;
+  if aReader <> nil then
+  begin;
+    if aReader.IsMapStart then
+    begin
+      aReader.ReadMapStart;
+      while not aReader.IsMapEnd do
+      begin
+        lKey := aReader.ReadMapKey;
+        lKeywordDefinition := CreateDefinition;
+        fValues.SetItem(lKey,lKeywordDefinition);
+        lKeywordDefinition.Deserialize(aReader);
+      end;
+      aReader.ReadMapEnd;
+    end
+    else if aReader.IsListStart then
+    begin
+      aReader.ReadListStart;
+      // basically, two loops. The first one gives us a chance to read items
+      // that are managed, up until the first item that isn't manageable.
+      while not aReader.IsListEnd do
+      begin
+        lKey := aReader.ReadString.Value;
+        lKeywordDefinition := CreateDefinition;
+        fValues.SetItem(lKey,lKeywordDefinition);
+      end;
+      aReader.ReadListEnd;
+
+    end;
+
+  end
 end;
 
-procedure TKeywordDefinitions.ListManagedKeys(var aValue: TStringArray2);
+procedure TKeywordDefinitions.Serialize(aWriter: TDynamicValueWriter);
 var
-  lEnumerator: IDynamicMapEnumerator;
+  lEnum: IDynamicMapEnumerator;
 begin
-  lEnumerator := fValues.Enumerate;
-  while lEnumerator.Next do
-     aValue.Add(lEnumerator.Key);
+  aWriter.WriteMapStart(fValues);
+  lEnum := fValues.Enumerate;
+  while lEnum.Next do
+  begin
+    aWriter.WriteKey(lEnum.Key);
+    (lEnum.Value as IDataStoreObject).Serialize(aWriter);
+  end;
+  aWriter.WriteMapEnd;
 end;
 
 { TCategoryDefinition }
@@ -1018,6 +1068,7 @@ end;
 procedure TKeywordDefinition.InitializeBlank;
 begin
  fColor := clDefault;
+ inherited InitializeBlank;
 end;
 
 procedure TKeywordDefinition.SetItem(const aKey: UTF8String;
@@ -1298,6 +1349,7 @@ end;
 procedure TProperties.InitializeBlank;
 begin
   fUser := TDynamicValues.Undefined;
+  inherited InitializeBlank;
 end;
 
 procedure TProperties.SetItem(const aKey: UTF8String;

@@ -1,11 +1,13 @@
 unit stew_properties;
 
 {$mode objfpc}{$H+}
+// I'm using com interfaces here, so that I get reference counting, which I want.
+{$interfaces COM}
 
 interface
 
 uses
-  Classes, SysUtils, Graphics, contnrs, sys_file, sys_json, sys_dynval, sys_dynval_data, sys_types;
+  Classes, SysUtils, Graphics, sys_file, sys_json, sys_dynval, sys_dynval_data, sys_types;
 
 const
   PropertiesGUID = '{17109B5C-1A4E-433F-A1AE-F81713E6E765}';
@@ -21,12 +23,6 @@ const
   ProjectPropertiesGUID = '{D2E4B8B4-2430-43D6-BAA6-F2865D5FA3A4}';
 
 type
-
-    // TODO: Now, Need to fix all of the hints and warnings now that I've added
-    // IDynamicValue capabilities to the parent data objects. This also involves
-    // changing the storage types of member objects to IDynamicValue descendants.
-    // TODO: The interfaces should be here. The classes should be in stew_properties_implementation.
-    // TODO: Similarly, there should be a sys_dynval_data_implementation.
 
   { IProperties }
 
@@ -103,6 +99,7 @@ type
     procedure Delete(const aKey: UTF8String);
     procedure Clear;
     function Enumerate: IDynamicMapEnumerator;
+    property Keys: TStringArray2 read GetKeys;
   end;
 
   { ICategoryDefinitions }
@@ -112,7 +109,6 @@ type
     function GetCategory(aKey: UTF8String): ICategoryDefinition;
     procedure SetCategory(aKey: UTF8String; AValue: ICategoryDefinition);
     property Category[aKey: UTF8String]: ICategoryDefinition read GetCategory write SetCategory; default;
-    function New: ICategoryDefinition;
   end;
 
   { IStatusDefinitions }
@@ -122,7 +118,6 @@ type
     function GetStatus(aKey: UTF8String): IStatusDefinition;
     procedure SetStatus(aKey: UTF8String; AValue: IStatusDefinition);
     property Status[aKey: UTF8String]: IStatusDefinition read GetStatus write SetStatus; default;
-    function New: IStatusDefinition;
   end;
 
   { IDeadline }
@@ -146,10 +141,10 @@ type
     property Deadline[aIndex: Longint]: IDeadline read GetDeadline write SetDeadline; default;
     property Length: Longint read GetLength write SetLength;
     procedure Add(const aItem: IDeadline);
+    procedure Add(const aName: UTF8String; const aDue: TDateTime);
     procedure Delete(const aIndex: Longint);
     procedure Clear;
     function IndexOf(const aValue: IDeadline): Longint;
-    function New: IDeadline;
   end;
 
   { IProjectProperties }
@@ -185,6 +180,12 @@ type
   public
     class function NewDocumentProperties: IDocumentProperties;
     class function NewProjectProperties: IProjectProperties;
+    class function NewStatusDefinitions: IStatusDefinitions;
+    class function NewCategoryDefinitions: ICategoryDefinitions;
+    class function NewDeadlines: IDeadlines;
+    class function NewStatusDefinition: IStatusDefinition;
+    class function NewCategoryDefinition: ICategoryDefinition;
+    class function NewDeadline: IDeadline;
   end;
 
   { TProperties }
@@ -199,38 +200,12 @@ type
     property User: TJSObject read GetUser;
   end;
 
-  { TProperties2 }
-
-  TProperties2 = class(TDataStoreMap)
-  private
-    fUser: IDynamicValue;
-  protected
-    function ReadManagedKey(const aKey: UTF8String;
-       aReader: TDynamicValueReader): Boolean; override;
-    procedure WriteManagedKeys(aWriter: TDynamicValueWriter); override;
-  public
-    property User: IDynamicValue read fUser write fUser;
-  end;
-
   { TDocumentIndexProperty }
 
   TDocumentIndexProperty = class(TJSArray)
   strict protected
     function RequestType(aKey: UTF8String; aType: TJSValueClass
        ): TJSValueClass; override;
-  end;
-
-  { TDocumentIndexProperty2 }
-
-  TDocumentIndexProperty2 = class(TDataStoreList)
-  private
-    fIndex: TStringArray2;
-  protected
-    function ReadManagedItem(aReader: TDynamicValueReader): Boolean; override;
-    procedure WriteManagedItems(aWriter: TDynamicValueWriter); override;
-    procedure InitializeBlank; override;
-  public
-    property Index: TStringArray2 read fIndex;
   end;
 
   { TDocumentProperties }
@@ -255,30 +230,6 @@ type
     property Category: UTF8String read GetCategory write SetCategory;
     property Status: UTF8String read GetStatus write SetStatus;
     property Index: TDocumentIndexProperty read GetIndex;
-  end;
-
-  { TDocumentProperties2 }
-
-  TDocumentProperties2 = class(TProperties2)
-  private
-    fTitle: UTF8String;
-    fPublish: Boolean;
-    fCategory: UTF8String;
-    fStatus: UTF8String;
-    fIndex: TDocumentIndexProperty2;
-    function GetIndex: TStringArray2;
-  protected
-    function ReadManagedKey(const aKey: UTF8String; aReader: TDynamicValueReader): Boolean; override;
-    procedure WriteManagedKeys(aWriter: TDynamicValueWriter); override;
-    procedure InitializeBlank; override;
-  public
-    constructor Create;
-    destructor Destroy; override;
-    property Title: UTF8String read fTitle write fTitle;
-    property Publish: Boolean read fPublish write fPublish;
-    property Category: UTF8String read fCategory write fCategory;
-    property Status: UTF8String read fStatus write fStatus;
-    property Index: TStringArray2 read GetIndex;
   end;
 
   { TJSColor }
@@ -323,20 +274,6 @@ type
 
   TKeywordDefinitionClass = class of TKeywordDefinition;
 
-  { TKeywordDefinition2 }
-
-  TKeywordDefinition2 = class(TDataStoreMap)
-  private
-    fColor: TColor;
-  protected
-    function ReadManagedKey(const aKey: UTF8String;
-       aReader: TDynamicValueReader): Boolean; override;
-    procedure WriteManagedKeys(aWriter: TDynamicValueWriter); override;
-    procedure InitializeBlank; override;
-  public
-    property Color: TColor read fColor write fColor;
-  end;
-
   { TCategoryDefinition }
 
   TCategoryDefinition = class(TKeywordDefinition)
@@ -362,39 +299,8 @@ type
     property PublishMarkerBetween: Boolean read GetPublishMarkerBetween write SetPublishMarkerBetween;
   end;
 
-  { TCategoryDefinition2 }
-
-  TCategoryDefinition2 = class(TKeywordDefinition2)
-  private
-    fPublishMarkerAfter: Boolean;
-    fPublishMarkerBefore: Boolean;
-    fPublishMarkerBetween: Boolean;
-    fPublishTitle: Boolean;
-    fPublishTitleLevel: Integer;
-    fPublishTitlePrefix: UTF8String;
-  protected
-    function ReadManagedKey(const aKey: UTF8String;
-       aReader: TDynamicValueReader): Boolean; override;
-    procedure WriteManagedKeys(aWriter: TDynamicValueWriter); override;
-    procedure InitializeBlank; override;
-  public
-    property PublishTitle: Boolean read fPublishTitle write fPublishTitle;
-    property PublishTitleLevel: Integer read fPublishTitleLevel write fPublishTitleLevel;
-    property PublishTitlePrefix: UTF8String read fPublishTitlePrefix write fPublishTitlePrefix;
-    property PublishMarkerBefore: Boolean read fPublishMarkerBefore write fPublishMarkerBefore;
-    property PublishMarkerAfter: Boolean read fPublishMarkerAfter write fPublishMarkerAfter;
-    property PublishMarkerBetween: Boolean read fPublishMarkerBetween write fPublishMarkerBetween;
-
-  end;
-
   TStatusDefinition = class(TKeywordDefinition)
     // just holds color, so nothing special...
-  end;
-
-  { TStatusDefinition2 }
-
-  TStatusDefinition2 = class(TKeywordDefinition2)
-  // just holds color, so nothing special...
   end;
 
   { TKeywordDefinitions }
@@ -407,29 +313,6 @@ type
     procedure Assign(aValue: TJSValue); override;
   end;
 
-  { GKeywordDefinitions2 }
-
-  generic GKeywordDefinitions2<Membertype> = class(TDataStoreMap)
-  private
-    fList: TFPHashObjectList;
-    function GetItem(const aName: UTF8String): MemberType;
-    function GetKeys: TStringArray2;
-  protected
-    function ReadManagedKey(const {%H-}aKey: UTF8String;
-       {%H-}aReader: TDynamicValueReader): Boolean; override;
-    procedure WriteManagedKeys(aWriter: TDynamicValueWriter); override;
-    procedure InitializeBlank; override;
-  public
-    constructor Create;
-    destructor Destroy; override;
-    property Item[const aName: UTF8String]: MemberType read GetItem; default;
-    property Keys: TStringArray2 read GetKeys;
-    procedure Delete(const aName: UTF8String);
-    function Has(const aName: UTF8String): Boolean;
-    function Add(const aName: UTF8String): MemberType;
-
-  end;
-
   { TStatusDefinitions }
 
   TStatusDefinitions = class(specialize TKeywordDefinitions<TStatusDefinition>)
@@ -437,21 +320,11 @@ type
     function GetStatus(aKey: UTF8String): TStatusDefinition;
   end;
 
-  { TStatusDefinitions2 }
-
-  TStatusDefinitions2 = class(specialize GKeywordDefinitions2<TStatusDefinition2>)
-  public
-    procedure Deserialize(aReader: TDynamicValueReader); override;
-  end;
-
   { TCategoryDefinitions }
 
   TCategoryDefinitions = class(specialize TKeywordDefinitions<TCategoryDefinition>)
   public
     function GetCategory(aKey: UTF8String): TCategoryDefinition;
-  end;
-
-  TCategoryDefinitions2 = class(specialize GKeywordDefinitions2<TCategoryDefinition2>)
   end;
 
   { TDeadline }
@@ -470,21 +343,6 @@ type
     property Due: TDateTime read GetDue write SetDue;
   end;
 
-  { TDeadLine2 }
-
-  TDeadLine2 = class(TDataStoreMap)
-  private
-    fDue: TDateTime;
-    fName: UTF8String;
-  protected
-    function ReadManagedKey(const aKey: UTF8String;
-       aReader: TDynamicValueReader): Boolean; override;
-    procedure WriteManagedKeys(aWriter: TDynamicValueWriter); override;
-    procedure InitializeBlank; override;
-  public
-    property Due: TDateTime read fDue write fDue;
-    property Name: UTF8String read fName write fName;
-  end;
 
   { TDeadlines }
 
@@ -499,28 +357,6 @@ type
      function Add(aName: UTF8String; aDue: TDateTime): TDeadline;
      procedure Remove(aIndex: Integer);
      property Deadline[aIndex: Integer]: TDeadline read GetDeadline; default;
-  end;
-
-  { TDeadlines2 }
-
-  TDeadlines2 = class(TDataStoreList)
-  private
-    fList: TFPObjectList;
-    function GetCount: Longint;
-    function GetDeadline(const aIndex: Longint): TDeadLine2;
-  protected
-    function ReadManagedItem(aReader: TDynamicValueReader): Boolean; override;
-    procedure WriteManagedItems(aWriter: TDynamicValueWriter); override;
-    procedure InitializeBlank; override;
-  public
-    constructor Create;
-    destructor Destroy; override;
-    procedure Deserialize(aReader: TDynamicValueReader); override;
-    property Count: Longint read GetCount;
-    property Deadline[const aIndex: Longint]: TDeadLine2 read GetDeadline; default;
-    function Add: TDeadline2;
-    function Add(const aName: UTF8String; const aDue: TDateTime): TDeadline2;
-    procedure Delete(aIndex: Longint);
   end;
 
   { TProjectProperties }
@@ -554,39 +390,6 @@ type
     property Statuses: TStatusDefinitions read GetStatuses;
     property DefaultStatus: UTF8String read GetDefaultStatus write SetDefaultStatus;
     property Deadlines: TDeadlines read GetDeadlines;
-  end;
-
-  { TProjectProperties2 }
-
-  TProjectProperties2 = class(TProperties2)
-  private
-    fCategories: TCategoryDefinitions2;
-    fDeadlines: TDeadlines2;
-    fDefaultCategory: UTF8String;
-    fDefaultDocExtension: UTF8String;
-    fDefaultNotesExtension: UTF8String;
-    fDefaultStatus: UTF8String;
-    fDefaultThumbnailExtension: UTF8String;
-    fStatuses: TStatusDefinitions2;
-    procedure SetDefaultDocExtension(AValue: UTF8String);
-    procedure SetDefaultNotesExtension(AValue: UTF8String);
-    procedure SetDefaultThumbnailExtension(AValue: UTF8String);
-  protected
-    function ReadManagedKey(const aKey: UTF8String;
-       aReader: TDynamicValueReader): Boolean; override;
-    procedure WriteManagedKeys(aWriter: TDynamicValueWriter); override;
-    procedure InitializeBlank; override;
-  public
-    constructor Create;
-    destructor Destroy; override;
-    property DefaultDocExtension: UTF8String read fDefaultDocExtension write SetDefaultDocExtension;
-    property DefaultThumbnailExtension: UTF8String read fDefaultThumbnailExtension write SetDefaultThumbnailExtension;
-    property DefaultNotesExtension: UTF8String read fDefaultNotesExtension write SetDefaultNotesExtension;
-    property Categories: TCategoryDefinitions2 read fCategories;
-    property DefaultCategory: UTF8String read fDefaultCategory write fDefaultCategory;
-    property Statuses: TStatusDefinitions2 read fStatuses;
-    property DefaultStatus: UTF8String read fDefaultStatus write fDefaultStatus;
-    property Deadlines: TDeadlines2 read fDeadlines;
   end;
 
   const
@@ -634,556 +437,37 @@ begin
   result := stew_properties_implementation.TProjectProperties.Create;
 end;
 
-
-{ TStatusDefinitions2 }
-
-procedure TStatusDefinitions2.Deserialize(aReader: TDynamicValueReader);
+class function TPropertyObjects.NewStatusDefinitions: IStatusDefinitions;
 begin
-  // a special case for statuses, you can store an array of strings
-  // in certain older versions of stew...
-  if aReader.IsListStart then
-  begin
-    aReader.ReadListStart;
-    while not aReader.IsListEnd do
-    begin
-      Add(aReader.ReadString.Value);
-    end;
-    aReader.ReadListEnd;
-  end
-  else
-    inherited Deserialize(aReader);
+  result := stew_properties_implementation.TStatusDefinitions.Create;
 end;
 
-{ TProjectProperties2 }
+class function TPropertyObjects.NewCategoryDefinitions: ICategoryDefinitions;
 
-procedure TProjectProperties2.SetDefaultDocExtension(AValue: UTF8String);
 begin
-  if fDefaultDocExtension=AValue then Exit;
-  fDefaultDocExtension:=ExcludeExtensionDelimiter(aValue)
+  result := stew_properties_implementation.TCategoryDefinitions.Create;
 end;
 
-procedure TProjectProperties2.SetDefaultNotesExtension(AValue: UTF8String);
+class function TPropertyObjects.NewDeadlines: IDeadlines;
 begin
-  if fDefaultNotesExtension=AValue then Exit;
-  fDefaultNotesExtension:=ExcludeExtensionDelimiter(aValue)
+  result := stew_properties_implementation.TDeadlines.Create;
 end;
 
-procedure TProjectProperties2.SetDefaultThumbnailExtension(AValue: UTF8String);
+class function TPropertyObjects.NewStatusDefinition: IStatusDefinition;
 begin
-  if fDefaultThumbnailExtension=AValue then Exit;
-  fDefaultThumbnailExtension:=ExcludeExtensionDelimiter(aValue)
+  result := stew_properties_implementation.TStatusDefinition.Create;
 end;
 
-function TProjectProperties2.ReadManagedKey(const aKey: UTF8String;
-  aReader: TDynamicValueReader): Boolean;
+class function TPropertyObjects.NewCategoryDefinition: ICategoryDefinition;
 begin
-  case aKey of
-    DefaultDocExtensionKey:
-      DefaultDocExtension := aReader.ReadString.Value;
-    DefaultThumbnailExtensionKey:
-      DefaultThumbnailExtension := aReader.ReadString.Value;
-    DefaultNotesExtensionKey:
-      DefaultNotesExtension := aReader.ReadString.Value;
-    DefaultCategoryKey:
-      fDefaultCategory := aReader.ReadString.Value;
-    DefaultStatusKey:
-      fDefaultStatus := aReader.ReadString.Value;
-    CategoriesKey:
-      fCategories.Deserialize(aReader);
-    StatusesKey:
-      fStatuses.Deserialize(aReader);
-    DeadlinesKey:
-      fDeadlines.Deserialize(aReader);
-  else
-     Result:=inherited ReadManagedKey(aKey, aReader);
-
-  end;
+  result := stew_properties_implementation.TCategoryDefinition.Create;
 end;
 
-procedure TProjectProperties2.WriteManagedKeys(aWriter: TDynamicValueWriter);
+class function TPropertyObjects.NewDeadline: IDeadline;
 begin
-  if fDefaultDocExtension > '' then
-     aWriter.WriteKeyValue(DefaultDocExtensionKey,fDefaultDocExtension);
-  if fDefaultThumbnailExtension > '' then
-     aWriter.WriteKeyValue(DefaultThumbnailExtensionKey,fDefaultThumbnailExtension);
-  if fDefaultNotesExtension > '' then
-     aWriter.WriteKeyValue(DefaultNotesExtensionKey,fDefaultNotesExtension);
-  if fDefaultCategory > '' then
-     aWriter.WriteKeyValue(DefaultCategoryKey,fDefaultCategory);
-  if fDefaultStatus > '' then
-     aWriter.WriteKeyValue(DefaultStatusKey,fDefaultStatus);
-  if fCategories <> nil then
-  begin
-    aWriter.WriteKey(CategoriesKey);
-    fCategories.Serialize(aWriter);
-  end;
-  if fStatuses <> nil then
-  begin
-    aWriter.WriteKey(StatusesKey);
-    fStatuses.Serialize(aWriter);
-  end;
-  if fDeadlines <> nil then
-  begin
-    aWriter.WriteKey(DeadlinesKey);
-    fDeadlines.Serialize(aWriter);
-  end;
-  inherited WriteManagedKeys(aWriter);
+  result := stew_properties_implementation.TDeadline.Create;
 end;
 
-procedure TProjectProperties2.InitializeBlank;
-begin
-  fCategories.InitializeBlank;
-  fDeadlines.InitializeBlank;
-  fStatuses.InitializeBlank;
-  fDefaultCategory := '';
-  fDefaultDocExtension:= '';
-  fDefaultNotesExtension:='';
-  fDefaultStatus:= '';
-  fDefaultThumbnailExtension:='';
-end;
-
-constructor TProjectProperties2.Create;
-begin
-  fStatuses := TStatusDefinitions2.Create;
-  fCategories := TCategoryDefinitions2.Create;
-  fDeadlines := TDeadlines2.Create;
-  inherited Create;
-end;
-
-destructor TProjectProperties2.Destroy;
-begin
-  FreeAndNil(fStatuses);
-  FreeAndNil(fCategories);
-  FreeAndNil(fDeadlines);
-  inherited Destroy;
-end;
-
-{ TDeadlines2 }
-
-function TDeadlines2.GetCount: Longint;
-begin
-  result := fList.Count;
-end;
-
-function TDeadlines2.GetDeadline(const aIndex: Longint): TDeadLine2;
-begin
-  result := TDeadLine2(fList[aIndex]);
-end;
-
-function TDeadlines2.ReadManagedItem(aReader: TDynamicValueReader): Boolean;
-var
-  lItem: TDeadLine2;
-begin
-  result := aReader.IsMapStart;
-  if result then
-  begin
-    lItem := TDeadLine2.Create;
-     fList.Add(lItem);
-     lItem.Deserialize(aReader);
-  end;
-end;
-
-procedure TDeadlines2.WriteManagedItems(aWriter: TDynamicValueWriter);
-var
-  l: Longint;
-  i: Longint;
-begin
-  l := fList.Count - 1;
-  for i := 0 to l do
-     TDeadLine2(fList[i]).Serialize(aWriter);
-  inherited WriteManagedItems(aWriter);
-end;
-
-procedure TDeadlines2.InitializeBlank;
-begin
-  fList.Clear;
-
-end;
-
-constructor TDeadlines2.Create;
-begin
-  fList := TFPObjectList.Create(true);
-  inherited Create;
-
-end;
-
-destructor TDeadlines2.Destroy;
-begin
-  FreeAndNil(fList);
-  inherited Destroy;
-end;
-
-procedure TDeadlines2.Deserialize(aReader: TDynamicValueReader);
-begin
-  fList.Clear;
-  inherited Deserialize(aReader);
-end;
-
-function TDeadlines2.Add: TDeadline2;
-begin
-  result := TDeadLine2.Create;
-  fList.Add(result);
-end;
-
-function TDeadlines2.Add(const aName: UTF8String; const aDue: TDateTime
-  ): TDeadline2;
-begin
-  result := TDeadLine2.Create;
-  fList.Add(Result);
-  result.Name := aName;
-  result.Due := aDue;
-
-end;
-
-procedure TDeadlines2.Delete(aIndex: Longint);
-begin
-  fList.Delete(aIndex);
-
-end;
-
-{ TDeadLine2 }
-
-function TDeadLine2.ReadManagedKey(const aKey: UTF8String;
-  aReader: TDynamicValueReader): Boolean;
-begin
-  case aKey of
-    DueKey:
-      fDue := ISO8601ToDateTime(aReader.ReadString.Value);
-    NameKey:
-      fName := aReader.ReadString.Value;
-  else
-    Result:=inherited ReadManagedKey(aKey, aReader);
-  end;
-end;
-
-procedure TDeadLine2.WriteManagedKeys(aWriter: TDynamicValueWriter);
-begin
-  if fName <> '' then
-     aWriter.WriteKeyValue(NameKey,fName);
-  if fDue <> 0 then
-     aWriter.WriteKeyValue(DueKey,DateTimeToISO8601(fDue,false));
-  inherited WriteManagedKeys(aWriter);
-end;
-
-procedure TDeadLine2.InitializeBlank;
-begin
-  fDue := 0;
-  fName := '';
-end;
-
-{ GKeywordDefinitions2 }
-
-function GKeywordDefinitions2.GetItem(const aName: UTF8String): MemberType;
-begin
-  result := MemberType(fList.Find(aName));
-end;
-
-function GKeywordDefinitions2.GetKeys: TStringArray2;
-var
-  i: Longint;
-  l: Longint;
-begin
-  l := fList.Count;
-  result{%H-}.Count := l;
-  for i := 0 to l - 1 do
-     result[i] := fList.NameOfIndex(i);
-end;
-
-function GKeywordDefinitions2.ReadManagedKey(const aKey: UTF8String;
-  aReader: TDynamicValueReader): Boolean;
-begin
-  Add(aKey).Deserialize(aReader);
-  result := true;
-end;
-
-procedure GKeywordDefinitions2.WriteManagedKeys(aWriter: TDynamicValueWriter);
-var
-  i: Longint;
-  l: Longint;
-begin
-  l := fList.Count - 1;
-  for i := 0 to l do
-  begin
-     aWriter.WriteKey(fList.NameOfIndex(i));
-     MemberType(fList[i]).Serialize(aWriter);
-  end;
-end;
-
-procedure GKeywordDefinitions2.InitializeBlank;
-begin
-  fList.Clear;
-end;
-
-constructor GKeywordDefinitions2.Create;
-begin
-  fList := TFPHashObjectList.Create(true);
-  inherited Create;
-
-end;
-
-destructor GKeywordDefinitions2.Destroy;
-begin
-  FreeAndNil(fList);
-  inherited Destroy;
-end;
-
-procedure GKeywordDefinitions2.Delete(const aName: UTF8String);
-var
-  i: Longint;
-begin
-  i := fList.FindIndexOf(aName);
-  if i > -1 then
-     fList.Delete(i);
-
-end;
-
-function GKeywordDefinitions2.Has(const aName: UTF8String): Boolean;
-begin
-  result := (fList.FindIndexOf(aName) > -1);
-end;
-
-function GKeywordDefinitions2.Add(const aName: UTF8String): MemberType;
-begin
-  result := MemberType.Create;
-  fList.Add(aName,Result);
-end;
-
-{ TCategoryDefinition2 }
-
-function TCategoryDefinition2.ReadManagedKey(const aKey: UTF8String;
-  aReader: TDynamicValueReader): Boolean;
-begin
-  case aKey of
-    PublishTitleKey:
-       fPublishTitle:=aReader.ReadBoolean.Value;
-    PublishTitleLevelKey:
-       fPublishTitleLevel:=trunc(aReader.ReadNumber.Value);
-    PublishTitlePrefixKey:
-       fPublishTitlePrefix:=aReader.ReadString.Value;
-    PublishMarkerBeforeKey:
-       fPublishMarkerBefore:=aReader.ReadBoolean.Value;
-    PublishMarkerAfterKey:
-       fPublishMarkerAfter := aReader.ReadBoolean.Value;
-    PublishMarkerBetweenKey:
-       fPublishMarkerBetween:=aReader.ReadBoolean.Value;
-  else
-    Result:=inherited ReadManagedKey(aKey, aReader);
-  end;
-end;
-
-procedure TCategoryDefinition2.WriteManagedKeys(aWriter: TDynamicValueWriter);
-begin
-  if fPublishTitle then
-     aWriter.WriteKeyValue(PublishTitleKey,fPublishTitle);
-  if fPublishTitleLevel <> 0 then
-     aWriter.WriteKeyValue(PublishTitleLevelKey,fPublishTitleLevel);
-  if fPublishTitlePrefix <> '' then
-     aWriter.WriteKeyValue(PublishTitlePrefixKey,fPublishTitlePrefix);
-  if fPublishMarkerBefore then
-     aWriter.WriteKeyValue(PublishMarkerBeforeKey,fPublishMarkerBefore);
-  if fPublishMarkerAfter then
-     aWriter.WriteKeyValue(PublishMarkerAfterKey,fPublishMarkerAfter);
-  if fPublishMarkerBetween then
-     aWriter.WriteKeyValue(PublishMarkerBetweenKey,fPublishMarkerBetween);
-  inherited WriteManagedKeys(aWriter);
-end;
-
-procedure TCategoryDefinition2.InitializeBlank;
-begin
-  inherited InitializeBlank;
-  fPublishMarkerAfter := false;
-  fPublishMarkerBefore:= false;
-  fPublishMarkerBetween:= False;
-  fPublishTitle:= false;
-  fPublishTitleLevel:=0;
-  fPublishTitlePrefix:='';
-end;
-
-{ TDocumentIndexProperty2 }
-
-function TDocumentIndexProperty2.ReadManagedItem(aReader: TDynamicValueReader
-  ): Boolean;
-begin
-  result := aReader.IsString;
-  if result then
-  begin
-     fIndex.Add(aReader.ReadString.Value)
-  end
-end;
-
-procedure TDocumentIndexProperty2.WriteManagedItems(aWriter: TDynamicValueWriter
-  );
-var
-  l: Longint;
-  i: Longint;
-begin
-  l := fIndex.Count - 1;
-  for i := 0 to l do
-     aWriter.WriteValue(fIndex[i]);
-end;
-
-procedure TDocumentIndexProperty2.InitializeBlank;
-begin
-  fIndex.Count := 0;
-end;
-
-{ TKeywordDefinition2 }
-
-function TKeywordDefinition2.ReadManagedKey(const aKey: UTF8String;
-  aReader: TDynamicValueReader): Boolean;
-var
-  lKey: UTF8String;
-  b: Byte;
-  r: Byte;
-  g: Byte;
-  lFoundValue: Boolean;
-begin
-  if aKey = ColorKey then
-  begin
-    aReader.ReadMapStart;
-    b := Graphics.Blue(clDefault);
-    r := Graphics.Red(clDefault);
-    g := Graphics.Green(clDefault);
-    lFoundValue := false;
-    while not aReader.IsMapEnd do
-    begin
-      lKey := aReader.ReadMapKey;
-      case lKey of
-        BlueKey:
-        begin
-           b := trunc(aReader.ReadNumber.Value);
-           lFoundValue := true;
-        end;
-        GreenKey:
-        begin
-           g := trunc(aReader.ReadNumber.Value);
-           lFoundValue := true;
-        end;
-        RedKey:
-        begin
-           r := trunc(aReader.ReadNumber.Value);
-           lFoundValue := true;
-        end
-      else
-        // this one we ignore everything else.
-        aReader.ReadValue;
-      end;
-    end;
-    aReader.ReadMapEnd;
-    if lFoundValue then
-       fColor := RGBToColor(r,g,b)
-    else
-       fColor := clDefault;
-    result := true;
-  end
-  else
-     Result:=inherited ReadManagedKey(aKey, aReader);
-end;
-
-procedure TKeywordDefinition2.WriteManagedKeys(aWriter: TDynamicValueWriter);
-var
-  r: Byte;
-  g: Byte;
-  b: Byte;
-begin
-  inherited WriteManagedKeys(aWriter);
-  r := Graphics.Red(fColor);
-  g := Graphics.Green(fColor);
-  b := Graphics.Blue(fColor);
-  aWriter.WriteKey(ColorKey);
-  aWriter.WriteMapStart(nil);
-  aWriter.WriteKeyValue(RedKey,r);
-  aWriter.WriteKeyValue(BlueKey,b);
-  aWriter.WriteKeyValue(GreenKey,g);
-  aWriter.WriteMapEnd;
-end;
-
-procedure TKeywordDefinition2.InitializeBlank;
-begin
-  fColor := clDefault;
-end;
-
-{ TDocumentProperties2 }
-
-function TDocumentProperties2.GetIndex: TStringArray2;
-begin
-  result := fIndex.Index;
-end;
-
-function TDocumentProperties2.ReadManagedKey(const aKey: UTF8String;
-  aReader: TDynamicValueReader): Boolean;
-begin
-  result := true;
-  case aKey of
-    TitleKey: fTitle := aReader.ReadString.Value;
-    PublishKey: fPublish := aReader.ReadBoolean.Value;
-    CategoryKey: fCategory := aReader.ReadString.Value;
-    StatusKey: fStatus := aReader.ReadString.Value;
-    IndexKey:
-    begin
-      fIndex.Deserialize(aReader);
-    end
-  else
-    result := inherited ReadManagedKey(aKey,aReader);
-  end;
-end;
-
-procedure TDocumentProperties2.WriteManagedKeys(aWriter: TDynamicValueWriter);
-begin
-  inherited WriteManagedKeys(aWriter);
-  if fTitle <> '' then
-     aWriter.WriteKeyValue(TitleKey,fTitle);
-  if fPublish then
-     aWriter.WriteKeyValue(PublishKey,fPublish);
-  if fCategory <> '' then
-     aWriter.WriteKeyValue(CategoryKey,fCategory);
-  if fStatus <> '' then
-     aWriter.WriteKeyValue(StatusKey,fStatus);
-  if fIndex <> nil then
-  begin
-    aWriter.WriteKey(IndexKey);
-    fIndex.Serialize(aWriter);
-  end;
-
-end;
-
-procedure TDocumentProperties2.InitializeBlank;
-begin
-  fTitle := '';
-  fPublish := false;
-  fCategory := '';
-  fStatus := '';
-  fIndex.InitializeBlank;
-end;
-
-constructor TDocumentProperties2.Create;
-begin
-  fIndex := TDocumentIndexProperty2.Create;
-  inherited Create;
-end;
-
-destructor TDocumentProperties2.Destroy;
-begin
-  FreeAndNil(fIndex);
-  inherited Destroy;
-end;
-
-{ TProperties2 }
-
-function TProperties2.ReadManagedKey(const aKey: UTF8String;
-  aReader: TDynamicValueReader): Boolean;
-begin
-  if aKey = UserKey then
-     fUser := aReader.ReadValue
-  else
-     Result:=inherited ReadManagedKey(aKey, aReader);
-end;
-
-procedure TProperties2.WriteManagedKeys(aWriter: TDynamicValueWriter);
-begin
-  aWriter.WriteKeyValue(UserKey,fUser);
-  inherited WriteManagedKeys(aWriter);
-end;
 
 { TDeadlines }
 
@@ -1445,7 +729,6 @@ end;
 function TCategoryDefinition.GetPublishMarkerBefore: Boolean;
 begin
   Result := GetDefault(PublishMarkerBeforeKey,false);
-
 end;
 
 function TCategoryDefinition.GetPublishMarkerBetween: Boolean;

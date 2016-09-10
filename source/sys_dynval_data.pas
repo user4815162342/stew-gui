@@ -1,34 +1,25 @@
 unit sys_dynval_data;
 
 {$mode objfpc}{$H+}
+{$Interfaces COM}
 
 interface
 
 {
-TODO: It seems to me that the class-style is the better idea. If only because the
-'object' style is poorly supported, and therefore may not advance with the future.
-
-Basically the objects defined here can be serialized and deserialized from a
-DynamicValueReader and -Writer. Where a map key or list index matches up with
-a managed property, it will read that property's data from the reader. If it
-is not, however, that data is stored into a IDynamicValue backing data store.
-When the object is serialized again, that data will also be serialized, in
-addition to the properties the object needs to serialize.
-
 TODO: Split the interfaces from the implementation.
-
-TODO: Some of the 'abstract' methods can just be deleted once we make sure
-all of the subclasses handle them.
 
 }
 
 uses
   Classes, SysUtils, sys_dynval, sys_dynval_implementation, sys_types;
 
+const
+  DataStoreObjectGUID = '{385ACAFD-8966-47A0-B215-26375EF695D9}';
+
 type
 
   IDataStoreObject = interface(IDynamicObject)
-    ['{EC1DD0DB-4FA1-4AE3-8EFE-30EEB1891F8A}']
+    [DataStoreObjectGUID]
     procedure Serialize(aWriter: TDynamicValueWriter); overload;
     procedure Serialize(aStream: TStream); overload;
     function Serialize: UTF8String; overload;
@@ -39,7 +30,15 @@ type
 
   { TDataStoreObject }
 
-  TDataStoreObject = class(TDynamicValue, IDataStoreObject)
+  // NOTE: I'm not exactly sure what is going on here. IDataStoreObject descends
+  // from IDynamicObject already. However, if I don't put IDynamicObject in this
+  // implements list, then the various descendants don't register as implementing
+  // IDynamicObject. It may be possible that the 'is' operator, or Supports method,
+  // or any of those, only look at interfaces implemented directly by a class,
+  // and ignore interfaces implemented by interfaces. That would be a bug in
+  // FreePascal. At some point, once I move beyond to a new version of FPC,
+  // try this again and see if it works.
+  TDataStoreObject = class(TDynamicValue, IDataStoreObject, IDynamicObject)
   strict protected
     procedure InitializeBlank; virtual; abstract;
     function GetKindOf: TDynamicValueKind; override;
@@ -70,11 +69,12 @@ type
     fBacking: IDynamicMap;
   strict protected
     property Backing: IDynamicMap read fBacking;
+    procedure InitializeBlank; override;
     function ReadManagedKey(const {%H-}aKey: UTF8String; {%H-}aReader: TDynamicValueReader): Boolean; virtual;
     procedure WriteManagedKeys({%H-}aWriter: TDynamicValueWriter); virtual;
     procedure ListManagedKeys(var {%H-}aValue: TStringArray2); virtual;
-    function GetItem(const aKey: UTF8String): IDynamicValue; overload; virtual;
-    procedure SetItem(const aKey: UTF8String; const AValue: IDynamicValue); overload; virtual;
+    function GetItem(const {%H-}aKey: UTF8String): IDynamicValue; overload; virtual;
+    procedure SetItem(const {%H-}aKey: UTF8String; const {%H-}AValue: IDynamicValue); overload; virtual;
     function GetItem(const {%H-}aKey: IDynamicValue): IDynamicValue; override; overload;
     procedure SetItem(const {%H-}aKey: IDynamicValue; const {%H-}AValue: IDynamicValue); override; overload;
   public
@@ -100,6 +100,7 @@ type
   private
     fBacking: IDynamicList;
   strict protected
+    procedure InitializeBlank; override;
     property Backing: IDynamicList read fBacking;
     function ReadManagedItem({%H-}aReader: TDynamicValueReader): Boolean; virtual;
     procedure WriteManagedItems({%H-}aWriter: TDynamicValueWriter); virtual;
@@ -207,6 +208,11 @@ end;
 
 { TDataStoreMap }
 
+procedure TDataStoreMap.InitializeBlank;
+begin
+  fBacking := TDynamicValues.NewMap;
+end;
+
 function TDataStoreMap.ReadManagedKey(const aKey: UTF8String;
   aReader: TDynamicValueReader): Boolean;
 begin
@@ -273,7 +279,6 @@ procedure TDataStoreMap.Deserialize(aReader: TDynamicValueReader);
 var
   lKey: UTF8String;
 begin
-  fBacking := TDynamicValues.NewMap;
   InitializeBlank;
   if aReader <> nil then
   begin;
@@ -330,6 +335,11 @@ end;
 
 { TDataStoreList }
 
+procedure TDataStoreList.InitializeBlank;
+begin
+  fBacking := TDynamicValues.NewList;
+end;
+
 function TDataStoreList.ReadManagedItem(aReader: TDynamicValueReader): Boolean;
 begin
   result := false;
@@ -357,7 +367,6 @@ end;
 
 procedure TDataStoreList.Deserialize(aReader: TDynamicValueReader);
 begin
-  fBacking := TDynamicValues.NewList;
   InitializeBlank;
   if aReader <> nil then
   begin
