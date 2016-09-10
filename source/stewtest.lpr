@@ -14,7 +14,7 @@ uses
   stew_properties, test_stew_properties, test_longstringmap, test_gui,
   stew_query, test_sys_types, test_sys_dynval, sys_dynval,
   sys_dynval_implementation, sys_dynval_json, sys_dynval_data,
-  stew_properties_implementation;
+  stew_properties_implementation, sys_dynval_data_implementation;
 
 {$R *.res}
 

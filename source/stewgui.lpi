@@ -17,7 +17,7 @@
       <UseVersionInfo Value="True"/>
       <AutoIncrementBuild Value="True"/>
       <MinorVersionNr Value="1"/>
-      <BuildNr Value="103"/>
+      <BuildNr Value="104"/>
       <StringTable CompanyName="Town's Edge Technology, LLC" FileDescription="A manuscript management and notekeeping tool." LegalCopyright="Copyright © 2015 Neil M. Sheldon" ProductName="Stew" ProductVersion="0.1"/>
     </VersionInfo>
     <BuildModes Count="1">
@@ -39,7 +39,7 @@
         <PackageName Value="LCL"/>
       </Item2>
     </RequiredPackages>
-    <Units Count="29">
+    <Units Count="30">
       <Unit0>
         <Filename Value="stewgui.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -209,6 +209,11 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="stew_properties_implementation"/>
       </Unit28>
+      <Unit29>
+        <Filename Value="sys_dynval_data_implementation.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="sys_dynval_data_implementation"/>
+      </Unit29>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

@@ -5,7 +5,7 @@ unit stew_properties_implementation;
 interface
 
 uses
-  Classes, SysUtils, stew_properties, sys_dynval, sys_dynval_data, sys_types, Graphics;
+  Classes, SysUtils, stew_properties, sys_dynval, sys_dynval_data_implementation, sys_types, Graphics;
 
 type
 
@@ -865,7 +865,7 @@ begin
   while lEnum.Next do
   begin
     aWriter.WriteKey(lEnum.Key);
-    (lEnum.Value as IDataStoreObject).Serialize(aWriter);
+    (lEnum.Value as IKeywordDefinition).Serialize(aWriter);
   end;
   aWriter.WriteMapEnd;
 end;
