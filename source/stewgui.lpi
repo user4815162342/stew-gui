@@ -39,7 +39,7 @@
         <PackageName Value="LCL"/>
       </Item2>
     </RequiredPackages>
-    <Units Count="30">
+    <Units Count="31">
       <Unit0>
         <Filename Value="stewgui.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -214,6 +214,11 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_dynval_data_implementation"/>
       </Unit29>
+      <Unit30>
+        <Filename Value="gui_config_implementation.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="gui_config_implementation"/>
+      </Unit30>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

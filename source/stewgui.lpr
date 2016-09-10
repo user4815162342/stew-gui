@@ -14,7 +14,8 @@ uses
 sys_localfile, sys_versionsupport, gui_async, sys_filecache, sys_log,
 gui_glyphs, gui_gtk2_glyphs, 
 sys_dynval_implementation, sys_dynval, sys_dynval_json, 
-stew_properties_implementation, sys_dynval_data_implementation;
+stew_properties_implementation, sys_dynval_data_implementation, 
+gui_config_implementation;
 
 {$R *.res}
 

@@ -5,9 +5,79 @@ unit gui_config;
 interface
 
 uses
-  Classes, SysUtils, sys_file, sys_json;
+  Classes, SysUtils, sys_file, sys_json, sys_dynval_data;
 
 type
+
+  { IMainWindowConfig }
+
+  IMainWindowConfig = interface(IDataStoreObject)
+    function GetBottomPaneHeight: Integer;
+    function GetHeight: Integer;
+    function GetLeftPaneWidth: Integer;
+    function GetMaximized: Boolean;
+    function GetRightPaneWidth: Integer;
+    function GetTopPaneHeight: Integer;
+    function GetWidth: Integer;
+    procedure SetBottomPaneHeight(AValue: Integer);
+    procedure SetHeight(AValue: Integer);
+    procedure SetLeftPaneWidth(AValue: Integer);
+    procedure SetMaximized(AValue: Boolean);
+    procedure SetRightPaneWidth(AValue: Integer);
+    procedure SetTopPaneHeight(AValue: Integer);
+    procedure SetWidth(AValue: Integer);
+    property height: Integer read GetHeight write SetHeight;
+    property width: Integer read GetWidth write SetWidth;
+    property maximized: Boolean read GetMaximized write SetMaximized;
+    property leftPaneWidth: Integer read GetLeftPaneWidth write SetLeftPaneWidth;
+    property rightPaneWidth: Integer read GetRightPaneWidth write SetRightPaneWidth;
+    property topPaneHeight: Integer read GetTopPaneHeight write SetTopPaneHeight;
+    property bottomPaneHeight: Integer read GetBottomPaneHeight write SetBottomPaneHeight;
+  end;
+
+  { IMRUProject }
+
+  IMRUProject = interface(IDataStoreObject)
+    function GetPath: TFile;
+    procedure SetPath(AValue: TFile);
+    property Path: TFile read GetPath write SetPath;
+  end;
+
+  IMRUProjects = interface(IDataStoreObject)
+    function GetProject(const aIndex: Longint): IMRUProject;
+    function GetLength: Longint;
+    procedure SetProject(const aIndex: Longint; const AValue: IMRUProject);
+    procedure SetLength(const AValue: Longint);
+    property Project[aIndex: Longint]: IMRUProject read GetProject write SetProject; default;
+    property Length: Longint read GetLength write SetLength;
+    procedure Add(const aItem: IMRUProject);
+    procedure Add(const aPath: TFile);
+    procedure Delete(const aIndex: Longint);
+    procedure Clear;
+    function IndexOf(const aValue: IMRUProject): Longint;
+    function IndexOf(const aPath: TFile): LongInt;
+  end;
+
+  { IStewApplicationConfig }
+
+  IStewApplicationConfig = interface(IDataStoreObject)
+    function GetMainWindow: IMainWindowConfig;
+    function GetMRUProject: IMRUProject;
+    function GetMRUProjects: IMRUProjects;
+    property MainWindow: IMainWindowConfig read GetMainWindow;
+    property MRUProjects: IMRUProjects read GetMRUProjects;
+    property MRUProject: IMRUProject read GetMRUProject;
+  end;
+
+  { TConfigObjects }
+
+  TConfigObjects = class
+  public
+    class function NewStewApplicationConfig: IStewApplicationConfig;
+    class function Filename: UTF8String;
+    class function LoadStewApplicationConfig: IStewApplicationConfig;
+    class procedure Save(aConfig: IStewApplicationConfig);
+  end;
 
   { TMainWindowConfig }
 
@@ -91,7 +161,31 @@ type
 implementation
 
 uses
-  jsonparser, FileUtil, sys_localfile;
+  jsonparser, FileUtil, sys_localfile, gui_config_implementation;
+
+{ TConfigObjects }
+
+class function TConfigObjects.NewStewApplicationConfig: IStewApplicationConfig;
+begin
+  result := gui_config_implementation.TStewApplicationConfig.Create;
+end;
+
+class function TConfigObjects.Filename: UTF8String;
+begin
+  result := GetAppConfigDir(false) + 'stew-gui-config.json';
+end;
+
+class function TConfigObjects.LoadStewApplicationConfig: IStewApplicationConfig;
+begin
+  result := NewStewApplicationConfig;
+  result.Deserialize(Filename);
+end;
+
+class procedure TConfigObjects.Save(aConfig: IStewApplicationConfig);
+begin
+  aConfig.Serialize(Filename);
+
+end;
 
 { TMRUProject }
 
