@@ -136,6 +136,10 @@ type
     procedure SetItem(const aKey: IDynamicValue; const AValue: IDynamicValue);
     function Owns(const aValue: IDynamicValue): Boolean;
     function IsDefined: Boolean;
+    // TODO: I'm not sure if I actually use or need EqualTo or StructurallyEqualTo.
+    // Consider getting rid of them to have less to maintain. They might
+    // be used in testing, but I can create functionality there to handle
+    // that if I need it.
     function IsStructurallyEqualTo(const aValue: IDynamicValue): Boolean;
     function IsEqualTo(const aValue: IDynamicValue): Boolean;
     property Item[aKey: IDynamicValue]: IDynamicValue read GetItem write SetItem; default;

@@ -13,7 +13,8 @@ uses
   sys_types, gui_jsoneditor, sys_os, gui_listdialog,
 sys_localfile, sys_versionsupport, gui_async, sys_filecache, sys_log,
 gui_glyphs, gui_gtk2_glyphs, 
-sys_dynval_implementation, sys_dynval, sys_dynval_json;
+sys_dynval_implementation, sys_dynval, sys_dynval_json, 
+stew_properties_implementation;
 
 {$R *.res}
 

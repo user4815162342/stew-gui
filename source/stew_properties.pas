@@ -7,6 +7,19 @@ interface
 uses
   Classes, SysUtils, Graphics, contnrs, sys_file, sys_json, sys_dynval, sys_dynval_data, sys_types;
 
+const
+  PropertiesGUID = '{17109B5C-1A4E-433F-A1AE-F81713E6E765}';
+  DocumentPropertiesGUID = '{03C69F3B-EE44-4C9E-9717-C2723D7D3333}';
+  KeywordDefinitionGUID = '{FD202199-1585-43DB-85D5-4FFDA2CD77F8}';
+  CategoryDefinitionGUID = '{6D1425B9-0E77-4E2D-851F-3400B61DD577}';
+  StatusDefinitionGUID = '{4AD5C991-50EA-4C3E-848C-C89D83EC9DD4}';
+  KeywordDefinitionsGUID = '{F63E5862-E538-4974-A098-4E7BB7735535}';
+  CategoryDefinitionsGUID = '{02C48ED5-7B6B-45F4-9682-0396628921B0}';
+  StatusDefinitionsGUID = '{DCE288FA-DA17-46D4-8680-0C90C0E47BEF}';
+  DeadlineGUID = '{F06E93B3-6A7A-432B-A045-CD553D2588D2}';
+  DeadlinesGUID = '{546DBE40-2DB8-494E-9E6A-8B7C113FBF2E}';
+  ProjectPropertiesGUID = '{D2E4B8B4-2430-43D6-BAA6-F2865D5FA3A4}';
+
 type
 
     // TODO: Now, Need to fix all of the hints and warnings now that I've added
@@ -17,35 +30,24 @@ type
 
   { IProperties }
 
-  IProperties = interface(IDynamicObject)
+  IProperties = interface(IDataStoreObject)
+    [PropertiesGUID]
     function GetUser: IDynamicValue;
     procedure SetUser(AValue: IDynamicValue);
     property User: IDynamicValue read GetUser write SetUser;
   end;
 
-  IDocumentIndex = interface(IDynamicObject)
-    function GetItem(const aIndex: Longint): IDynamicString; overload;
-    function GetLength: Longint;
-    procedure SetItem(const aIndex: Longint; const AValue: IDynamicString); overload;
-    procedure SetLength(const AValue: Longint);
-    property Item[aIndex: Longint]: IDynamicString read GetItem write SetItem; default;
-    property Length: Longint read GetLength write SetLength;
-    procedure Add(const aItem: IDynamicString);
-    procedure Delete(const aIndex: Longint);
-    procedure Clear;
-    function IndexOf(const aValue: IDynamicString): Longint;
-  end;
-
   { IDocumentProperties }
 
   IDocumentProperties = interface(IProperties)
+    [DocumentPropertiesGUID]
     function GetCategory: UTF8String;
-    function GetIndex: IDocumentIndex;
+    function GetIndex: TStringArray2;
     function GetPublish: Boolean;
     function GetStatus: UTF8String;
     function GetTitle: UTF8String;
     procedure SetCategory(AValue: UTF8String);
-    procedure SetIndex(AValue: IDocumentIndex);
+    procedure SetIndex(AValue: TStringArray2);
     procedure SetPublish(AValue: Boolean);
     procedure SetStatus(AValue: UTF8String);
     procedure SetTitle(AValue: UTF8String);
@@ -53,12 +55,13 @@ type
     property Publish: Boolean read GetPublish write SetPublish;
     property Category: UTF8String read GetCategory write SetCategory;
     property Status: UTF8String read GetStatus write SetStatus;
-    property Index: IDocumentIndex read GetIndex write SetIndex;
+    property Index: TStringArray2 read GetIndex write SetIndex;
   end;
 
   { IKeywordDefinition }
 
-  IKeywordDefinition = interface(IDynamicObject)
+  IKeywordDefinition = interface(IDataStoreObject)
+    [KeywordDefinitionGUID]
     function GetColor: TColor;
     procedure SetColor(AValue: TColor);
     property Color: TColor read GetColor write SetColor;
@@ -67,6 +70,7 @@ type
   { ICategoryDefinition }
 
   ICategoryDefinition = interface(IKeywordDefinition)
+    [CategoryDefinitionGUID]
     function GetPublishMarkerAfter: Boolean;
     function GetPublishMarkerBefore: Boolean;
     function GetPublishMarkerBetween: Boolean;
@@ -88,10 +92,12 @@ type
   end;
 
   IStatusDefinition = interface(IKeywordDefinition)
+    [StatusDefinitionGUID]
     // just holds color, so nothing special.
   end;
 
-  IKeywordDefinitions = interface(IDynamicObject)
+  IKeywordDefinitions = interface(IDataStoreObject)
+    [KeywordDefinitionsGUID]
     function GetKeys: TStringArray2;
     function Has(const aKey: UTF8String): Boolean;
     procedure Delete(const aKey: UTF8String);
@@ -102,22 +108,27 @@ type
   { ICategoryDefinitions }
 
   ICategoryDefinitions = interface(IKeywordDefinitions)
-    function GetDefinition(aKey: UTF8String): ICategoryDefinition;
-    procedure SetDefinition(aKey: UTF8String; AValue: ICategoryDefinition);
-    property Definition[aKey: UTF8String]: ICategoryDefinition read GetDefinition write SetDefinition; default;
+    [CategoryDefinitionsGUID]
+    function GetCategory(aKey: UTF8String): ICategoryDefinition;
+    procedure SetCategory(aKey: UTF8String; AValue: ICategoryDefinition);
+    property Category[aKey: UTF8String]: ICategoryDefinition read GetCategory write SetCategory; default;
+    function New: ICategoryDefinition;
   end;
 
   { IStatusDefinitions }
 
   IStatusDefinitions = interface(IKeywordDefinitions)
-    function GetDefinition(aKey: UTF8String): IStatusDefinition;
-    procedure SetDefinition(aKey: UTF8String; AValue: IStatusDefinition);
-    property Definition[aKey: UTF8String]: IStatusDefinition read GetDefinition write SetDefinition; default;
+    [StatusDefinitionsGUID]
+    function GetStatus(aKey: UTF8String): IStatusDefinition;
+    procedure SetStatus(aKey: UTF8String; AValue: IStatusDefinition);
+    property Status[aKey: UTF8String]: IStatusDefinition read GetStatus write SetStatus; default;
+    function New: IStatusDefinition;
   end;
 
   { IDeadline }
 
-  IDeadline = interface(IDynamicObject)
+  IDeadline = interface(IDataStoreObject)
+    [DeadlineGUID]
     function GetDue: TDateTime;
     function GetName: UTF8String;
     procedure SetDue(AValue: TDateTime);
@@ -126,22 +137,25 @@ type
     property Name: UTF8String read GetName write SetName;
   end;
 
-  IDeadlines = interface(IDynamicObject)
-    function GetItem(const aIndex: Longint): IDeadline; overload;
+  IDeadlines = interface(IDataStoreObject)
+    [DeadlinesGUID]
+    function GetDeadline(const aIndex: Longint): IDeadline; overload;
     function GetLength: Longint;
-    procedure SetItem(const aIndex: Longint; const AValue: IDeadline); overload;
+    procedure SetDeadline(const aIndex: Longint; const AValue: IDeadline); overload;
     procedure SetLength(const AValue: Longint);
-    property Item[aIndex: Longint]: IDeadline read GetItem write SetItem; default;
+    property Deadline[aIndex: Longint]: IDeadline read GetDeadline write SetDeadline; default;
     property Length: Longint read GetLength write SetLength;
     procedure Add(const aItem: IDeadline);
     procedure Delete(const aIndex: Longint);
     procedure Clear;
     function IndexOf(const aValue: IDeadline): Longint;
+    function New: IDeadline;
   end;
 
   { IProjectProperties }
 
   IProjectProperties = interface(IProperties)
+    [ProjectPropertiesGUID]
     function GetCategories: ICategoryDefinitions;
     function GetDeadlines: IDeadlines;
     function GetDefaultCategory: UTF8String;
@@ -163,6 +177,14 @@ type
     property Statuses: IStatusDefinitions read GetStatuses;
     property DefaultStatus: UTF8String read GetDefaultStatus write SetDefaultStatus;
     property Deadlines: IDeadlines read GetDeadlines;
+  end;
+
+  { TPropertyObjects }
+
+  TPropertyObjects = class
+  public
+    class function NewDocumentProperties: IDocumentProperties;
+    class function NewProjectProperties: IProjectProperties;
   end;
 
   { TProperties }
@@ -598,7 +620,19 @@ type
 implementation
 
 uses
-  LCLProc;
+  LCLProc, stew_properties_implementation;
+
+{ TPropertyObjects }
+
+class function TPropertyObjects.NewDocumentProperties: IDocumentProperties;
+begin
+  result := stew_properties_implementation.TDocumentProperties.Create;
+end;
+
+class function TPropertyObjects.NewProjectProperties: IProjectProperties;
+begin
+  result := stew_properties_implementation.TProjectProperties.Create;
+end;
 
 
 { TStatusDefinitions2 }

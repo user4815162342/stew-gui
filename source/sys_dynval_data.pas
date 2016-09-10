@@ -23,11 +23,12 @@ all of the subclasses handle them.
 }
 
 uses
-  Classes, SysUtils, sys_dynval, sys_dynval_implementation;
+  Classes, SysUtils, sys_dynval, sys_dynval_implementation, sys_types;
 
 type
 
-  IDataStoreObject = interface
+  IDataStoreObject = interface(IDynamicObject)
+    ['{EC1DD0DB-4FA1-4AE3-8EFE-30EEB1891F8A}']
     procedure Serialize(aWriter: TDynamicValueWriter); overload;
     procedure Serialize(aStream: TStream); overload;
     function Serialize: UTF8String; overload;
@@ -38,7 +39,7 @@ type
 
   { TDataStoreObject }
 
-  TDataStoreObject = class(TDynamicValue, IDynamicObject, IDataStoreObject)
+  TDataStoreObject = class(TDynamicValue, IDataStoreObject)
   strict protected
     procedure InitializeBlank; virtual; abstract;
     function GetKindOf: TDynamicValueKind; override;
@@ -71,16 +72,17 @@ type
     property Backing: IDynamicMap read fBacking;
     function ReadManagedKey(const {%H-}aKey: UTF8String; {%H-}aReader: TDynamicValueReader): Boolean; virtual;
     procedure WriteManagedKeys({%H-}aWriter: TDynamicValueWriter); virtual;
-    function GetItem(const aKey: UTF8String): IDynamicValue; overload; virtual; abstract;
-    procedure SetItem(const aKey: UTF8String; const AValue: IDynamicValue); overload; virtual; abstract;
+    procedure ListManagedKeys(var {%H-}aValue: TStringArray2); virtual;
+    function GetItem(const aKey: UTF8String): IDynamicValue; overload; virtual;
+    procedure SetItem(const aKey: UTF8String; const AValue: IDynamicValue); overload; virtual;
     function GetItem(const {%H-}aKey: IDynamicValue): IDynamicValue; override; overload;
     procedure SetItem(const {%H-}aKey: IDynamicValue; const {%H-}AValue: IDynamicValue); override; overload;
   public
     procedure Serialize(aWriter: TDynamicValueWriter); override;
     procedure Deserialize(aReader: TDynamicValueReader); override;
-    function Owns(const {%H-}aValue: IDynamicValue): Boolean; override; abstract;
-    function IsStructurallyEqualTo(const {%H-}aValue: IDynamicValue): Boolean; override; abstract;
-    function IsEqualTo(const {%H-}aValue: IDynamicValue): Boolean; override; abstract;
+    function Owns(const {%H-}aValue: IDynamicValue): Boolean; override;
+    function IsStructurallyEqualTo(const {%H-}aValue: IDynamicValue): Boolean; override;
+    function IsEqualTo(const {%H-}aValue: IDynamicValue): Boolean; override;
     property Item[aKey: UTF8String]: IDynamicValue read GetItem write SetItem; default;
   end;
 
@@ -102,7 +104,7 @@ type
     function ReadManagedItem({%H-}aReader: TDynamicValueReader): Boolean; virtual;
     procedure WriteManagedItems({%H-}aWriter: TDynamicValueWriter); virtual;
     function GetLength: Longint; virtual; abstract;
-    procedure SetLength(AValue: Longint); virtual; abstract;
+    procedure SetLength(const AValue: Longint); virtual; abstract;
     function GetItem(const aKey: Longint): IDynamicValue; overload; virtual; abstract;
     procedure SetItem(const aKey: Longint; const AValue: IDynamicValue); overload; virtual; abstract;
     function GetItem(const {%H-}aKey: IDynamicValue): IDynamicValue; override; overload;
@@ -111,9 +113,9 @@ type
     procedure Serialize(aWriter: TDynamicValueWriter); override;
     procedure Deserialize(aReader: TDynamicValueReader); override;
   public
-    function Owns(const {%H-}aValue: IDynamicValue): Boolean; override; abstract;
-    function IsStructurallyEqualTo(const {%H-}aValue: IDynamicValue): Boolean; override; abstract;
-    function IsEqualTo(const {%H-}aValue: IDynamicValue): Boolean; override; abstract;
+    function Owns(const {%H-}aValue: IDynamicValue): Boolean; override;
+    function IsStructurallyEqualTo(const {%H-}aValue: IDynamicValue): Boolean; override;
+    function IsEqualTo(const {%H-}aValue: IDynamicValue): Boolean; override;
     property Item[aKey: Longint]: IDynamicValue read GetItem write SetItem; default;
     property Length: Longint read GetLength write SetLength;
     procedure Add(const aItem: IDynamicValue); virtual; abstract;
@@ -216,6 +218,22 @@ begin
   // do nothing... subclass handles this...
 end;
 
+procedure TDataStoreMap.ListManagedKeys(var aValue: TStringArray2);
+begin
+  // nothing yet...
+end;
+
+function TDataStoreMap.GetItem(const aKey: UTF8String): IDynamicValue;
+begin
+  result := TDynamicValues.Undefined;
+end;
+
+procedure TDataStoreMap.SetItem(const aKey: UTF8String;
+  const AValue: IDynamicValue);
+begin
+  // do nothing...
+end;
+
 function TDataStoreMap.GetItem(const aKey: IDynamicValue): IDynamicValue;
 begin
   if aKey is IDynamicString then
@@ -271,6 +289,44 @@ begin
   end
 end;
 
+function TDataStoreMap.Owns(const aValue: IDynamicValue): Boolean;
+var
+  lKeys: TStringArray2;
+  i: Longint;
+  l: Longint;
+  lItem: IDynamicValue;
+begin
+  result := fBacking.Owns(aValue);
+  if not result then
+  begin
+    {%H-}lKeys.Count := 0;
+    ListManagedKeys(lKeys);
+    l := lKeys.Count;
+    for i := 0 to l - 1 do
+    begin
+      lItem := Item[lKeys[i]];
+      result := (lItem = aValue) or
+                (lItem.Owns(aValue));
+      if result then
+         break;
+    end;
+
+  end;
+end;
+
+function TDataStoreMap.IsStructurallyEqualTo(const aValue: IDynamicValue
+  ): Boolean;
+begin
+  // TODO: I'm not even sure how I use this, except for testing...
+  // Let's just say objects are not equal unless they are the same anyway.
+  result := false;
+end;
+
+function TDataStoreMap.IsEqualTo(const aValue: IDynamicValue): Boolean;
+begin
+  result := false;
+end;
+
 
 { TDataStoreList }
 
@@ -323,6 +379,40 @@ begin
     end;
     aReader.ReadListEnd;
   end
+end;
+
+function TDataStoreList.Owns(const aValue: IDynamicValue): Boolean;
+var
+  i: Longint;
+  l: Longint;
+  lItem: IDynamicValue;
+begin
+  result := fBacking.Owns(aValue);
+  if not result then
+  begin
+    l := Length;
+    for i := 0 to l - 1 do
+    begin
+      lItem := Item[i];
+      result := (lItem = aValue) or
+                (lItem.Owns(aValue));
+      if result then
+         break;
+    end;
+
+  end;
+end;
+
+function TDataStoreList.IsStructurallyEqualTo(const aValue: IDynamicValue
+  ): Boolean;
+begin
+  // TODO: I think I'm getting rid of this.
+  result := false;
+end;
+
+function TDataStoreList.IsEqualTo(const aValue: IDynamicValue): Boolean;
+begin
+  result := false;
 end;
 
 function TDataStoreList.GetItem(const aKey: IDynamicValue): IDynamicValue;
