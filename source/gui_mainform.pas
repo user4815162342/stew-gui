@@ -109,7 +109,7 @@ type
   private
     { private declarations }
     fProject: TStewProject;
-    fConfig: TStewApplicationConfig;
+    fConfig: IStewApplicationConfig;
     fObservers: TMainFormObserverList;
     fFrames: array[TAlign] of TControl;
     fSplitters: array[TAlign] of TControl;
@@ -535,7 +535,7 @@ begin
   stewFolder := LocalFile('');
   fProject := nil;
 
-  fConfig := TStewApplicationConfig.Create;
+  fConfig := TConfigObjects.NewStewApplicationConfig;
   try
      fConfig.Load;
   except
@@ -564,7 +564,7 @@ begin
   end
   else
   begin
-    stewFolder := fConfig.MRUProject;
+    stewFolder := fConfig.MRUProjects.MRUProject;
   end;
 
   if (stewFolder.ID <> '') then
@@ -588,7 +588,8 @@ begin
     fProject.RemoveObserver(@ObserveProject);
     FreeAndNil(fProject);
   end;
-  FreeAndNil(fConfig);
+  fConfig := nil;
+  //FreeAndNil(fConfig);
   FreeAndNil(fOpenDocuments);
 end;
 
@@ -763,7 +764,7 @@ begin
   fProject.OnChooseAttachment:=@DoChooseAttachment;
 
   // FUTURE: Someday, will have to store the system type as well.
-  fConfig.MRUProject := fProject.DiskPath;
+  fConfig.MRUProjects.MRUProject := fProject.DiskPath;
   // save the configuration, so that the MRU Project becomes available
   // if we open up another project in the midst of this.
   fConfig.Save;
@@ -774,7 +775,7 @@ begin
   RecentProjectsMenuItem.Clear;
   for i := 0 to fConfig.mruProjects.Length - 1 do
   begin
-    mru := (fConfig.mruProjects.Get(i) as TMRUProject).Path;
+    mru := fConfig.mruProjects.GetProject(i).Path;
     if mru <> fProject.DiskPath then
     begin
       item := TMRUMenuItem.Create(RecentProjectsMenuItem);

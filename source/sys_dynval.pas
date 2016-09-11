@@ -21,8 +21,10 @@ quickly convert back and forth when communicating with higher level units. If,
 in the process of doing this, I discover another more complicated place, then I
 can backtrack and start off with a smaller section.
 -- DONE gui_jsoneditor
--- gui_config -- convert over to the new JSON format for saving data.
+-- DONE gui_config -- convert over to the new JSON format for saving data.
 -- stew_project -- start converting everything into the new properties.
+   -- projectproperties
+   -- documentproperties
 -- gui_documenteditor -- Can wait until we switch over from Stew_Project, because
 there isn't going to be too much to change.
 -- gui_projectsettingseditor -- same as gui_documenteditor.

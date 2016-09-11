@@ -45,20 +45,26 @@ type
     property Path: TFile read GetPath write SetPath;
   end;
 
+  { IMRUProjects }
+
   IMRUProjects = interface(IDataStoreObject)
     ['{15BB1137-4CCC-4216-89F2-507E3804D314}']
+    function GetMRUProject: TFile;
     function GetProject(const aIndex: Longint): IMRUProject;
     function GetLength: Longint;
+    procedure SetMRUProject(AValue: TFile);
     procedure SetProject(const aIndex: Longint; const AValue: IMRUProject);
     procedure SetLength(const AValue: Longint);
     property Project[aIndex: Longint]: IMRUProject read GetProject write SetProject; default;
     property Length: Longint read GetLength write SetLength;
     procedure Add(const aItem: IMRUProject);
     procedure Add(const aPath: TFile);
+    procedure Unshift(const aPath: TFile);
     procedure Delete(const aIndex: Longint);
     procedure Clear;
     function IndexOf(const aValue: IMRUProject): Longint;
     function IndexOf(const aPath: TFile): LongInt;
+    property MRUProject: TFile read GetMRUProject write SetMRUProject;
   end;
 
   { IStewApplicationConfig }
@@ -66,11 +72,11 @@ type
   IStewApplicationConfig = interface(IDataStoreObject)
     ['{62D40346-22B5-47CF-8C86-A5F317450A19}']
     function GetMainWindow: IMainWindowConfig;
-    function GetMRUProject: TFile;
     function GetMRUProjects: IMRUProjects;
     property MainWindow: IMainWindowConfig read GetMainWindow;
     property MRUProjects: IMRUProjects read GetMRUProjects;
-    property MRUProject: TFile read GetMRUProject;
+    procedure Load;
+    procedure Save;
   end;
 
   { TConfigObjects }
@@ -80,7 +86,6 @@ type
     class function NewStewApplicationConfig: IStewApplicationConfig;
     class function Filename: UTF8String;
     class function LoadStewApplicationConfig: IStewApplicationConfig;
-    class procedure Save(aConfig: IStewApplicationConfig);
   end;
 
   { TMainWindowConfig }
@@ -184,34 +189,9 @@ begin
 end;
 
 class function TConfigObjects.LoadStewApplicationConfig: IStewApplicationConfig;
-var
-  lStream: TFileStream;
-  lFile: String;
 begin
   result := NewStewApplicationConfig;
-  lFile := FileName;
-  if FileExists(lFile) then
-  begin
-    lStream := TFileStream.Create(FileName,fmOpenRead);
-    try
-      result.Deserialize(lStream);
-    finally
-      lStream.Free;
-    end;
-  end
-end;
-
-class procedure TConfigObjects.Save(aConfig: IStewApplicationConfig);
-var
-  lStream: TFileStream;
-begin
-  lStream := TFileStream.Create(FileName,fmCreate);
-  try
-    aConfig.Serialize(lStream);
-  finally
-    lStream.Free;
-  end;
-
+  Result.Load;
 end;
 
 { TMRUProject }

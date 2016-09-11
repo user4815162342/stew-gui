@@ -99,15 +99,19 @@ type
     procedure BuildClone(var aValue: TDynamicValue); override;
     function GetProject(const aIndex: Longint): IMRUProject;
     procedure SetProject(const aIndex: Longint; const AValue: IMRUProject);
+    function GetMRUProject: TFile;
+    procedure SetMRUProject(AValue: TFile);
   public
     property Project[aIndex: Longint]: IMRUProject read GetProject write SetProject; default;
     property Length: Longint read GetLength write SetLength;
     procedure Add(const aItem: IMRUProject);
     procedure Add(const aPath: TFile);
+    procedure Unshift(const aPath: TFile);
     procedure Delete(const aIndex: Longint); override;
     procedure Clear; override;
     function IndexOf(const aValue: IMRUProject): Longint;
     function IndexOf(const aPath: TFile): LongInt;
+
   end;
 
   { TStewApplicationConfig }
@@ -127,12 +131,12 @@ type
       overload; override;
     procedure BuildClone(var aValue: TDynamicValue); override;
     function GetMainWindow: IMainWindowConfig;
-    function GetMRUProject: TFile;
     function GetMRUProjects: IMRUProjects;
   public
     property MainWindow: IMainWindowConfig read GetMainWindow;
     property MRUProjects: IMRUProjects read GetMRUProjects;
-    property MRUProject: TFile read GetMRUProject;
+    procedure Load;
+    procedure Save;
   end;
 
   const
@@ -153,7 +157,7 @@ type
 implementation
 
 uses
-  stew_properties_implementation, sys_localfile;
+  stew_properties_implementation, sys_localfile, math;
 
 { TStewApplicationConfig }
 
@@ -232,18 +236,40 @@ begin
 
 end;
 
-function TStewApplicationConfig.GetMRUProject: TFile;
-begin
-  if fMRUProjects.Length > 0 then
-     result := fMRUProjects.GetProject(0).Path
-  else
-    result := LocalFile('');
-
-end;
-
 function TStewApplicationConfig.GetMRUProjects: IMRUProjects;
 begin
   result := fMRUProjects;
+end;
+
+procedure TStewApplicationConfig.Load;
+var
+  lStream: TFileStream;
+  lFile: String;
+begin
+  lFile := TConfigObjects.Filename;
+  if FileExists(lFile) then
+  begin
+    lStream := TFileStream.Create(lFile,fmOpenRead);
+    try
+      Deserialize(lStream);
+    finally
+      lStream.Free;
+    end;
+  end
+  else
+    InitializeBlank;
+end;
+
+procedure TStewApplicationConfig.Save;
+var
+  lStream: TFileStream;
+begin
+  lStream := TFileStream.Create(TConfigObjects.Filename,fmCreate);
+  try
+    Serialize(lStream);
+  finally
+    lStream.Free;
+  end;
 end;
 
 { TMRUProjects }
@@ -320,6 +346,40 @@ begin
   fItems[aIndex] := AValue;
 end;
 
+function TMRUProjects.GetMRUProject: TFile;
+begin
+  if Length > 0 then
+     result := GetProject(0).Path
+  else
+    result := LocalFile('');
+end;
+
+procedure TMRUProjects.SetMRUProject(AValue: TFile);
+var
+  lOldIndex: Longint;
+  i: Longint;
+  l: Longint;
+  lProject: IMRUProject;
+begin
+  lOldIndex := IndexOf(aValue);
+  if lOldIndex <> 0 then
+  begin
+    if lOldIndex > -1 then
+    begin
+      // remove it from where it was...
+      fItems.Delete(lOldIndex);
+    end;
+    // insert it at the beginning...
+    l := Min(fItems.Length + 1,MRUListMaxSize);
+    fItems.Length := l;
+    for i := (l - 1) downto 1 do
+      fItems.SetItem(i,fItems.GetItem(i - 1));
+    lProject := TMRUProject.Create;
+    lProject.Path := AValue;
+    SetProject(0,lProject);
+  end;
+end;
+
 procedure TMRUProjects.Add(const aItem: IMRUProject);
 begin
   fItems.Add(aItem);
@@ -333,6 +393,23 @@ begin
   lProject.Path := aPath;
   Add(lProject);
 
+end;
+
+procedure TMRUProjects.Unshift(const aPath: TFile);
+var
+  lProject: IMRUProject;
+  l: Longint;
+  i: Longint;
+begin
+  lProject := TMRUProject.Create;
+  lProject.Path := aPath;
+  l := fItems.Length;
+  fItems.Length := l + 1;
+  for i := l downto 1 do
+  begin
+    fItems.SetItem(i,fItems.GetItem(i - 1));
+  end;
+  SetItem(0,lProject);
 end;
 
 procedure TMRUProjects.Delete(const aIndex: Longint);
@@ -358,6 +435,7 @@ var
   l: Longint;
   i: Longint;
 begin
+  result := -1;
   l := fItems.Length;
   for i := 0 to l - 1 do
   begin
