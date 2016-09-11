@@ -12,6 +12,7 @@ type
   { IMainWindowConfig }
 
   IMainWindowConfig = interface(IDataStoreObject)
+    ['{B510C73A-AF2E-485A-BE0A-24742AAA7AF0}']
     function GetBottomPaneHeight: Integer;
     function GetHeight: Integer;
     function GetLeftPaneWidth: Integer;
@@ -38,12 +39,14 @@ type
   { IMRUProject }
 
   IMRUProject = interface(IDataStoreObject)
+    ['{2A62CE6C-BF91-45F3-AB57-5BDABF0CA420}']
     function GetPath: TFile;
     procedure SetPath(AValue: TFile);
     property Path: TFile read GetPath write SetPath;
   end;
 
   IMRUProjects = interface(IDataStoreObject)
+    ['{15BB1137-4CCC-4216-89F2-507E3804D314}']
     function GetProject(const aIndex: Longint): IMRUProject;
     function GetLength: Longint;
     procedure SetProject(const aIndex: Longint; const AValue: IMRUProject);
@@ -61,12 +64,13 @@ type
   { IStewApplicationConfig }
 
   IStewApplicationConfig = interface(IDataStoreObject)
+    ['{62D40346-22B5-47CF-8C86-A5F317450A19}']
     function GetMainWindow: IMainWindowConfig;
-    function GetMRUProject: IMRUProject;
+    function GetMRUProject: TFile;
     function GetMRUProjects: IMRUProjects;
     property MainWindow: IMainWindowConfig read GetMainWindow;
     property MRUProjects: IMRUProjects read GetMRUProjects;
-    property MRUProject: IMRUProject read GetMRUProject;
+    property MRUProject: TFile read GetMRUProject;
   end;
 
   { TConfigObjects }
@@ -158,6 +162,10 @@ type
     property mruProjects: TMRUProjects read GetMRUProjects;
   end;
 
+  const
+    ConfigFileName = 'stew-gui-config.json';
+
+
 implementation
 
 uses
@@ -172,18 +180,37 @@ end;
 
 class function TConfigObjects.Filename: UTF8String;
 begin
-  result := GetAppConfigDir(false) + 'stew-gui-config.json';
+  result := GetAppConfigDir(false) + ConfigFileName;
 end;
 
 class function TConfigObjects.LoadStewApplicationConfig: IStewApplicationConfig;
+var
+  lStream: TFileStream;
+  lFile: String;
 begin
   result := NewStewApplicationConfig;
-  result.Deserialize(Filename);
+  lFile := FileName;
+  if FileExists(lFile) then
+  begin
+    lStream := TFileStream.Create(FileName,fmOpenRead);
+    try
+      result.Deserialize(lStream);
+    finally
+      lStream.Free;
+    end;
+  end
 end;
 
 class procedure TConfigObjects.Save(aConfig: IStewApplicationConfig);
+var
+  lStream: TFileStream;
 begin
-  aConfig.Serialize(Filename);
+  lStream := TFileStream.Create(FileName,fmCreate);
+  try
+    aConfig.Serialize(lStream);
+  finally
+    lStream.Free;
+  end;
 
 end;
 
