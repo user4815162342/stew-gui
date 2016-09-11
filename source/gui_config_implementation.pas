@@ -85,34 +85,26 @@ type
   TMRUProjects = class(TDataStoreList, IMRUProjects)
   strict private
     const MRUListMaxSize = 20;
-  strict private
-    fItems: IDynamicList;
   strict protected
-    procedure InitializeBlank; override;
-    function ReadManagedItem(aReader: TDynamicValueReader): Boolean; override;
-    procedure WriteManagedItems(aWriter: TDynamicValueWriter); override;
-    function GetLength: Longint; override;
-    procedure SetLength(const AValue: Longint); override;
-    function GetItem(const aKey: Longint): IDynamicValue; overload; override;
-    procedure SetItem(const aKey: Longint; const AValue: IDynamicValue);
-      overload; override;
+    procedure CheckInsertingItem(aValue: IDynamicValue); override;
+    function ReadManagedItem(aReader: TDynamicValueReader): IDynamicValue;
+       override;
     procedure BuildClone(var aValue: TDynamicValue); override;
     function GetProject(const aIndex: Longint): IMRUProject;
     procedure SetProject(const aIndex: Longint; const AValue: IMRUProject);
     function GetMRUProject: TFile;
     procedure SetMRUProject(AValue: TFile);
+    function GetLength: Longint;
+    procedure SetLength(const AValue: Longint);
   public
-    procedure Add(const aItem: IDynamicValue); override;
-    function IndexOf(const aValue: IDynamicValue): Longint; override;
     property Project[aIndex: Longint]: IMRUProject read GetProject write SetProject; default;
     property Length: Longint read GetLength write SetLength;
     procedure Add(const aItem: IMRUProject);
     procedure Add(const aPath: TFile);
-    procedure Unshift(const aPath: TFile);
-    procedure Delete(const aIndex: Longint); override;
-    procedure Clear; override;
     function IndexOf(const aValue: IMRUProject): Longint;
     function IndexOf(const aPath: TFile): LongInt;
+    procedure Delete(const aIndex: Longint);
+    procedure Clear;
 
   end;
 
@@ -276,76 +268,35 @@ end;
 
 { TMRUProjects }
 
-procedure TMRUProjects.InitializeBlank;
+procedure TMRUProjects.CheckInsertingItem(aValue: IDynamicValue);
 begin
-  fItems := TDynamicValues.NewList;
-  inherited InitializeBlank;
+  if not (aValue is IMRUProject) then
+     RaiseInvalidListItem('TMRUProjects',aValue);
 end;
 
-function TMRUProjects.ReadManagedItem(aReader: TDynamicValueReader): Boolean;
-var
-  lProject: IMRUProject;
+function TMRUProjects.ReadManagedItem(aReader: TDynamicValueReader
+  ): IDynamicValue;
 begin
-  lProject := TMRUProject.Create;
-  lProject.Deserialize(aReader);
-  fItems.Add(lProject);
-  result := true;
-end;
-
-procedure TMRUProjects.WriteManagedItems(aWriter: TDynamicValueWriter);
-var
-  l: longint;
-  i: Longint;
-begin
-  l := fItems.Length;
-  for i := 0 to l - 1 do
-  begin
-    (fItems[i] as IMRUProject).Serialize(aWriter);
-  end;
-  inherited WriteManagedItems(aWriter);
-end;
-
-function TMRUProjects.GetLength: Longint;
-begin
-  result := fItems.Length;
-end;
-
-procedure TMRUProjects.SetLength(const AValue: Longint);
-begin
-  fItems.Length := AValue;
-end;
-
-function TMRUProjects.GetItem(const aKey: Longint): IDynamicValue;
-begin
-  Result:=fItems.GetItem(aKey);
-end;
-
-procedure TMRUProjects.SetItem(const aKey: Longint; const AValue: IDynamicValue
-  );
-begin
-  if AValue is IMRUProject then
-     fItems.SetItem(aKey,AValue)
-  else
-     raise Exception.Create('MRUProjects can only hold MRUProject');
+  result := TMRUProject.Create;
+  (result as IMRUProject).Deserialize(aReader);
 end;
 
 procedure TMRUProjects.BuildClone(var aValue: TDynamicValue);
 begin
   if aValue = nil then
      aValue := TMRUProjects.Create;
-  (aValue as TMRUProjects).fItems := fItems.Clone as IDynamicList;
   inherited BuildClone(aValue);
 end;
 
 function TMRUProjects.GetProject(const aIndex: Longint): IMRUProject;
 begin
-  result := fItems[aIndex] as IMRUProject;
+  result := GetItem(aIndex) as IMRUProject;
 end;
 
 procedure TMRUProjects.SetProject(const aIndex: Longint;
   const AValue: IMRUProject);
 begin
-  fItems[aIndex] := AValue;
+  SetItem(aIndex,AValue);
 end;
 
 function TMRUProjects.GetMRUProject: TFile;
@@ -369,39 +320,32 @@ begin
     if lOldIndex > -1 then
     begin
       // remove it from where it was...
-      fItems.Delete(lOldIndex);
+      Delete(lOldIndex);
     end;
     // insert it at the beginning...
-    l := Min(fItems.Length + 1,MRUListMaxSize);
-    fItems.Length := l;
+    l := Min(Length + 1,MRUListMaxSize);
+    Length := l;
     for i := (l - 1) downto 1 do
-      fItems.SetItem(i,fItems.GetItem(i - 1));
+      SetItem(i,GetItem(i - 1));
     lProject := TMRUProject.Create;
     lProject.Path := AValue;
     SetProject(0,lProject);
   end;
 end;
 
-procedure TMRUProjects.Add(const aItem: IDynamicValue);
+function TMRUProjects.GetLength: Longint;
 begin
-  if aItem is IMRUProject then
-     Add(aItem as IMRUProject)
-  else
-     raise Exception.Create('MRUProjects can only hold MRUProject');
-
+  result := Items.Length;
 end;
 
-function TMRUProjects.IndexOf(const aValue: IDynamicValue): Longint;
+procedure TMRUProjects.SetLength(const AValue: Longint);
 begin
-  if aValue is IMRUProject then
-     result := IndexOf(aValue as IMRUProject)
-  else
-     result := -1;
+  Items.Length := AValue;
 end;
 
 procedure TMRUProjects.Add(const aItem: IMRUProject);
 begin
-  fItems.Add(aItem);
+  Items.Add(aItem);
 end;
 
 procedure TMRUProjects.Add(const aPath: TFile);
@@ -411,35 +355,6 @@ begin
   lProject := TMRUProject.Create;
   lProject.Path := aPath;
   Add(lProject);
-
-end;
-
-procedure TMRUProjects.Unshift(const aPath: TFile);
-var
-  lProject: IMRUProject;
-  l: Longint;
-  i: Longint;
-begin
-  lProject := TMRUProject.Create;
-  lProject.Path := aPath;
-  l := fItems.Length;
-  fItems.Length := l + 1;
-  for i := l downto 1 do
-  begin
-    fItems.SetItem(i,fItems.GetItem(i - 1));
-  end;
-  SetItem(0,lProject);
-end;
-
-procedure TMRUProjects.Delete(const aIndex: Longint);
-begin
-  fItems.Delete(aIndex);
-
-end;
-
-procedure TMRUProjects.Clear;
-begin
-  fItems.Clear;
 
 end;
 
@@ -455,16 +370,26 @@ var
   i: Longint;
 begin
   result := -1;
-  l := fItems.Length;
+  l := Length;
   for i := 0 to l - 1 do
   begin
-    if (fItems[i] as IMRUProject).Path = aPath then
+    if (GetItem(i) as IMRUProject).Path = aPath then
     begin
        result := i;
        break;
     end;
   end;
 
+end;
+
+procedure TMRUProjects.Delete(const aIndex: Longint);
+begin
+  Items.Delete(aIndex);
+end;
+
+procedure TMRUProjects.Clear;
+begin
+  Items.Clear;
 end;
 
 { TMRUProject }

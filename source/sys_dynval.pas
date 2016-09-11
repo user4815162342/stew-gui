@@ -14,6 +14,9 @@ uses
 
 
 TODO: Make use of this
+0. Fix the TDataStoreList, it doesn't need a backing because that doesn't make sense.
+Instead, it can keep the items because that's what that does, and have protected
+methods for accessing them and behaving like IDynamicValue, etc.
 1. Don't do this from the top down, changing everything at once. Go from the bottom
 up. So, instead of just switching from TProjectProperties to TProjectProperties2 in
 stew_project, switch the various editors over, using some conversion functions to
@@ -23,7 +26,7 @@ can backtrack and start off with a smaller section.
 -- DONE gui_jsoneditor
 -- DONE gui_config -- convert over to the new JSON format for saving data.
 -- stew_project -- start converting everything into the new properties.
-   -- projectproperties
+   -- DONE projectproperties
    -- documentproperties
 -- gui_documenteditor -- Can wait until we switch over from Stew_Project, because
 there isn't going to be too much to change.

@@ -195,30 +195,22 @@ type
   { TDeadlines }
 
   TDeadlines = class(TDataStoreList,IDeadlines)
-  private
-    fItems: IDynamicList;
   strict protected
-    function GetItem(const aKey: Longint): IDynamicValue; overload; override;
-    function GetLength: Longint; override;
-    procedure InitializeBlank; override;
-    procedure SetItem(const aKey: Longint; const AValue: IDynamicValue);
-      overload; override;
-    procedure SetLength(const AValue: Longint); override;
+    procedure CheckInsertingItem(aValue: IDynamicValue); override;
     function GetDeadline(const aIndex: Longint): IDeadline; overload;
     procedure SetDeadline(const aIndex: Longint; const AValue: IDeadline); overload;
-    function ReadManagedItem(aReader: TDynamicValueReader): Boolean; override;
-    procedure WriteManagedItems(aWriter: TDynamicValueWriter); override;
+    function ReadManagedItem(aReader: TDynamicValueReader): IDynamicValue;
+       override;
     procedure BuildClone(var aValue: TDynamicValue); override;
     function SortByDueDate(a: IDynamicValue; b: IDynamicValue): Longint;
+    function GetLength: Longint;
+    procedure SetLength(const AValue: Longint);
   public
-    procedure Add(const aItem: IDynamicValue); override;
     procedure Add(const aItem: IDeadline);
     procedure Add(const aName: UTF8String; const aDue: TDateTime);
-    procedure Clear; override;
-    procedure Delete(const aIndex: Longint); override;
-    function IndexOf(const aValue: IDynamicValue): Longint; override;
     function IndexOf(const aValue: IDeadline): Longint;
-    function Owns(const aValue: IDynamicValue): Boolean; override;
+    procedure Delete(const aIndex: Longint);
+    procedure Clear;
     procedure Sort;
   end;
 
@@ -597,17 +589,9 @@ end;
 
 { TDeadlines }
 
-procedure TDeadlines.Add(const aItem: IDynamicValue);
-begin
-   if aItem is IDeadline then
-      fItems.Add(aItem)
-   else
-      RaiseInvalidListItem('TDeadlines',aItem);
-end;
-
 procedure TDeadlines.Add(const aItem: IDeadline);
 begin
-  fItems.Add(aItem);
+  Items.Add(aItem);
 end;
 
 procedure TDeadlines.Add(const aName: UTF8String; const aDue: TDateTime);
@@ -621,63 +605,30 @@ begin
 
 end;
 
-procedure TDeadlines.Clear;
+function TDeadlines.IndexOf(const aValue: IDeadline): Longint;
 begin
-  fItems.Clear;
+  result := Items.IndexOf(aValue);
 end;
 
 procedure TDeadlines.Delete(const aIndex: Longint);
 begin
-  fItems.Delete(aIndex);
+  Items.Delete(aIndex);
 end;
 
-function TDeadlines.GetItem(const aKey: Longint): IDynamicValue;
+procedure TDeadlines.Clear;
 begin
-  result := fItems.GetItem(aKey);
-end;
-
-function TDeadlines.GetLength: Longint;
-begin
-  result := fItems.Length;
-end;
-
-function TDeadlines.IndexOf(const aValue: IDynamicValue): Longint;
-begin
-  result := fItems.IndexOf(aValue);
-end;
-
-function TDeadlines.IndexOf(const aValue: IDeadline): Longint;
-begin
-  result := fItems.IndexOf(aValue);
-end;
-
-function TDeadlines.Owns(const aValue: IDynamicValue): Boolean;
-begin
-  result := fItems.Owns(aValue);
+  Items.Clear;
 end;
 
 procedure TDeadlines.Sort;
 begin
-  fItems.Sort(@SortByDueDate);
+  Items.Sort(@SortByDueDate);
 end;
 
-procedure TDeadlines.InitializeBlank;
+procedure TDeadlines.CheckInsertingItem(aValue: IDynamicValue);
 begin
-  fItems := TDynamicValues.NewList;
-  inherited InitializeBlank;
-end;
-
-procedure TDeadlines.SetItem(const aKey: Longint; const AValue: IDynamicValue);
-begin
-   if AValue is IDeadline then
-      fItems.SetItem(aKey,AValue)
-   else
-      RaiseInvalidListItem('TDeadlines',AValue);
-end;
-
-procedure TDeadlines.SetLength(const AValue: Longint);
-begin
-  fItems.SetLength(AValue);
+  if not (aValue is IDeadline) then
+     RaiseInvalidListItem('TDeadlines',aValue);
 end;
 
 function TDeadlines.GetDeadline(const aIndex: Longint): IDeadline;
@@ -691,31 +642,17 @@ begin
   SetItem(aIndex,AValue);
 end;
 
-function TDeadlines.ReadManagedItem(aReader: TDynamicValueReader): Boolean;
-var
-  lDeadline: IDeadline;
+function TDeadlines.ReadManagedItem(aReader: TDynamicValueReader
+  ): IDynamicValue;
 begin
-  lDeadline := TPropertyObjects.NewDeadline;
-  lDeadline.Deserialize(aReader);
-  Add(lDeadline);
-  result := true;
-end;
-
-procedure TDeadlines.WriteManagedItems(aWriter: TDynamicValueWriter);
-var
-  i: Longint;
-  l: Longint;
-begin
-  l := fItems.Length;
-  for i := 0 to l - 1 do
-     (fItems[i] as IDeadline).Serialize(aWriter);
+  result := TPropertyObjects.NewDeadline;
+  (result as IDeadline).Deserialize(aReader);
 end;
 
 procedure TDeadlines.BuildClone(var aValue: TDynamicValue);
 begin
   if aValue = nil then
      aValue := TDeadlines.Create;
-  (aValue as TDeadlines).fItems := fItems.Clone as IDynamicList;
   inherited BuildClone(aValue);
 end;
 
@@ -727,6 +664,16 @@ begin
   aDeadline := a as IDeadline;
   bDeadline := b as IDeadline;
   result := trunc(aDeadline.Due - bDeadline.Due);
+end;
+
+function TDeadlines.GetLength: Longint;
+begin
+  result := Items.Length;
+end;
+
+procedure TDeadlines.SetLength(const AValue: Longint);
+begin
+  Items.SetLength(AValue);
 end;
 
 { TDeadline }

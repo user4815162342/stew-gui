@@ -138,7 +138,7 @@ type
     function GetLength: Longint;
     procedure SetDeadline(const aIndex: Longint; const AValue: IDeadline); overload;
     procedure SetLength(const AValue: Longint);
-    property Deadline[aIndex: Longint]: IDeadline read GetDeadline write SetDeadline; default;
+    property Items[aIndex: Longint]: IDeadline read GetDeadline write SetDeadline; default;
     property Length: Longint read GetLength write SetLength;
     procedure Add(const aItem: IDeadline);
     procedure Add(const aName: UTF8String; const aDue: TDateTime);

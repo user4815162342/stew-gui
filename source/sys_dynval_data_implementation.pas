@@ -80,33 +80,23 @@ type
 
   TDataStoreList = class(TDataStoreObject)
   private
-    fBacking: IDynamicList;
+    fItems: IDynamicList;
   strict protected
     procedure InitializeBlank; override;
-    property Backing: IDynamicList read fBacking;
-    function ReadManagedItem({%H-}aReader: TDynamicValueReader): Boolean; virtual;
-    procedure WriteManagedItems({%H-}aWriter: TDynamicValueWriter); virtual;
-    function GetLength: Longint; virtual; abstract;
-    procedure SetLength(const AValue: Longint); virtual; abstract;
-    function GetItem(const aKey: Longint): IDynamicValue; overload; virtual; abstract;
-    procedure SetItem(const aKey: Longint; const AValue: IDynamicValue); overload; virtual; abstract;
+    function ReadManagedItem(aReader: TDynamicValueReader): IDynamicValue; virtual; abstract;
+    property Items: IDynamicList read fItems;
+    procedure CheckInsertingItem(aValue: IDynamicValue); virtual; abstract;
+    function GetItem(const aKey: Longint): IDynamicValue; virtual;
+    procedure SetItem(const aKey: Longint; aValue: IDynamicValue); virtual;
     function GetItem(const {%H-}aKey: IDynamicValue): IDynamicValue; override; overload;
     procedure SetItem(const {%H-}aKey: IDynamicValue; const {%H-}AValue: IDynamicValue); override; overload;
     procedure BuildClone(var aValue: TDynamicValue); override;
   public
     procedure Serialize(aWriter: TDynamicValueWriter); override;
     procedure Deserialize(aReader: TDynamicValueReader); override;
-  public
     function Owns(const {%H-}aValue: IDynamicValue): Boolean; override;
     function IsStructurallyEqualTo(const {%H-}aValue: IDynamicValue): Boolean; override;
     function IsEqualTo(const {%H-}aValue: IDynamicValue): Boolean; override;
-    property Item[aKey: Longint]: IDynamicValue read GetItem write SetItem; default;
-    property Length: Longint read GetLength write SetLength;
-    procedure Add(const aItem: IDynamicValue); virtual; abstract;
-    procedure Delete(const aIndex: Longint); virtual; abstract;
-    procedure Clear; virtual; abstract;
-    function IndexOf(const aValue: IDynamicValue): Longint; virtual; abstract;
-
   end;
 
 
@@ -336,17 +326,18 @@ end;
 
 procedure TDataStoreList.InitializeBlank;
 begin
-  fBacking := TDynamicValues.NewList;
+  fItems := TDynamicValues.NewList;
 end;
 
-function TDataStoreList.ReadManagedItem(aReader: TDynamicValueReader): Boolean;
+function TDataStoreList.GetItem(const aKey: Longint): IDynamicValue;
 begin
-  result := false;
+  result := fItems.GetItem(aKey);
 end;
 
-procedure TDataStoreList.WriteManagedItems(aWriter: TDynamicValueWriter);
+procedure TDataStoreList.SetItem(const aKey: Longint; aValue: IDynamicValue);
 begin
-  // do nothing... subclass handles this...
+  CheckInsertingItem(aValue);
+  fItems.SetItem(aKey,aValue)
 end;
 
 procedure TDataStoreList.Serialize(aWriter: TDynamicValueWriter);
@@ -354,12 +345,14 @@ var
   i: Longint;
   l: Longint;
 begin
-  aWriter.WriteListStart(fBacking);
-  WriteManagedItems(aWriter);
-  l := fBacking.Length - 1;
+  aWriter.WriteListStart(fItems);
+  l := fItems.Length - 1;
   for i := 0 to l do
   begin
-    aWriter.WriteValue(fBacking[i]);
+    if fItems[i] is IDataStoreObject then
+       (fItems[i] as IDataStoreObject).Serialize(aWriter)
+    else
+       aWriter.WriteValue(fItems[i]);
   end;
   aWriter.WriteListEnd;
 end;
@@ -370,45 +363,17 @@ begin
   if aReader <> nil then
   begin
     aReader.ReadListStart;
-    // basically, two loops. The first one gives us a chance to read items
-    // that are managed, up until the first item that isn't manageable.
     while not aReader.IsListEnd do
     begin
-      if not ReadManagedItem(aReader) then
-         break;
-    end;
-    // the second loop reads in all of the unmanaged ones. It's possible
-    // that this one contains values that *could* be managed, but if we
-    // put those in, then we lose the original order.
-    while not aReader.IsListEnd do
-    begin
-      // read the unmanaged items.
-      fBacking.Add(aReader.ReadValue);
+      fItems.Add(ReadManagedItem(aReader));
     end;
     aReader.ReadListEnd;
   end
 end;
 
 function TDataStoreList.Owns(const aValue: IDynamicValue): Boolean;
-var
-  i: Longint;
-  l: Longint;
-  lItem: IDynamicValue;
 begin
-  result := fBacking.Owns(aValue);
-  if not result then
-  begin
-    l := Length;
-    for i := 0 to l - 1 do
-    begin
-      lItem := Item[i];
-      result := (lItem = aValue) or
-                (lItem.Owns(aValue));
-      if result then
-         break;
-    end;
-
-  end;
+  result := fItems.Owns(aValue);
 end;
 
 function TDataStoreList.IsStructurallyEqualTo(const aValue: IDynamicValue
@@ -465,10 +430,9 @@ procedure TDataStoreList.BuildClone(var aValue: TDynamicValue);
 begin
   if aValue = nil then
      raise Exception.Create('Can''t clone a TDataStoreList directly, it''s abstract');
-  (aValue as TDataStoreList).fBacking := fBacking.Clone as IDynamicList;
+  (aValue as TDataStoreList).fItems := fItems.Clone as IDynamicList;
   inherited BuildClone(aValue);
 end;
-
 
 end.
 

@@ -59,7 +59,6 @@ type
     property Length: Longint read GetLength write SetLength;
     procedure Add(const aItem: IMRUProject);
     procedure Add(const aPath: TFile);
-    procedure Unshift(const aPath: TFile);
     procedure Delete(const aIndex: Longint);
     procedure Clear;
     function IndexOf(const aValue: IMRUProject): Longint;
