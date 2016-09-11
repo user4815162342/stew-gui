@@ -113,7 +113,7 @@ type
 implementation
 
 uses
-  gui_async, FileUtil, sys_localfile, stew_properties, Graphics, sys_os;
+  gui_async, FileUtil, sys_localfile, stew_properties, Graphics, sys_os, sys_dynval;
 
 { TTestObserver }
 
@@ -224,7 +224,7 @@ end;
 
 procedure TProjectSpec.Document_Properties_2(Sender: TPromise);
 var
-  lProps: TDocumentProperties;
+  lProps: IDocumentProperties;
   lDocument: TDocumentPath;
 begin
   lProps := (Sender as TDocumentPropertiesPromise).Properties;
@@ -234,7 +234,7 @@ begin
   if not AssertAsync(lProps.Title = 'The Cottage','Title should return correct value',Sender.Tag) then Exit;
   if not AssertAsync(lProps.Publish = false,'Publish should return correct value',Sender.Tag) then Exit;
   if not AssertAsync(lProps.Index.Length = 0,'Index should return correct value',Sender.Tag) then Exit;
-  AssertAsync(lProps.User.Get('place').AsString = 'Jen''s Lakeside Cottage','User properties should return correct values',Sender.Tag);
+  AssertAsync((lProps.User['place'] as IDynamicString).Value = 'Jen''s Lakeside Cottage','User properties should return correct values',Sender.Tag);
 
   lProps.Title := 'The Cottage Not in the Woods';
   fProject.WriteDocumentProperties(lDocument,lProps).After(@Document_Properties_3,@PromiseFailed).Tag := Sender.Tag;

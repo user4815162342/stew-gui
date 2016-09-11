@@ -1414,7 +1414,8 @@ begin
  aWriter.WriteKeyValue(CategoryKey,fCategory);
  aWriter.WriteKeyValue(StatusKey,fStatus);
  aWriter.WriteKeyValue(PublishKey,fPublish);
- aWriter.WriteKeyValue(IndexKey,GetItem(IndexKey));
+ aWriter.WriteKey(IndexKey);
+ fIndex.Serialize(aWriter);
  inherited WriteManagedKeys(aWriter);
 end;
 
@@ -1539,7 +1540,7 @@ begin
   if aKey = UserKey then
   begin
     SetItem(UserKey,aReader.ReadValue);
-     result := true;
+    result := true;
   end
   else
      Result:=inherited ReadManagedKey(aKey, aReader);
@@ -1547,7 +1548,8 @@ end;
 
 procedure TProperties.WriteManagedKeys(aWriter: TDynamicValueWriter);
 begin
-  aWriter.WriteKeyValue(UserKey,fUser);
+  if fUser <> nil then
+     aWriter.WriteKeyValue(UserKey,fUser);
   inherited WriteManagedKeys(aWriter);
 end;
 

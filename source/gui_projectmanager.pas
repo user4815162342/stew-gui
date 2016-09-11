@@ -103,13 +103,13 @@ type
     function GetTreeNodeForDocument(aDocument: TDocumentPath): TProjectInspectorNode;
     function BuildTreeNodeForDocument(aDocument: TDocumentPath): TProjectInspectorNode;
     procedure UpdateNode(aNode: TProjectInspectorNode; aInfo: TDocumentInfo);
-    procedure UpdateNode(aNode: TProjectInspectorNode; aProperties: TDocumentProperties);
+    procedure UpdateNode(aNode: TProjectInspectorNode; aProperties: IDocumentProperties);
     procedure UpdateNodeStyle(aNode: TProjectInspectorNode);
     procedure BeginUIUpdate;
     procedure EndUIUpdate;
     procedure ProjectPropertiesUpdated(aProperties: IProjectProperties);
     procedure DocumentUpdated(aParent: TDocumentPath; aContents: TDocumentInfoArray);
-    procedure DocumentUpdated(aParent: TDocumentPath; aProperties: TDocumentProperties);
+    procedure DocumentUpdated(aParent: TDocumentPath; aProperties: IDocumentProperties);
     procedure RefreshDocument(aDocument: TDocumentPath);
     procedure ObserveMainForm(Sender: TMainForm; aAction: TMainFormAction; aDocument: TDocumentPath);
     procedure ObserveProject(Sender: TStewProject; Event: TProjectEvent);
@@ -878,7 +878,7 @@ begin
 end;
 
 procedure TProjectManager.UpdateNode(aNode: TProjectInspectorNode;
-  aProperties: TDocumentProperties);
+  aProperties: IDocumentProperties);
 var
   lName: String;
 begin
@@ -1079,7 +1079,7 @@ begin
 end;
 
 procedure TProjectManager.DocumentUpdated(aParent: TDocumentPath;
-  aProperties: TDocumentProperties);
+  aProperties: IDocumentProperties);
 var
   lNode: TProjectInspectorNode;
 begin

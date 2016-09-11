@@ -57,7 +57,7 @@ type
     function IsModified: Boolean;
     procedure ProjectPropertiesUpdated(aData: IProjectProperties);
     procedure DocumentRenamed(aOldDocument: TDocumentPath; aNewDocument: TDocumentPath);
-    procedure PropertiesUpdated(aData: TDocumentProperties);
+    procedure PropertiesUpdated(aData: IDocumentProperties);
     procedure AttachmentsListed(aData: TAttachmentArray);
     procedure SynopsisUpdated(aData: UTF8String);
     procedure WriteData;
@@ -107,42 +107,29 @@ end;
 
 procedure TDocumentEditor.WriteData_PropertiesRead(Sender: TPromise);
 var
-  lProps: TDocumentProperties;
-  lUser: TJSObject;
+  lProps: IDocumentProperties;
 begin
-  lProps := (Sender as TDocumentPropertiesPromise).Properties.Clone as TDocumentProperties;
-  try
+  lProps := (Sender as TDocumentPropertiesPromise).Properties.Clone as IDocumentProperties;
 
-    lProps.Title := TitleEdit.Text;
-    lProps.Publish := PublishEdit.Checked;
-    lProps.Category := CategoryEdit.Text;
-    lProps.Status := StatusEdit.Text;
+  lProps.Title := TitleEdit.Text;
+  lProps.Publish := PublishEdit.Checked;
+  lProps.Category := CategoryEdit.Text;
+  lProps.Status := StatusEdit.Text;
 
-    // I need to create and destroy this object because
-    // it gets cloned when setting the property.
-    lUser := ToOldJSONValue(fUserPropertiesEditor.GetMap) as TJSObject;
-    if lUser <> nil then
-      try
-        lProps.User.Assign(lUser);
-      finally
-        lUser.Free;
-      end
-    else
-      lProps.delete('user');
+  // I need to create and destroy this object because
+  // it gets cloned when setting the property.
+  lProps.User := fUserPropertiesEditor.GetMap;
 
-    if MainForm.Project <> nil then
-    begin
-       MainForm.Project.WriteDocumentProperties(Document,lProps,false).After(@WriteData_PropertiesWritten)
-    end
-    else
-    begin
-      // This is really an error message...
-      MainForm.ShowMessage('Properties can''t be saved, the project has closed.',mtError,'Sigh');
-      ClearData;
-    end;
-
-  finally
-    lProps.Free;
+  if MainForm.Project <> nil then
+  begin
+     MainForm.ShowMessage('The old file will be backed up first.',TMsgDlgType.mtInformation,'Got it');
+     MainForm.Project.WriteDocumentProperties(Document,lProps,true).After(@WriteData_PropertiesWritten)
+  end
+  else
+  begin
+    // This is really an error message...
+    MainForm.ShowMessage('Properties can''t be saved, the project has closed.',mtError,'Sigh');
+    ClearData;
   end;
 
 end;
@@ -451,7 +438,7 @@ begin
      Document := aNewDocument;
 end;
 
-procedure TDocumentEditor.PropertiesUpdated(aData: TDocumentProperties);
+procedure TDocumentEditor.PropertiesUpdated(aData: IDocumentProperties);
 begin
   fPropsAvailable := true;
   if not TitleEdit.Modified then
@@ -476,7 +463,7 @@ begin
   end;
   if not fUserPropertiesEditor.Modified then
   begin
-    fUserPropertiesEditor.SetMap(FromOldJSONValue(aData.User) as IDynamicMap);
+    fUserPropertiesEditor.SetMap(aData.User);
     fUserPropertiesEditor.Modified := false;
   end;
   SetupControls;

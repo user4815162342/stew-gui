@@ -356,10 +356,10 @@ type
 
   TDocumentPropertiesDataReceivedEvent = class(TAttachmentEvent)
   strict private
-    fProperties: TDocumentProperties;
+    fProperties: IDocumentProperties;
   public
-    constructor Create(aDocument: TDocumentPath; aProperties: TDocumentProperties);
-    property Properties: TDocumentProperties read fProperties;
+    constructor Create(aDocument: TDocumentPath; aProperties: IDocumentProperties);
+    property Properties: IDocumentProperties read fProperties;
   end;
 
   { TDocumentSynopsisDataReceived }
@@ -474,14 +474,14 @@ type
 
   TDocumentPropertiesPromise = class(TPromise)
   strict private
-    fProperties: TDocumentProperties;
+    fProperties: IDocumentProperties;
     fDocument: TDocumentPath;
   private
     procedure LoadAnswer(aStream: TStream);
   public
     constructor Create(aDocument: TDocumentPath);
     destructor Destroy; override;
-    property Properties: TDocumentProperties read fProperties;
+    property Properties: IDocumentProperties read fProperties;
     property Document: TDocumentPath read fDocument;
   end;
 
@@ -710,7 +710,7 @@ type
       function SortDocuments(List: TStringList; Index1, Index2: Integer): Integer;
     public
       constructor Create;
-      function Build(aProperties: TDocumentProperties;
+      function Build(aProperties: IDocumentProperties;
         aBasePath: TFile; aFiles: TFileInfoArray; aShadows: TDocumentInfoArray
   ): TDocumentInfoArray;
       destructor Destroy; override;
@@ -859,7 +859,7 @@ type
     function ReadDocumentSynopsis(aDocument: TDocumentPath; aForceRefresh: Boolean = false): TDocumentSynopsisPromise;
     function WriteDocumentSynopsis(aDocument: TDocumentPath; aSynopsis: UTF8String; aBackup: Boolean = false): TWriteAttachmentPromise;
     function ReadDocumentProperties(aDocument: TDocumentPath; aForceRefresh: Boolean = false): TDocumentPropertiesPromise;
-    function WriteDocumentProperties(aDocument: TDocumentPath; aProperties: TDocumentProperties; aBackup: Boolean = false): TWriteAttachmentPromise;
+    function WriteDocumentProperties(aDocument: TDocumentPath; aProperties: IDocumentProperties; aBackup: Boolean = false): TWriteAttachmentPromise;
     function ReadProjectProperties(aForceRefresh: Boolean = false): TProjectPropertiesPromise;
     function WriteProjectProperties(aProperties: IProjectProperties; aBackup: Boolean = false): TWriteProjectPropertiesPromise;
     function ShiftDocumentBy(aDocument: TDocumentPath; aDelta: Integer): TShiftDocumentPromise;
@@ -882,7 +882,7 @@ type
     // utility functions used internally, but here for your pleasure since they
     // don't change anything in the project state.
     function BuildAndSortDocumentList(aParent: TDocumentPath;
-      aProperties: TDocumentProperties; aFiles: TFileInfoArray): TDocumentInfoArray;
+      aProperties: IDocumentProperties; aFiles: TFileInfoArray): TDocumentInfoArray;
     function DoConfirmNewAttachment(aDocument: TDocumentPath; aKind: TAttachmentKind): Boolean;
     function DoChooseTemplate(aDocument: TDocumentPath; aKind: TAttachmentKind; aList: TTemplateArray; out aChosen: TTemplate): Boolean;
     function DoChooseFileForAttachment(aDocument: TDocumentPath; aKind: TAttachmentKind; aChoices: TFileArray; out aChosen: TFile): Boolean;
@@ -1556,7 +1556,7 @@ procedure TStewProject.TShiftDocumentTask.PropertiesReceived(Sender: TPromise
   );
 var
   lDirectory: TDocumentPath;
-  lProps: TDocumentProperties;
+  lProps: IDocumentProperties;
   lDocuments: TDocumentInfoArray;
   lNewDocuments: TDocumentInfoArray;
   l: Integer;
@@ -1642,9 +1642,10 @@ begin
       lProps.Index.Length := 0;
       for i := 0 to l - 1 do
       begin
-        lProps.Index.Put(i,lNewDocuments[i].Document.Name);
+        lProps.Index.SetIndexItem(i,lNewDocuments[i].Document.Name);
       end;
-      fProject.WriteDocumentProperties(lDirectory,lProps,false).After(@PropertiesWritten,@SubPromiseRejected);
+      // TODO: Backing up before saving...
+      fProject.WriteDocumentProperties(lDirectory,lProps,true).After(@PropertiesWritten,@SubPromiseRejected);
     end
     else
     // else, the document doesn't exist yet, so it doesn't make any sense to
@@ -1697,8 +1698,9 @@ begin
   fIndex := TStringList.Create;
 end;
 
-function TStewProject.TDocumentListBuilder.Build(aProperties: TDocumentProperties;
-  aBasePath: TFile; aFiles: TFileInfoArray; aShadows: TDocumentInfoArray): TDocumentInfoArray;
+function TStewProject.TDocumentListBuilder.Build(
+  aProperties: IDocumentProperties; aBasePath: TFile; aFiles: TFileInfoArray;
+  aShadows: TDocumentInfoArray): TDocumentInfoArray;
 var
   lList: TEZSortStringList;
   lFolders: TStringList;
@@ -1721,7 +1723,7 @@ begin
   l := aProperties.Index.Length;
   for i := 0 to l - 1 do
   begin
-    fIndex.Add(aProperties.Index.Get(i).AsString);
+    fIndex.Add(aProperties.Index[i]);
   end;
 
 
@@ -2236,10 +2238,9 @@ end;
 
 procedure TDocumentPropertiesPromise.LoadAnswer(aStream: TStream);
 begin
+  fProperties := TPropertyObjects.NewDocumentProperties;
   if aStream <> nil then
-    fProperties := FromJSON(TDocumentProperties,aStream) as TDocumentProperties
-  else
-    fProperties := TDocumentProperties.Create;
+    fProperties.Deserialize(aStream);
 end;
 
 constructor TDocumentPropertiesPromise.Create(aDocument: TDocumentPath);
@@ -2250,7 +2251,8 @@ end;
 
 destructor TDocumentPropertiesPromise.Destroy;
 begin
-  FreeAndNil(fProperties);
+  fProperties := nil;
+  //FreeAndNil(fProperties);
   inherited Destroy;
 end;
 
@@ -2435,7 +2437,8 @@ end;
 
 { TDocumentPropertiesDataReceived }
 
-constructor TDocumentPropertiesDataReceivedEvent.Create(aDocument: TDocumentPath; aProperties: TDocumentProperties);
+constructor TDocumentPropertiesDataReceivedEvent.Create(
+  aDocument: TDocumentPath; aProperties: IDocumentProperties);
 begin
   inherited Create(paAttachmentDataReceived,aDocument,TAttachment.MakeProperties);
   fProperties := aProperties;
@@ -3389,7 +3392,7 @@ begin
 end;
 
 function TStewProject.WriteDocumentProperties(aDocument: TDocumentPath;
-  aProperties: TDocumentProperties; aBackup: Boolean): TWriteAttachmentPromise;
+  aProperties: IDocumentProperties; aBackup: Boolean): TWriteAttachmentPromise;
 var
   lWriteFile: TFileWritePromise;
   lOptions: TFileCacheWriteOptions;
@@ -3399,7 +3402,7 @@ begin
   else
     lOptions := [];
   lWriteFile := fCache.WriteFile(GetDocumentPropertiesPath(fDisk,aDocument),lOptions);
-  ToJSON(aProperties,lWriteFile.Data,'  ');
+  aProperties.Serialize(lWriteFile.Data,2);
   result := TWriteAttachmentTask.Defer(aDocument,
                                        TAttachment.MakeProperties,
                                        lWriteFile).Promise as TWriteAttachmentPromise;
@@ -3554,10 +3557,8 @@ begin
   result := TProjectCheckInParentTask.Enqueue(aPath).Promise as TProjectPromise;
 end;
 
-function TStewProject.BuildAndSortDocumentList(
-  aParent: TDocumentPath;
-  aProperties: TDocumentProperties; aFiles: TFileInfoArray
-  ): TDocumentInfoArray;
+function TStewProject.BuildAndSortDocumentList(aParent: TDocumentPath;
+  aProperties: IDocumentProperties; aFiles: TFileInfoArray): TDocumentInfoArray;
 var
   lBuilder: TDocumentListBuilder;
 begin
