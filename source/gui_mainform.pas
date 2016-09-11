@@ -247,16 +247,6 @@ end;
 
 { TMRUMenuItem }
 
-function SortDeadlines(Item1, Item2: Pointer): Integer;
-var
-  a: TDeadline;
-  b: TDeadline;
-begin
-  a := TDeadline(Item1);
-  b := TDeadline(Item2);
-  result := trunc(a.Due - b.Due);
-end;
-
 procedure TMRUMenuItem.MRUProjectClicked(Sender: TObject);
 begin
   RunNewStewInstance(ProjectPath);
