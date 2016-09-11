@@ -1,3 +1,9 @@
+stew-gui-linux (0.1.0.113) precise; urgency=low
+
+  * Internal changes to property data structures
+
+ -- Neil Sheldon <neil@townsedgetechnology.com>  Sun, 11 Sep 2016 10:40:35 -0500
+
 stew-gui-linux (0.1.0.102) precise; urgency=low
 
   * Some bug-fixes from the bug-fixes 
