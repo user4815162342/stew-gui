@@ -22,15 +22,15 @@ in the process of doing this, I discover another more complicated place, then I
 can backtrack and start off with a smaller section.
 -- DONE gui_jsoneditor
 -- DONE gui_config -- convert over to the new JSON format for saving data.
--- stew_project -- start converting everything into the new properties.
+-- DONE stew_project -- start converting everything into the new properties.
    -- DONE projectproperties
    -- DONE documentproperties
 -- DONE gui_documenteditor -- Can wait until we switch over from Stew_Project, because
 there isn't going to be too much to change.
 -- DONE gui_projectsettingseditor -- same as gui_documenteditor.
 -- DONE gui_mainform -- Not sure here, but probably the same as gui_documenteditor
--- stew_properties -- get rid of the old properties
--- sys_dynval -- get rid of the conversion functions.
+-- DONE stew_properties -- get rid of the old properties
+-- DONE sys_dynval -- get rid of the conversion functions.
 -- sys_json -- get rid of this entirely.
 
 2. Make use of the ToOldJSONValue functions to do this.

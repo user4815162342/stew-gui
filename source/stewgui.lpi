@@ -17,7 +17,7 @@
       <UseVersionInfo Value="True"/>
       <AutoIncrementBuild Value="True"/>
       <MinorVersionNr Value="1"/>
-      <BuildNr Value="111"/>
+      <BuildNr Value="113"/>
       <StringTable CompanyName="Town's Edge Technology, LLC" FileDescription="A manuscript management and notekeeping tool." LegalCopyright="Copyright © 2015 Neil M. Sheldon" ProductName="Stew" ProductVersion="0.1"/>
     </VersionInfo>
     <BuildModes Count="1">
@@ -39,7 +39,7 @@
         <PackageName Value="LCL"/>
       </Item2>
     </RequiredPackages>
-    <Units Count="31">
+    <Units Count="30">
       <Unit0>
         <Filename Value="stewgui.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -82,143 +82,138 @@
         <UnitName Value="gui_config"/>
       </Unit6>
       <Unit7>
-        <Filename Value="sys_json.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="sys_json"/>
-      </Unit7>
-      <Unit8>
         <Filename Value="gui_documenteditor.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="DocumentEditor"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="gui_documenteditor"/>
-      </Unit8>
-      <Unit9>
+      </Unit7>
+      <Unit8>
         <Filename Value="gui_preferenceseditor.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="ApplicationPreferencesEditor"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="gui_preferenceseditor"/>
-      </Unit9>
-      <Unit10>
+      </Unit8>
+      <Unit9>
         <Filename Value="gui_projectsettingseditor.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="ProjectSettingsEditor"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="gui_projectsettingseditor"/>
-      </Unit10>
-      <Unit11>
+      </Unit9>
+      <Unit10>
         <Filename Value="gui_editorframe.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="EditorFrame"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="gui_editorframe"/>
-      </Unit11>
-      <Unit12>
+      </Unit10>
+      <Unit11>
         <Filename Value="stew_properties.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="stew_properties"/>
-      </Unit12>
-      <Unit13>
+      </Unit11>
+      <Unit12>
         <Filename Value="gui_jsoneditor.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="JSONEditor"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="gui_jsoneditor"/>
-      </Unit13>
-      <Unit14>
+      </Unit12>
+      <Unit13>
         <Filename Value="sys_os.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_os"/>
-      </Unit14>
-      <Unit15>
+      </Unit13>
+      <Unit14>
         <Filename Value="gui_listdialog.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="ListDialog"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="gui_listdialog"/>
-      </Unit15>
-      <Unit16>
+      </Unit14>
+      <Unit15>
         <Filename Value="sys_versionsupport.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_versionsupport"/>
-      </Unit16>
-      <Unit17>
+      </Unit15>
+      <Unit16>
         <Filename Value="sys_localfile.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_localfile"/>
-      </Unit17>
-      <Unit18>
+      </Unit16>
+      <Unit17>
         <Filename Value="gui_async.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="gui_async"/>
-      </Unit18>
-      <Unit19>
+      </Unit17>
+      <Unit18>
         <Filename Value="sys_filecache.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_filecache"/>
-      </Unit19>
-      <Unit20>
+      </Unit18>
+      <Unit19>
         <Filename Value="sys_types.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_types"/>
-      </Unit20>
-      <Unit21>
+      </Unit19>
+      <Unit20>
         <Filename Value="sys_log.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_log"/>
-      </Unit21>
-      <Unit22>
+      </Unit20>
+      <Unit21>
         <Filename Value="gui_glyphs.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="gui_glyphs"/>
-      </Unit22>
-      <Unit23>
+      </Unit21>
+      <Unit22>
         <Filename Value="gui_gtk2_glyphs.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="gui_gtk2_glyphs"/>
-      </Unit23>
-      <Unit24>
+      </Unit22>
+      <Unit23>
         <Filename Value="sys_dynval_implementation.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_dynval_implementation"/>
-      </Unit24>
-      <Unit25>
+      </Unit23>
+      <Unit24>
         <Filename Value="sys_dynval.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_dynval"/>
-      </Unit25>
-      <Unit26>
+      </Unit24>
+      <Unit25>
         <Filename Value="sys_dynval_json.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_dynval_json"/>
-      </Unit26>
-      <Unit27>
+      </Unit25>
+      <Unit26>
         <Filename Value="sys_dynval_data.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_dynval_data"/>
-      </Unit27>
-      <Unit28>
+      </Unit26>
+      <Unit27>
         <Filename Value="stew_properties_implementation.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="stew_properties_implementation"/>
-      </Unit28>
-      <Unit29>
+      </Unit27>
+      <Unit28>
         <Filename Value="sys_dynval_data_implementation.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_dynval_data_implementation"/>
-      </Unit29>
-      <Unit30>
+      </Unit28>
+      <Unit29>
         <Filename Value="gui_config_implementation.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="gui_config_implementation"/>
-      </Unit30>
+      </Unit29>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
