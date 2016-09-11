@@ -85,7 +85,7 @@ type
   public
     { public declarations }
     constructor Create(TheOwner: TComponent); override;
-    procedure SetMap(aData: IDynamicValue);
+    procedure SetMap(aData: IDynamicMap);
     function GetMap: IDynamicMap;
     property Modified: Boolean read GetModified write SetModified;
   end;
@@ -654,22 +654,21 @@ begin
   fModified := false;
 end;
 
-procedure TJSONEditor.SetMap(aData: IDynamicValue);
+procedure TJSONEditor.SetMap(aData: IDynamicMap);
 var
   lMap: IDynamicMap;
 begin
   JSONTree.Items.Clear;
-  if aData is IDynamicMap then
+  if aData <> nil then
   begin
      lMap := aData as IDynamicMap;
+     SetTreeNodeValue(JSONTree.Items,nil,lMap);
+     fModified := true;
   end
   else
   begin
-    lMap := TDynamicValues.NewMap;
-    lMap['0'] := aData;
+    fModified := false;
   end;
-  SetTreeNodeValue(JSONTree.Items,nil,lMap);
-  fModified := true;
 end;
 
 function TJSONEditor.GetMap: IDynamicMap;

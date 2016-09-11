@@ -55,7 +55,7 @@ type
     procedure ClearData;
     procedure ClearModified;
     function IsModified: Boolean;
-    procedure ProjectPropertiesUpdated(aData: TProjectProperties);
+    procedure ProjectPropertiesUpdated(aData: IProjectProperties);
     procedure DocumentRenamed(aOldDocument: TDocumentPath; aNewDocument: TDocumentPath);
     procedure PropertiesUpdated(aData: TDocumentProperties);
     procedure AttachmentsListed(aData: TAttachmentArray);
@@ -427,19 +427,19 @@ begin
             fUserPropertiesEditor.Modified;
 end;
 
-procedure TDocumentEditor.ProjectPropertiesUpdated(aData: TProjectProperties);
+procedure TDocumentEditor.ProjectPropertiesUpdated(aData: IProjectProperties);
 var
   i: Integer;
-  lKeys: TStringArray;
+  lKeys: TStringArray2;
 begin
 
   StatusEdit.Items.Clear;
   CategoryEdit.Items.Clear;
   lKeys := aData.Statuses.keys;
-  for i := 0 to Length(lKeys) - 1 do
+  for i := 0 to lKeys.Count - 1 do
     StatusEdit.Items.Add(lKeys[i]);
   lKeys := aData.Categories.keys;
-  for i := 0 to Length(lKeys) - 1 do
+  for i := 0 to lKeys.Count - 1 do
     CategoryEdit.Items.Add(lKeys[i]);
 end;
 
@@ -476,7 +476,7 @@ begin
   end;
   if not fUserPropertiesEditor.Modified then
   begin
-    fUserPropertiesEditor.SetMap(FromOldJSONValue(aData.User));
+    fUserPropertiesEditor.SetMap(FromOldJSONValue(aData.User) as IDynamicMap);
     fUserPropertiesEditor.Modified := false;
   end;
   SetupControls;

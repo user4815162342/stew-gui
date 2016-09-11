@@ -102,7 +102,7 @@ type
     procedure ClearData;
     procedure ClearModified;
     function IsModified: Boolean;
-    procedure ShowData(aData: TProjectProperties);
+    procedure ShowData(aData: IProjectProperties);
     procedure AttachmentsListed(aData: TAttachmentArray);
     procedure WriteData;
     procedure BeginUIUpdate;
@@ -207,138 +207,138 @@ end;
 
 procedure TProjectSettingsEditor.WriteData_Read(Sender: TPromise);
 var
-  lProps: TProjectProperties;
-  lUser: TJSObject;
+  lProps: IProjectProperties;
+  lUser: IDynamicMap;
   i: Integer;
   j: Integer;
   lFound: Boolean;
   lLevel: Integer;
-  lNames: TStringArray;
-  lCat: TCategoryDefinition;
-  lStat: TStatusDefinition;
+  lNames: TStringArray2;
+  lCat: ICategoryDefinition;
+  lStat: IStatusDefinition;
 begin
-  lProps := (Sender as TProjectPropertiesPromise).Properties.Clone as TProjectProperties;
-  try
-    lProps.defaultDocExtension := DefaultDocExtensionEdit.Text;
-    lProps.defaultNotesExtension:= DefaultNotesExtensionEdit.Text;
-    lProps.defaultThumbnailExtension:=DefaultThumbnailExtensionEdit.Text;
+  lProps := (Sender as TProjectPropertiesPromise).Properties.Clone as IProjectProperties;
+  lProps.defaultDocExtension := DefaultDocExtensionEdit.Text;
+  lProps.defaultNotesExtension:= DefaultNotesExtensionEdit.Text;
+  lProps.defaultThumbnailExtension:=DefaultThumbnailExtensionEdit.Text;
 
 
-    with CategoryDefinitionsGrid do
+  with CategoryDefinitionsGrid do
+  begin
+    // changes and new items
+    // we're skipping the first row, which is the header row.
+    for i := 1 to RowCount - 1 do
     begin
-      // changes and new items
-      // we're skipping the first row, which is the header row.
-      for i := 1 to RowCount - 1 do
+      lCat := lProps.categories.GetCategory(Cells[CatNameCol,i]);
+      if lCat = nil then
       begin
-        lCat := lProps.categories.GetCategory(Cells[CatNameCol,i]);
-        if lCat = nil then
-          lCat := lProps.Categories.PutNewObject(Cells[CatNameCol,i]) as TCategoryDefinition;
-        lCat.color := StrToColor(Cells[CatColorCol,i]);
-        lCat.publishTitle:=Cells[CatPTitleCol,i] = TrueValue;
-        if TryStrToInt(Cells[CatPTitleLevelCol,i],lLevel) then
-           lCat.publishTitleLevel := lLevel;
-        lCat.publishTitlePrefix := Cells[CatPTitlePrefixCol,i];
-        lCat.publishMarkerAfter:=Cells[CatPMarkerAfterCol,i] = TrueValue;
-        lCat.publishMarkerBefore:=Cells[CatPMarkerBeforeCol,i] = TrueValue;
-        lCat.publishMarkerBetween:=Cells[CatPMarkerBetweenCol,i] = TrueValue;
-
-        if Cells[CatDefaultCol,i] = TrueValue then
-          lProps.defaultCategory:=Cells[CatNameCol,i];
+        lCat := TPropertyObjects.NewCategoryDefinition;
+        lProps.Categories.SetCategory(Cells[CatNameCol,i],lCat);
       end;
+      lCat.color := StrToColor(Cells[CatColorCol,i]);
+      lCat.publishTitle:=Cells[CatPTitleCol,i] = TrueValue;
+      if TryStrToInt(Cells[CatPTitleLevelCol,i],lLevel) then
+         lCat.publishTitleLevel := lLevel;
+      lCat.publishTitlePrefix := Cells[CatPTitlePrefixCol,i];
+      lCat.publishMarkerAfter:=Cells[CatPMarkerAfterCol,i] = TrueValue;
+      lCat.publishMarkerBefore:=Cells[CatPMarkerBeforeCol,i] = TrueValue;
+      lCat.publishMarkerBetween:=Cells[CatPMarkerBetweenCol,i] = TrueValue;
 
-      // deletions
-      lNames := lProps.Categories.keys;
+      if Cells[CatDefaultCol,i] = TrueValue then
+        lProps.defaultCategory:=Cells[CatNameCol,i];
+    end;
 
-      for i := 0 to Length(lNames) - 1 do
+    // deletions
+    lNames := lProps.Categories.keys;
+
+    for i := 0 to lNames.Count - 1 do
+    begin
+      lFound := false;
+      for j := 0 to RowCount - 1 do
       begin
-        lFound := false;
-        for j := 0 to RowCount - 1 do
+        if Cells[CatNameCol,j] = lNames[i] then
         begin
-          if Cells[CatNameCol,j] = lNames[i] then
-          begin
-            lFound := true;
-            break;
-          end;
+          lFound := true;
+          break;
         end;
-        if not lFound then
-           lProps.categories.Delete(lNames[i]);
       end;
-
+      if not lFound then
+         lProps.categories.Delete(lNames[i]);
     end;
 
-    with StatusDefinitionsGrid do
-    begin
-      // changes and new items
-      // we're skipping the first row, which is the header row.
-      for i := 1 to RowCount - 1 do
-      begin
-        lStat := lProps.statuses.GetStatus(Cells[StatNameCol,i]);
-        if lStat = nil then
-          lStat := lProps.statuses.PutNewObject(Cells[StatNameCol,i]) as TStatusDefinition;
-        lStat.color := StrToColor(Cells[StatColorCol,i]);
-        if Cells[StatDefaultCol,i] = TrueValue then
-          lProps.defaultStatus:=Cells[StatNameCol,i];
-      end;
-
-      // deletions
-      lNames := lProps.statuses.keys;
-
-      for i := 0 to Length(lNames) - 1 do
-      begin
-        lFound := false;
-        for j := 0 to RowCount - 1 do
-        begin
-          if Cells[StatNameCol,j] = lNames[i] then
-          begin
-            lFound := true;
-            break;
-          end;
-        end;
-        if not lFound then
-           lProps.statuses.Delete(lNames[i]);
-      end;
-
-    end;
-
-    with DeadlinesGrid do
-    begin
-      // changes and new items
-      // we're skipping the first row, which is the header row.
-      lProps.Deadlines.Length := 0;
-      for i := 1 to RowCount - 1 do
-      begin
-        lProps.Deadlines.Add(Cells[DeadlineNameCol,i],StrToDate(Cells[DeadlineDueCol,i]));
-      end;
-    end;
-
-
-
-    // I need to create and destroy this object because
-    // it gets cloned when setting the property.
-    lUser := ToOldJSONValue(fUserPropertiesEditor.GetMap) as TJSObject;
-    if lUser <> nil then
-      try
-        lProps.User.Assign(lUser);
-      finally
-        lUser.Free;
-      end
-    else
-      lProps.delete('user');
-
-    if MainForm.Project <> nil then
-    begin
-      MainForm.Project.WriteProjectProperties(lProps,false).After(@WriteData_Written);
-    end
-    else
-    begin
-      // This is really an error message...
-      MainForm.ShowMessage('Properties can''t be saved, the project has closed.',mtError,'Sigh');
-      ClearData;
-    end;
-
-  finally
-    lProps.Free;
   end;
+
+  with StatusDefinitionsGrid do
+  begin
+    // changes and new items
+    // we're skipping the first row, which is the header row.
+    for i := 1 to RowCount - 1 do
+    begin
+      lStat := lProps.statuses.GetStatus(Cells[StatNameCol,i]);
+      if lStat = nil then
+      begin
+        lStat := TPropertyObjects.NewStatusDefinition;
+        lProps.Statuses.SetStatus(Cells[StatNameCol,i],lStat);
+      end;
+      lStat.color := StrToColor(Cells[StatColorCol,i]);
+      if Cells[StatDefaultCol,i] = TrueValue then
+        lProps.defaultStatus:=Cells[StatNameCol,i];
+    end;
+
+    // deletions
+    lNames := lProps.statuses.keys;
+
+    for i := 0 to lNames.Count - 1 do
+    begin
+      lFound := false;
+      for j := 0 to RowCount - 1 do
+      begin
+        if Cells[StatNameCol,j] = lNames[i] then
+        begin
+          lFound := true;
+          break;
+        end;
+      end;
+      if not lFound then
+         lProps.statuses.Delete(lNames[i]);
+    end;
+
+  end;
+
+  with DeadlinesGrid do
+  begin
+    // changes and new items
+    // we're skipping the first row, which is the header row.
+    lProps.Deadlines.Length := 0;
+    for i := 1 to RowCount - 1 do
+    begin
+      lProps.Deadlines.Add(Cells[DeadlineNameCol,i],StrToDate(Cells[DeadlineDueCol,i]));
+    end;
+  end;
+
+
+
+  // I need to create and destroy this object because
+  // it gets cloned when setting the property.
+  lUser := fUserPropertiesEditor.GetMap;
+  if lUser <> nil then
+    lProps.User := lUser
+  else
+    lProps.User.Clear;
+
+  if MainForm.Project <> nil then
+  begin
+    // TODO: Get rid of the backup once we're sure...
+    MainForm.ShowMessage('The old file will be backed up first.',TMsgDlgType.mtInformation,'Got it');
+    MainForm.Project.WriteProjectProperties(lProps,true).After(@WriteData_Written);
+  end
+  else
+  begin
+    // This is really an error message...
+    MainForm.ShowMessage('Properties can''t be saved, the project has closed.',mtError,'Sigh');
+    ClearData;
+  end;
+
 
 end;
 
@@ -742,12 +742,12 @@ begin
 
 end;
 
-procedure TProjectSettingsEditor.ShowData(aData: TProjectProperties);
+procedure TProjectSettingsEditor.ShowData(aData: IProjectProperties);
 var
   i: Integer;
   j: Integer;
-  lKeys: TStringArray;
-  lCat: TCategoryDefinition;
+  lKeys: TStringArray2;
+  lCat: ICategoryDefinition;
 begin
   fDataAvailable := true;
 
@@ -775,10 +775,10 @@ begin
       // add one in for the fixed column header.
       RowCount := 1;
       lKeys := aData.Categories.keys;
-      for i := 0 to Length(lKeys) - 1 do
+      for i := 0 to lKeys.Count - 1 do
       begin
         j := RowCount;
-        lCat := aData.Categories.Get(lKeys[i]) as TCategoryDefinition;
+        lCat := aData.Categories[lKeys[i]];
         RowCount := RowCount + 1;
         Cells[CatNameCol,j] := lKeys[i];
         Cells[CatColorCol,j] := ColorToStr(lCat.Color);
@@ -804,12 +804,12 @@ begin
       // add one in for the fixed column header.
       RowCount := 1;
       lKeys := aData.Statuses.keys;
-      for i := 0 to Length(lKeys) - 1 do
+      for i := 0 to lKeys.Count - 1 do
       begin
         j := RowCount;
         RowCount := RowCount + 1;
         Cells[StatNameCol,j] := lKeys[i];
-        Cells[StatColorCol,j] := ColorToStr((aData.Statuses.Get(lKeys[i]) as TStatusDefinition).color);
+        Cells[StatColorCol,j] := ColorToStr(aData.Statuses[lKeys[i]].color);
         Cells[StatDefaultCol,j] := BoolToStr(aData.defaultStatus = lKeys[i],TrueValue,FalseValue);
       end;
       AutoSizeColumns;
@@ -840,7 +840,7 @@ begin
 
   if not fUserPropertiesEditor.Modified then
   begin
-     fUserPropertiesEditor.SetMap(FromOldJSONValue(aData.User));
+     fUserPropertiesEditor.SetMap(aData.User);
      fUserPropertiesEditor.Modified := false;
   end;
 

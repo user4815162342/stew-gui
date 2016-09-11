@@ -107,7 +107,7 @@ type
     procedure UpdateNodeStyle(aNode: TProjectInspectorNode);
     procedure BeginUIUpdate;
     procedure EndUIUpdate;
-    procedure ProjectPropertiesUpdated(aProperties: TProjectProperties);
+    procedure ProjectPropertiesUpdated(aProperties: IProjectProperties);
     procedure DocumentUpdated(aParent: TDocumentPath; aContents: TDocumentInfoArray);
     procedure DocumentUpdated(aParent: TDocumentPath; aProperties: TDocumentProperties);
     procedure RefreshDocument(aDocument: TDocumentPath);
@@ -947,25 +947,25 @@ begin
 end;
 
 procedure TProjectManager.ProjectPropertiesUpdated(
-  aProperties: TProjectProperties);
+  aProperties: IProjectProperties);
 var
   lNode: TProjectInspectorNode;
-  lKeys: TStringArray;
+  lKeys: TStringArray2;
   i: Integer;
 begin
 
   lKeys := aProperties.Statuses.keys;
   fStatuses.Clear;
-  for i := 0 to Length(lKeys) - 1 do
+  for i := 0 to lKeys.Count - 1 do
   begin
-    fStatuses[lKeys[i]] := (aProperties.Statuses.Get(lKeys[i]) as TStatusDefinition).Color;
+    fStatuses[lKeys[i]] := aProperties.Statuses[lKeys[i]].Color;
   end;
 
   lKeys := aProperties.Categories.keys;
   fCategoryColors.Clear;
-  for i := 0 to Length(lKeys) - 1 do
+  for i := 0 to lKeys.Count - 1 do
   begin
-    fCategoryColors[lKeys[i]] := (aProperties.Categories.Get(lKeys[i]) as TCategoryDefinition).Color;
+    fCategoryColors[lKeys[i]] := aProperties.Categories[lKeys[i]].Color;
   end;
   UpdateCategoryGlyphs;
 

@@ -100,6 +100,7 @@ type
     function GetItem(const aKey: IDynamicValue): IDynamicValue; override;
     procedure SetItem(const aKey: IDynamicValue; const AValue: IDynamicValue); override;
     procedure BuildClone(var aValue: TDynamicValue); override;
+    procedure QuickSort(L, R: Longint; Compare: TDynamicListSortCompare);
   public
     constructor Create;
     property Item[aIndex: Longint]: IDynamicValue read GetItem write SetItem; default;
@@ -110,6 +111,7 @@ type
     function IndexOf(const aValue: IDynamicValue): Longint;
     function IsStructurallyEqualTo(const aValue: IDynamicValue): Boolean; override;
     function Owns(const aValue: IDynamicValue): Boolean; override;
+    procedure Sort(aCompare: TDynamicListSortCompare);
 
   end;
 
@@ -606,10 +608,53 @@ begin
   inherited BuildClone(aValue);
 end;
 
+procedure TDynamicList.QuickSort(L, R : Longint;
+                     Compare: TDynamicListSortCompare);
+var
+  I, J : Longint;
+  P, Q : IDynamicValue;
+begin
+ repeat
+   I := L;
+   J := R;
+   P := Item[ (L + R) div 2 ];
+   repeat
+     while Compare(P, Item[i]) > 0 do
+       I := I + 1;
+     while Compare(P, Item[J]) < 0 do
+       J := J - 1;
+     If I <= J then
+     begin
+       Q := Item[I];
+       Item[I] := Item[J];
+       Item[J] := Q;
+       I := I + 1;
+       J := J - 1;
+     end;
+   until I > J;
+   // sort the smaller range recursively
+   // sort the bigger range via the loop
+   // Reasons: memory usage is O(log(n)) instead of O(n) and loop is faster than recursion
+   if J - L < R - I then
+   begin
+     if L < J then
+       QuickSort(L, J, Compare);
+     L := I;
+   end
+   else
+   begin
+     if I < R then
+       QuickSort(I, R, Compare);
+     R := J;
+   end;
+ until L >= R;
+end;
+
 constructor TDynamicList.Create;
 begin
   inherited Create;
   System.SetLength(fList,0);
+
 end;
 
 procedure TDynamicList.Add(const aItem: IDynamicValue);
@@ -693,6 +738,11 @@ begin
        break;
   end;
 
+end;
+
+procedure TDynamicList.Sort(aCompare: TDynamicListSortCompare);
+begin
+  QuickSort(0, Length-1, aCompare);
 end;
 
 { TDynamicString }

@@ -26,7 +26,7 @@ type
   public
     constructor Create;
     procedure Serialize(aWriter: TDynamicValueWriter); virtual; abstract; overload;
-    procedure Serialize(aStream: TStream); overload;
+    procedure Serialize(aStream: TStream; const aIndent: Longint); overload;
     function Serialize: UTF8String; overload;
     procedure Deserialize(aReader: TDynamicValueReader); virtual; abstract; overload;
     procedure Deserialize(aStream: TStream); overload;
@@ -123,11 +123,11 @@ begin
   InitializeBlank;
 end;
 
-procedure TDataStoreObject.Serialize(aStream: TStream);
+procedure TDataStoreObject.Serialize(aStream: TStream; const aIndent: Longint);
 var
   lWriter: TJSONWriter;
 begin
-  lWriter := TJSONWriter.Create(aStream,0);
+  lWriter := TJSONWriter.Create(aStream,aIndent);
   try
     Serialize(lWriter);
   finally
@@ -142,7 +142,7 @@ var
 begin
   lStream := TStringStream.Create('');
   try
-    Serialize(lStream);
+    Serialize(lStream,0);
     result := lStream.DataString;
   finally
     lStream.Free;

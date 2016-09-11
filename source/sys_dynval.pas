@@ -153,6 +153,8 @@ type
     property Value: UTF8String read GetValue;
   end;
 
+  TDynamicListSortCompare = function (Item1, Item2: IDynamicValue): Integer of object;
+
   { IDynamicList }
 
   IDynamicList = interface(IDynamicValue)
@@ -167,6 +169,7 @@ type
     procedure Delete(const aIndex: Longint);
     procedure Clear;
     function IndexOf(const aValue: IDynamicValue): Longint;
+    procedure Sort(aCompare: TDynamicListSortCompare);
   end;
 
   { IDynamicMapEnumerator }
@@ -366,11 +369,11 @@ begin
     WriteGap(fStack.Length);
   end;
   if aValue is IDynamicBoolean then
-     WriteBooleanToken(IDynamicBoolean(aValue).Value)
+     WriteBooleanToken((aValue as IDynamicBoolean).Value)
   else if aValue is IDynamicNumber then
-     WriteNumberToken(IDynamicNumber(aValue).Value)
+     WriteNumberToken((aValue as IDynamicNumber).Value)
   else if aValue is IDynamicString then
-    WriteStringToken(IDynamicString(aValue).Value)
+    WriteStringToken((aValue as IDynamicString).Value)
   else
     WriteNullToken;
   fFoundItem := true;
@@ -486,9 +489,9 @@ end;
 procedure TDynamicValueWriter.WriteValue(const aValue: IDynamicValue);
 begin
   if aValue is IDynamicList then
-     WriteList(IDynamicList(aValue))
+     WriteList(aValue as IDynamicList)
   else if aValue is IDynamicMap then
-     WriteMap(IDynamicMap(aValue))
+     WriteMap(aValue as IDynamicMap)
   else
      WritePrimitive(aValue);
 end;

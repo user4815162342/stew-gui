@@ -18,7 +18,7 @@ type
   IDataStoreObject = interface(IDynamicObject)
     [DataStoreObjectGUID]
     procedure Serialize(aWriter: TDynamicValueWriter); overload;
-    procedure Serialize(aStream: TStream); overload;
+    procedure Serialize(aStream: TStream; const aIndent: Longint); overload;
     function Serialize: UTF8String; overload;
     procedure Deserialize(aReader: TDynamicValueReader); overload;
     procedure Deserialize(aStream: TStream); overload;

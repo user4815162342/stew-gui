@@ -141,7 +141,7 @@ type
     procedure LayoutFrames;
     function FindFrameForDocument(aDocument: TDocumentPath): TEditorFrame;
     function MessageDialog(const Title: String; const Message: String; DlgType: TMsgDlgType; Buttons: TMsgDlgButtons; ButtonCaptions: Array of String): Integer;
-    procedure UpdateStatus(aProps: TProjectProperties);
+    procedure UpdateStatus(aProps: IProjectProperties);
     procedure ResizeStatusPanels;
     procedure SetupGlyphs;
   public
@@ -1060,9 +1060,9 @@ begin
   end;
 end;
 
-procedure TMainForm.UpdateStatus(aProps: TProjectProperties);
+procedure TMainForm.UpdateStatus(aProps: IProjectProperties);
 
-  procedure SetDeadlineHint(i: Integer; aDeadline: TDeadline);
+  procedure SetDeadlineHint(i: Integer; aDeadline: IDeadline);
   var
     lText: String;
   begin
@@ -1071,7 +1071,7 @@ procedure TMainForm.UpdateStatus(aProps: TProjectProperties);
     fGoalHints[i] := lText;
   end;
 
-  procedure AddDeadlinePanel(aDeadline: TDeadline; aAlign: TAlignment);
+  procedure AddDeadlinePanel(aDeadline: IDeadline; aAlign: TAlignment);
   var
     lPanel: TStatusPanel;
     lText: String;
@@ -1084,7 +1084,7 @@ procedure TMainForm.UpdateStatus(aProps: TProjectProperties);
 
 var
   i: Integer;
-  lList: TList;
+  lList: IDeadlines;
 begin
   SetLength(fGoalHints,aProps.Deadlines.Length);
   if aProps.Deadlines.Length > 0 then
@@ -1093,21 +1093,17 @@ begin
      MainStatus.Visible := true;
      MainStatus.Panels.Clear;
 
-     lList := aProps.Deadlines.CreateList;
-     try
-        lList.Sort(@SortDeadlines);
-        for i := 0 to lList.Count - 1 do
-        begin
-          if i = (lList.Count - 1) then
-             AddDeadlinePanel(TDeadline(lList[i]),taRightJustify)
-          else
-             AddDeadlinePanel(TDeadline(lList[i]),taRightJustify);
-          SetDeadlineHint(i,TDeadline(lList[i]));
-        end;
+     lList := aProps.Deadlines.Clone as IDeadlines;
+     lList.Sort;
+      for i := 0 to lList.Length - 1 do
+      begin
+        if i = (lList.Length - 1) then
+           AddDeadlinePanel(lList[i],taRightJustify)
+        else
+           AddDeadlinePanel(lList[i],taRightJustify);
+        SetDeadlineHint(i,lList[i]);
+      end;
 
-     finally
-       lList.Free;
-     end;
 
      ResizeStatusPanels;
 

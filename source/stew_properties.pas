@@ -145,6 +145,7 @@ type
     procedure Delete(const aIndex: Longint);
     procedure Clear;
     function IndexOf(const aValue: IDeadline): Longint;
+    procedure Sort;
   end;
 
   { IProjectProperties }

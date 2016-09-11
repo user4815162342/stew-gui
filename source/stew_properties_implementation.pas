@@ -209,6 +209,7 @@ type
     function ReadManagedItem(aReader: TDynamicValueReader): Boolean; override;
     procedure WriteManagedItems(aWriter: TDynamicValueWriter); override;
     procedure BuildClone(var aValue: TDynamicValue); override;
+    function SortByDueDate(a: IDynamicValue; b: IDynamicValue): Longint;
   public
     procedure Add(const aItem: IDynamicValue); override;
     procedure Add(const aItem: IDeadline);
@@ -218,6 +219,7 @@ type
     function IndexOf(const aValue: IDynamicValue): Longint; override;
     function IndexOf(const aValue: IDeadline): Longint;
     function Owns(const aValue: IDynamicValue): Boolean; override;
+    procedure Sort;
   end;
 
   { TProjectProperties }
@@ -296,6 +298,7 @@ const
   TitleKey = 'title';
 
 procedure RaiseInvalidKeyValue(const aKey: String; const aValue: IDynamicValue);
+procedure RaiseInvalidListItem(const aListType: UTF8String; const aValue: IDynamicValue);
 
 
 implementation
@@ -324,7 +327,33 @@ begin
     dvkMap:
       lMessage := lMessage + 'map';
     dvkObject:
-      lMessage := lMessage + 'object';
+      lMessage := lMessage + (aValue as TObject).ClassName;
+  end;
+  raise Exception.Create(lMessage);
+end;
+
+procedure RaiseInvalidListItem(const aListType: UTF8String; const aValue: IDynamicValue);
+var
+  lMessage: UTF8String;
+begin
+  lMessage := 'Invalid value for ' + aListType + ': ';
+  case aValue.KindOf of
+    dvkUndefined:
+      lMessage := lMessage + 'undefined';
+    dvkNull:
+      lMessage := lMessage + 'null';
+    dvkBoolean:
+      lMessage := lMessage + BoolToStr((aValue as IDynamicBoolean).Value);
+    dvkNumber:
+      lMessage := lMessage + FloatToStr((aValue as IDynamicNumber).Value);
+    dvkString:
+      lMessage := lMessage + '"' + (aValue as IDynamicString).Value + '"';
+    dvkList:
+      lMessage := lMessage + 'list';
+    dvkMap:
+      lMessage := lMessage + 'map';
+    dvkObject:
+      lMessage := lMessage + (aValue as TObject).ClassName;
   end;
   raise Exception.Create(lMessage);
 end;
@@ -573,7 +602,7 @@ begin
    if aItem is IDeadline then
       fItems.Add(aItem)
    else
-      raise Exception.Create('TDeadlines must contain TDeadline');
+      RaiseInvalidListItem('TDeadlines',aItem);
 end;
 
 procedure TDeadlines.Add(const aItem: IDeadline);
@@ -627,6 +656,11 @@ begin
   result := fItems.Owns(aValue);
 end;
 
+procedure TDeadlines.Sort;
+begin
+  fItems.Sort(@SortByDueDate);
+end;
+
 procedure TDeadlines.InitializeBlank;
 begin
   fItems := TDynamicValues.NewList;
@@ -638,7 +672,7 @@ begin
    if AValue is IDeadline then
       fItems.SetItem(aKey,AValue)
    else
-      raise Exception.Create('TDeadlines must contain TDeadline');
+      RaiseInvalidListItem('TDeadlines',AValue);
 end;
 
 procedure TDeadlines.SetLength(const AValue: Longint);
@@ -658,8 +692,12 @@ begin
 end;
 
 function TDeadlines.ReadManagedItem(aReader: TDynamicValueReader): Boolean;
+var
+  lDeadline: IDeadline;
 begin
-  Add(aReader.ReadValue);
+  lDeadline := TPropertyObjects.NewDeadline;
+  lDeadline.Deserialize(aReader);
+  Add(lDeadline);
   result := true;
 end;
 
@@ -670,7 +708,7 @@ var
 begin
   l := fItems.Length;
   for i := 0 to l - 1 do
-     aWriter.WriteValue(fItems[i]);
+     (fItems[i] as IDeadline).Serialize(aWriter);
 end;
 
 procedure TDeadlines.BuildClone(var aValue: TDynamicValue);
@@ -681,13 +719,23 @@ begin
   inherited BuildClone(aValue);
 end;
 
+function TDeadlines.SortByDueDate(a: IDynamicValue; b: IDynamicValue): Longint;
+var
+  aDeadline: IDeadline;
+  bDeadline: IDeadline;
+begin
+  aDeadline := a as IDeadline;
+  bDeadline := b as IDeadline;
+  result := trunc(aDeadline.Due - bDeadline.Due);
+end;
+
 { TDeadline }
 
 function TDeadline.GetItem(const aKey: UTF8String): IDynamicValue;
 begin
   case aKey of
     DueKey:
-      result := fDue;
+      result := DateTimeToISO8601(fDue,true);
     NameKey:
       result := fName;
   else
@@ -708,7 +756,7 @@ begin
   case aKey of
     DueKey:
       if AValue is IDynamicString then
-        fDue := ISO8601ToDateTime((AValue as IDynamicString).Value)
+         fDue := ISO8601ToDateTime((AValue as IDynamicString).Value)
       else
          RaiseInvalidKeyValue(DueKey,AValue);
     NameKey:
@@ -803,7 +851,7 @@ begin
   if AValue is IStatusDefinition then
      fValues.SetItem(aKey,AValue)
   else
-     raise Exception.Create('TStatusDefinitions can only contain TStatusDefinition');
+     RaiseInvalidListItem('TStatusDefinitions',AValue);
 end;
 
 procedure TStatusDefinitions.BuildClone(var aValue: TDynamicValue);
@@ -833,7 +881,7 @@ begin
   if AValue is ICategoryDefinition then
      fValues.SetItem(aKey,AValue)
   else
-     raise Exception.Create('TCategoryDefinitions can only contain TCategoryDefinition');
+     RaiseInvalidListItem('TCategoryDefinitions',AValue);
 end;
 
 function TCategoryDefinitions.CreateDefinition: IKeywordDefinition;

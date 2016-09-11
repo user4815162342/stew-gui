@@ -236,10 +236,10 @@ type
 
   TProjectPropertiesDataReceivedEvent = class(TProjectEvent)
   strict private
-    fProperties: TProjectProperties;
+    fProperties: IProjectProperties;
   public
-    constructor Create(aProperties: TProjectProperties);
-    property Properties: TProjectProperties read fProperties;
+    constructor Create(aProperties: IProjectProperties);
+    property Properties: IProjectProperties read fProperties;
   end;
 
   { TProjectError }
@@ -438,12 +438,12 @@ type
 
   TProjectPropertiesPromise = class(TPromise)
   strict private
-    fProperties: TProjectProperties;
+    fProperties: IProjectProperties;
   private
     procedure LoadAnswer(aStream: TStream);
   public
     destructor Destroy; override;
-    property Properties: TProjectProperties read fProperties;
+    property Properties: IProjectProperties read fProperties;
   end;
 
   TWriteProjectPropertiesPromise = class(TPromise)
@@ -774,7 +774,7 @@ type
     strict protected
       procedure DoTask(Input: TPromise); override;
       function CreatePromise: TPromise; override;
-      procedure GetDefaultDescriptorAndExtension(aProps: TProjectProperties; out aDescriptor: UTF8String; out aExtension: UTF8String);
+      procedure GetDefaultDescriptorAndExtension(aProps: IProjectProperties; out aDescriptor: UTF8String; out aExtension: UTF8String);
       procedure NewAttachment_PropertiesRead(Sender: TPromise);
       procedure NewAttachment_TemplatesListed(Sender: TPromise);
       procedure NewAttachment_FileCreated(Sender: TPromise);
@@ -861,7 +861,7 @@ type
     function ReadDocumentProperties(aDocument: TDocumentPath; aForceRefresh: Boolean = false): TDocumentPropertiesPromise;
     function WriteDocumentProperties(aDocument: TDocumentPath; aProperties: TDocumentProperties; aBackup: Boolean = false): TWriteAttachmentPromise;
     function ReadProjectProperties(aForceRefresh: Boolean = false): TProjectPropertiesPromise;
-    function WriteProjectProperties(aProperties: TProjectProperties; aBackup: Boolean = false): TWriteProjectPropertiesPromise;
+    function WriteProjectProperties(aProperties: IProjectProperties; aBackup: Boolean = false): TWriteProjectPropertiesPromise;
     function ShiftDocumentBy(aDocument: TDocumentPath; aDelta: Integer): TShiftDocumentPromise;
     function ShiftDocumentUp(aDocument: TDocumentPath): TShiftDocumentPromise;
     function ShiftDocumentDown(aDocument: TDocumentPath): TShiftDocumentPromise;
@@ -1420,7 +1420,7 @@ begin
 end;
 
 procedure TStewProject.TRequestEditAttachmentTask.GetDefaultDescriptorAndExtension
-  (aProps: TProjectProperties; out aDescriptor: UTF8String; out
+  (aProps: IProjectProperties; out aDescriptor: UTF8String; out
   aExtension: UTF8String);
 begin
   case fAttachment of
@@ -2573,7 +2573,7 @@ end;
 { TProjectPropertiesDataReceivedEvent }
 
 constructor TProjectPropertiesDataReceivedEvent.Create(
-  aProperties: TProjectProperties);
+  aProperties: IProjectProperties);
 begin
   inherited Create(paProjectPropertiesDataReceived);
   fProperties := aProperties;
@@ -2621,16 +2621,16 @@ end;
 
 destructor TProjectPropertiesPromise.Destroy;
 begin
-  FreeAndNil(fProperties);
+  fProperties := nil;
+//  FreeAndNil(fProperties);
   inherited Destroy;
 end;
 
 procedure TProjectPropertiesPromise.LoadAnswer(aStream: TStream);
 begin
+  fProperties := TPropertyObjects.NewProjectProperties;
   if aStream <> nil then
-    fProperties := FromJSON(TProjectProperties,aStream) as TProjectProperties
-  else
-    fProperties := TProjectProperties.Create;
+    fProperties.Deserialize(aStream);
 end;
 
 { TStewProject.TReadProjectPropertiesTask }
@@ -3422,7 +3422,7 @@ begin
   result.After(@ProjectPropertiesDataReceived,@ProjectPropertiesReadError);
 end;
 
-function TStewProject.WriteProjectProperties(aProperties: TProjectProperties;
+function TStewProject.WriteProjectProperties(aProperties: IProjectProperties;
   aBackup: Boolean): TWriteProjectPropertiesPromise;
 var
   lWriteFile: TFileWritePromise;
@@ -3433,7 +3433,7 @@ begin
   else
     lOptions := [];
   lWriteFile := fCache.WriteFile(GetProjectPropertiesPath(fDisk),lOptions);
-  ToJSON(aProperties,lWriteFile.Data,'  ');
+  aProperties.Serialize(lWriteFile.Data,2);
   result := TWriteProjectPropertiesTask.Defer(lWriteFile).Promise as TWriteProjectPropertiesPromise;
   // we only need to catch to make sure the error is reported.
   result.Catch(@ProjectPropertiesWriteError);

@@ -268,7 +268,7 @@ var
 begin
   lStream := TFileStream.Create(TStewApplicationConfigObjects.Filename,fmCreate);
   try
-    Serialize(lStream);
+    Serialize(lStream,2);
   finally
     lStream.Free;
   end;
