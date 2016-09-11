@@ -535,7 +535,7 @@ begin
   stewFolder := LocalFile('');
   fProject := nil;
 
-  fConfig := TConfigObjects.NewStewApplicationConfig;
+  fConfig := TStewApplicationConfigObjects.NewStewApplicationConfig;
   try
      fConfig.Load;
   except

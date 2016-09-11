@@ -192,7 +192,7 @@ end;
 procedure TDataStoreObject.BuildClone(var aValue: TDynamicValue);
 begin
   if aValue = nil then
-    aValue := TDataStoreObject.Create;
+    raise Exception.Create('Can''t clone a TDataStoreObject directly, it''s abstract');
   inherited BuildClone(aValue);
 end;
 
@@ -464,7 +464,7 @@ end;
 procedure TDataStoreList.BuildClone(var aValue: TDynamicValue);
 begin
   if aValue = nil then
-     aValue := TDataStoreList.Create;
+     raise Exception.Create('Can''t clone a TDataStoreList directly, it''s abstract');
   (aValue as TDataStoreList).fBacking := fBacking.Clone as IDynamicList;
   inherited BuildClone(aValue);
 end;

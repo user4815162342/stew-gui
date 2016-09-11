@@ -102,6 +102,8 @@ type
     function GetMRUProject: TFile;
     procedure SetMRUProject(AValue: TFile);
   public
+    procedure Add(const aItem: IDynamicValue); override;
+    function IndexOf(const aValue: IDynamicValue): Longint; override;
     property Project[aIndex: Longint]: IMRUProject read GetProject write SetProject; default;
     property Length: Longint read GetLength write SetLength;
     procedure Add(const aItem: IMRUProject);
@@ -246,7 +248,7 @@ var
   lStream: TFileStream;
   lFile: String;
 begin
-  lFile := TConfigObjects.Filename;
+  lFile := TStewApplicationConfigObjects.Filename;
   if FileExists(lFile) then
   begin
     lStream := TFileStream.Create(lFile,fmOpenRead);
@@ -264,7 +266,7 @@ procedure TStewApplicationConfig.Save;
 var
   lStream: TFileStream;
 begin
-  lStream := TFileStream.Create(TConfigObjects.Filename,fmCreate);
+  lStream := TFileStream.Create(TStewApplicationConfigObjects.Filename,fmCreate);
   try
     Serialize(lStream);
   finally
@@ -378,6 +380,23 @@ begin
     lProject.Path := AValue;
     SetProject(0,lProject);
   end;
+end;
+
+procedure TMRUProjects.Add(const aItem: IDynamicValue);
+begin
+  if aItem is IMRUProject then
+     Add(aItem as IMRUProject)
+  else
+     raise Exception.Create('MRUProjects can only hold MRUProject');
+
+end;
+
+function TMRUProjects.IndexOf(const aValue: IDynamicValue): Longint;
+begin
+  if aValue is IMRUProject then
+     result := IndexOf(aValue as IMRUProject)
+  else
+     result := -1;
 end;
 
 procedure TMRUProjects.Add(const aItem: IMRUProject);

@@ -903,7 +903,7 @@ end;
 procedure TKeywordDefinitions.BuildClone(var aValue: TDynamicValue);
 begin
   if aValue = nil then
-     aValue := TKeywordDefinitions.Create;
+     raise Exception.Create('Can''t clone a TKeywordDefinitions directly, it''s abstract');
   (aValue as TKeywordDefinitions).fValues := fValues.Clone as IDynamicMap;
   inherited BuildClone(aValue);
 end;

@@ -79,9 +79,9 @@ type
     procedure Save;
   end;
 
-  { TConfigObjects }
+  { TStewApplicationConfigObjects }
 
-  TConfigObjects = class
+  TStewApplicationConfigObjects = class
   public
     class function NewStewApplicationConfig: IStewApplicationConfig;
     class function Filename: UTF8String;
@@ -176,19 +176,19 @@ implementation
 uses
   jsonparser, FileUtil, sys_localfile, gui_config_implementation;
 
-{ TConfigObjects }
+{ TStewApplicationConfigObjects }
 
-class function TConfigObjects.NewStewApplicationConfig: IStewApplicationConfig;
+class function TStewApplicationConfigObjects.NewStewApplicationConfig: IStewApplicationConfig;
 begin
   result := gui_config_implementation.TStewApplicationConfig.Create;
 end;
 
-class function TConfigObjects.Filename: UTF8String;
+class function TStewApplicationConfigObjects.Filename: UTF8String;
 begin
   result := GetAppConfigDir(false) + ConfigFileName;
 end;
 
-class function TConfigObjects.LoadStewApplicationConfig: IStewApplicationConfig;
+class function TStewApplicationConfigObjects.LoadStewApplicationConfig: IStewApplicationConfig;
 begin
   result := NewStewApplicationConfig;
   Result.Load;
