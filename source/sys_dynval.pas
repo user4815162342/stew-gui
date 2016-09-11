@@ -14,9 +14,6 @@ uses
 
 
 TODO: Make use of this
-0. Fix the TDataStoreList, it doesn't need a backing because that doesn't make sense.
-Instead, it can keep the items because that's what that does, and have protected
-methods for accessing them and behaving like IDynamicValue, etc.
 1. Don't do this from the top down, changing everything at once. Go from the bottom
 up. So, instead of just switching from TProjectProperties to TProjectProperties2 in
 stew_project, switch the various editors over, using some conversion functions to

@@ -30,12 +30,32 @@ type
     destructor Destroy; override;
   end;
 
+  { TDocumentIndex }
+
+  TDocumentIndex = class(TDataStoreList,IDocumentIndex)
+  strict protected
+    function GetIndexItem(aIndex: Longint): UTF8String;
+    function GetLength: Longint;
+    procedure SetIndexItem(aIndex: Longint; AValue: UTF8String);
+    procedure SetLength(AValue: Longint);
+    function ReadManagedItem(aReader: TDynamicValueReader): IDynamicValue;
+       override;
+    procedure CheckInsertingItem(aValue: IDynamicValue); override;
+  public
+    property Item[aIndex: Longint]: UTF8String read GetIndexItem write SetIndexItem; default;
+    property Length: Longint read GetLength write SetLength;
+    procedure Add(const aItem: UTF8String);
+    procedure Delete(const aIndex: Longint);
+    procedure Clear;
+    function IndexOf(const aValue: UTF8String): Longint;
+  end;
+
   { TDocumentProperties }
 
   TDocumentProperties = class(TProperties,IDocumentProperties)
   private
     fCategory: UTF8String;
-    fIndex: TStringArray2;
+    fIndex: IDocumentIndex;
     fPublish: Boolean;
     fStatus: UTF8String;
     fTitle: UTF8String;
@@ -49,12 +69,11 @@ type
     procedure WriteManagedKeys(aWriter: TDynamicValueWriter); override;
     procedure ListManagedKeys(var aValue: TStringArray2); override;
     function GetCategory: UTF8String;
-    function GetIndex: TStringArray2;
+    function GetIndex: IDocumentIndex;
     function GetPublish: Boolean;
     function GetStatus: UTF8String;
     function GetTitle: UTF8String;
     procedure SetCategory(AValue: UTF8String);
-    procedure SetIndex(AValue: TStringArray2);
     procedure SetPublish(AValue: Boolean);
     procedure SetStatus(AValue: UTF8String);
     procedure SetTitle(AValue: UTF8String);
@@ -348,6 +367,60 @@ begin
       lMessage := lMessage + (aValue as TObject).ClassName;
   end;
   raise Exception.Create(lMessage);
+end;
+
+{ TDocumentIndex }
+
+function TDocumentIndex.GetIndexItem(aIndex: Longint): UTF8String;
+begin
+  result := (Items[aIndex] as IDynamicString).Value;
+end;
+
+function TDocumentIndex.GetLength: Longint;
+begin
+  result := Items.Length;
+end;
+
+procedure TDocumentIndex.SetIndexItem(aIndex: Longint; AValue: UTF8String);
+begin
+  Items[aIndex] := AValue;
+end;
+
+procedure TDocumentIndex.SetLength(AValue: Longint);
+begin
+  Items.Length := AValue;
+end;
+
+function TDocumentIndex.ReadManagedItem(aReader: TDynamicValueReader
+  ): IDynamicValue;
+begin
+  result := aReader.ReadString;
+end;
+
+procedure TDocumentIndex.CheckInsertingItem(aValue: IDynamicValue);
+begin
+  if not (aValue is IDynamicString) then
+     RaiseInvalidListItem('TDocumentIndex',aValue);
+end;
+
+procedure TDocumentIndex.Add(const aItem: UTF8String);
+begin
+  Items.Add(aItem);
+end;
+
+procedure TDocumentIndex.Delete(const aIndex: Longint);
+begin
+  Items.Delete(aIndex);
+end;
+
+procedure TDocumentIndex.Clear;
+begin
+  Items.Clear;
+end;
+
+function TDocumentIndex.IndexOf(const aValue: UTF8String): Longint;
+begin
+  result := Items.IndexOf(aValue);
 end;
 
 { TStatusDefinition }
@@ -1255,20 +1328,12 @@ end;
 { TDocumentProperties }
 
 function TDocumentProperties.GetItem(const aKey: UTF8String): IDynamicValue;
-var
-  i: Longint;
-  l: Longint;
 begin
   case aKey of
     CategoryKey:
       result := fCategory;
     IndexKey:
-    begin
-      result := TDynamicValues.NewList;
-      l := fIndex.Count;
-      for i := 0 to l - 1 do
-         (result as IDynamicList).Add(fIndex[i]);
-    end;
+      result := fIndex;
     PublishKey:
       result := fPublish;
     StatusKey:
@@ -1283,7 +1348,7 @@ end;
 procedure TDocumentProperties.InitializeBlank;
 begin
   fCategory := '';
-  fIndex.Count := 0;
+  fIndex := TPropertyObjects.NewDocumentIndex;
   fPublish := false;
   fStatus := '';
   fTitle := '';
@@ -1292,11 +1357,6 @@ end;
 
 procedure TDocumentProperties.SetItem(const aKey: UTF8String;
   const AValue: IDynamicValue);
-var
-  i: Longint;
-  l: Longint;
-  lItem: IDynamicValue;
-  lNewIndex: TStringArray2;
 begin
   case aKey of
     CategoryKey:
@@ -1305,28 +1365,7 @@ begin
       else
          RaiseInvalidKeyValue(CategoryKey,AValue);
     IndexKey:
-    begin
-      if AValue is IDynamicList then
-      begin
-         l := (AValue as IDynamicList).Length;
-         {%H-}lNewIndex.Count := 0;
-         for i := 0 to l - 1 do
-         begin
-           lItem := (AValue as IDynamicList)[i];
-           if lItem is IDynamicString then
-           begin
-              lNewIndex.Add((lItem as IDynamicString).Value);
-           end
-           else
-           begin
-              RaiseInvalidKeyValue(IndexKey + '[' + IntToStr(i) + ']',lItem);
-           end;
-         end;
-         fIndex := lNewIndex;
-      end
-      else
-        RaiseInvalidKeyValue(IndexKey,AValue);
-    end;
+      raise Exception.Create('Please don''t try to set the document index directly');
     PublishKey:
       if AValue is IDynamicBoolean then
          fPublish := (AValue as IDynamicBoolean).Value
@@ -1352,12 +1391,16 @@ function TDocumentProperties.ReadManagedKey(const aKey: UTF8String;
 begin
   case aKey of
     CategoryKey,
-    IndexKey,
     PublishKey,
     StatusKey,
     TitleKey:
     begin
       SetItem(aKey,aReader.ReadValue);
+      result := true;
+    end;
+    IndexKey:
+    begin
+      fIndex.Deserialize(aReader);
       result := true;
     end
   else
@@ -1389,7 +1432,7 @@ begin
   result := fCategory;
 end;
 
-function TDocumentProperties.GetIndex: TStringArray2;
+function TDocumentProperties.GetIndex: IDocumentIndex;
 begin
   result := fIndex;
 end;
@@ -1412,11 +1455,6 @@ end;
 procedure TDocumentProperties.SetCategory(AValue: UTF8String);
 begin
   fCategory := AValue;
-end;
-
-procedure TDocumentProperties.SetIndex(AValue: TStringArray2);
-begin
-  fIndex := AValue;
 end;
 
 procedure TDocumentProperties.SetPublish(AValue: Boolean);
@@ -1450,7 +1488,7 @@ end;
 
 destructor TDocumentProperties.Destroy;
 begin
-  fIndex.Count := 0;
+  fIndex := nil;
   inherited Destroy;
 end;
 

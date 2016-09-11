@@ -52,7 +52,7 @@ begin
     Assert(lProps.Status = 'Unwritten','Status should return correct value');
     Assert(lProps.Title = 'The Cottage','Title should return correct value');
     Assert(lProps.Publish = false,'Publish should return correct value');
-    Assert(lProps.Index.Count = 0,'Index should return correct value');
+    Assert(lProps.Index.Length = 0,'Index should return correct value');
     Assert(lProps.User['place'].IsEqualTo('Jen''s Lakeside Cottage'),'User properties should return correct values');
 
   finally

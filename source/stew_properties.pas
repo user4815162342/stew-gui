@@ -11,6 +11,7 @@ uses
 
 const
   PropertiesGUID = '{17109B5C-1A4E-433F-A1AE-F81713E6E765}';
+  DocumentIndexGUID = '{3C75861F-E544-496D-964A-A83A0C19BBB4}';
   DocumentPropertiesGUID = '{03C69F3B-EE44-4C9E-9717-C2723D7D3333}';
   KeywordDefinitionGUID = '{FD202199-1585-43DB-85D5-4FFDA2CD77F8}';
   CategoryDefinitionGUID = '{6D1425B9-0E77-4E2D-851F-3400B61DD577}';
@@ -33,17 +34,32 @@ type
     property User: IDynamicMap read GetUser write SetUser;
   end;
 
+  { IDocumentIndex }
+
+  IDocumentIndex = interface(IDataStoreObject)
+    [DocumentIndexGUID]
+    function GetIndexItem(aIndex: Longint): UTF8String;
+    function GetLength: Longint;
+    procedure SetIndexItem(aIndex: Longint; AValue: UTF8String);
+    procedure SetLength(AValue: Longint);
+    property Item[aIndex: Longint]: UTF8String read GetIndexItem write SetIndexItem; default;
+    property Length: Longint read GetLength write SetLength;
+    procedure Add(const aItem: UTF8String);
+    procedure Delete(const aIndex: Longint);
+    procedure Clear;
+    function IndexOf(const aValue: UTF8String): Longint;
+  end;
+
   { IDocumentProperties }
 
   IDocumentProperties = interface(IProperties)
     [DocumentPropertiesGUID]
     function GetCategory: UTF8String;
-    function GetIndex: TStringArray2;
+    function GetIndex: IDocumentIndex;
     function GetPublish: Boolean;
     function GetStatus: UTF8String;
     function GetTitle: UTF8String;
     procedure SetCategory(AValue: UTF8String);
-    procedure SetIndex(AValue: TStringArray2);
     procedure SetPublish(AValue: Boolean);
     procedure SetStatus(AValue: UTF8String);
     procedure SetTitle(AValue: UTF8String);
@@ -51,7 +67,7 @@ type
     property Publish: Boolean read GetPublish write SetPublish;
     property Category: UTF8String read GetCategory write SetCategory;
     property Status: UTF8String read GetStatus write SetStatus;
-    property Index: TStringArray2 read GetIndex write SetIndex;
+    property Index: IDocumentIndex read GetIndex;
   end;
 
   { IKeywordDefinition }
@@ -181,6 +197,7 @@ type
   public
     class function NewDocumentProperties: IDocumentProperties;
     class function NewProjectProperties: IProjectProperties;
+    class function NewDocumentIndex: IDocumentIndex;
     class function NewStatusDefinitions: IStatusDefinitions;
     class function NewCategoryDefinitions: ICategoryDefinitions;
     class function NewDeadlines: IDeadlines;
@@ -436,6 +453,11 @@ end;
 class function TPropertyObjects.NewProjectProperties: IProjectProperties;
 begin
   result := stew_properties_implementation.TProjectProperties.Create;
+end;
+
+class function TPropertyObjects.NewDocumentIndex: IDocumentIndex;
+begin
+  result := stew_properties_implementation.TDocumentIndex.Create;
 end;
 
 class function TPropertyObjects.NewStatusDefinitions: IStatusDefinitions;
