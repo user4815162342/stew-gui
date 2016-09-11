@@ -11,45 +11,6 @@ uses
 
 {
 
-
-
-TODO: Make use of this
-1. Don't do this from the top down, changing everything at once. Go from the bottom
-up. So, instead of just switching from TProjectProperties to TProjectProperties2 in
-stew_project, switch the various editors over, using some conversion functions to
-quickly convert back and forth when communicating with higher level units. If,
-in the process of doing this, I discover another more complicated place, then I
-can backtrack and start off with a smaller section.
--- DONE gui_jsoneditor
--- DONE gui_config -- convert over to the new JSON format for saving data.
--- DONE stew_project -- start converting everything into the new properties.
-   -- DONE projectproperties
-   -- DONE documentproperties
--- DONE gui_documenteditor -- Can wait until we switch over from Stew_Project, because
-there isn't going to be too much to change.
--- DONE gui_projectsettingseditor -- same as gui_documenteditor.
--- DONE gui_mainform -- Not sure here, but probably the same as gui_documenteditor
--- DONE stew_properties -- get rid of the old properties
--- DONE sys_dynval -- get rid of the conversion functions.
--- sys_json -- get rid of this entirely.
-
-2. Make use of the ToOldJSONValue functions to do this.
-3. As things are moved over, make them use dynval natively, but allow conversion to
-other stuff as necessary. Then, once everything is using dynval natively, we can
-get rid of the TJSValue stuff.
-4. Let's start with the gui_jsoneditor, since that's actually the most complex. Then,
-work with the document settings editor, the project settings editor, and project explorer,
-then the various property promises, and finally stew_project itself.
-
-
-
-A replacement for sys_json, which solves several problems:
-1) removes the extra functionality such as strictly-typed properties and easy
-type conversion which is really unnecessary for our purposes.
-2) reduces the issues caused by memory management, which are a problem when these
-config objects can be passed all around the application whenever you want. This is
-really a problem when we get into querying the data.
-
 Decisions:
 - Classes require create and destroy, which adds complication for use when passing
 data around.
@@ -67,7 +28,10 @@ need to make sure the garbage collector runs occasionally.
 - The solution appears to be Interfaces, which are automatically reference
 counted, not truly garbage collected, but memory management is much easier. I
 just make sure that they can't 'own' themselves in circular references, and
-there's no problem with that.
+there's no problem with that. I just wish that I didn't need to create two
+different types (interface and class) in order to get this functionality. To
+me, that's just overly complex, and a TReferenceCountedObject class would be
+much nicer (along with warnings if you attempt to use FreeAndNil on it).
 
 }
 const
