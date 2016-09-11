@@ -186,20 +186,20 @@ end;
 
 procedure TProjectSpec.Project_Properties_2(Sender: TPromise);
 var
-  lProps: TProjectProperties;
+  lProps: IProjectProperties;
 begin
   lProps := (Sender as TProjectPropertiesPromise).Properties;
   // yes, these are taken directly from the test_stew_properties.
-  AssertAsync(Length(lProps.Categories.keys) > 0,'Combination of parsing and GetPath should have gotten some data',Sender.Tag);
-  AssertAsync((lProps.Categories.Get('Chapter') as TCategoryDefinition).PublishTitleLevel = 0,'Project category definitions should work',Sender.Tag);
-  AssertAsync(lProps.Categories.hasOwnProperty('Scene'),'Project categories should work',Sender.Tag);
+  AssertAsync(lProps.Categories.keys.Count > 0,'Combination of parsing and GetPath should have gotten some data',Sender.Tag);
+  AssertAsync(lProps.Categories['Chapter'].PublishTitleLevel = 0,'Project category definitions should work',Sender.Tag);
+  AssertAsync(lProps.Categories.has('Scene'),'Project categories should work',Sender.Tag);
   if not AssertAsync(lProps.DefaultCategory = 'Chapter','Project default category should work',Sender.Tag) then Exit;
   if not AssertAsync(lProps.DefaultDocExtension = 'txt','Project default doc extension should work',Sender.Tag) then Exit;
   // (sic) I want the default notes extension to be weird, for template testing later.
   if not AssertAsync(lProps.DefaultNotesExtension = 'tst','Project default notes extension should work',Sender.Tag) then Exit;
   if not AssertAsync(lProps.DefaultStatus = 'Unwritten','Project default status should work',Sender.Tag) then Exit;
   if not AssertAsync(lProps.DefaultThumbnailExtension = 'png','Project default thumbnail extension should work',Sender.Tag) then Exit;
-  AssertAsync((lProps.Statuses.Get('Unwritten') as TStatusDefinition).Color = clRed,'Project statuses should work',Sender.Tag);
+  AssertAsync(lProps.Statuses['Unwritten'].Color = clRed,'Project statuses should work',Sender.Tag);
   lProps.DefaultDocExtension := '.doc';
   if not AssertAsync(lProps.DefaultDocExtension = 'doc','Default doc extension should trim off the "." when assigning',Sender.Tag) then Exit;
   // change it back to 'txt' since I need it for another test.
