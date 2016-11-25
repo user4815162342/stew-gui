@@ -7,15 +7,16 @@ uses
   cthreads,
   {$ENDIF}{$ENDIF}
   Interfaces, // this includes the LCL widgetset
-  Forms, gui_mainform, stew_project, sys_file, sys_async, gui_projectmanager,
-  gui_config, gui_documenteditor, gui_preferenceseditor,
-  gui_projectsettingseditor, gui_editorframe, stew_properties,
-  sys_types, gui_jsoneditor, sys_os, gui_listdialog,
-sys_localfile, sys_versionsupport, gui_async, sys_filecache, sys_log,
-gui_glyphs, gui_gtk2_glyphs, 
-sys_dynval_implementation, sys_dynval, sys_dynval_json, 
-stew_properties_implementation, sys_dynval_data_implementation, 
-gui_config_implementation;
+  Forms, gui_mainform, stew_project, gui_projectmanager, gui_config,
+  gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor,
+  gui_editorframe, stew_properties, stew_properties_implementation,
+  gui_config_implementation, gui_async, test_sys_file,
+  sys_dynval_implementation, gui_jsoneditor, sys_dynval, test_sys_async,
+  sys_filecache, gui_gtk2_glyphs, test_sys_filecache_local, sys_log,
+  test_sys_localfile, gui_listdialog, sys_types, sys_versionsupport,
+  sys_dynval_data, test_sys_dynval, gui_glyphs, sys_os, sys_dynval_json,
+  sys_file, sys_dynval_data_implementation, test_sys_filecache, sys_localfile,
+  sys_async, test_sys_types;
 
 {$R *.res}
 

@@ -7,14 +7,12 @@ uses
   cthreads,
   {$ENDIF}{$ENDIF}
   Interfaces, // this includes the LCL widgetset
-  Forms, richmemopackage, test_main, test_registry, test_test, test_sys_async,
-  sys_async, sys_types, sys_file, test_sys_file,
-  sys_localfile, sys_os, sys_filecache, test_sys_localfile, test_sys_filecache,
-  gui_async, stew_project, test_sys_filecache_local, test_stew_project,
-  stew_properties, test_stew_properties, test_longstringmap, test_gui,
-  stew_query, test_sys_types, test_sys_dynval, sys_dynval,
-  sys_dynval_implementation, sys_dynval_json, sys_dynval_data,
-  stew_properties_implementation, sys_dynval_data_implementation;
+  Forms, richmemopackage, stew_project, test_stew_project, stew_properties,
+  test_stew_properties, test_gui, stew_query, stew_properties_implementation,
+  test_test, test_sys_types, test_sys_localfile, test_sys_filecache_local,
+  test_sys_filecache, test_sys_file, test_sys_dynval, test_sys_async,
+  test_registry, test_longstringmap, test_configuration, sys_async, sys_dynval,
+  sys_file, sys_filecache, sys_localfile, sys_types, test_main;
 
 {$R *.res}
 

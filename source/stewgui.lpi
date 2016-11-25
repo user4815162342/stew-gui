@@ -17,7 +17,7 @@
       <UseVersionInfo Value="True"/>
       <AutoIncrementBuild Value="True"/>
       <MinorVersionNr Value="1"/>
-      <BuildNr Value="114"/>
+      <BuildNr Value="120"/>
       <StringTable CompanyName="Town's Edge Technology, LLC" FileDescription="A manuscript management and notekeeping tool." LegalCopyright="Copyright © 2015 Neil M. Sheldon" ProductName="Stew" ProductVersion="0.1"/>
     </VersionInfo>
     <BuildModes Count="1">
@@ -39,7 +39,7 @@
         <PackageName Value="LCL"/>
       </Item2>
     </RequiredPackages>
-    <Units Count="30">
+    <Units Count="37">
       <Unit0>
         <Filename Value="stewgui.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -59,161 +59,192 @@
         <UnitName Value="stew_project"/>
       </Unit2>
       <Unit3>
-        <Filename Value="sys_file.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="sys_file"/>
-      </Unit3>
-      <Unit4>
-        <Filename Value="sys_async.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="sys_async"/>
-      </Unit4>
-      <Unit5>
         <Filename Value="gui_projectmanager.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="ProjectManager"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="gui_projectmanager"/>
-      </Unit5>
-      <Unit6>
+      </Unit3>
+      <Unit4>
         <Filename Value="gui_config.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="gui_config"/>
-      </Unit6>
-      <Unit7>
+      </Unit4>
+      <Unit5>
         <Filename Value="gui_documenteditor.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="DocumentEditor"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="gui_documenteditor"/>
-      </Unit7>
-      <Unit8>
+      </Unit5>
+      <Unit6>
         <Filename Value="gui_preferenceseditor.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="ApplicationPreferencesEditor"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="gui_preferenceseditor"/>
-      </Unit8>
-      <Unit9>
+      </Unit6>
+      <Unit7>
         <Filename Value="gui_projectsettingseditor.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="ProjectSettingsEditor"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="gui_projectsettingseditor"/>
-      </Unit9>
-      <Unit10>
+      </Unit7>
+      <Unit8>
         <Filename Value="gui_editorframe.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="EditorFrame"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="gui_editorframe"/>
-      </Unit10>
-      <Unit11>
+      </Unit8>
+      <Unit9>
         <Filename Value="stew_properties.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="stew_properties"/>
+      </Unit9>
+      <Unit10>
+        <Filename Value="stew_properties_implementation.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="stew_properties_implementation"/>
+      </Unit10>
+      <Unit11>
+        <Filename Value="gui_config_implementation.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="gui_config_implementation"/>
       </Unit11>
       <Unit12>
-        <Filename Value="gui_jsoneditor.pas"/>
-        <IsPartOfProject Value="True"/>
-        <ComponentName Value="JSONEditor"/>
-        <HasResources Value="True"/>
-        <ResourceBaseClass Value="Frame"/>
-        <UnitName Value="gui_jsoneditor"/>
-      </Unit12>
-      <Unit13>
-        <Filename Value="sys_os.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="sys_os"/>
-      </Unit13>
-      <Unit14>
-        <Filename Value="gui_listdialog.pas"/>
-        <IsPartOfProject Value="True"/>
-        <ComponentName Value="ListDialog"/>
-        <HasResources Value="True"/>
-        <ResourceBaseClass Value="Form"/>
-        <UnitName Value="gui_listdialog"/>
-      </Unit14>
-      <Unit15>
-        <Filename Value="sys_versionsupport.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="sys_versionsupport"/>
-      </Unit15>
-      <Unit16>
-        <Filename Value="sys_localfile.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="sys_localfile"/>
-      </Unit16>
-      <Unit17>
-        <Filename Value="gui_async.pas"/>
+        <Filename Value="nms-laz-utils/gui_async.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="gui_async"/>
+      </Unit12>
+      <Unit13>
+        <Filename Value="nms-laz-utils/test_sys_file.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="test_sys_file"/>
+      </Unit13>
+      <Unit14>
+        <Filename Value="nms-laz-utils/sys_dynval_implementation.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="sys_dynval_implementation"/>
+      </Unit14>
+      <Unit15>
+        <Filename Value="nms-laz-utils/gui_jsoneditor.pas"/>
+        <IsPartOfProject Value="True"/>
+        <HasResources Value="True"/>
+        <UnitName Value="gui_jsoneditor"/>
+      </Unit15>
+      <Unit16>
+        <Filename Value="nms-laz-utils/sys_dynval.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="sys_dynval"/>
+      </Unit16>
+      <Unit17>
+        <Filename Value="nms-laz-utils/test_sys_async.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="test_sys_async"/>
       </Unit17>
       <Unit18>
-        <Filename Value="sys_filecache.pas"/>
+        <Filename Value="nms-laz-utils/sys_filecache.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_filecache"/>
       </Unit18>
       <Unit19>
-        <Filename Value="sys_types.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="sys_types"/>
-      </Unit19>
-      <Unit20>
-        <Filename Value="sys_log.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="sys_log"/>
-      </Unit20>
-      <Unit21>
-        <Filename Value="gui_glyphs.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="gui_glyphs"/>
-      </Unit21>
-      <Unit22>
-        <Filename Value="gui_gtk2_glyphs.pas"/>
+        <Filename Value="nms-laz-utils/gui_gtk2_glyphs.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="gui_gtk2_glyphs"/>
+      </Unit19>
+      <Unit20>
+        <Filename Value="nms-laz-utils/test_sys_filecache_local.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="test_sys_filecache_local"/>
+      </Unit20>
+      <Unit21>
+        <Filename Value="nms-laz-utils/sys_log.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="sys_log"/>
+      </Unit21>
+      <Unit22>
+        <Filename Value="nms-laz-utils/test_sys_localfile.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="test_sys_localfile"/>
       </Unit22>
       <Unit23>
-        <Filename Value="sys_dynval_implementation.pas"/>
+        <Filename Value="nms-laz-utils/gui_listdialog.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="sys_dynval_implementation"/>
+        <HasResources Value="True"/>
+        <UnitName Value="gui_listdialog"/>
       </Unit23>
       <Unit24>
-        <Filename Value="sys_dynval.pas"/>
+        <Filename Value="nms-laz-utils/sys_types.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="sys_dynval"/>
+        <UnitName Value="sys_types"/>
       </Unit24>
       <Unit25>
-        <Filename Value="sys_dynval_json.pas"/>
+        <Filename Value="nms-laz-utils/sys_versionsupport.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="sys_dynval_json"/>
+        <UnitName Value="sys_versionsupport"/>
       </Unit25>
       <Unit26>
-        <Filename Value="sys_dynval_data.pas"/>
+        <Filename Value="nms-laz-utils/sys_dynval_data.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="sys_dynval_data"/>
       </Unit26>
       <Unit27>
-        <Filename Value="stew_properties_implementation.pas"/>
+        <Filename Value="nms-laz-utils/test_sys_dynval.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="stew_properties_implementation"/>
+        <UnitName Value="test_sys_dynval"/>
       </Unit27>
       <Unit28>
-        <Filename Value="sys_dynval_data_implementation.pas"/>
+        <Filename Value="nms-laz-utils/gui_glyphs.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="sys_dynval_data_implementation"/>
+        <UnitName Value="gui_glyphs"/>
       </Unit28>
       <Unit29>
-        <Filename Value="gui_config_implementation.pas"/>
+        <Filename Value="nms-laz-utils/sys_os.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="gui_config_implementation"/>
+        <UnitName Value="sys_os"/>
       </Unit29>
+      <Unit30>
+        <Filename Value="nms-laz-utils/sys_dynval_json.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="sys_dynval_json"/>
+      </Unit30>
+      <Unit31>
+        <Filename Value="nms-laz-utils/sys_file.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="sys_file"/>
+      </Unit31>
+      <Unit32>
+        <Filename Value="nms-laz-utils/sys_dynval_data_implementation.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="sys_dynval_data_implementation"/>
+      </Unit32>
+      <Unit33>
+        <Filename Value="nms-laz-utils/test_sys_filecache.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="test_sys_filecache"/>
+      </Unit33>
+      <Unit34>
+        <Filename Value="nms-laz-utils/sys_localfile.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="sys_localfile"/>
+      </Unit34>
+      <Unit35>
+        <Filename Value="nms-laz-utils/sys_async.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="sys_async"/>
+      </Unit35>
+      <Unit36>
+        <Filename Value="nms-laz-utils/test_sys_types.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="test_sys_types"/>
+      </Unit36>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -223,7 +254,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="gui"/>
+      <OtherUnitFiles Value="gui;nms-laz-utils"/>
       <UnitOutputDirectory Value="../units"/>
     </SearchPaths>
     <CodeGeneration>

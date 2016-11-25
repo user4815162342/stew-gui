@@ -56,21 +56,8 @@ var
 implementation
 
 uses
-  test_test, test_sys_json, test_sys_dynval, test_sys_async, test_sys_localfile, test_stew_properties,
-  test_stew_project, test_longstringmap, test_sys_filecache_local, test_gui, test_sys_types;
-
-const
-  TestsToRun: array[0..9] of TTestSpecClass =
-    (TTypesSpec,
-     TJSONSpec,
-     TDynValSpec,
-     TAsyncSpec,
-     TLocalFileSpec,
-     TLongStringMapSpec,
-     TLocalFileCacheSpec,
-     TPropertiesSpec,
-     TProjectSpec,
-     TGUISpec);
+  test_configuration,
+  test_test;
 
 {$R *.lfm}
 
