@@ -114,14 +114,14 @@ end;
 function ButtonDialog(const aMessage: String; aDlgType: TMsgDlgType;
   aButtons: TMsgDlgButtons; aButtonCaptions: array of String): Integer;
 begin
-  result := ButtonDialog(Application.Title,aMessage,aDlgType,aButtons,aButtonCaptions);
+  result := ButtonDialog(Application.MainForm.Caption,aMessage,aDlgType,aButtons,aButtonCaptions);
 end;
 
 procedure MessageDialog(const aMessage: String;
   aDlgType: TMsgDlgType = mtInformation;
   aAcceptCaption: String = 'Got it');
 begin
-  MessageDialog(Application.Title,aMessage,aDlgType,aAcceptCaption);
+  MessageDialog(Application.MainForm.Caption,aMessage,aDlgType,aAcceptCaption);
 end;
 
 procedure AboutDialog;
@@ -162,7 +162,7 @@ end;
 function ChoiceDialog(const aCaption: String; const aChoices: TStringArray;
   var aChoice: Integer): Boolean;
 begin
-  result := ChoiceDialog(Application.Title,aCaption,aChoices,aChoice);
+  result := ChoiceDialog(Application.MainForm.Caption,aCaption,aChoices,aChoice);
 end;
 
 
