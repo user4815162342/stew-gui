@@ -39,6 +39,10 @@ type
   private
     fRegistry: TTestRegistry;
   protected
+    // This procedure can be used to indicate the beginning of a slow
+    // test, especially user-interactive tests. It turns off the timeout
+    // and indicates an event so that a message can be logged.
+    procedure BeginInteractive;
     function BeginAsync: Integer;
     procedure EndAsync(aTestID: Integer);
     procedure Defer(aFunc: TDataEvent; aData: PtrInt);
@@ -71,6 +75,7 @@ type
     FOnException: TExceptionEvent;
     FOnFailed: TTestMessageEvent;
     fOnAlert: TTestMessageEvent;
+    FOnInteractiveStarted: TTestEvent;
     fOnMessage: TTestMessageEvent;
     FOnSucceeded: TTestEvent;
     fOwnedTestSpecs: TObjectList;
@@ -89,10 +94,12 @@ type
     procedure SetOnException(AValue: TExceptionEvent);
     procedure SetOnFailed(AValue: TTestMessageEvent);
     procedure SetOnAlert(AValue: TTestMessageEvent);
+    procedure SetOnInteractiveStarted(AValue: TTestEvent);
     procedure SetOnReport(AValue: TTestMessageEvent);
     procedure SetOnSucceeded(AValue: TTestEvent);
     procedure SetTimeout(AValue: Cardinal);
   protected
+    procedure BeginInteractive;
     function BeginAsync: Integer;
     procedure EndAsync(aTestID: Integer);
     procedure QueueNextTest;
@@ -121,6 +128,7 @@ type
     property OnAlert: TTestMessageEvent read fOnAlert write SetOnAlert;
     property OnMessage: TTestMessageEvent read fOnMessage write SetOnReport;
     property OnAsyncStarted: TTestEvent read FOnAsyncStarted write SetOnAsyncStarted;
+    property OnInteractiveStarted: TTestEvent read FOnInteractiveStarted write SetOnInteractiveStarted;
     property OnCompleted: TNotifyEvent read fOnCompleted write SetOnCompleted;
     property OnCancelled: TNotifyEvent read FOnCancelled write SetOnCancelled;
     property OnException: TExceptionEvent read FOnException write SetOnException;
@@ -129,12 +137,42 @@ type
     function CreateTemporaryDirectory: String;
   end;
 
+  function CalculateTestSpecName(aClass: TClass): String;
+  function CalculateTestSpecName(aClass: TClass; out aNormalName: Boolean): String;
+
   function CalculateTestName(aObject: TObject; aMethodName: String): String;
 
 implementation
 
 uses
   FileUtil;
+
+function CalculateTestSpecName(aClass: TClass): String;
+var
+  l: Boolean;
+begin
+  result := CalculateTestSpecName(aClass,l);
+
+end;
+
+function CalculateTestSpecName(aClass: TClass; out aNormalName: Boolean
+  ): String;
+begin
+  result := aClass.ClassName;
+  if Pos('Spec',Result) = (Length(Result) - 3) then
+  begin
+    if Result[1] = 'T' then
+    begin
+      Result := Copy(Result,2,Length(Result) - 5);
+      aNormalName := true;
+
+    end;
+  end
+  else
+  begin
+    aNormalName := false;
+  end;
+end;
 
 function CalculateTestName(aObject: TObject; aMethodName: String): String;
 var
@@ -144,33 +182,28 @@ var
   lFirstSpacePos: Integer;
   lNumber: Integer;
 begin
-  lSpecName := aObject.ClassType.ClassName;
+  lSpecName := CalculateTestSpecName(aObject.ClassType,lNormalName);
   lTestName := aMethodName;
-  if Pos('Spec',lSpecName) = (Length(lSpecName) - 3) then
-  begin
-    if lSpecName[1] = 'T' then
-    begin
-      lSpecName := Copy(lSpecName,2,Length(lSpecName) - 5);
-      lNormalName := true;
-
-      if Pos('Test',aMethodName) = 1 then
-      begin
-        lTestName := Copy(lTestName,5,Length(lTestName));
-        lTestName := Trim(StringReplace(lTestName,'_',' ',[rfReplaceAll]));
-        lFirstSpacePos:=Pos(' ',lTestName);
-        if TryStrToInt(Copy(lTestName,1,lFirstSpacePos - 1),lNumber) then
-        begin
-          // the number is meant only for sorting, and should be removed.
-          lTestName := Copy(lTestName,lFirstSpacePos + 1,MaxInt);
-        end;
-
-      end;
-    end;
-  end;
   if lNormalName then
-     result := lSpecName + ': ' + lTestName
+  begin
+    if Pos('Test',aMethodName) = 1 then
+    begin
+      lTestName := Copy(aMethodName,5,Length(aMethodName));
+      lTestName := Trim(StringReplace(lTestName,'_',' ',[rfReplaceAll]));
+      lFirstSpacePos:=Pos(' ',lTestName);
+      if TryStrToInt(Copy(lTestName,1,lFirstSpacePos - 1),lNumber) then
+      begin
+        // the number is meant only for sorting, and should be removed.
+        lTestName := Copy(lTestName,lFirstSpacePos + 1,MaxInt);
+      end;
+
+    end;
+    result := lSpecName + ': ' + lTestName
+  end
   else
+  begin
      result := lSpecName + '.' + lTestName;
+  end;
 end;
 
 { TTestHolder }
@@ -182,6 +215,12 @@ begin
 end;
 
 { TTestSpec }
+
+procedure TTestSpec.BeginInteractive;
+begin
+  fRegistry.BeginInteractive;
+
+end;
 
 function TTestSpec.BeginAsync: Integer;
 begin
@@ -404,6 +443,12 @@ begin
   fOnAlert:=AValue;
 end;
 
+procedure TTestRegistry.SetOnInteractiveStarted(AValue: TTestEvent);
+begin
+  if FOnInteractiveStarted=AValue then Exit;
+  FOnInteractiveStarted:=AValue;
+end;
+
 procedure TTestRegistry.SetOnReport(AValue: TTestMessageEvent);
 begin
   if fOnMessage=AValue then Exit;
@@ -419,6 +464,13 @@ end;
 procedure TTestRegistry.SetTimeout(AValue: Cardinal);
 begin
   fTimer.Interval := AValue;
+end;
+
+procedure TTestRegistry.BeginInteractive;
+begin
+  StopTimer;
+  if FOnInteractiveStarted <> nil then
+     FOnInteractiveStarted(Self,fTestNames[fCurrent]);
 end;
 
 function TTestRegistry.BeginAsync: Integer;

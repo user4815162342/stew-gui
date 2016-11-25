@@ -8,7 +8,7 @@ uses
   Classes, SysUtils, Graphics;
 
 type
-  TStewButtonGlyph = (
+  TGUIButtonGlyph = (
     sbgUnknown,
     sbgNew,
     sbgOpen,
@@ -36,7 +36,7 @@ type
     sbgNewJSONString
   );
 
-function GetStewButtonIcon(aID: TStewButtonGlyph; aRequestedWidth: Longint): TCustomBitmap; platform;
+function GetGUIButtonIcon(aID: TGUIButtonGlyph; aRequestedWidth: Longint): TCustomBitmap; platform;
 
 
 implementation
@@ -45,7 +45,7 @@ uses
   gui_gtk2_glyphs, buttons, LCLType;
 
 
-function GetStewButtonIcon(aID: TStewButtonGlyph; aRequestedWidth: Longint): TCustomBitmap;
+function GetGUIButtonIcon(aID: TGUIButtonGlyph; aRequestedWidth: Longint): TCustomBitmap;
 var
   aBitmap: HBitMap;
   aMask: HBitMap;
@@ -54,7 +54,7 @@ begin
   aBitmap := 0;
   aMask := 0;
 {$IFDEF LCLGTK2}
-  Gtk2GetStewButtonIcon(aID,aRequestedWidth,aBitmap,aMask);
+  Gtk2GetGUIButtonIcon(aID,aRequestedWidth,aBitmap,aMask);
 {$ELSE}
 {$ERROR Required code is not yet written for this platform.}
 {$ENDIF}

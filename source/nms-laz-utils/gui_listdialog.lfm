@@ -9,7 +9,7 @@ object ListDialog: TListDialog
   ClientWidth = 284
   Position = poMainFormCenter
   LCLVersion = '1.2.6.0'
-  object CaptionLabel: TLabel
+  object MessageLabel: TLabel
     AnchorSideLeft.Control = Owner
     AnchorSideTop.Control = Owner
     AnchorSideRight.Control = Owner
@@ -22,7 +22,7 @@ object ListDialog: TListDialog
     BorderSpacing.Left = 20
     BorderSpacing.Top = 10
     BorderSpacing.Right = 20
-    Caption = 'Caption goes here...'
+    Caption = 'Message goes here...'
     ParentColor = False
   end
   object AcceptButton: TButton
@@ -66,7 +66,7 @@ object ListDialog: TListDialog
   end
   object ChoiceList: TListBox
     AnchorSideLeft.Control = Owner
-    AnchorSideTop.Control = CaptionLabel
+    AnchorSideTop.Control = MessageLabel
     AnchorSideTop.Side = asrBottom
     AnchorSideRight.Control = Owner
     AnchorSideRight.Side = asrBottom

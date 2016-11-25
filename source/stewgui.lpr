@@ -16,7 +16,7 @@ uses
   test_sys_localfile, gui_listdialog, sys_types, sys_versionsupport,
   sys_dynval_data, test_sys_dynval, gui_glyphs, sys_os, sys_dynval_json,
   sys_file, sys_dynval_data_implementation, test_sys_filecache, sys_localfile,
-  sys_async, test_sys_types;
+  sys_async, test_sys_types, gui_dialogs;
 
 {$R *.res}
 

@@ -11,6 +11,10 @@ uses
   stew_properties;
 
 type
+  // TODO: Okay, the button glyphs has to come back out of nms utils. It's
+  // actually stew-specific.
+
+
   {TODO: I really need to go through all of this code and change every procedure
   parameter to const when possible.
 
@@ -195,7 +199,7 @@ const
 implementation
 
 uses
-  gui_projectmanager, gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor, LCLProc, gui_listdialog, sys_localfile, gui_async, sys_versionsupport, math, sys_log, gui_glyphs;
+  gui_projectmanager, gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor, LCLProc, gui_dialogs, sys_localfile, gui_async, sys_versionsupport, math, sys_log, gui_glyphs;
 
 {$R *.lfm}
 
@@ -285,7 +289,7 @@ procedure TMainForm.DoChooseAttachment(Sender: TObject;
   Document: TDocumentPath; AttachmentName: String; aChoices: TStringArray;
   var Answer: Integer; out Accepted: Boolean);
 begin
-  Accepted := ChoiceQuery('There are multiple ' + AttachmentName + ' files on the disk for the document ' + Document.Name + '.' + LineEnding +
+  Accepted := ChoiceDialog('There are multiple ' + AttachmentName + ' files on the disk for the document ' + Document.Name + '.' + LineEnding +
                           'Please specify which one you would like to work with:', aChoices,Answer);
 end;
 
@@ -348,7 +352,7 @@ procedure TMainForm.DoChooseNewAttachmentTemplate(Sender: TObject;
   Document: TDocumentPath; AttachmentName: String; aChoices: TStringArray;
   var Answer: Integer; out Accepted: Boolean);
 begin
-  Accepted := ChoiceQuery('There are multiple templates available for your new ' + AttachmentName + ' file.' + LineEnding +
+  Accepted := ChoiceDialog('There are multiple templates available for your new ' + AttachmentName + ' file.' + LineEnding +
                           'Please specify which one you would like to use:', aChoices,Answer);
 end;
 
@@ -1152,12 +1156,12 @@ end;
 
 procedure TMainForm.SetupGlyphs;
 var
-  lGlyph: TStewButtonGlyph;
+  lGlyph: TGUIButtonGlyph;
   lBitmap: TCustomBitmap;
 begin
-  for lGlyph := Low(TStewButtonGlyph) to high(TStewButtonGlyph) do
+  for lGlyph := Low(TGUIButtonGlyph) to high(TGUIButtonGlyph) do
   begin
-    lBitmap := GetStewButtonIcon(lGlyph,ApplicationImages.Width);
+    lBitmap := GetGUIButtonIcon(lGlyph,ApplicationImages.Width);
     try
       ApplicationImages.Add(lBitmap,nil);
     finally

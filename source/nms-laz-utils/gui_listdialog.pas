@@ -14,13 +14,13 @@ type
   TListDialog = class(TForm)
     AcceptButton: TButton;
     CancelButton: TButton;
-    CaptionLabel: TLabel;
+    MessageLabel: TLabel;
     ChoiceList: TListBox;
   strict private
-    function GetCaption: String;
+    function GetMessage: String;
     function GetChoice: Integer;
     function GetChoices: TStringArray;
-    procedure SetCaption(AValue: String);
+    procedure SetMessage(AValue: String);
     procedure SetChoice(AValue: Integer);
     procedure SetChoices(AValue: TStringArray);
     { private declarations }
@@ -28,37 +28,20 @@ type
     { public declarations }
     property Choices: TStringArray read GetChoices write SetChoices;
     property Choice: Integer read GetChoice write SetChoice;
-    property Caption: String read GetCaption write SetCaption;
+    property Message: String read GetMessage write SetMessage;
     function Execute: Boolean;
   end;
 
-  function ChoiceQuery(aCaption: String; aChoices: TStringArray; var aChoice: Integer): Boolean;
 
 implementation
-
-function ChoiceQuery(aCaption: String; aChoices: TStringArray;
-  var aChoice: Integer): Boolean;
-begin
-  with TListDialog.Create(nil) do
-  try
-    Caption := aCaption;
-    Choices := aChoices;
-    Choice := aChoice;
-    Result := Execute;
-    if Result then
-       aChoice := Choice;
-  finally
-    FreeOnRelease;
-  end;
-end;
 
 {$R *.lfm}
 
 { TListDialog }
 
-function TListDialog.GetCaption: String;
+function TListDialog.GetMessage: String;
 begin
-  result := CaptionLabel.Caption;
+  result := MessageLabel.Caption;
 end;
 
 function TListDialog.GetChoice: Integer;
@@ -78,14 +61,17 @@ begin
 
 end;
 
-procedure TListDialog.SetCaption(AValue: String);
+procedure TListDialog.SetMessage(AValue: String);
 begin
-  CaptionLabel.Caption := AValue;
+  MessageLabel.Caption := AValue;
 end;
 
 procedure TListDialog.SetChoice(AValue: Integer);
 begin
-  ChoiceList.ItemIndex := AValue;
+  if (AValue < ChoiceList.Items.Count) then
+     ChoiceList.ItemIndex := AValue
+  else
+     ChoiceList.ItemIndex := -1;
 
 end;
 

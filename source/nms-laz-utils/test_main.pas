@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, RichMemo, Forms, Controls, Graphics, Dialogs,
-  ComCtrls, ExtCtrls, test_registry;
+  ComCtrls, ExtCtrls, Menus, test_registry;
 
 type
 
@@ -15,18 +15,19 @@ type
   TMainForm = class(TForm)
     MainToolbar: TToolBar;
     OutputMemo: TRichMemo;
+    OptionalTestsMenu: TPopupMenu;
     RunButton: TToolButton;
     CancelButton: TToolButton;
     CloseButton: TToolButton;
-    RunTesterTestsButton: TToolButton;
     MainStatusBar: TStatusBar;
     TimeoutCheckButton: TToolButton;
+    OptionalTestsButton: TToolButton;
     procedure CancelButtonClick(Sender: TObject);
     procedure CloseButtonClick(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure OptionalTestsClick(Sender: TObject);
     procedure RunButtonClick(Sender: TObject);
-    procedure RunTesterTestsButtonClick(Sender: TObject);
     procedure TestAlert(const {%H-}aSender: TObject; const aTestName: String;
       const aMessage: String);
     procedure TestFailed(const {%H-}aSender: TObject; const aTestName: String;
@@ -42,7 +43,7 @@ type
     { private declarations }
     fRegistry: TTestRegistry;
     fErrorCount: Integer;
-    procedure InitRegistry(aTestTester: Boolean);
+    procedure InitRegistry(aTest: TTestSpecClass);
     procedure StartTests({%H-}Data: PtrInt);
   public
     { public declarations }
@@ -56,17 +57,39 @@ var
 implementation
 
 uses
-  test_configuration,
-  test_test;
+  test_configuration;
 
 {$R *.lfm}
 
 { TMainForm }
 
 procedure TMainForm.FormShow(Sender: TObject);
+var
+  i: Longint;
+  lItem: TMenuItem;
 begin
+  if length(OptionalTests) > 0 then
+  begin
+    for i := 0 to Length(OptionalTests) - 1 do
+    begin
+      lItem := TMenuItem.Create(OptionalTestsMenu);
+      lItem.Caption := CalculateTestSpecName(OptionalTests[i]);
+      lItem.Tag := i;
+      lItem.OnClick:=@OptionalTestsClick;
+      OptionalTestsMenu.Items.Add(lItem);
+    end;
+  end
+  else
+  {%H-}begin
+    OptionalTestsButton.Visible := false;
+  end;
   Application.QueueAsyncCall(@StartTests,0);
 
+end;
+
+procedure TMainForm.OptionalTestsClick(Sender: TObject);
+begin
+  Application.QueueAsyncCall(@StartTests,(Sender as TMenuItem).Tag + 1);
 end;
 
 procedure TMainForm.CancelButtonClick(Sender: TObject);
@@ -88,11 +111,6 @@ end;
 procedure TMainForm.RunButtonClick(Sender: TObject);
 begin
   StartTests(0);
-end;
-
-procedure TMainForm.RunTesterTestsButtonClick(Sender: TObject);
-begin
-  Application.QueueAsyncCall(@StartTests,1);
 end;
 
 procedure TMainForm.TestAlert(const aSender: TObject; const aTestName: String;
@@ -124,7 +142,7 @@ begin
   MainStatusBar.SimpleText := 'Found ' + IntToStr(fErrorCount) + ' Errors';
   CancelButton.Enabled := false;
   RunButton.Enabled := true;
-  RunTesterTestsButton.Enabled := true;
+  OptionalTestsButton.Enabled := true;
 end;
 
 procedure TMainForm.TestsException(Sender: TObject; E: Exception);
@@ -144,7 +162,7 @@ begin
   Log(aTestName + ' succeeded',mtInformation);
 end;
 
-procedure TMainForm.InitRegistry(aTestTester: Boolean);
+procedure TMainForm.InitRegistry(aTest: TTestSpecClass);
 var
   i: Integer;
 begin
@@ -157,13 +175,16 @@ begin
     fRegistry.OnSucceeded:=@TestSucceeded;
     fRegistry.OnException:=@TestsException;
     fRegistry.OnAsyncStarted:=@TestStarted;
+    fRegistry.OnInteractiveStarted:=@TestStarted;
     fRegistry.OnAlert:=@TestAlert;
     fRegistry.OnMessage:=@TestMessage;
     fRegistry.Timeout := 5000;
   end;
   fRegistry.ClearTests;
-  if aTestTester then
-     fRegistry.AddTests(TTesterSpec)
+  if aTest <> nil then
+  begin
+    fRegistry.AddTests(aTest);
+  end
   else
   begin
     // Create the various test objects and register them
@@ -179,9 +200,16 @@ end;
 procedure TMainForm.StartTests(Data: PtrInt);
 begin
   RunButton.Enabled := false;
-  RunTesterTestsButton.Enabled := false;
+  OptionalTestsButton.Enabled := false;
   CancelButton.Enabled := true;
-  InitRegistry(Data = 1);
+  if Data = 0 then
+  begin
+    InitRegistry(nil);
+  end
+  else
+  begin
+    InitRegistry(OptionalTests[Data - 1]);
+  end;
   Log('Starting Tests',mtCustom);
   MainStatusBar.SimpleText := 'Running Tests...';
   fErrorCount := 0;

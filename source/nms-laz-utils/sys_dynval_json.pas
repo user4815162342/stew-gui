@@ -5,7 +5,7 @@ unit sys_dynval_json;
 interface
 
 uses
-  Classes, SysUtils, sys_dynval, jsonscanner, sys_json;
+  Classes, SysUtils, sys_dynval, jsonscanner;
 
 type
 
@@ -87,10 +87,6 @@ function ToJSON(const aObject: IDynamicValue; const aIndent: Word = 0): UTF8Stri
 function FromJSON(const aStream: TStream): IDynamicValue;
 function FromJSON(const aString: UTF8String): IDynamicValue;
 
-function ToOldJSONValue(const aValue: IDynamicValue): TJSValue;
-function ToOldJSONValue(const aClass: TJSValueClass; const aValue: IDynamicValue): TJSValue;
-function FromOldJSONValue(const aValue: TJSValue): IDynamicValue;
-
 const
   NullText: UTF8String = 'null';
   TrueText: UTF8String = 'true';
@@ -152,32 +148,6 @@ begin
     lStream.Free;
   end;
 
-end;
-
-function ToOldJSONValue(const aValue: IDynamicValue): TJSValue;
-begin
-  if aValue <> nil then
-     result := sys_json.FromJSON(ToJSON(aValue,0))
-  else
-     result := nil;
-end;
-
-function ToOldJSONValue(const aClass: TJSValueClass; const aValue: IDynamicValue
-  ): TJSValue;
-begin
-  if aValue <> nil then
-     result := sys_json.FromJSON(aClass,ToJSON(aValue,0))
-  else
-     result := nil;
-
-end;
-
-function FromOldJSONValue(const aValue: TJSValue): IDynamicValue;
-begin
-  if aValue <> nil then
-     result := FromJSON(sys_json.ToJSON(aValue))
-  else
-     result := nil;
 end;
 
 { TJSONReader }
