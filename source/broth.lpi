@@ -47,12 +47,12 @@
         <UnitName Value="gui_commonmarkeditor"/>
       </Unit1>
       <Unit2>
-        <Filename Value="broth_main.pas"/>
+        <Filename Value="broth_mainform.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="MainForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <UnitName Value="broth_main"/>
+        <UnitName Value="broth_mainform"/>
       </Unit2>
     </Units>
   </ProjectOptions>

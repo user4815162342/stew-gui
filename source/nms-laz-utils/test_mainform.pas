@@ -1,4 +1,4 @@
-unit test_main;
+unit test_mainform;
 
 {$mode objfpc}{$H+}
 

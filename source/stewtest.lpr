@@ -12,7 +12,8 @@ uses
   test_test, test_sys_types, test_sys_localfile, test_sys_filecache_local,
   test_sys_filecache, test_sys_file, test_sys_dynval, test_sys_async,
   test_registry, test_longstringmap, test_configuration, sys_async, sys_dynval,
-  sys_file, sys_filecache, sys_localfile, sys_types, test_main, test_dialogs,
+  sys_file, sys_filecache, sys_localfile, sys_types,
+test_mainform, test_dialogs,
   gui_dialogs;
 
 {$R *.res}

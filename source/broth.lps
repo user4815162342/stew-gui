@@ -22,17 +22,17 @@
         <Loaded Value="True"/>
       </Unit1>
       <Unit2>
-        <Filename Value="broth_main.pas"/>
+        <Filename Value="broth_mainform.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="MainForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <UnitName Value="broth_main"/>
+        <UnitName Value="broth_mainform"/>
         <IsVisibleTab Value="True"/>
         <EditorIndex Value="5"/>
         <WindowIndex Value="0"/>
         <TopLine Value="1"/>
-        <CursorPos X="27" Y="10"/>
+        <CursorPos X="16" Y="17"/>
         <UsageCount Value="20"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -211,7 +211,7 @@
     <General>
       <ActiveWindowIndexAtStart Value="0"/>
     </General>
-    <JumpHistory Count="30" HistoryIndex="29">
+    <JumpHistory Count="29" HistoryIndex="28">
       <Position1>
         <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
         <Caret Line="4016" Column="27" TopLine="3999"/>
@@ -328,10 +328,6 @@
         <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
         <Caret Line="2011" Column="27" TopLine="1999"/>
       </Position29>
-      <Position30>
-        <Filename Value="broth_main.pas"/>
-        <Caret Line="1" Column="1" TopLine="1"/>
-      </Position30>
     </JumpHistory>
   </ProjectSession>
   <EditorMacros Count="0"/>
