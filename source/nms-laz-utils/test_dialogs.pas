@@ -56,7 +56,7 @@ end;
 procedure TDialogsSpec.Test_MessageDialog;
 begin
   BeginInteractive;
-  MessageDialog('This is just a simple message',mtWarning,'Oh no!');
+  MessageDialog('Message Dialog','This is just a simple message',mtWarning,'Oh no!');
 end;
 
 procedure TDialogsSpec.Test_AboutDialog;
@@ -76,8 +76,8 @@ begin
   lList[1] := 'Choice B';
   lList[2] := 'Choice III';
   lResult := 2;
-  if ChoiceDialog('Choose one',lList,lResult) then
-     MessageDialog(lList[lResult]);
+  if ChoiceDialog('Choice Dialog','Choose one',lList,lResult) then
+     MessageDialog('Choice Dialog Result',lList[lResult]);
 
 end;
 

@@ -84,7 +84,7 @@ type
 implementation
 
 uses
-  Dialogs, sys_types, sys_json, sys_log, gui_glyphs, sys_dynval, sys_dynval_json;
+  Dialogs, sys_types, sys_log, gui_glyphs, sys_dynval, sys_dynval_json;
 
 {$R *.lfm}
 
@@ -122,13 +122,13 @@ begin
 
   if MainForm.Project <> nil then
   begin
-     MainForm.ShowMessage('The old file will be backed up first.',TMsgDlgType.mtInformation,'Got it');
+     MainForm.MessageDialog('The old file will be backed up first.',TMsgDlgType.mtInformation,'Got it');
      MainForm.Project.WriteDocumentProperties(Document,lProps,true).After(@WriteData_PropertiesWritten)
   end
   else
   begin
     // This is really an error message...
-    MainForm.ShowMessage('Properties can''t be saved, the project has closed.',mtError,'Sigh');
+    MainForm.MessageDialog('Properties can''t be saved, the project has closed.',mtError,'Sigh');
     ClearData;
   end;
 
@@ -150,7 +150,7 @@ begin
      else
      begin
        // This is really an error message...
-       MainForm.ShowMessage('Synopsis can''t be saved, the project has closed.',mtError,'Sigh');
+       MainForm.MessageDialog('Synopsis can''t be saved, the project has closed.',mtError,'Sigh');
        ClearData;
      end;
   end
@@ -602,7 +602,7 @@ begin
     NOTE: See gui_projectsettingseditor for notes on convention breakage here.
     }
 
-    result := MainForm.MessageDialog('You are about to lose your changes to "' + Document.Name + '".' + LineEnding +
+    result := MainForm.ButtonDialog('You are about to lose your changes to "' + Document.Name + '".' + LineEnding +
                'Are you sure you want to close it?',mtWarning,mbYesNo,['Close Without Saving','Don''t Close']) = mrYes;
   end
   else

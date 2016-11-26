@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, Menus,
-  ExtCtrls, Buttons, ComCtrls, StdCtrls, stew_project, fgl, gui_config, contnrs,
+  ExtCtrls, Buttons, ComCtrls, stew_project, fgl, gui_config, contnrs,
   simpleipc, gui_editorframe, sys_types, sys_async, sys_file, sys_os,
   stew_properties;
 
@@ -144,7 +144,6 @@ type
     procedure WriteUISettings;
     procedure LayoutFrames;
     function FindFrameForDocument(aDocument: TDocumentPath): TEditorFrame;
-    function MessageDialog(const Title: String; const Message: String; DlgType: TMsgDlgType; Buttons: TMsgDlgButtons; ButtonCaptions: Array of String): Integer;
     procedure UpdateStatus(aProps: IProjectProperties);
     procedure ResizeStatusPanels;
     procedure SetupGlyphs;
@@ -158,13 +157,14 @@ type
     procedure Unobserve(aObserver: TMainFormObserverHandler);
     function IsDocumentOpen(aDocument: TDocumentPath): Boolean;
     procedure RequestTabClose(aFrame: TEditorFrame);
-    // Creates a Message Dialog according to our UI standards, which includes:
-    // - using the form's title as the dialog caption
-    // - allowing custom captions on the buttons, which gives the user a better
-    // idea about what they are choosing.
-    function MessageDialog(const Message: String; DlgType: TMsgDlgType; Buttons: TMsgDlgButtons; ButtonCaptions: Array of String): Integer;
-    procedure ShowMessage(const Message: String; DlgType: TMsgDlgType;
-      AcceptCaption: String);
+    procedure MessageDialog(const aMessage: String;
+              aDlgType: TMsgDlgType = mtInformation;
+              aAcceptCaption: String = 'Got it');
+    function ButtonDialog(const aMessage: String;
+              aDlgType: TMsgDlgType = mtInformation;
+              aButtons: TMsgDlgButtons = [mbOk];
+              aButtonCaptions: array of String): Integer;
+    function ChoiceDialog(const aCaption: String; const aChoices: TStringArray; var aChoice: Integer): Boolean;
     // NOTE: I've made these public to make it easier to 'extend' the application,
     // but these layout functions really should only be used during app initialization
     // for now.
@@ -265,13 +265,8 @@ end;
 { TMainForm }
 
 procedure TMainForm.AboutMenuItemClick(Sender: TObject);
-var
-  lAboutText: TAboutText;
 begin
-  lAboutText := GetAboutText(Application);
-  MessageDialog(lAboutText.Title,lAboutText.Copyright + LineEnding +
-                               lAboutText.Description + LineEnding +
-                               lAboutText.BuildInfo,mtCustom,[mbOK],['Thanks for Using This Program!']);
+  AboutDialog;
 end;
 
 procedure TMainForm.CloseTimeoutTimerTimer(Sender: TObject);
@@ -310,7 +305,7 @@ begin
   lPath := (Sender as TProjectPromise).Path;
   if fProject = nil then
   begin
-     if MessageDialog('No stew project could be found.' + LineEnding +
+     if ButtonDialog('No stew project could be found.' + LineEnding +
                 'Would you like to create one at: ' + lPath.ID + '?',mtConfirmation,mbYesNo,['Create New Stew Project','Open a Different Project']) =
         mrYes then
      begin;
@@ -334,7 +329,7 @@ begin
   end
   else
   begin
-     ShowMessage('Found a project at: ' + fProject.DiskPath.ID,mtConfirmation,'Okay, Open It');
+     MessageDialog('Found a project at: ' + fProject.DiskPath.ID,mtConfirmation,'Okay, Open It');
      InitializeProject;
   end;
 
@@ -342,7 +337,7 @@ end;
 
 procedure TMainForm.ProjectOpenFailed(Sender: TPromise; Error: TPromiseError);
 begin
-  ShowMessage('The project couldn''t be loaded.' + LineEnding +
+  MessageDialog('The project couldn''t be loaded.' + LineEnding +
               'The error message was: ' + Error + LineEnding +
               'This program will close.',mtError,'Sigh');
   Close;
@@ -360,7 +355,7 @@ procedure TMainForm.DoConfirmNewAttachment(Sender: TObject;
   Document: TDocumentPath; AttachmentName: String; out Answer: Boolean);
 begin
   Answer :=
-    MessageDialog('The ' + AttachmentName + ' file for this document does not exist.' + LineEnding +
+    ButtonDialog('The ' + AttachmentName + ' file for this document does not exist.' + LineEnding +
                'Do you wish to create a new file?',mtConfirmation,mbYesNo,['Create the File','Cancel this Action']) = mrYes;
 end;
 
@@ -536,7 +531,7 @@ begin
     on E: Exception do
     begin
       LogException('Loading Configuration in TMainForm',E);
-      ShowMessage('The settings file could not be loaded for some reason.' + LineEnding +
+      MessageDialog('The settings file could not be loaded for some reason.' + LineEnding +
                   'The Error Message Was: ' + E.Message + LineEnding +
                   'Default settings will be used, and the current settings will be overwritten.',mtError,'Sigh');
     end;
@@ -710,7 +705,7 @@ begin
     lMessage := lMessage + LineEnding;
     lMessage := lMessage + (Event as TProjectError).Error + LineEnding;
   end;
-  ShowMessage(lMessage +
+  MessageDialog(lMessage +
              'You may want to restart the program, or wait and try your task again later',mtError,'Sigh');
 end;
 
@@ -983,76 +978,24 @@ begin
   MainForm.DocumentTabCloseRequested(aFrame);
 end;
 
-
-type
-  // This is used as a trick in order to access a protected method on the buttons
-  // in message dialog. This is actually a case where that protected method, which
-  // really doesn't make any changes to the object, doesn't need to be protected
-  // in my opinion, so I'm willing to do this.
-  TButtonAccess = class(TBitBtn);
-
-function TMainForm.MessageDialog(const Title: String; const Message: String;
-  DlgType: TMsgDlgType; Buttons: TMsgDlgButtons; ButtonCaptions: array of String
-  ): Integer;
-var
-  lMsgdlg: TForm;
-  i: Integer;
-  lButton: TBitBtn;
-  lCaptionindex: Integer;
-  lLastButton: TBitBtn;
-  lButtonWidth: Integer = 0;
-  lButtonHeight: Integer = 0;
+procedure TMainForm.MessageDialog(const aMessage: String;
+  aDlgType: TMsgDlgType; aAcceptCaption: String);
 begin
-  // inspired by: http://stackoverflow.com/a/18620157/300213
-  // Except that was written for delphi, and lazarus seems to work differently...
-  // Basically, we have to assign different captions after creating the
-  // dialog itself. In the stack overflow comment, they just assign the captions.
-  // However, in Lazarus, that does not change the button widths, and the captions
-  // get cut off. So, I have to do that, as well as align the buttons appropriately.
-
-  lMsgdlg := createMessageDialog(Message, DlgType, Buttons);
-  try
-     lMsgdlg.Caption := Title;
-     lMsgdlg.BiDiMode := Self.BiDiMode;
-     lCaptionindex := Length(ButtonCaptions) - 1;
-     lLastButton := nil;
-
-     // Basically, we're working backwards, because we need to justify
-     // the buttons to the right (although if BiDiMode is right to left,
-     // do I need to change that?), which means that I need to start with
-     // the rightmost button (which is the last button added) and go on to
-     // the left.
-     for i := lMsgdlg.componentcount - 1 downto 0 Do
-     begin
-       if (lMsgdlg.components[i] is TCustomButton) then
-       Begin
-         lButton := TBitBtn(lMsgdlg.components[i]);
-         if lCaptionindex >= 0 then
-         begin
-           // Yes, No
-           lButton.Caption := ButtonCaptions[lCaptionindex];
-           TButtonAccess(lButton).CalculatePreferredSize(lButtonWidth,lButtonHeight,true);
-           lButton.Width := lButtonWidth + 10;
-           if lLastButton <> nil then
-           begin
-             lButton.Left := (lLastButton.Left - 10) - lButton.Width;
-           end
-           else
-           begin
-             lButton.Left := (lMsgdlg.ClientWidth - 10) - lButton.Width;
-           end;
-
-           lLastButton := lButton;
-         end;
-         dec(lCaptionindex);
-       end
-     end;
-     Result := lMsgdlg.Showmodal;
-
-  finally
-    lMsgdlg.Free;
-  end;
+  gui_dialogs.MessageDialog(Self.Caption,aMessage,aDlgType,aAcceptCaption);
 end;
+
+function TMainForm.ButtonDialog(const aMessage: String; aDlgType: TMsgDlgType;
+  aButtons: TMsgDlgButtons; aButtonCaptions: array of String): Integer;
+begin
+  result := gui_dialogs.ButtonDialog(Self.Caption,aMessage,aDlgType,aButtons,aButtonCaptions);
+end;
+
+function TMainForm.ChoiceDialog(const aCaption: String;
+  const aChoices: TStringArray; var aChoice: Integer): Boolean;
+begin
+  result := gui_dialogs.ChoiceDialog(Self.Caption,aCaption,aChoices,aChoice);
+end;
+
 
 procedure TMainForm.UpdateStatus(aProps: IProjectProperties);
 
@@ -1177,17 +1120,6 @@ begin
   RefreshProjectMenuItem.ImageIndex := ord(sbgRefresh);
   ProjectSettingsMenuItem.ImageIndex := ord(sbgProperties);
   AboutMenuItem.ImageIndex := ord(sbgAbout);
-end;
-
-function TMainForm.MessageDialog(const Message: String; DlgType: TMsgDlgType;
-  Buttons: TMsgDlgButtons; ButtonCaptions: array of String): Integer;
-begin
-  result := MessageDialog(Self.Caption,Message,DlgType,Buttons,ButtonCaptions);
-end;
-
-procedure TMainForm.ShowMessage(const Message: String; DlgType: TMsgDlgType; AcceptCaption: String);
-begin
-  MessageDialog(Message,DlgType,[mbOK],[AcceptCaption]);
 end;
 
 function TMainForm.LayoutFrame(aFrameClass: TControlClass; aLocation: TAlign

@@ -329,13 +329,13 @@ begin
   if MainForm.Project <> nil then
   begin
     // TODO: Get rid of the backup once we're sure...
-    MainForm.ShowMessage('The old file will be backed up first.',TMsgDlgType.mtInformation,'Got it');
+    MainForm.MessageDialog('The old file will be backed up first.',TMsgDlgType.mtInformation,'Got it');
     MainForm.Project.WriteProjectProperties(lProps,true).After(@WriteData_Written);
   end
   else
   begin
     // This is really an error message...
-    MainForm.ShowMessage('Properties can''t be saved, the project has closed.',mtError,'Sigh');
+    MainForm.MessageDialog('Properties can''t be saved, the project has closed.',mtError,'Sigh');
     ClearData;
   end;
 
@@ -1006,7 +1006,7 @@ begin
 
     }
 
-    result := MainForm.MessageDialog('You are about to lose your changes to the project settings.' + LineEnding +
+    result := MainForm.ButtonDialog('You are about to lose your changes to the project settings.' + LineEnding +
                'Are you sure you want to close?',mtWarning,mbYesNo,['Close Without Saving','Don''t Close']) = mrYes;
   end
   else

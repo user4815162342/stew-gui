@@ -13,21 +13,12 @@ function ButtonDialog(const aTitle: String;
   aDlgType: TMsgDlgType = mtInformation;
   aButtons: TMsgDlgButtons = [mbOk];
   aButtonCaptions: array of String): Integer;
-function ButtonDialog(const aMessage: String;
-  aDlgType: TMsgDlgType = mtInformation;
-  aButtons: TMsgDlgButtons = [mbOk];
-  aButtonCaptions: array of String): Integer;
-
 procedure MessageDialog(const aTitle: String;
   const aMessage: String;
   aDlgType: TMsgDlgType = mtInformation;
   aAcceptCaption: String = 'Got it');
-procedure MessageDialog(const aMessage: String;
-  aDlgType: TMsgDlgType = mtInformation;
-  aAcceptCaption: String = 'Got it');
 procedure AboutDialog;
 function ChoiceDialog(const aTitle: String; const aCaption: String; const aChoices: TStringArray; var aChoice: Integer): Boolean;
-function ChoiceDialog(const aCaption: String; const aChoices: TStringArray; var aChoice: Integer): Boolean;
 
 
 
