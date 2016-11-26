@@ -1,4 +1,4 @@
-unit gui_commonmarkeditor;
+unit cm_gui_editor;
 
 {$mode objfpc}{$H+}
 
@@ -28,9 +28,11 @@ uses
 constructor TCommonMarkEditor.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
-  // TODO: These need to be assigned from a styler, I think.
+  // TODO: Do these need to be assigned from a style set of some sort?
+  // TODO: The font, at least, should be configurable.
   Color := clWindow;
   Font.Color := clWindowText;
+  Font.Name:='Courier 10 Pitch';
   // TODO: Also need to change some of the control colors:
   // SelectedColor
   // IncrementColor

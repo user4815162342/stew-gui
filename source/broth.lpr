@@ -7,7 +7,7 @@ uses
   cthreads,
   {$ENDIF}{$ENDIF}
   Interfaces, // this includes the LCL widgetset
-  Forms, gui_commonmarkeditor, broth_mainform
+  Forms, gui_commonmark_editor, broth_mainform, gui_commonmark_highlighter
   { you can add units after this };
 
 {$R *.res}

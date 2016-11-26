@@ -3,22 +3,22 @@
   <ProjectSession>
     <Version Value="9"/>
     <BuildModes Active="Default"/>
-    <Units Count="21">
+    <Units Count="33">
       <Unit0>
         <Filename Value="broth.lpr"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="broth"/>
-        <UsageCount Value="67"/>
+        <UsageCount Value="69"/>
       </Unit0>
       <Unit1>
-        <Filename Value="gui_commonmarkeditor.pas"/>
+        <Filename Value="gui_commonmark_editor.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="gui_commonmarkeditor"/>
-        <EditorIndex Value="2"/>
+        <UnitName Value="gui_commonmark_editor"/>
+        <EditorIndex Value="0"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="33"/>
-        <CursorPos X="1" Y="34"/>
-        <UsageCount Value="65"/>
+        <TopLine Value="9"/>
+        <CursorPos X="41" Y="21"/>
+        <UsageCount Value="67"/>
         <Loaded Value="True"/>
       </Unit1>
       <Unit2>
@@ -29,13 +29,12 @@
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="broth_mainform"/>
         <IsVisibleTab Value="True"/>
-        <EditorIndex Value="5"/>
+        <EditorIndex Value="2"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="1"/>
-        <CursorPos X="16" Y="17"/>
-        <UsageCount Value="20"/>
+        <TopLine Value="93"/>
+        <CursorPos X="58" Y="110"/>
+        <UsageCount Value="22"/>
         <Loaded Value="True"/>
-        <LoadedDesigner Value="True"/>
       </Unit2>
       <Unit3>
         <Filename Value="gui_main.pas"/>
@@ -59,71 +58,61 @@
       <Unit5>
         <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
         <UnitName Value="SynEdit"/>
-        <EditorIndex Value="6"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="1999"/>
-        <CursorPos X="27" Y="2012"/>
-        <UsageCount Value="31"/>
-        <Loaded Value="True"/>
+        <TopLine Value="4189"/>
+        <CursorPos X="1" Y="4201"/>
+        <UsageCount Value="32"/>
       </Unit5>
       <Unit6>
         <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedithighlighter.pp"/>
         <UnitName Value="SynEditHighlighter"/>
-        <EditorIndex Value="12"/>
+        <EditorIndex Value="11"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="329"/>
-        <CursorPos X="43" Y="337"/>
-        <UsageCount Value="31"/>
+        <TopLine Value="145"/>
+        <CursorPos X="3" Y="114"/>
+        <UsageCount Value="32"/>
         <Loaded Value="True"/>
       </Unit6>
       <Unit7>
         <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedittextbase.pas"/>
         <UnitName Value="SynEditTextBase"/>
-        <EditorIndex Value="14"/>
         <WindowIndex Value="0"/>
         <TopLine Value="857"/>
         <CursorPos X="3" Y="861"/>
-        <UsageCount Value="31"/>
-        <Loaded Value="True"/>
+        <UsageCount Value="32"/>
       </Unit7>
       <Unit8>
         <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/lazsynedittext.pas"/>
         <UnitName Value="LazSynEditText"/>
-        <EditorIndex Value="11"/>
         <WindowIndex Value="0"/>
         <TopLine Value="375"/>
         <CursorPos X="22" Y="386"/>
-        <UsageCount Value="31"/>
-        <Loaded Value="True"/>
+        <UsageCount Value="32"/>
       </Unit8>
       <Unit9>
         <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedittextbuffer.pp"/>
         <UnitName Value="SynEditTextBuffer"/>
-        <EditorIndex Value="10"/>
         <WindowIndex Value="0"/>
         <TopLine Value="75"/>
         <CursorPos X="23" Y="85"/>
-        <UsageCount Value="31"/>
-        <Loaded Value="True"/>
+        <UsageCount Value="32"/>
       </Unit9>
       <Unit10>
         <Filename Value="/usr/share/fpcsrc/2.6.4/rtl/objpas/classes/classesh.inc"/>
-        <EditorIndex Value="15"/>
+        <EditorIndex Value="12"/>
         <WindowIndex Value="0"/>
         <TopLine Value="425"/>
         <CursorPos X="3" Y="429"/>
-        <UsageCount Value="31"/>
+        <UsageCount Value="32"/>
         <Loaded Value="True"/>
       </Unit10>
       <Unit11>
         <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/syneditmarkup.pp"/>
         <UnitName Value="SynEditMarkup"/>
-        <EditorIndex Value="7"/>
         <WindowIndex Value="0"/>
         <TopLine Value="512"/>
         <CursorPos X="3" Y="515"/>
-        <UsageCount Value="29"/>
-        <Loaded Value="True"/>
+        <UsageCount Value="30"/>
       </Unit11>
       <Unit12>
         <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedittypes.pp"/>
@@ -136,198 +125,205 @@
       <Unit13>
         <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/syneditmiscclasses.pp"/>
         <UnitName Value="SynEditMiscClasses"/>
-        <EditorIndex Value="3"/>
+        <EditorIndex Value="9"/>
         <WindowIndex Value="0"/>
         <TopLine Value="121"/>
         <CursorPos X="50" Y="137"/>
-        <UsageCount Value="29"/>
+        <UsageCount Value="30"/>
         <Loaded Value="True"/>
       </Unit13>
       <Unit14>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/graphics.pp"/>
         <UnitName Value="Graphics"/>
-        <EditorIndex Value="13"/>
         <WindowIndex Value="0"/>
         <TopLine Value="54"/>
         <CursorPos X="3" Y="64"/>
-        <UsageCount Value="31"/>
-        <Loaded Value="True"/>
+        <UsageCount Value="32"/>
       </Unit14>
       <Unit15>
         <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedithighlighterfoldbase.pas"/>
         <UnitName Value="SynEditHighlighterFoldBase"/>
-        <EditorIndex Value="4"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="260"/>
-        <CursorPos X="15" Y="278"/>
-        <UsageCount Value="29"/>
-        <Loaded Value="True"/>
+        <TopLine Value="51"/>
+        <CursorPos X="6" Y="53"/>
+        <UsageCount Value="30"/>
       </Unit15>
       <Unit16>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/extctrls.pp"/>
         <UnitName Value="ExtCtrls"/>
-        <EditorIndex Value="0"/>
         <WindowIndex Value="0"/>
         <TopLine Value="383"/>
         <CursorPos X="46" Y="395"/>
-        <UsageCount Value="11"/>
-        <Loaded Value="True"/>
+        <UsageCount Value="12"/>
       </Unit16>
       <Unit17>
         <Filename Value="/usr/share/lazarus/1.2.6/lcl/include/customsplitter.inc"/>
-        <EditorIndex Value="1"/>
         <WindowIndex Value="0"/>
         <TopLine Value="386"/>
         <CursorPos X="43" Y="389"/>
-        <UsageCount Value="11"/>
-        <Loaded Value="True"/>
+        <UsageCount Value="12"/>
       </Unit17>
       <Unit18>
         <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/syneditmarks.pp"/>
         <UnitName Value="SynEditMarks"/>
-        <EditorIndex Value="9"/>
         <WindowIndex Value="0"/>
         <TopLine Value="82"/>
         <CursorPos X="18" Y="1"/>
-        <UsageCount Value="10"/>
-        <Loaded Value="True"/>
+        <UsageCount Value="11"/>
       </Unit18>
       <Unit19>
         <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synbeautifier.pas"/>
         <UnitName Value="SynBeautifier"/>
-        <EditorIndex Value="8"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="93"/>
+        <TopLine Value="90"/>
         <CursorPos X="3" Y="90"/>
-        <UsageCount Value="10"/>
-        <Loaded Value="True"/>
+        <UsageCount Value="11"/>
       </Unit19>
       <Unit20>
         <Filename Value="broth_main.lfm"/>
         <UsageCount Value="20"/>
         <DefaultSyntaxHighlighter Value="LFM"/>
       </Unit20>
+      <Unit21>
+        <Filename Value="../test-data/commonmark-spec-0.27.md"/>
+        <EditorIndex Value="10"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="41" Y="15"/>
+        <UsageCount Value="21"/>
+        <Loaded Value="True"/>
+        <DefaultSyntaxHighlighter Value="None"/>
+      </Unit21>
+      <Unit22>
+        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/syneditlines.pas"/>
+        <UnitName Value="SynEditLines"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="161"/>
+        <CursorPos X="1" Y="171"/>
+        <UsageCount Value="10"/>
+      </Unit22>
+      <Unit23>
+        <Filename Value="/usr/share/lazarus/1.2.6/components/lazutils/unixlazfileutils.inc"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="136"/>
+        <CursorPos X="1" Y="152"/>
+        <UsageCount Value="10"/>
+      </Unit23>
+      <Unit24>
+        <Filename Value="/usr/share/lazarus/1.2.6/components/lazutils/lazutf8classes.pas"/>
+        <UnitName Value="LazUTF8Classes"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="89"/>
+        <CursorPos X="49" Y="105"/>
+        <UsageCount Value="10"/>
+      </Unit24>
+      <Unit25>
+        <Filename Value="/usr/share/lazarus/1.2.6/lcl/include/customform.inc"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1000"/>
+        <CursorPos X="1" Y="1011"/>
+        <UsageCount Value="10"/>
+      </Unit25>
+      <Unit26>
+        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synhighlighterxml.pas"/>
+        <UnitName Value="SynHighlighterXML"/>
+        <EditorIndex Value="7"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="686"/>
+        <CursorPos X="3" Y="691"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+      </Unit26>
+      <Unit27>
+        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedithighlighterxmlbase.pas"/>
+        <UnitName Value="SynEditHighlighterXMLBase"/>
+        <EditorIndex Value="8"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="68"/>
+        <CursorPos X="15" Y="77"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+      </Unit27>
+      <Unit28>
+        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synhighlightercss.pas"/>
+        <UnitName Value="SynHighlighterCss"/>
+        <EditorIndex Value="6"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="61"/>
+        <CursorPos X="1" Y="61"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+      </Unit28>
+      <Unit29>
+        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synhighlighterany.pas"/>
+        <UnitName Value="SynHighlighterAny"/>
+        <EditorIndex Value="5"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="71"/>
+        <CursorPos X="1" Y="71"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+      </Unit29>
+      <Unit30>
+        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synhighlighterini.pas"/>
+        <UnitName Value="SynHighlighterIni"/>
+        <EditorIndex Value="4"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="51"/>
+        <CursorPos X="1" Y="51"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+      </Unit30>
+      <Unit31>
+        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synhighlighterdiff.pas"/>
+        <UnitName Value="SynHighlighterDiff"/>
+        <EditorIndex Value="3"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="24"/>
+        <CursorPos X="49" Y="38"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+      </Unit31>
+      <Unit32>
+        <Filename Value="gui_commonmark_highlighter.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="gui_commonmark_highlighter"/>
+        <EditorIndex Value="1"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="49" Y="9"/>
+        <UsageCount Value="21"/>
+        <Loaded Value="True"/>
+      </Unit32>
     </Units>
     <General>
       <ActiveWindowIndexAtStart Value="0"/>
     </General>
-    <JumpHistory Count="29" HistoryIndex="28">
+    <JumpHistory Count="6" HistoryIndex="5">
       <Position1>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="4016" Column="27" TopLine="3999"/>
+        <Filename Value="../test-data/commonmark-spec-0.27.md"/>
+        <Caret Line="15" Column="41" TopLine="1"/>
       </Position1>
       <Position2>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="4173" Column="27" TopLine="4156"/>
+        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synhighlighterxml.pas"/>
+        <Caret Line="105" Column="35" TopLine="97"/>
       </Position2>
       <Position3>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="4265" Column="27" TopLine="4248"/>
+        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synhighlighterxml.pas"/>
+        <Caret Line="200" Column="36" TopLine="189"/>
       </Position3>
       <Position4>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="4800" Column="21" TopLine="4783"/>
+        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedithighlighterxmlbase.pas"/>
+        <Caret Line="61" Column="41" TopLine="51"/>
       </Position4>
       <Position5>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="4812" Column="19" TopLine="4796"/>
+        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synhighlighterxml.pas"/>
+        <Caret Line="107" Column="19" TopLine="97"/>
       </Position5>
       <Position6>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="4960" Column="19" TopLine="4944"/>
+        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synhighlighterxml.pas"/>
+        <Caret Line="797" Column="13" TopLine="789"/>
       </Position6>
-      <Position7>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="4966" Column="19" TopLine="4950"/>
-      </Position7>
-      <Position8>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="5432" Column="51" TopLine="5416"/>
-      </Position8>
-      <Position9>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="5433" Column="31" TopLine="5417"/>
-      </Position9>
-      <Position10>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="5434" Column="53" TopLine="5418"/>
-      </Position10>
-      <Position11>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="5572" Column="59" TopLine="5556"/>
-      </Position11>
-      <Position12>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="5573" Column="31" TopLine="5557"/>
-      </Position12>
-      <Position13>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="5574" Column="61" TopLine="5558"/>
-      </Position13>
-      <Position14>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="7589" Column="19" TopLine="7573"/>
-      </Position14>
-      <Position15>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="7780" Column="19" TopLine="7763"/>
-      </Position15>
-      <Position16>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="452" Column="19" TopLine="444"/>
-      </Position16>
-      <Position17>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="2007" Column="17" TopLine="1991"/>
-      </Position17>
-      <Position18>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="2008" Column="27" TopLine="1992"/>
-      </Position18>
-      <Position19>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="2009" Column="27" TopLine="1993"/>
-      </Position19>
-      <Position20>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="2010" Column="27" TopLine="1994"/>
-      </Position20>
-      <Position21>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="2011" Column="27" TopLine="1995"/>
-      </Position21>
-      <Position22>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="2012" Column="27" TopLine="1996"/>
-      </Position22>
-      <Position23>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="2013" Column="27" TopLine="1997"/>
-      </Position23>
-      <Position24>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="2014" Column="27" TopLine="1998"/>
-      </Position24>
-      <Position25>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="2015" Column="27" TopLine="1999"/>
-      </Position25>
-      <Position26>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="2008" Column="27" TopLine="1999"/>
-      </Position26>
-      <Position27>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="2009" Column="27" TopLine="1999"/>
-      </Position27>
-      <Position28>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="2010" Column="27" TopLine="1999"/>
-      </Position28>
-      <Position29>
-        <Filename Value="/usr/share/lazarus/1.2.6/components/synedit/synedit.pp"/>
-        <Caret Line="2011" Column="27" TopLine="1999"/>
-      </Position29>
     </JumpHistory>
   </ProjectSession>
   <EditorMacros Count="0"/>

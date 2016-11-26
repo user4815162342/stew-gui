@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, SynEdit, Forms, Controls, Graphics, Dialogs,
-  ExtCtrls, ComCtrls, Menus, gui_commonmarkeditor;
+  ExtCtrls, ComCtrls, Menus, gui_commonmark_editor, gui_commonmark_highlighter;
 
 type
   { The goal of this application is to be a simple one-window-per-file
@@ -84,6 +84,7 @@ type
   private
     { private declarations }
     fCommonMarkEditor: TCommonMarkEditor;
+    fCommonMarkHighlighter: TCommonMarkHighlighter;
     fRightSidebarWidth: Longint;
     fLeftSidebarWidth: Longint;
     fFooterHeight: Longint;
@@ -102,9 +103,11 @@ implementation
 
 procedure TMainForm.FormCreate(Sender: TObject);
 begin
+  fCommonMarkHighlighter := TCommonMarkHighlighter.Create(Self);
   fCommonMarkEditor := TCommonMarkEditor.Create(Self);
   fCommonMarkEditor.Align := alClient;
   fCommonMarkEditor.Parent := MainEditorTab;
+  fCommonMarkEditor.Highlighter := fCommonMarkHighlighter;
 end;
 
 procedure TMainForm.FileExitMenuItemClick(Sender: TObject);
@@ -127,6 +130,10 @@ begin
   ViewRightSidebarMenuItemClick(nil);
   ViewLeftSidebarMenuItemClick(nil);
   ViewFooterMenuItemClick(nil);
+
+  // Now, load any files from the command line:
+  if Paramcount > 0 then
+     fCommonMarkEditor.Lines.LoadFromFile(ExpandFileNameUTF8(ParamStr(1)));
 end;
 
 procedure TMainForm.ViewFooterMenuItemClick(Sender: TObject);

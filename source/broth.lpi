@@ -25,6 +25,7 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
+        <CommandLineParams Value="../test-data/commonmark-spec-0.27.md"/>
       </local>
     </RunParams>
     <RequiredPackages Count="2">
@@ -35,16 +36,16 @@
         <PackageName Value="LCL"/>
       </Item2>
     </RequiredPackages>
-    <Units Count="3">
+    <Units Count="4">
       <Unit0>
         <Filename Value="broth.lpr"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="broth"/>
       </Unit0>
       <Unit1>
-        <Filename Value="gui_commonmarkeditor.pas"/>
+        <Filename Value="gui_commonmark_editor.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="gui_commonmarkeditor"/>
+        <UnitName Value="gui_commonmark_editor"/>
       </Unit1>
       <Unit2>
         <Filename Value="broth_mainform.pas"/>
@@ -54,6 +55,11 @@
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="broth_mainform"/>
       </Unit2>
+      <Unit3>
+        <Filename Value="gui_commonmark_highlighter.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="gui_commonmark_highlighter"/>
+      </Unit3>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
