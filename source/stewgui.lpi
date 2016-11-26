@@ -17,7 +17,7 @@
       <UseVersionInfo Value="True"/>
       <AutoIncrementBuild Value="True"/>
       <MinorVersionNr Value="1"/>
-      <BuildNr Value="127"/>
+      <BuildNr Value="128"/>
       <StringTable CompanyName="Town's Edge Technology, LLC" FileDescription="A manuscript management and notekeeping tool." LegalCopyright="Copyright © 2015 Neil M. Sheldon" ProductName="Stew" ProductVersion="0.1"/>
     </VersionInfo>
     <BuildModes Count="1">
@@ -46,12 +46,12 @@
         <UnitName Value="stewgui"/>
       </Unit0>
       <Unit1>
-        <Filename Value="gui_mainform.pas"/>
+        <Filename Value="stew_mainform.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="MainForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-        <UnitName Value="gui_mainform"/>
+        <UnitName Value="stew_mainform"/>
       </Unit1>
       <Unit2>
         <Filename Value="stew_project.pas"/>

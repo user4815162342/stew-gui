@@ -5,7 +5,7 @@ unit gui_projectmanager;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, ComCtrls, stew_project, gui_mainform, stew_properties, graphics, fgl, sys_async;
+  Classes, SysUtils, FileUtil, Forms, Controls, ComCtrls, stew_project, stew_mainform, stew_properties, graphics, fgl, sys_async;
 
 type
 

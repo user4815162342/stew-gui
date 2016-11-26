@@ -7,7 +7,7 @@ uses
   cthreads,
   {$ENDIF}{$ENDIF}
   Interfaces, // this includes the LCL widgetset
-  Forms, gui_mainform, stew_project, gui_projectmanager, gui_config,
+  Forms, stew_mainform, stew_project, gui_projectmanager, gui_config,
   gui_documenteditor, gui_preferenceseditor, gui_projectsettingseditor,
   gui_editorframe, stew_properties, stew_properties_implementation,
   gui_config_implementation, gui_async, test_sys_file,

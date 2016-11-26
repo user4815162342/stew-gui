@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, StdCtrls, ExtCtrls, ComCtrls,
-  stew_project, gui_editorframe, gui_jsoneditor, gui_mainform, stew_properties, sys_async;
+  stew_project, gui_editorframe, gui_jsoneditor, stew_mainform, stew_properties, sys_async;
 
 type
 

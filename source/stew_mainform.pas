@@ -1,4 +1,4 @@
-unit gui_mainform;
+unit stew_mainform;
 
 {$mode objfpc}{$H+}
 

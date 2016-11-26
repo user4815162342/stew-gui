@@ -47,7 +47,7 @@ type
 implementation
 
 uses
-  gui_mainform, sys_log, gui_glyphs;
+  stew_mainform, sys_log, gui_glyphs;
 
 {$R *.lfm}
 
