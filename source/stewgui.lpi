@@ -17,7 +17,7 @@
       <UseVersionInfo Value="True"/>
       <AutoIncrementBuild Value="True"/>
       <MinorVersionNr Value="1"/>
-      <BuildNr Value="125"/>
+      <BuildNr Value="127"/>
       <StringTable CompanyName="Town's Edge Technology, LLC" FileDescription="A manuscript management and notekeeping tool." LegalCopyright="Copyright © 2015 Neil M. Sheldon" ProductName="Stew" ProductVersion="0.1"/>
     </VersionInfo>
     <BuildModes Count="1">
@@ -155,7 +155,7 @@
         <UnitName Value="sys_filecache"/>
       </Unit18>
       <Unit19>
-        <Filename Value="nms-laz-utils/gui_gtk2_glyphs.pas"/>
+        <Filename Value="gui_gtk2_glyphs.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="gui_gtk2_glyphs"/>
       </Unit19>
@@ -201,7 +201,7 @@
         <UnitName Value="test_sys_dynval"/>
       </Unit27>
       <Unit28>
-        <Filename Value="nms-laz-utils/gui_glyphs.pas"/>
+        <Filename Value="gui_glyphs.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="gui_glyphs"/>
       </Unit28>

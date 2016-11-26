@@ -11,9 +11,6 @@ uses
   stew_properties;
 
 type
-  // TODO: Okay, the button glyphs has to come back out of nms utils. It's
-  // actually stew-specific.
-
 
   {TODO: I really need to go through all of this code and change every procedure
   parameter to const when possible.
