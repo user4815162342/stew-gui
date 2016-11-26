@@ -1,0 +1,130 @@
+object MainForm: TMainForm
+  Left = 286
+  Height = 462
+  Top = 175
+  Width = 670
+  Caption = 'MainForm'
+  ClientHeight = 438
+  ClientWidth = 670
+  Menu = MainMenu
+  OnCreate = FormCreate
+  OnShow = FormShow
+  LCLVersion = '1.2.6.0'
+  object LeftSidebarPanel: TPanel
+    Left = 0
+    Height = 383
+    Top = 0
+    Width = 50
+    Align = alLeft
+    TabOrder = 0
+  end
+  object LeftSidebarSplitter: TSplitter
+    Left = 50
+    Height = 383
+    Top = 0
+    Width = 5
+    ParentColor = False
+  end
+  object RightSidebarPanel: TPanel
+    Left = 620
+    Height = 383
+    Top = 0
+    Width = 50
+    Align = alRight
+    TabOrder = 2
+  end
+  object RightSidebarSplitter: TSplitter
+    Left = 615
+    Height = 383
+    Top = 0
+    Width = 5
+    Align = alRight
+    ResizeAnchor = akRight
+  end
+  object FooterPanel: TPanel
+    Left = 0
+    Height = 50
+    Top = 388
+    Width = 670
+    Align = alBottom
+    TabOrder = 4
+  end
+  object FooterSplitter: TSplitter
+    Cursor = crVSplit
+    Left = 0
+    Height = 5
+    Top = 383
+    Width = 670
+    Align = alBottom
+    ResizeAnchor = akBottom
+  end
+  object MainPageControl: TPageControl
+    Left = 55
+    Height = 383
+    Top = 0
+    Width = 560
+    ActivePage = MainEditorTab
+    Align = alClient
+    TabIndex = 0
+    TabOrder = 6
+    object MainEditorTab: TTabSheet
+      Caption = 'Editor'
+    end
+    object MainGridTab: TTabSheet
+      Caption = 'Grid'
+    end
+  end
+  object MainMenu: TMainMenu
+    left = 584
+    object FileMenuItem: TMenuItem
+      Caption = 'File'
+      object FileOpenMenuItem: TMenuItem
+        Caption = 'Open'
+      end
+      object FileNewMenuItem: TMenuItem
+        Caption = 'New'
+      end
+      object FileSaveMenuItem: TMenuItem
+        Caption = 'Save'
+      end
+      object Separator1: TMenuItem
+        Caption = '-'
+      end
+      object FileExitMenuItem: TMenuItem
+        Caption = 'Exit'
+        OnClick = FileExitMenuItemClick
+      end
+    end
+    object EditMenuItem: TMenuItem
+      Caption = 'Edit'
+    end
+    object SearchMenuItem: TMenuItem
+      Caption = 'Search'
+    end
+    object ViewMenuItem: TMenuItem
+      Caption = 'View'
+      object ViewLeftSidebarMenuItem: TMenuItem
+        AutoCheck = True
+        Caption = 'Navigator'
+        OnClick = ViewLeftSidebarMenuItemClick
+      end
+      object ViewRightSidebarMenuItem: TMenuItem
+        AutoCheck = True
+        Caption = 'Properties'
+        OnClick = ViewRightSidebarMenuItemClick
+      end
+      object ViewFooterMenuItem: TMenuItem
+        AutoCheck = True
+        Caption = 'Highlighter Log'
+        Checked = True
+        OnClick = ViewFooterMenuItemClick
+      end
+    end
+    object ToolsMenuItem: TMenuItem
+      Caption = 'Tools'
+    end
+    object HelpMenuItem: TMenuItem
+      Caption = 'Help'
+    end
+  end
+end
