@@ -1,4 +1,4 @@
-unit broth_main;
+unit broth_mainform;
 
 {$mode objfpc}{$H+}
 
