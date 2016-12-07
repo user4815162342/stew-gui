@@ -16,3 +16,6 @@ source/stewtest.lps
 source/stewtest.lpi
 test-data/story-working/
 source/nms-laz-utils/backup
+source/commonmark-utils/backup
+test-data/backup
+source/brothmark-utils/backup

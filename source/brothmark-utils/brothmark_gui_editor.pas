@@ -1,4 +1,4 @@
-unit cm_gui_editor;
+unit brothmark_gui_editor;
 
 {$mode objfpc}{$H+}
 
@@ -11,7 +11,7 @@ type
 
   { TMarkdownEditor }
 
-  TCommonMarkEditor = class(TSynEdit)
+  TBrothMarkEditor = class(TSynEdit)
   public
     constructor Create(AOwner: TComponent); override;
   end;
@@ -25,7 +25,7 @@ uses
 
 { TMarkdownEditor }
 
-constructor TCommonMarkEditor.Create(AOwner: TComponent);
+constructor TBrothMarkEditor.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
   // TODO: Do these need to be assigned from a style set of some sort?

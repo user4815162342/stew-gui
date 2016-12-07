@@ -6,35 +6,35 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, SynEdit, Forms, Controls, Graphics, Dialogs,
-  ExtCtrls, ComCtrls, Menus, gui_commonmark_editor, gui_commonmark_highlighter;
+  ExtCtrls, ComCtrls, Menus, brothmark_gui_editor, brothmark_gui_highlighter, SynEditHighlighter;
 
 type
   { The goal of this application is to be a simple one-window-per-file
-    editor for CommonMark Markdown files, and a test bed for those controls.
+    editor for BrothMark Markdown files, and a test bed for those controls.
     The controls created here should be easy to pull into Stew so that it looks
     like its embedding the functionality from broth onto tabs to edit markdown
     documents.
   }
 
   // TODO: Okay.... Here's what I need to create:
-  // - CommonMarkEditor: A SynEditor that manages itself as a decent editor with
+  // - BrothMarkEditor: A SynEditor that manages itself as a decent editor with
   //   appropriate default behavior for editing Markdown for novels. It also provides
-  //   default styles for displaying the text. And, it contains a CommonMarkMap (below).
+  //   default styles for displaying the text. And, it contains a BrothMarkMap (below).
   //   (When the buffer changes, or the highlighter, the Map has to change).
-  // - CommonMarkHighlighter: A SynEditFoldHighlighter that knows how to highlight
+  // - BrothMarkHighlighter: A SynEditFoldHighlighter that knows how to highlight
   //   Markdown in appropriate tokens, the ranges are foldable ranges and can
   //   be used to build a map (see the Navigator)
-  // - CommonMarkLog: A listview or memo that reports events going on in the highlighter.
+  // - BrothMarkLog: A listview or memo that reports events going on in the highlighter.
   //   This is going to be useful for working on the Navigator.
-  // - CommonMarkNavigator: A TreeView that connects to a CommonMarkEditor and updates
+  // - BrothMarkNavigator: A TreeView that connects to a BrothMarkEditor and updates
   //   a sort of "map" of the file based on changes to the ranges made by the
-  //   CommonMarkHighlighter, and the text values at the lines referenced in those
-  //   ranges. The Navigator will only display if the Editor has a CommonMarkHighlighter.
+  //   BrothMarkHighlighter, and the text values at the lines referenced in those
+  //   ranges. The Navigator will only display if the Editor has a BrothMarkHighlighter.
   //   It should automatically reconnect itself if the Editor's buffer is switched to
   //   a different one, or if the highlighter changes (these events appear to be
   //   on the lines buffer).
-  // - CommonMarkPropertyManager: A component which connects to a CommonMarkEditor,
-  //   and uses the current cursor position and the Ranges created by a CommonMarkHighlighter
+  // - BrothMarkPropertyManager: A component which connects to a BrothMarkEditor,
+  //   and uses the current cursor position and the Ranges created by a BrothMarkHighlighter
   //   to update properties of the current section.
 
   // TODO: Maintaining the navigator and the property manager:
@@ -83,8 +83,8 @@ type
     procedure ViewRightSidebarMenuItemClick(Sender: TObject);
   private
     { private declarations }
-    fCommonMarkEditor: TCommonMarkEditor;
-    fCommonMarkHighlighter: TCommonMarkHighlighter;
+    fBrothMarkEditor: TBrothMarkEditor;
+    fBrothMarkHighlighter: TBrothMarkHighlighter; // TODO: Make this type specific
     fRightSidebarWidth: Longint;
     fLeftSidebarWidth: Longint;
     fFooterHeight: Longint;
@@ -97,17 +97,21 @@ var
 
 implementation
 
+uses
+  SynHighlighterDiff;
+
 {$R *.lfm}
 
 { TMainForm }
 
 procedure TMainForm.FormCreate(Sender: TObject);
 begin
-  fCommonMarkHighlighter := TCommonMarkHighlighter.Create(Self);
-  fCommonMarkEditor := TCommonMarkEditor.Create(Self);
-  fCommonMarkEditor.Align := alClient;
-  fCommonMarkEditor.Parent := MainEditorTab;
-  fCommonMarkEditor.Highlighter := fCommonMarkHighlighter;
+  fBrothMarkHighlighter := TBrothMarkHighlighter.Create(Self);
+  fBrothMarkEditor := TBrothMarkEditor.Create(Self);
+  fBrothMarkEditor.Align := alClient;
+  fBrothMarkEditor.Parent := MainEditorTab;
+  // TODO: Once I figure out the speed problems, this should go here.
+  //fBrothMarkEditor.Highlighter := fBrothMarkHighlighter;
 end;
 
 procedure TMainForm.FileExitMenuItemClick(Sender: TObject);
@@ -133,7 +137,8 @@ begin
 
   // Now, load any files from the command line:
   if Paramcount > 0 then
-     fCommonMarkEditor.Lines.LoadFromFile(ExpandFileNameUTF8(ParamStr(1)));
+     fBrothMarkEditor.Lines.LoadFromFile(ExpandFileNameUTF8(ParamStr(1)));
+  fBrothMarkEditor.Highlighter := fBrothMarkHighlighter;
 end;
 
 procedure TMainForm.ViewFooterMenuItemClick(Sender: TObject);

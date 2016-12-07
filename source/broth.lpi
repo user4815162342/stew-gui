@@ -25,7 +25,7 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
-        <CommandLineParams Value="../test-data/commonmark-spec-0.27.md"/>
+        <CommandLineParams Value="../test-data/brothmark-spec-0.1.md"/>
       </local>
     </RunParams>
     <RequiredPackages Count="2">
@@ -36,16 +36,16 @@
         <PackageName Value="LCL"/>
       </Item2>
     </RequiredPackages>
-    <Units Count="4">
+    <Units Count="5">
       <Unit0>
         <Filename Value="broth.lpr"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="broth"/>
       </Unit0>
       <Unit1>
-        <Filename Value="gui_commonmark_editor.pas"/>
+        <Filename Value="brothmark-utils/brothmark_gui_editor.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="gui_commonmark_editor"/>
+        <UnitName Value="brothmark_gui_editor"/>
       </Unit1>
       <Unit2>
         <Filename Value="broth_mainform.pas"/>
@@ -56,10 +56,15 @@
         <UnitName Value="broth_mainform"/>
       </Unit2>
       <Unit3>
-        <Filename Value="gui_commonmark_highlighter.pas"/>
+        <Filename Value="brothmark-utils/brothmark_gui_highlighter.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="gui_commonmark_highlighter"/>
+        <UnitName Value="brothmark_gui_highlighter"/>
       </Unit3>
+      <Unit4>
+        <Filename Value="brothmark-utils/brothmark_sys_parser.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="brothmark_sys_parser"/>
+      </Unit4>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -69,6 +74,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
+      <OtherUnitFiles Value="commonmark-utils;brothmark-utils"/>
       <UnitOutputDirectory Value="../units"/>
     </SearchPaths>
     <Linking>
