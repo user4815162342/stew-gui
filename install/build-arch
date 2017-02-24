@@ -1,0 +1,6 @@
+#!/bin/sh
+cd arch
+makepkg -cs
+echo "Moving distributables to where they should be..."
+mv stew-gui-linux-*-*-*.pkg.tar.xz ../../distributable/
+cd -

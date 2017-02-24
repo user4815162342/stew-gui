@@ -1,0 +1,56 @@
+# This is an example PKGBUILD file. Use this as a start to creating your own,
+# and remove these comments. For more information, see 'man PKGBUILD'.
+# NOTE: Please fill out the license field for your package! If it is unknown,
+# then please put 'unknown'.
+
+# Maintainer: Your Name <youremail@domain.com>
+pkgname=stew-gui-linux
+pkgver=0.1.0.113
+pkgrel=1
+epoch=
+pkgdesc="Manuscript organization and management tool."
+arch=('x86_64')
+url="https://github.com/user4815162342/stew-gui"
+license=('GPL')
+groups=()
+# Depends: libpango1.0-0 (>= 1.14.0), libx11-6
+depends=('xdg-utils' 'xdg-user-dirs' 'atk' 'glibc' 'cairo' 'gdk-pixbuf2' 'glib2' 'gtk2' 'pango' 'libx11')
+makedepends=()
+checkdepends=()
+optdepends=()
+provides=()
+conflicts=()
+replaces=()
+backup=()
+options=()
+#install=
+#changelog=
+# From original debian control file:
+# Since makepkg doesn't like these outside of the directory, I've created symlinks for the files in the correct directory format...
+source=("stew-gui"
+"icon-16x16.png"
+"icon-24x24.png"
+"icon-32x32.png"
+"icon-48x48.png"
+"icon-64x64.png"
+"icon-128x128.png"
+"icon-256x256.png"
+"icon-512x512.png"
+"Stew.desktop")
+noextract=("${source[@]%%::*}")
+md5sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+#validpgpkeys=()
+
+package() {
+        install -Dm755 'stew-gui' "${pkgdir}/usr/bin/stew-gui"
+        install -Dm644 'icon-16x16.png' "${pkgdir}/usr/share/icons/hicolor/16x16/apps/stew-gui.png"
+        install -Dm644 'icon-24x24.png' "${pkgdir}/usr/share/icons/hicolor/24x24/apps/stew-gui.png"
+        install -Dm644 'icon-32x32.png' "${pkgdir}/usr/share/icons/hicolor/32x32/apps/stew-gui.png"
+        install -Dm644 'icon-48x48.png' "${pkgdir}/usr/share/icons/hicolor/48x48/apps/stew-gui.png"
+        install -Dm644 'icon-64x64.png' "${pkgdir}/usr/share/icons/hicolor/64x64/apps/stew-gui.png"
+        install -Dm644 'icon-128x128.png' "${pkgdir}/usr/share/icons/hicolor/128x128/apps/stew-gui.png"
+        install -Dm644 'icon-256x256.png' "${pkgdir}/usr/share/icons/hicolor/256x256/apps/stew-gui.png"
+        install -Dm644 'icon-512x512.png' "${pkgdir}/usr/share/icons/hicolor/512x512/apps/stew-gui.png"
+        install -Dm644 'icon-128x128.png' "${pkgdir}/usr/share/pixmaps/stew-gui.png"
+        install -Dm644 'Stew.desktop' "${pkgdir}/usr/share/applications/Stew.desktop"
+}
